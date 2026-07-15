@@ -1,0 +1,31 @@
+.split-pane {
+  position: relative;
+}
+
+.split-pane-first,
+.split-pane-second {
+  position: relative;
+}
+
+.split-pane-handle {
+  position: relative;
+  background: #333;
+  flex-shrink: 0;
+  z-index: 10;
+  transition: background-color 0.15s ease;
+}
+
+.split-pane-handle:hover,
+.split-pane-handle-active {
+  background: #007acc;
+}
+
+.split-pane-handle-horizontal {
+  cursor: col-resize;
+  width: 5px;
+}
+
+.split-pane-handle-vertical {
+  cursor: row-resize;
+  height: 5px;
+}

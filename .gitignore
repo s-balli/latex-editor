@@ -1,0 +1,54 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# PyInstaller
+build/
+dist/
+
+# PDF ciktilari
+*.pdf
+
+# LaTeX yardimci dosyalar
+*.aux
+*.log
+*.toc
+*.out
+*.vrb
+*.nav
+*.snm
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+
+# Test/sample dosyalar
+media/
+template/
+crash_log.txt
+
+# Node
+node_modules/
+.vite/
+
+# Gereksiz
+last commit.txt
+
+# Sadece lokalde tutulur, repoya commit edilmez
+LINKEDIN_POST.md
+SURUM_REHBERI.md
+CHANGELOG.md
+LLM_INTEGRATION_PLAN.md
+latex_notlar.md
+
+# Geçici yedek (squash öncesi güvenlik kopyası)
+tmp/
+
+# AppImage build
+.venv-build/
+appimagetool
+appimagetool_extracted/
+squashfs-root/
+
+# UPX binary (kullanıcı kendisi indirmeli — README'ye bakın)
+desktop/upx/upx.exe

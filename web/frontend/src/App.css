@@ -1,0 +1,27 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  background: #1e1e1e;
+  color: #cccccc;
+  overflow: hidden;
+}
+
+.editor-area {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  cursor: default;
+}
+
+.empty-editor {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #555;
+  font-size: 24px;
+  user-select: none;
+}

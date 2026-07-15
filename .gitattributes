@@ -1,0 +1,15 @@
+# Shell scripts — always LF (CRLF breaks bash in WSL/Linux)
+*.sh text eol=lf
+
+# Windows batch files — keep CRLF
+*.bat text eol=crlf
+
+# Python/JS/TS — platform default (git handles)
+*.py text
+*.js text
+*.ts text
+*.tsx text
+*.yml text
+*.yaml text
+*.md text
+*.spec text eol=lf

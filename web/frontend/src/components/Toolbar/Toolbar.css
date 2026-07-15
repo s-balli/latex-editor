@@ -1,0 +1,140 @@
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 40px;
+  padding: 0 8px;
+  background: #2d2d2d;
+  border-bottom: 1px solid #3c3c3c;
+  gap: 8px;
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* --- Buttons --- */
+.toolbar-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  background: #3c3c3c;
+  color: #ccc;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+
+.toolbar-btn:hover {
+  background: #505050;
+  color: #fff;
+}
+
+.toolbar-btn:active {
+  background: #5a5a5a;
+}
+
+.toolbar-btn:focus-visible {
+  outline: 2px solid #0078d4;
+  outline-offset: -2px;
+}
+
+.toolbar-btn svg {
+  flex-shrink: 0;
+}
+
+/* Compiling state */
+.toolbar-btn--compiling {
+  color: #f0c040;
+}
+
+/* Spinning animation */
+.toolbar-spinner {
+  animation: toolbar-spin 1s linear infinite;
+}
+
+@keyframes toolbar-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* --- Engine select --- */
+.toolbar-engine-select {
+  padding: 4px 6px;
+  background: #3c3c3c;
+  color: #ccc;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: 'Consolas', 'Menlo', 'Courier New', monospace;
+  cursor: pointer;
+  outline: none;
+  transition: background 0.15s;
+}
+
+.toolbar-engine-select:hover {
+  background: #505050;
+  color: #fff;
+}
+
+.toolbar-engine-select:focus-visible {
+  outline: 2px solid #0078d4;
+  outline-offset: -2px;
+}
+
+.toolbar-engine-select option {
+  background: #3c3c3c;
+  color: #ccc;
+}
+
+/* --- Auto-compile toggle --- */
+.toolbar-auto-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  background: transparent;
+  color: #888;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+
+.toolbar-auto-toggle:hover {
+  background: #3c3c3c;
+}
+
+.toolbar-auto-toggle:focus-visible {
+  outline: 2px solid #0078d4;
+  outline-offset: -2px;
+}
+
+.toolbar-auto-toggle--on {
+  color: #4ec94e;
+}
+
+.toggle-indicator {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.toggle-indicator--on {
+  color: #4ec94e;
+}
+
+.toggle-indicator--off {
+  color: #888;
+}

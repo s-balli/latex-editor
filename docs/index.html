@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en" data-lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LaTeX Editor: <span class="en">lightweight desktop LaTeX editor with live PDF preview</span><span class="tr">canlı PDF önizlemeli hafif LaTeX editörü</span></title>
+  <meta name="description" content="Open-source desktop LaTeX editor (GPL-3.0): live PDF preview, SyncTeX, lualatex/pdflatex, 7 themes, Turkish/English UI. Handles Turkish-character issues in IEEE/ASYU templates and Overleaf-imported projects. Windows + Linux." />
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="assets/01.png" />
+</head>
+<body>
+  <!-- ===== NAV ===== -->
+  <header class="nav">
+    <a class="brand" href="#top">
+      <span class="brand-mark">L<span class="brand-tex">a</span>T<span class="brand-tex">e</span>X</span>
+      <span class="brand-name"><span class="en">Editor</span><span class="tr">Editör</span></span>
+    </a>
+    <nav class="nav-actions">
+      <button id="lang-toggle" class="lang-toggle" type="button" aria-label="Toggle language">TR</button>
+      <a class="ghost-btn" href="https://github.com/s-balli/latex-editor" target="_blank" rel="noopener">
+        <span class="en">GitHub</span><span class="tr">GitHub</span>
+      </a>
+      <a class="primary-btn" href="https://github.com/s-balli/latex-editor/releases">
+        <span class="en">Download</span><span class="tr">İndir</span>
+      </a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <!-- ===== HERO ===== -->
+    <section class="hero">
+      <div class="hero-text">
+        <h1>
+          <span class="en">A lightweight LaTeX editor with live PDF preview</span>
+          <span class="tr">Canlı PDF önizlemeli hafif bir LaTeX editörü</span>
+        </h1>
+        <p class="lead">
+          <span class="en">Edit, compile, and preview in one desktop app, with SyncTeX, offline use, and Turkish-character support built in.</span>
+          <span class="tr">Düzenle, derle ve önizle; tek masaüstü uygulamasında SyncTeX, offline kullanım ve Türkçe karakter desteği yerleşik.</span>
+        </p>
+        <div class="hero-cta">
+          <a class="primary-btn lg" href="https://github.com/s-balli/latex-editor/releases">
+            <span class="en">↓ Download</span><span class="tr">↓ İndir</span>
+          </a>
+          <a class="ghost-btn lg" href="https://github.com/s-balli/latex-editor" target="_blank" rel="noopener">
+            <span class="en">View on GitHub</span><span class="tr">GitHub'da gör</span>
+          </a>
+        </div>
+        <div class="badges">
+          <img alt="License" src="https://img.shields.io/github/license/s-balli/latex-editor?style=flat-square" />
+          <img alt="Version" src="https://img.shields.io/badge/version-1.0.1-green?style=flat-square" />
+          <img alt="CI" src="https://img.shields.io/github/actions/workflow/status/s-balli/latex-editor/ci.yml?branch=main&label=CI&style=flat-square" />
+        </div>
+      </div>
+      <div class="hero-media">
+        <img class="hero-img" src="assets/01.png" alt="LaTeX Editor main window: editor with syntax highlighting and live PDF preview" loading="lazy" />
+      </div>
+    </section>
+
+    <!-- ===== SYNCTEX SPOTLIGHT ===== -->
+    <section class="section spotlight">
+      <div class="spotlight-text">
+        <h2 class="section-title"><span class="en">SyncTeX, built in</span><span class="tr">Yerleşik SyncTeX</span></h2>
+        <p class="lead">
+          <span class="en">Click a line in the editor and the PDF jumps to it, even across pages. Click the PDF and the editor jumps back to that exact source line. The Overleaf feature you like, but offline and on your desktop.</span>
+          <span class="tr">Editörde bir satıra tıkla, PDF o konuma (sayfalar arası bile) zıplasın. PDF'e tıkla, editör tam o kaynak satıra geri dönsün. Overleaf'teki o sevdiğin özellik; ama offline ve masaüstünde.</span>
+        </p>
+        <ul class="check-list">
+          <li><span class="en">Forward sync: source → PDF</span><span class="tr">İleri sync: kaynak → PDF</span></li>
+          <li><span class="en">Inverse sync: PDF → source</span><span class="tr">Geri sync: PDF → kaynak</span></li>
+          <li><span class="en">Works across multi-page documents</span><span class="tr">Çok sayfalı belgelerde çalışır</span></li>
+        </ul>
+      </div>
+      <div class="spotlight-media">
+        <img src="assets/ss1.gif" alt="SyncTeX demo" loading="lazy" />
+      </div>
+    </section>
+
+    <!-- ===== DIFFERENTIATORS ===== -->
+    <section class="section">
+      <h2 class="section-title"><span class="en">Why this editor</span><span class="tr">Neden bu editör</span></h2>
+      <div class="card-grid grid-4">
+        <article class="card diff">
+          <div class="diff-icon">ş&nbsp;ğ&nbsp;ı</div>
+          <h3><span class="en">Turkish-character friendly</span><span class="tr">Türkçe karakter dostu</span></h3>
+          <p><span class="en">Handles ş, ğ, ı encoding issues that break compilation in IEEE/ASYU-style templates.</span><span class="tr">IEEE/ASYU tarzı şablonlarda derlemeyi bozan ş, ğ, ı kodlama sorununu çözer.</span></p>
+        </article>
+        <article class="card diff">
+          <div class="diff-icon">↻</div>
+          <h3><span class="en">From Overleaf to local</span><span class="tr">Overleaf'ten yerel ortama</span></h3>
+          <p><span class="en">Auto-fixes projects downloaded from Overleaf so they compile on your machine.</span><span class="tr">Overleaf'ten indirilen projeleri otomatik düzeltir; yerelde derlenir.</span></p>
+        </article>
+        <article class="card diff">
+          <div class="diff-icon">↔</div>
+          <h3>SyncTeX</h3>
+          <p><span class="en">Ctrl-click a source line → jump to the PDF. Ctrl-click the PDF → jump back. Even across pages.</span><span class="tr">Kaynak satıra Ctrl-tıkla → PDF'e geç. PDF'e Ctrl-tıkla → geri dön. Sayfalar arası bile.</span></p>
+        </article>
+        <article class="card diff">
+          <div class="diff-icon">⚡</div>
+          <h3><span class="en">Offline &amp; lightweight</span><span class="tr">Offline &amp; hafif</span></h3>
+          <p><span class="en">A desktop app, not a browser tab. Works without internet; no Overleaf compile limits.</span><span class="tr">Tarayıcı sekmesi değil, masaüstü uygulaması. İnternetsiz çalışır; Overleaf derleme limiti yok.</span></p>
+        </article>
+      </div>
+    </section>
+
+    <!-- ===== FEATURES ===== -->
+    <section class="section">
+      <h2 class="section-title"><span class="en">Features</span><span class="tr">Özellikler</span></h2>
+      <div class="card-grid grid-auto">
+        <article class="card feat"><span class="feat-emoji">🎨</span><h3><span class="en">Syntax highlighting</span><span class="tr">Sözdizimi renklendirme</span></h3><p><span class="en">Commands, comments, math, environments.</span><span class="tr">Komutlar, yorumlar, matematik, ortamlar.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">👁</span><h3><span class="en">Live PDF preview</span><span class="tr">Canlı PDF önizleme</span></h3><p><span class="en">PDF in a side panel; save to compile.</span><span class="tr">Yan panelde PDF; kaydet, derle.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">⚡</span><h3><span class="en">Auto-compile</span><span class="tr">Otomatik derleme</span></h3><p><span class="en">Ctrl+S saves and compiles.</span><span class="tr">Ctrl+S kaydeder ve derler.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">🔧</span><h3><span class="en">Dual engine</span><span class="tr">Çift motor</span></h3><p><span class="en">lualatex (default) and pdflatex, auto-detected.</span><span class="tr">lualatex (öntanımlı) ve pdflatex, otomatik algılanır.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">📁</span><h3><span class="en">Project management</span><span class="tr">Proje yönetimi</span></h3><p><span class="en">Open a folder, file tree, multi-file tabs.</span><span class="tr">Klasör aç, dosya ağacı, çoklu sekme.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">⚠️</span><h3><span class="en">Error display</span><span class="tr">Hata görüntüleme</span></h3><p><span class="en">Errors and warnings in separate tabs.</span><span class="tr">Hatalar ve uyarılar ayrı sekmelerde.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">🌗</span><h3><span class="en">7 themes</span><span class="tr">7 tema</span></h3><p><span class="en">Dark, Light, Solarized, Dracula, Monokai, Nord, Gruvbox.</span><span class="tr">Koyu, Açık, Solarized, Dracula, Monokai, Nord, Gruvbox.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">🌐</span><h3><span class="en">TR / EN UI</span><span class="tr">TR / EN arayüz</span></h3><p><span class="en">Turkish and English interface.</span><span class="tr">Türkçe ve İngilizce arayüz.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">🔖</span><h3><span class="en">PDF bookmarks</span><span class="tr">PDF yer imleri</span></h3><p><span class="en">Section/heading structure in a side panel.</span><span class="tr">Bölüm/başlık yapısı yan panelde.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">🔎</span><h3><span class="en">PDF search</span><span class="tr">PDF arama</span></h3><p><span class="en">Ctrl+F text search with highlighting.</span><span class="tr">Ctrl+F metin arama, vurgulu.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">✋</span><h3><span class="en">Text selection</span><span class="tr">Metin seçme</span></h3><p><span class="en">Drag to select, Ctrl+C to copy.</span><span class="tr">Sürükle-seç, Ctrl+C ile kopyala.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">📖</span><h3><span class="en">Two-page view</span><span class="tr">İki sayfa görünümü</span></h3><p><span class="en">Side-by-side pages.</span><span class="tr">Yan yana sayfalar.</span></p></article>
+      </div>
+    </section>
+
+    <!-- ===== THEMES ===== -->
+    <section class="section">
+      <h2 class="section-title"><span class="en">7 built-in themes</span><span class="tr">7 yerleşik tema</span></h2>
+      <p class="section-sub"><span class="en">Pick the palette that fits your eyes.</span><span class="tr">Gözüne uygun paleti seç.</span></p>
+      <div class="card-grid grid-auto themes">
+        <article class="card theme"><div class="swatch swatch-dark"></div><h3><span class="en">Dark</span><span class="tr">Koyu</span></h3></article>
+        <article class="card theme"><div class="swatch swatch-light"></div><h3><span class="en">Light</span><span class="tr">Açık</span></h3></article>
+        <article class="card theme"><div class="swatch swatch-solarized"></div><h3><span class="en">Solarized Light</span><span class="tr">Solarized Açık</span></h3></article>
+        <article class="card theme"><div class="swatch swatch-dracula"></div><h3>Dracula</h3></article>
+        <article class="card theme"><div class="swatch swatch-monokai"></div><h3>Monokai</h3></article>
+        <article class="card theme"><div class="swatch swatch-nord"></div><h3>Nord</h3></article>
+        <article class="card theme"><div class="swatch swatch-gruvbox"></div><h3>Gruvbox</h3></article>
+      </div>
+    </section>
+
+    <!-- ===== DOWNLOAD / REQUIREMENTS ===== -->
+    <section class="section">
+      <h2 class="section-title"><span class="en">Get it</span><span class="tr">İndir</span></h2>
+      <div class="card-grid grid-2 download">
+        <article class="card dl">
+          <h3>🪟 Windows</h3>
+          <p><span class="en">Portable <code>.exe</code>. Requires <a href="https://learn.microsoft.com/en-us/windows/wsl/install" target="_blank" rel="noopener">WSL</a> + TeX Live for compilation.</span><span class="tr">Taşınabilir <code>.exe</code>. Derleme için <a href="https://learn.microsoft.com/en-us/windows/wsl/install" target="_blank" rel="noopener">WSL</a> + TeX Live gerekir.</span></p>
+          <a class="primary-btn" href="https://github.com/s-balli/latex-editor/releases"><span class="en">↓ Windows .exe</span><span class="tr">↓ Windows .exe</span></a>
+        </article>
+        <article class="card dl">
+          <h3>🐧 Linux</h3>
+          <p><span class="en"><code>.AppImage</code>. Requires TeX Live for compilation.</span><span class="tr"><code>.AppImage</code>. Derleme için TeX Live gerekir.</span></p>
+          <a class="primary-btn" href="https://github.com/s-balli/latex-editor/releases"><span class="en">↓ Linux AppImage</span><span class="tr">↓ Linux AppImage</span></a>
+        </article>
+      </div>
+      <p class="note"><span class="en">⚠ The download includes the GUI only. The LaTeX compiler (<code>lualatex</code>/<code>pdflatex</code>) is installed separately via TeX Live.</span><span class="tr">⚠ İndirme yalnızca arayüzü içerir. LaTeX derleyicisi (<code>lualatex</code>/<code>pdflatex</code>) TeX Live ile ayrıca kurulur.</span></p>
+    </section>
+
+    <!-- ===== SETUP ===== -->
+    <section class="section">
+      <h2 class="section-title"><span class="en">Setup</span><span class="tr">Kurulum</span></h2>
+      <p class="section-sub"><span class="en">The download is the GUI only: LaTeX compilation needs TeX Live. One-time setup:</span><span class="tr">İndirme yalnızca arayüzü içerir: LaTeX derlemesi için TeX Live gerekir. Tek seferlik kurulum:</span></p>
+      <div class="card-grid grid-2 setup">
+        <article class="card setup-col">
+          <h3>🪟 <span class="en">Windows (via WSL)</span><span class="tr">Windows (WSL ile)</span></h3>
+          <ol class="steps">
+            <li>
+              <span class="en">Install WSL: open <strong>PowerShell as Administrator</strong>, run, then restart:</span>
+              <span class="tr">WSL kur: <strong>PowerShell'i yönetici olarak</strong> aç, çalıştır, sonra yeniden başlat:</span>
+              <div class="cmd"><pre><code>wsl --install</code></pre><button class="copy-btn" type="button"><span class="en">Copy</span><span class="tr">Kopyala</span></button></div>
+            </li>
+            <li>
+              <span class="en">Open the Ubuntu app, then install TeX Live (large download, several GB):</span>
+              <span class="tr">Ubuntu uygulamasını aç, sonra TeX Live'ı kur (büyük indirme, birkaç GB):</span>
+              <div class="cmd"><pre><code>sudo apt-get install texlive-base texlive-binaries texlive-latex-base \
+  texlive-latex-extra texlive-latex-recommended texlive-lang-european texlive-luatex \
+  texlive-fonts-extra texlive-science texlive-bibtex-extra texlive-font-utils \
+  texlive-extra-utils biber texlive-publishers texlive-humanities texlive-pstricks pandoc</code></pre><button class="copy-btn" type="button"><span class="en">Copy</span><span class="tr">Kopyala</span></button></div>
+            </li>
+          </ol>
+        </article>
+        <article class="card setup-col">
+          <h3>🐧 <span class="en">Linux</span><span class="tr">Linux</span></h3>
+          <ol class="steps">
+            <li>
+              <span class="en">Install TeX Live (large download, several GB):</span>
+              <span class="tr">TeX Live'ı kur (büyük indirme, birkaç GB):</span>
+              <div class="cmd"><pre><code>sudo apt-get install texlive-base texlive-binaries texlive-latex-base \
+  texlive-latex-extra texlive-latex-recommended texlive-lang-european texlive-luatex \
+  texlive-fonts-extra texlive-science texlive-bibtex-extra texlive-font-utils \
+  texlive-extra-utils biber texlive-publishers texlive-humanities texlive-pstricks pandoc</code></pre><button class="copy-btn" type="button"><span class="en">Copy</span><span class="tr">Kopyala</span></button></div>
+            </li>
+            <li>
+              <span class="en">Make the downloaded AppImage executable:</span>
+              <span class="tr">İndirdiğin AppImage'ı çalıştırılabilir yap:</span>
+              <div class="cmd"><pre><code>chmod +x LaTeX_Editor_*.AppImage</code></pre><button class="copy-btn" type="button"><span class="en">Copy</span><span class="tr">Kopyala</span></button></div>
+            </li>
+          </ol>
+        </article>
+      </div>
+      <p class="note"><span class="en">Then launch the app, open a folder containing your <code>.tex</code> file, and press <strong>Ctrl+S</strong> to compile.</span><span class="tr">Sonra uygulamayı aç, <code>.tex</code> dosyanın bulunduğu klasörü aç ve derlemek için <strong>Ctrl+S</strong>'e bas.</span></p>
+    </section>
+
+    <!-- ===== FAQ ===== -->
+    <section class="section">
+      <h2 class="section-title"><span class="en">FAQ</span><span class="tr">SSS</span></h2>
+      <div class="faq">
+        <details>
+          <summary><span class="en">Why does Windows need WSL?</span><span class="tr">Windows neden WSL istiyor?</span></summary>
+          <p><span class="en">The GUI is native, but LaTeX compilation runs through TeX Live in WSL for a consistent toolchain across Windows and Linux.</span><span class="tr">Arayüz yerel; ama LaTeX derlemesi Windows ve Linux'ta tutarlı bir toolchain için WSL içindeki TeX Live üzerinden çalışır.</span></p>
+        </details>
+        <details>
+          <summary><span class="en">Can I use it with Overleaf?</span><span class="tr">Overleaf ile birlikte kullanılır mı?</span></summary>
+          <p><span class="en">Yes, write on Overleaf for collaboration, then download and compile locally. The editor auto-fixes Overleaf-downloaded files.</span><span class="tr">Evet, Overleaf'te yazın (iş birliği), sonra indirip yerelde derleyin. Editör Overleaf'ten indirilen dosyaları otomatik düzeltir.</span></p>
+        </details>
+        <details>
+          <summary><span class="en">Does it need an internet connection?</span><span class="tr">İnternet bağlantısı gerekir mi?</span></summary>
+          <p><span class="en">Only the optional update check reaches the network. Editing and compiling are fully offline.</span><span class="tr">Sadece isteğe bağlı güncelleme kontrolü internete bağlanır. Düzenleme ve derleme tamamen offline.</span></p>
+        </details>
+        <details>
+          <summary><span class="en">How is it different from TeXstudio?</span><span class="tr">TeXstudio'dan farkı ne?</span></summary>
+          <p><span class="en">Lighter, with built-in SyncTeX, Turkish-character handling for IEEE/ASYU templates, and Overleaf-import fixing. Open source under GPL-3.0.</span><span class="tr">Daha hafif; yerleşik SyncTeX, IEEE/ASYU şablonları için Türkçe karakter desteği ve Overleaf-içe-aktarma düzeltmesi ile. GPL-3.0 altında açık kaynak.</span></p>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="footer">
+    <p>
+      <a href="https://github.com/s-balli/latex-editor">LaTeX Editor</a>
+      · <span class="en">GPL-3.0</span><span class="tr">GPL-3.0</span>
+      · <span class="en">built with PyQt6</span><span class="tr">PyQt6 ile yazıldı</span>
+      · v1.0.1
+    </p>
+    <p class="footer-sub"><span class="en">Open source · feedback welcome</span><span class="tr">Açık kaynak · geri bildirime açık</span></p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>

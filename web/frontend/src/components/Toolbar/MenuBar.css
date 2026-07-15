@@ -1,0 +1,87 @@
+.menubar {
+  display: flex;
+  align-items: center;
+  height: 28px;
+  padding: 0 8px;
+  background: #2d2d2d;
+  border-bottom: 1px solid #3c3c3c;
+  user-select: none;
+  flex-shrink: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 12px;
+}
+
+.menubar-item {
+  position: relative;
+}
+
+.menubar-trigger {
+  background: none;
+  border: none;
+  color: #ccc;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+  transition: background 0.1s;
+}
+
+.menubar-trigger:hover {
+  background: #505050;
+}
+
+.menubar-trigger--open {
+  background: #505050;
+}
+
+.menubar-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 200px;
+  background: #2d2d2d;
+  border: 1px solid #454545;
+  border-radius: 6px;
+  padding: 4px 0;
+  z-index: 1000;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+
+.menubar-dropdown-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 6px 16px;
+  background: none;
+  border: none;
+  color: #ccc;
+  font-size: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.1s;
+}
+
+.menubar-dropdown-item:hover {
+  background: #094771;
+  color: #fff;
+}
+
+.menubar-shortcut {
+  color: #888;
+  font-size: 11px;
+  margin-left: 24px;
+  font-family: 'Consolas', 'Menlo', monospace;
+}
+
+.menubar-dropdown-item:hover .menubar-shortcut {
+  color: #aac;
+}
+
+.menubar-separator {
+  height: 1px;
+  background: #444;
+  margin: 4px 8px;
+}

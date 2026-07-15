@@ -1,0 +1,19 @@
+.monaco-editor-wrapper {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: #1e1e1e;
+}
+
+.monaco-editor-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  color: #858585;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+    Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  font-size: 13px;
+  background-color: #1e1e1e;
+}

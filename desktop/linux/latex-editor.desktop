@@ -1,0 +1,10 @@
+[Desktop Entry]
+Name=LaTeX Editor
+Comment=LaTeX editörü ve derleyici
+Exec=latex-editor %F
+Icon=latex-editor
+Type=Application
+Categories=Development;IDE;
+MimeType=text/x-tex;
+Keywords=latex;tex;editor;pdf;
+StartupNotify=true

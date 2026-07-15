@@ -1,0 +1,99 @@
+.statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 24px;
+  padding: 0 12px;
+  background: #2d2d2d;
+  border-top: 1px solid #3c3c3c;
+  font-size: 12px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: #aaa;
+  user-select: none;
+  flex-shrink: 0;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+}
+
+.statusbar-section {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.statusbar-section--left {
+  justify-content: flex-start;
+}
+
+.statusbar-section--center {
+  justify-content: center;
+}
+
+.statusbar-section--right {
+  justify-content: flex-end;
+}
+
+/* Status colors */
+.statusbar-status--idle {
+  color: #aaa;
+}
+
+.statusbar-status--compiling {
+  color: #f0c040;
+}
+
+.statusbar-status--success {
+  color: #4ec94e;
+}
+
+.statusbar-status--error {
+  color: #f44747;
+}
+
+/* Engine label */
+.statusbar-engine {
+  color: #aaa;
+  font-family: 'Consolas', 'Menlo', 'Courier New', monospace;
+}
+
+/* Cursor position */
+.statusbar-cursor {
+  color: #aaa;
+  white-space: nowrap;
+}
+
+/* Word/character count */
+.statusbar-wordcount {
+  color: #aaa;
+  white-space: nowrap;
+  border-right: 1px solid #555;
+  padding-right: 8px;
+}
+
+/* Indeterminate progress bar */
+.statusbar-progress {
+  width: 100px;
+  height: 3px;
+  background: #444;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-left: 8px;
+}
+
+.statusbar-progress::after {
+  content: '';
+  display: block;
+  width: 40%;
+  height: 100%;
+  background: #3a6ea5;
+  border-radius: 2px;
+  animation: statusbar-progress-slide 1.2s ease-in-out infinite;
+}
+
+@keyframes statusbar-progress-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(350%); }
+}

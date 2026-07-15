@@ -1,0 +1,92 @@
+.editor-tabs {
+  display: flex;
+  align-items: stretch;
+  background-color: #2d2d2d;
+  height: 35px;
+  min-height: 35px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  border-bottom: 1px solid #1e1e1e;
+  scrollbar-width: thin;
+  scrollbar-color: #555 #2d2d2d;
+}
+
+.editor-tabs::-webkit-scrollbar {
+  height: 3px;
+}
+
+.editor-tabs::-webkit-scrollbar-track {
+  background: #2d2d2d;
+}
+
+.editor-tabs::-webkit-scrollbar-thumb {
+  background-color: #555;
+  border-radius: 2px;
+}
+
+.editor-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  background-color: #2d2d2d;
+  color: #969696;
+  border: none;
+  border-right: 1px solid #252526;
+  cursor: pointer;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+    Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  font-size: 13px;
+  white-space: nowrap;
+  min-width: 0;
+  flex-shrink: 0;
+  transition: background-color 0.1s ease, color 0.1s ease;
+}
+
+.editor-tab:hover {
+  background-color: #353535;
+  color: #cccccc;
+}
+
+.editor-tab--active {
+  background-color: #1e1e1e;
+  color: #ffffff;
+}
+
+.editor-tab--active:hover {
+  background-color: #1e1e1e;
+  color: #ffffff;
+}
+
+.editor-tab__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+  pointer-events: none;
+  line-height: 35px;
+}
+
+.editor-tab__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  font-size: 14px;
+  line-height: 1;
+  color: #858585;
+  opacity: 0;
+  transition: opacity 0.1s ease, background-color 0.1s ease, color 0.1s ease;
+  flex-shrink: 0;
+}
+
+.editor-tab:hover .editor-tab__close,
+.editor-tab--active .editor-tab__close {
+  opacity: 1;
+}
+
+.editor-tab__close:hover {
+  background-color: #484848;
+  color: #e0e0e0;
+}
