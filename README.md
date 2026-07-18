@@ -1,8 +1,8 @@
-# LaTeX Editor v1.0.0
+# LaTeX Editor
 
 [![CI](https://img.shields.io/github/actions/workflow/status/s-balli/latex-editor/ci.yml?branch=main&label=CI)](https://github.com/s-balli/latex-editor/actions)
 [![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.0.0-green)](https://github.com/s-balli/latex-editor/releases)
+[![Version](https://img.shields.io/github/v/release/s-balli/latex-editor?label=version&color=green)](https://github.com/s-balli/latex-editor/releases)
 [![Downloads](https://img.shields.io/github/downloads/s-balli/latex-editor/total)](https://github.com/s-balli/latex-editor/releases)
 
 > 🌐 **Landing page:** https://s-balli.github.io/latex-editor/
@@ -29,7 +29,7 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 
 | Platform | File | Requirement |
 |----------|------|-------------|
-| **Windows** | `LaTeX_Editor_v1.0.0_Windows.exe` (portable) | [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) + TeX Live |
+| **Windows** | `LaTeX_Editor_v*_Windows.exe` (portable) | [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) + TeX Live |
 | **Linux** | `latex-editor-*-x86_64.AppImage` | TeX Live |
 
 ➜ **[Download (Releases) page](https://github.com/s-balli/latex-editor/releases)**
@@ -609,7 +609,7 @@ latex-editor/
 │   ├── i18n.py              # Internationalization (desktop + web shared)
 │   ├── updater.py           # GitHub Releases API update check
 │   └── version.py           # Central version source
-├── desktop/                  # Desktop app (PyQt6, v1.0.0)
+├── desktop/                  # Desktop app (PyQt6)
 │   ├── main.py              # Entry point
 │   ├── requirements.txt     # pip dependencies
 │   ├── build_appimage.sh    # Linux AppImage build script

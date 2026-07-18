@@ -1,8 +1,8 @@
-# LaTeX Editor v1.0.0
+# LaTeX Editor
 
 [![CI](https://img.shields.io/github/actions/workflow/status/s-balli/latex-editor/ci.yml?branch=main&label=CI)](https://github.com/s-balli/latex-editor/actions)
 [![License](https://img.shields.io/badge/license-GPL--3.0-blue.svg)](LICENSE)
-[![Version](https://img.shields.io/badge/version-1.0.0-green)](https://github.com/s-balli/latex-editor/releases)
+[![Version](https://img.shields.io/github/v/release/s-balli/latex-editor?label=version&color=green)](https://github.com/s-balli/latex-editor/releases)
 [![Downloads](https://img.shields.io/github/downloads/s-balli/latex-editor/total)](https://github.com/s-balli/latex-editor/releases)
 
 > 🌐 **Tanıtım sayfası:** https://s-balli.github.io/latex-editor/
@@ -29,7 +29,7 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 
 | Platform | Dosya | Gereksinim |
 |----------|-------|------------|
-| **Windows** | `LaTeX_Editor_v1.0.0_Windows.exe` (portable) | [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) + TeX Live |
+| **Windows** | `LaTeX_Editor_v*_Windows.exe` (portable) | [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) + TeX Live |
 | **Linux** | `latex-editor-*-x86_64.AppImage` | TeX Live |
 
 ➜ **[Download (Releases) sayfası](https://github.com/s-balli/latex-editor/releases)**
@@ -609,7 +609,7 @@ latex-editor/
 │   ├── i18n.py              # Uluslararasılaştırma (desktop + web ortak)
 │   ├── updater.py           # GitHub Releases API güncelleme kontrolü
 │   └── version.py           # Merkezi versiyon kaynağı
-├── desktop/                  # Masaüstü uygulama (PyQt6, v1.0.0)
+├── desktop/                  # Masaüstü uygulama (PyQt6)
 │   ├── main.py              # Giriş noktası
 │   ├── requirements.txt     # pip bağımlılıkları
 │   ├── build_appimage.sh    # Linux AppImage build betiği
