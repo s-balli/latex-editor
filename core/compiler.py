@@ -6,12 +6,15 @@ import sys
 import time
 from pathlib import Path
 
-from PyQt6.QtCore import QObject, QProcess, pyqtSignal
+from PyQt6.QtCore import QObject, QProcess, QTimer, pyqtSignal
 
 from core.log_parser import CompileResult, LatexError, parse_output
 from core.paths import windows_to_wsl
 
 PLATFORM = sys.platform  # win32, linux, darwin
+
+# Derleme watchdog sınırı: bu sürede bitmeyen derleme iptal edilir.
+DEFAULT_TIMEOUT_MS = 120_000
 
 
 def _find_derle_sh() -> str:
@@ -46,11 +49,17 @@ class LatexCompiler(QObject):
         self._tex_path = ""
         self._engine = "lualatex"
         self._finished_emitted = False
+        self._timeout_ms = DEFAULT_TIMEOUT_MS
+        self._timeout_timer = QTimer(self)
+        self._timeout_timer.setSingleShot(True)
+        self._timeout_timer.timeout.connect(self._on_timeout)
 
-    def compile(self, tex_path: str, engine: str = "lualatex") -> bool:
+    def compile(self, tex_path: str, engine: str = "lualatex", timeout_ms: int | None = None) -> bool:
         if self.process and self.process.state() != QProcess.ProcessState.NotRunning:
             return False
 
+        if timeout_ms is not None:
+            self._timeout_ms = timeout_ms
         tex_path = os.path.normpath(tex_path)
         self._tex_dir = str(Path(tex_path).parent)
         self._tex_name = Path(tex_path).stem
@@ -73,6 +82,10 @@ class LatexCompiler(QObject):
             self._start_windows(tex_path, engine)
         else:
             self._start_native(tex_path, engine)
+
+        # Watchdog: bu sürede bitmezse derlemeyi iptal et.
+        self._timeout_timer.stop()
+        self._timeout_timer.start(self._timeout_ms)
 
         return True
 
@@ -107,6 +120,7 @@ class LatexCompiler(QObject):
         self.output_line.emit(text)
 
     def _on_finished(self, exit_code, exit_status):
+        self._timeout_timer.stop()
         result = parse_output(self._output, self._tex_path)
         result.duration = time.time() - self._start_time
 
@@ -124,6 +138,7 @@ class LatexCompiler(QObject):
             self.compilation_finished.emit(result)
 
     def _on_error(self, error: QProcess.ProcessError):
+        self._timeout_timer.stop()
         msg = "Derleme hatası"
         if error == QProcess.ProcessError.FailedToStart:
             msg = "Süreç başlatılamadı"
@@ -139,6 +154,23 @@ class LatexCompiler(QObject):
         if not self._finished_emitted:
             self._finished_emitted = True
             self.compilation_finished.emit(result)
+
+    def _on_timeout(self):
+        """Derleme watchdog: süre doldu — süreci sonlandır ve hata bildir."""
+        if not self.process or self.process.state() == QProcess.ProcessState.NotRunning:
+            return
+        self._timeout_timer.stop()
+        # kill sonrası gelen _on_finished tekrar emit etmesin
+        self._finished_emitted = True
+        self.process.kill()
+        self.process.waitForFinished(3000)
+        sure = max(1, self._timeout_ms // 1000)
+        msg = f"Derleme zaman aşımına uğradı ({sure}s), iptal edildi."
+        self.output_line.emit(f"[hata] {msg}\n")
+        result = CompileResult(success=False)
+        result.errors = [LatexError(message=msg)]
+        result.duration = time.time() - self._start_time
+        self.compilation_finished.emit(result)
 
     def stop(self):
         if self.process and self.process.state() != QProcess.ProcessState.NotRunning:

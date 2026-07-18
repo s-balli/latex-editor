@@ -13,9 +13,13 @@ from unittest.mock import patch, MagicMock
 # PyQt6 gereklidir
 pytest.importorskip("PyQt6")
 from PyQt6.QtCore import QProcess
+from PyQt6.QtWidgets import QApplication
 
 import core.compiler as compiler_mod
 from core.compiler import _find_derle_sh, LatexCompiler, PLATFORM
+
+# QTimer (LatexCompiler watchdog'ı) için bir QApplication gerekir.
+_app = QApplication.instance() or QApplication([])
 
 
 class TestFindDerleSh:
@@ -115,3 +119,68 @@ class TestLatexCompiler:
     def test_platform_constant(self):
         """PLATFORM sys.platform olmalı."""
         assert PLATFORM == sys.platform
+
+
+class TestDerlemeZamanAsimi:
+    """Watchdog: derleme belirli sürede bitmezse iptal edilir."""
+
+    @staticmethod
+    def _compile_mocked(compiler, tmp_path, **kwargs):
+        tex = tmp_path / "test.tex"
+        tex.write_text("\\documentclass{article}\n\\begin{document}\n\\end{document}")
+        with patch.object(compiler, "_start_windows"), \
+             patch.object(compiler, "_start_native"), \
+             patch("core.compiler.QProcess") as mock_qproc:
+            mock_qproc.return_value = MagicMock()
+            compiler.compile(str(tex), **kwargs)
+
+    def test_compile_timer_baslar(self, tmp_path):
+        c = LatexCompiler()
+        self._compile_mocked(c, tmp_path)
+        assert c._timeout_timer.isActive() is True
+        c._timeout_timer.stop()
+
+    def test_compile_timeout_ms_parametresi(self, tmp_path):
+        c = LatexCompiler()
+        self._compile_mocked(c, tmp_path, timeout_ms=5000)
+        assert c._timeout_ms == 5000
+        c._timeout_timer.stop()
+
+    def test_default_timeout(self):
+        assert compiler_mod.DEFAULT_TIMEOUT_MS == 120_000
+        assert LatexCompiler()._timeout_ms == 120_000
+
+    def test_on_timeout_sureci_oldurur_ve_hata_emit_eder(self):
+        c = LatexCompiler()
+        c.process = MagicMock()
+        c.process.state.return_value = QProcess.ProcessState.Running
+        results = []
+        c.compilation_finished.connect(results.append)
+        c._on_timeout()
+        assert c._finished_emitted is True
+        c.process.kill.assert_called_once()
+        assert len(results) == 1
+        assert results[0].success is False
+        assert "zaman aşımına" in results[0].errors[0].message.lower()
+
+    def test_on_timeout_calismiyor_ise_noop(self):
+        c = LatexCompiler()
+        c.process = None
+        results = []
+        c.compilation_finished.connect(results.append)
+        c._on_timeout()
+        assert results == []
+
+    def test_on_finished_timer_durdurur(self):
+        c = LatexCompiler()
+        c._output = ""
+        c._tex_path = "x.tex"
+        c._timeout_timer.start(60000)
+        c._on_finished(0, QProcess.ExitStatus.NormalExit)
+        assert c._timeout_timer.isActive() is False
+
+    def test_on_error_timer_durdurur(self):
+        c = LatexCompiler()
+        c._timeout_timer.start(60000)
+        c._on_error(QProcess.ProcessError.FailedToStart)
+        assert c._timeout_timer.isActive() is False
