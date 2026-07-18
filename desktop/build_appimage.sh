@@ -6,7 +6,7 @@ cd "$SCRIPT_DIR"
 
 # Versiyonu çek
 VER=$(grep 'VERSION' ../core/version.py | cut -d'"' -f2)
-APP_NAME="LaTeX_Editor_v${VER}"
+APP_NAME="latex-editor-${VER}"
 APPDIR="dist/${APP_NAME}.AppDir"
 
 echo "=== LaTeX Editor v${VER} — AppImage Build ==="
@@ -22,7 +22,7 @@ source "$VENV_DIR/bin/activate"
 
 # Bağımlılıkları kur
 echo "Bağımlılıklar kontrol ediliyor..."
-pip install -q pyinstaller PyQt6 PyQt6-QScintilla pypdfium2 Pillow send2trash
+pip install -q -r requirements.txt -r requirements-build.txt
 
 # 1. PyInstaller ile derle (onedir mod)
 echo "[1/5] PyInstaller derlemesi..."
@@ -106,7 +106,10 @@ else
 fi
 
 APPIMAGETOOL_BIN="${APPIMAGETOOL_EXTRACTED}/AppRun"
-ARCH=x86_64 "$(realpath "$APPIMAGETOOL_BIN")" "$APPDIR" "dist/${APP_NAME}-x86_64.AppImage"
+# -u: AppImageUpdate için güncelleme bilgisi (gh-releases-zsync). Bu olmadan
+# delta güncelleme ve AppImageHub/zsync otomatik algılama çalışmaz.
+UPDATE_INFO="gh-releases-zsync|s-balli|latex-editor|latest|latex-editor-*-x86_64.AppImage.zsync"
+ARCH=x86_64 "$(realpath "$APPIMAGETOOL_BIN")" -u "$UPDATE_INFO" "$APPDIR" "dist/${APP_NAME}-x86_64.AppImage"
 
 # appimagetool kalıntılarını temizle
 rm -rf "$SCRIPT_DIR/$APPIMAGETOOL_EXTRACTED"

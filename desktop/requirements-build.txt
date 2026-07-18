@@ -1,0 +1,2 @@
+# Yalnızca derleme/paketleme için (PyInstaller). Çalışma zamanı gerekmez.
+pyinstaller>=6.0,<7

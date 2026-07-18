@@ -30,7 +30,7 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 | Platform | Dosya | Gereksinim |
 |----------|-------|------------|
 | **Windows** | `LaTeX_Editor_v1.0.0_Windows.exe` (portable) | [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) + TeX Live |
-| **Linux** | `LaTeX_Editor_v1.0.0_Linux_x86_64.AppImage` | TeX Live |
+| **Linux** | `latex-editor-*-x86_64.AppImage` | TeX Live |
 
 ➜ **[Download (Releases) sayfası](https://github.com/s-balli/latex-editor/releases)**
 
@@ -164,8 +164,8 @@ Python veya bağımlılık kurulumu gerektirmez.
 
 **1. AppImage dosyasını indir:**
 ```bash
-chmod +x LaTeX_Editor_v1.0.0_Linux_x86_64.AppImage
-./LaTeX_Editor_v1.0.0_Linux_x86_64.AppImage
+chmod +x latex-editor-*-x86_64.AppImage
+./latex-editor-*-x86_64.AppImage
 ```
 
 **2. TeX Live kur (derleme için):**
@@ -211,7 +211,7 @@ cd desktop
 ./build_appimage.sh
 ```
 
-Sonuç: `dist/LaTeX_Editor_v1.0.0_Linux_x86_64.AppImage`
+Sonuç: `dist/latex-editor-*-x86_64.AppImage`
 
 #### Yöntem 2: Kaynak Koddan
 

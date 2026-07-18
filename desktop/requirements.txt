@@ -1,5 +1,5 @@
-PyQt6>=6.6
-PyQt6-QScintilla>=2.14
-pypdfium2>=4.20
-Pillow>=10.0
-send2trash>=1.8
+PyQt6>=6.6,<7
+PyQt6-QScintilla>=2.14,<3
+pypdfium2>=4.20,<5
+Pillow>=10.0,<12
+send2trash>=1.8,<2

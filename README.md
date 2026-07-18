@@ -30,7 +30,7 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 | Platform | File | Requirement |
 |----------|------|-------------|
 | **Windows** | `LaTeX_Editor_v1.0.0_Windows.exe` (portable) | [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) + TeX Live |
-| **Linux** | `LaTeX_Editor_v1.0.0_Linux_x86_64.AppImage` | TeX Live |
+| **Linux** | `latex-editor-*-x86_64.AppImage` | TeX Live |
 
 ➜ **[Download (Releases) page](https://github.com/s-balli/latex-editor/releases)**
 
@@ -164,8 +164,8 @@ No Python or dependency installation required.
 
 **1. Download AppImage:**
 ```bash
-chmod +x LaTeX_Editor_v1.0.0_Linux_x86_64.AppImage
-./LaTeX_Editor_v1.0.0_Linux_x86_64.AppImage
+chmod +x latex-editor-*-x86_64.AppImage
+./latex-editor-*-x86_64.AppImage
 ```
 
 **2. Install TeX Live (for compilation):**
@@ -211,7 +211,7 @@ cd desktop
 ./build_appimage.sh
 ```
 
-Result: `dist/LaTeX_Editor_v1.0.0_Linux_x86_64.AppImage`
+Result: `dist/latex-editor-*-x86_64.AppImage`
 
 #### Option 2: From Source
 
