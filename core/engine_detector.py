@@ -8,6 +8,54 @@ from core.latex_utils import strip_comments
 
 _logger = logging.getLogger("latex_editor.engine_detector")
 
+# "% !TEX program = lualatex" / "% !TEX TS-program = pdflatex" — satır başında
+_MAGIC_TEX_PROGRAM = re.compile(
+    r"%\s*!\s*TEX\s+(?:TS-)?program\s*=\s*([A-Za-z]+)", re.IGNORECASE
+)
+
+# Magic comment'ler dosyanın üst kısmında olur; derin false-positive'leri önlemek için
+_MAGIC_SCAN_LINES = 30
+
+
+def _magic_engine_from_content(content: str) -> str | None:
+    """
+    İçeriğin üst satırlarındaki '% !TEX program = ...' yönergesinden motoru döndür.
+
+    Dönüş: 'lualatex' veya 'pdflatex'; tanınmazsa None.
+    XeLaTeX yönergesi lualatex'e eşlenir (derle.sh xelatex'i doğrudan
+    çalıştırmaz; mevcut XeLaTeX→LuaLaTeX eşlemesiyle tutarlı).
+    """
+    _map = {
+        "pdflatex": "pdflatex",
+        "lualatex": "lualatex",
+        "luatex": "lualatex",
+        "xelatex": "lualatex",
+        "xetex": "lualatex",
+    }
+    for line in content.splitlines()[:_MAGIC_SCAN_LINES]:
+        m = _MAGIC_TEX_PROGRAM.match(line.strip())
+        if not m:
+            continue
+        mapped = _map.get(m.group(1).lower())
+        if mapped:
+            return mapped
+    return None
+
+
+def detect_engine_from_magic_comment(tex_path: str) -> str | None:
+    """
+    Dosyanın üst satırlarındaki '% !TEX program = ...' yönergesini oku.
+
+    Dönüş: 'lualatex', 'pdflatex' veya None.
+    """
+    try:
+        with open(tex_path, "r", encoding="utf-8", errors="replace") as f:
+            head = "".join(line for _, line in zip(range(_MAGIC_SCAN_LINES), f))
+    except OSError as e:
+        _logger.warning("Magic comment okunamadı: %s — %s", tex_path, e)
+        return None
+    return _magic_engine_from_content(head)
+
 
 def detect_engine(tex_path: str) -> str | None:
     """
@@ -22,6 +70,11 @@ def detect_engine(tex_path: str) -> str | None:
     except OSError as e:
         _logger.warning("Motor algılama — dosya okunamadı: %s — %s", tex_path, e)
         return None
+
+    # --- 0) % !TEX program magic comment (en yüksek öncelik) ---
+    magic = _magic_engine_from_content(content)
+    if magic:
+        return magic
 
     clean = strip_comments(content)
 
@@ -57,6 +110,11 @@ def detect_engine_from_content(content: str, cls_content: str | None = None) -> 
     Dosya içeriğinden motor algıla (dosya yolu olmadan).
     Web backend endpoint'i için.
     """
+    # --- 0) % !TEX program magic comment (en yüksek öncelik) ---
+    magic = _magic_engine_from_content(content)
+    if magic:
+        return magic
+
     clean = strip_comments(content)
 
     # LuaLaTeX sinyalleri (.tex)

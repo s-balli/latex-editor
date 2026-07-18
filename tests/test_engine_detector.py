@@ -6,11 +6,13 @@ import pytest
 from core.engine_detector import (
     detect_engine,
     detect_engine_from_content,
+    detect_engine_from_magic_comment,
     can_compile,
     can_compile_from_content,
     _extract_documentclass,
     _check_compilable_content,
     _detect_from_cls_content,
+    _magic_engine_from_content,
 )
 from core.latex_utils import strip_comments as _strip_comments
 
@@ -124,6 +126,71 @@ class TestDetectFromClsContent:
 
     def test_no_signals(self):
         assert _detect_from_cls_content("plain class content") is None
+
+
+# --- magic comment (% !TEX program) ---
+
+
+class TestMagicComment:
+    def test_pdflatex(self):
+        assert _magic_engine_from_content("% !TEX program = pdflatex\n\\documentclass{article}") == "pdflatex"
+
+    def test_lualatex(self):
+        assert _magic_engine_from_content("% !TEX program = lualatex\n") == "lualatex"
+
+    def test_xelatex_maps_to_lualatex(self):
+        # derle.sh xelatex'i doğrudan çalıştırmaz; lualatex'e eşlenir
+        assert _magic_engine_from_content("% !TEX program = xelatex\n") == "lualatex"
+
+    def test_ts_program_variant(self):
+        assert _magic_engine_from_content("% !TEX TS-program = pdflatex\n") == "pdflatex"
+
+    def test_case_insensitive(self):
+        assert _magic_engine_from_content("% !TeX program = LuaLaTeX\n") == "lualatex"
+
+    def test_no_space_after_percent(self):
+        assert _magic_engine_from_content("%!TEX program = pdflatex\n") == "pdflatex"
+
+    def test_no_magic_returns_none(self):
+        assert _magic_engine_from_content("\\documentclass{article}\nhello") is None
+
+    def test_unrecognized_program_returns_none(self):
+        assert _magic_engine_from_content("% !TEX program = context\n") is None
+
+    def test_inline_not_matched(self):
+        # satır başında değilse magic comment sayılmaz
+        assert _magic_engine_from_content("some code % !TEX program = pdflatex\n") is None
+
+    def test_deep_line_ignored(self):
+        # _MAGIC_SCAN_LINES (30) satırdan sonraki yönerge yok sayılır
+        lines = ["x\n"] * 35 + ["% !TEX program = pdflatex\n"]
+        assert _magic_engine_from_content("".join(lines)) is None
+
+    def test_magic_beats_package_signal(self):
+        # magic comment, package sinyalinden öncelikli
+        content = "% !TEX program = pdflatex\n\\usepackage{fontspec}\n\\begin{document}\\end{document}"
+        assert detect_engine_from_content(content) == "pdflatex"
+
+    def test_magic_in_detect_engine_from_content(self):
+        assert detect_engine_from_content("% !TEX program = lualatex\n") == "lualatex"
+
+    def test_magic_in_detect_engine_file(self, tmp_path):
+        tex = tmp_path / "test.tex"
+        tex.write_text("% !TEX program = pdflatex\n\\begin{document}\\end{document}")
+        assert detect_engine(str(tex)) == "pdflatex"
+
+    def test_magic_file_function(self, tmp_path):
+        tex = tmp_path / "test.tex"
+        tex.write_text("% !TEX program = lualatex\n\\begin{document}\\end{document}")
+        assert detect_engine_from_magic_comment(str(tex)) == "lualatex"
+
+    def test_magic_file_function_none(self, tmp_path):
+        tex = tmp_path / "test.tex"
+        tex.write_text("\\documentclass{article}\nno magic here")
+        assert detect_engine_from_magic_comment(str(tex)) is None
+
+    def test_magic_file_function_nonexistent(self):
+        assert detect_engine_from_magic_comment("/nonexistent/file.tex") is None
 
 
 # --- detect_engine_from_content ---
