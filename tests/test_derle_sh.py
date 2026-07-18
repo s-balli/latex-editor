@@ -126,6 +126,41 @@ class TestDerlemeHatasi:
         assert r.returncode != 0
 
 
+class TestHataDeseni:
+    """Hata tespit deseni: 'l.NNN' tek başına hata sayılmamalı (yalnızca '!').
+
+    Regresyon: hyperref 'duplicate destination' gibi uyarıların bağlamındaki
+    'l.160 \\newpage' satırı, önünde '!' olmadığı için hata olarak gösterilmemeli.
+    """
+
+    @staticmethod
+    def _grep(snippet):
+        # derle.sh'in hata ayıklama deseniyle aynı davranış (gerçek '!' + bağlamı)
+        r = subprocess.run(
+            ["bash", "-c", "printf '%s' \"$1\" | grep -A1 -E '^!' | grep -v '^--$' || true",
+             "bash", snippet],
+            capture_output=True, text=True,
+        )
+        return r.stdout
+
+    def test_warning_baglami_lNNN_hata_degil(self):
+        # '!' yok — hyperref uyarı bağlamındaki l.160 hata değil
+        snippet = (
+            "pdfTeX warning (ext4): destination with the same identifier (name{page.i}) has\n"
+            "been already used, duplicate ignored\n"
+            "<to be read again>\n"
+            "                   \\relax\n"
+            "l.160 \\newpage\n"
+        )
+        assert self._grep(snippet) == ""
+
+    def test_gercek_hata_ve_baglami(self):
+        snippet = "! Undefined control sequence.\nl.42 \\badcommand\n"
+        out = self._grep(snippet)
+        assert "! Undefined control sequence." in out
+        assert "l.42" in out
+
+
 class TestInputInclude:
     def test_input_dosyasi(self, tmp_path):
         tex = tmp_path / "main.tex"

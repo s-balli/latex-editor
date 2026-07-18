@@ -247,7 +247,7 @@ derle_dosya() {
 
     if [ $DERLEME_HATA -ne 0 ]; then
         local HATALAR
-        HATALAR=$(echo "$DERLEME_CIKTI" | grep -E '^!|^\s*l\.[0-9]+' | head -40)
+        HATALAR=$(echo "$DERLEME_CIKTI" | grep -A1 -E '^!' | grep -v '^--$' | head -40)
         if [ "$USE_WATCH" = true ]; then
             echo -e "${KIRMIZI}[hata] $(date +%H:%M:%S) — Derleme basarisiz:${SIFIRLA}"
         else
@@ -344,7 +344,7 @@ derle_dosya() {
     # Hata var mı? (exit kodu VEYA çıktıda ^! hataları). PDF mesajından ÖNCE
     # belirlenmeli ki çelişkili "[basarili]" + "[hata]" çıktısı oluşmasın.
     local HATA_SATIRLARI
-    HATA_SATIRLARI=$(echo "$SON_CIKTI" | grep -E '^!|^\s*l\.[0-9]+' || true)
+    HATA_SATIRLARI=$(echo "$SON_CIKTI" | grep -A1 -E '^!' | grep -v '^--$' || true)
     if [ "$DERLEME_HATA" -ne 0 ] || [ -n "$HATA_SATIRLARI" ]; then
         HATA_OLDU=1
     fi
@@ -379,7 +379,7 @@ derle_dosya() {
             echo -e "${KIRMIZI}[hata] $DOSYA_ADI — PDF olusmadi${SIFIRLA}"
         fi
         local HATALAR
-        HATALAR=$(echo "$DERLEME_CIKTI" | grep -E '^!|^\s*l\.[0-9]+' | head -40)
+        HATALAR=$(echo "$DERLEME_CIKTI" | grep -A1 -E '^!' | grep -v '^--$' | head -40)
         if [ -n "$HATALAR" ]; then
             echo "$HATALAR" | while read -r line; do
                 printf "${KIRMIZI}  %s${SIFIRLA}\n" "$line"
