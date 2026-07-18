@@ -6,7 +6,7 @@ cd "$SCRIPT_DIR"
 
 # Versiyonu çek
 VER=$(grep 'VERSION' ../core/version.py | cut -d'"' -f2)
-APP_NAME="latex-editor-${VER}"
+APP_NAME="LaTeX_Editor_v${VER}"
 APPDIR="dist/${APP_NAME}.AppDir"
 
 echo "=== LaTeX Editor v${VER} — AppImage Build ==="
@@ -108,11 +108,11 @@ fi
 APPIMAGETOOL_BIN="${APPIMAGETOOL_EXTRACTED}/AppRun"
 # -u: AppImageUpdate için güncelleme bilgisi (gh-releases-zsync). Bu olmadan
 # delta güncelleme ve AppImageHub/zsync otomatik algılama çalışmaz.
-UPDATE_INFO="gh-releases-zsync|s-balli|latex-editor|latest|latex-editor-*-x86_64.AppImage.zsync"
-ARCH=x86_64 "$(realpath "$APPIMAGETOOL_BIN")" -u "$UPDATE_INFO" "$APPDIR" "dist/${APP_NAME}-x86_64.AppImage"
+UPDATE_INFO="gh-releases-zsync|s-balli|latex-editor|latest|LaTeX_Editor_v*_Linux_x86_64.AppImage.zsync"
+ARCH=x86_64 "$(realpath "$APPIMAGETOOL_BIN")" -u "$UPDATE_INFO" "$APPDIR" "dist/${APP_NAME}_Linux_x86_64.AppImage"
 
 # appimagetool .zsync dosyasını CWD'ye bırakabilir; release yüklemesi için dist/'e garanti et
-ZSYNC="${APP_NAME}-x86_64.AppImage.zsync"
+ZSYNC="${APP_NAME}_Linux_x86_64.AppImage.zsync"
 if ! [ -f "dist/$ZSYNC" ]; then
     FOUND=$(find "$SCRIPT_DIR" -name "$ZSYNC" -not -path "*/dist/*" -print -quit 2>/dev/null)
     [ -n "$FOUND" ] && mv -f "$FOUND" "dist/$ZSYNC"
@@ -125,13 +125,13 @@ rm -f "$SCRIPT_DIR"/appimagetool*
 # 5. Sonuç
 echo ""
 echo "[5/5] Tamamlandı!"
-if [ -f "dist/${APP_NAME}-x86_64.AppImage" ]; then
-    SIZE=$(du -h "dist/${APP_NAME}-x86_64.AppImage" | cut -f1)
-    echo "Başarılı! Dosya: dist/${APP_NAME}-x86_64.AppImage (${SIZE})"
+if [ -f "dist/${APP_NAME}_Linux_x86_64.AppImage" ]; then
+    SIZE=$(du -h "dist/${APP_NAME}_Linux_x86_64.AppImage" | cut -f1)
+    echo "Başarılı! Dosya: dist/${APP_NAME}_Linux_x86_64.AppImage (${SIZE})"
     echo ""
     echo "Çalıştırmak için:"
-    echo "  chmod +x dist/${APP_NAME}-x86_64.AppImage"
-    echo "  ./dist/${APP_NAME}-x86_64.AppImage"
+    echo "  chmod +x dist/${APP_NAME}_Linux_x86_64.AppImage"
+    echo "  ./dist/${APP_NAME}_Linux_x86_64.AppImage"
 else
     echo "HATA: AppImage dosyası oluşturulamadı!"
     exit 1

@@ -79,7 +79,7 @@ jobs:
             echo "     texlive-font-utils texlive-extra-utils biber texlive-publishers \\"
             echo "     texlive-humanities texlive-pstricks libxcb-cursor0 pandoc"
             echo '   ```'
-            echo "Download \`latex-editor-${V}-x86_64.AppImage\`, \`chmod +x\` and run."
+            echo "Download \`LaTeX_Editor_v${V}_Linux_x86_64.AppImage\`, \`chmod +x\` and run."
             echo ""
             echo "### Minimum installation (basic compilation only)"
             echo '   ```'
@@ -117,7 +117,7 @@ jobs:
             echo "     texlive-font-utils texlive-extra-utils biber texlive-publishers \\"
             echo "     texlive-humanities texlive-pstricks libxcb-cursor0 pandoc"
             echo '   ```'
-            echo "\`latex-editor-${V}-x86_64.AppImage\`'i indir, \`chmod +x\` yapip calistir."
+            echo "\`LaTeX_Editor_v${V}_Linux_x86_64.AppImage\`'i indir, \`chmod +x\` yapip calistir."
             echo ""
             echo "### Minimum kurulum (sadece temel derleme)"
             echo '   ```'
@@ -202,7 +202,7 @@ jobs:
             echo "     texlive-font-utils texlive-extra-utils biber texlive-publishers \\"
             echo "     texlive-humanities texlive-pstricks libxcb-cursor0 pandoc"
             echo '   ```'
-            echo "Download \`latex-editor-${V}-x86_64.AppImage\`, \`chmod +x\` and run."
+            echo "Download \`LaTeX_Editor_v${V}_Linux_x86_64.AppImage\`, \`chmod +x\` and run."
             echo ""
             echo "### Minimum installation (basic compilation only)"
             echo '   ```'
@@ -240,7 +240,7 @@ jobs:
             echo "     texlive-font-utils texlive-extra-utils biber texlive-publishers \\"
             echo "     texlive-humanities texlive-pstricks libxcb-cursor0 pandoc"
             echo '   ```'
-            echo "\`latex-editor-${V}-x86_64.AppImage\`'i indir, \`chmod +x\` yapip calistir."
+            echo "\`LaTeX_Editor_v${V}_Linux_x86_64.AppImage\`'i indir, \`chmod +x\` yapip calistir."
             echo ""
             echo "### Minimum kurulum (sadece temel derleme)"
             echo '   ```'
@@ -258,8 +258,8 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: |
-            desktop/dist/latex-editor-${{ steps.ver.outputs.VERSION }}-x86_64.AppImage
-            desktop/dist/latex-editor-${{ steps.ver.outputs.VERSION }}-x86_64.AppImage.zsync
+            desktop/dist/LaTeX_Editor_v${{ steps.ver.outputs.VERSION }}_Linux_x86_64.AppImage
+            desktop/dist/LaTeX_Editor_v${{ steps.ver.outputs.VERSION }}_Linux_x86_64.AppImage.zsync
           name: LaTeX Editor v${{ steps.ver.outputs.VERSION }}
           body_path: release-notes.md
           fail_on_unmatched_files: true
