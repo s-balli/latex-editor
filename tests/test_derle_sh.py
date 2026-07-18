@@ -13,6 +13,20 @@ pytestmark = pytest.mark.skipif(
     reason="lualatex kurulu değil — TeX Live gerektirir",
 )
 
+# Kaynakça testleri için biber + biblatex
+HAS_BIBER = bool(shutil.which("biber"))
+try:
+    _has_biblatex = subprocess.run(
+        ["kpsewhich", "biblatex.sty"], capture_output=True, text=True
+    ).stdout.strip()
+except Exception:
+    _has_biblatex = ""
+HAS_BIBLATEX = bool(_has_biblatex)
+_biber_skip = pytest.mark.skipif(
+    not (HAS_BIBER and HAS_BIBLATEX),
+    reason="biber + biblatex kurulu değil",
+)
+
 MINIMAL_TEX = r"""\documentclass{article}
 \begin{document}
 Merhaba Dünya!
@@ -44,6 +58,19 @@ Bkz. b\"ol\"um \ref{sec:iki} (sayfa \pageref{sec:iki}).
 \section{Iki}\label{sec:iki}
 Bkz. b\"ol\"um \ref{sec:bir} (sayfa \pageref{sec:bir}).
 \end{document}
+"""
+
+
+BIB_TEX = r"""\documentclass{article}
+\usepackage[backend=biber]{biblatex}
+\addbibresource{refs.bib}
+\begin{document}
+\nocite{*}
+\printbibliography
+\end{document}
+"""
+
+BIB_REF = r"""@article{test2020, author={Test}, title={Sample}, journal={J}, year={2020}}
 """
 
 
@@ -184,6 +211,37 @@ class TestCokluGecis:
         assert (tmp_path / "main.pdf").exists()
         # Gecisler converge etmis olmali: "Rerun to get" uyari mesaji kalmamali
         assert "Rerun to get" not in r.stdout
+
+
+class TestKaynakca:
+    """Kaynakça: biber varsa çözülmeli, yoksa kurulum önerisi verilmeli."""
+
+    def _yaz(self, tmp_path):
+        (tmp_path / "main.tex").write_text(BIB_TEX)
+        (tmp_path / "refs.bib").write_text(BIB_REF)
+
+    @_biber_skip
+    def test_biber_var_kaynakca_cozulur(self, tmp_path):
+        self._yaz(tmp_path)
+        r = _run_derle([str(tmp_path / "main.tex")], cwd=str(tmp_path), timeout=120)
+        assert r.returncode == 0
+        assert (tmp_path / "main.pdf").exists()
+        assert "Eksik paket: biber" not in r.stdout
+
+    @_biber_skip
+    def test_biber_eksik_onerisi(self, tmp_path):
+        self._yaz(tmp_path)
+        # biber'i gizle: command -v biber başarısız olsun, diğer komutlar etkilenmesin
+        cmd = (
+            'command() { if [ "$1" = "-v" ] && [ "$2" = "biber" ]; then return 127; fi; '
+            'builtin command "$@"; }; export -f command; bash "$0" "$@"'
+        )
+        r = subprocess.run(
+            ["bash", "-c", cmd, SCRIPT, str(tmp_path / "main.tex")],
+            capture_output=True, text=True, cwd=str(tmp_path), timeout=120,
+        )
+        assert "Eksik paket: biber" in r.stdout
+        assert "sudo apt-get install biber" in r.stdout
 
 
 class TestInputInclude:

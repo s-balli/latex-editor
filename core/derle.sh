@@ -263,20 +263,27 @@ derle_dosya() {
     fi
 
     # Kaynakça — biber (biblatex) veya bibtex (geleneksel)
-    if [ -f "$TMPDIR/${ISIM}.bcf" ] && command -v biber &>/dev/null; then
-        local BIB_CIKTI
-        BIB_CIKTI=$(cd "$TMPDIR" && biber "${ISIM}" 2>&1) || true
-        local BIB_HATALAR
-        BIB_HATALAR=$(echo "$BIB_CIKTI" | grep -iE "error|warn" || true)
-        if [ -n "$BIB_HATALAR" ]; then
-            if [ "$USE_WATCH" = true ]; then
-                echo -e "${SARI}[biber] $(date +%H:%M:%S) — biber uyarilari:${SIFIRLA}"
-            else
-                echo -e "${SARI}[biber] $DOSYA_ADI — biber uyarilari:${SIFIRLA}"
+    if [ -f "$TMPDIR/${ISIM}.bcf" ]; then
+        if command -v biber &>/dev/null; then
+            local BIB_CIKTI
+            BIB_CIKTI=$(cd "$TMPDIR" && biber "${ISIM}" 2>&1) || true
+            local BIB_HATALAR
+            BIB_HATALAR=$(echo "$BIB_CIKTI" | grep -iE "error|warn" || true)
+            if [ -n "$BIB_HATALAR" ]; then
+                if [ "$USE_WATCH" = true ]; then
+                    echo -e "${SARI}[biber] $(date +%H:%M:%S): biber uyarilari:${SIFIRLA}"
+                else
+                    echo -e "${SARI}[biber] $DOSYA_ADI: biber uyarilari:${SIFIRLA}"
+                fi
+                echo "$BIB_HATALAR" | while read -r line; do
+                    printf "${SARI}  %s${SIFIRLA}\n" "$line"
+                done
             fi
-            echo "$BIB_HATALAR" | while read -r line; do
-                printf "${SARI}  %s${SIFIRLA}\n" "$line"
-            done
+        else
+            # biblatex .bcf üretti ama biber kurulu değil → atıflar çözülemeyecek
+            echo -e "${SARI}[uyari] Kaynakça (biblatex) için biber gerekli ama kurulu değil, atıflar çözülemeyecek.${SIFIRLA}"
+            printf "${MAVI2}==> Eksik paket: biber (biblatex kaynakça aracı)${SIFIRLA}\n"
+            printf "${MAVI2}    sudo apt-get install biber${SIFIRLA}\n"
         fi
     elif [ -f "$TMPDIR/${ISIM}.aux" ] && grep -rl '\\bibdata' "$TMPDIR/"*.aux &>/dev/null; then
         if command -v bibtex &>/dev/null; then
@@ -286,14 +293,18 @@ derle_dosya() {
             BIB_HATALAR=$(echo "$BIB_CIKTI" | grep -i "error\|warning" || true)
             if [ -n "$BIB_HATALAR" ]; then
                 if [ "$USE_WATCH" = true ]; then
-                    echo -e "${SARI}[bibtex] $(date +%H:%M:%S) — bibtex uyarilari:${SIFIRLA}"
+                    echo -e "${SARI}[bibtex] $(date +%H:%M:%S): bibtex uyarilari:${SIFIRLA}"
                 else
-                    echo -e "${SARI}[bibtex] $DOSYA_ADI — bibtex uyarilari:${SIFIRLA}"
+                    echo -e "${SARI}[bibtex] $DOSYA_ADI: bibtex uyarilari:${SIFIRLA}"
                 fi
                 echo "$BIB_HATALAR" | while read -r line; do
                     printf "${SARI}  %s${SIFIRLA}\n" "$line"
                 done
             fi
+        else
+            echo -e "${SARI}[uyari] Kaynakça için bibtex gerekli ama kurulu değil, atıflar çözülemeyecek.${SIFIRLA}"
+            printf "${MAVI2}==> Eksik paket: bibtex${SIFIRLA}\n"
+            printf "${MAVI2}    sudo apt-get install texlive-bibtex-extra${SIFIRLA}\n"
         fi
     fi
 
