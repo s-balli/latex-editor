@@ -7,6 +7,38 @@ from PyQt6.QtCore import QCoreApplication
 _ = lambda s: QCoreApplication.translate("PdfViewer", s)
 
 
+def _bm_title(bm) -> str:
+    """Yer imi başlığı. pypdfium2 sürümleri arası: get_title() (eski PdfBookmark)
+    veya .title (yeni PdfOutlineItem)."""
+    fn = getattr(bm, "get_title", None)
+    if callable(fn):
+        return fn() or ""
+    return getattr(bm, "title", "") or ""
+
+
+def _bm_level(bm) -> int:
+    """Yer imi seviyesi (her iki API'de de attribute)."""
+    return getattr(bm, "level", 0) or 0
+
+
+def _bm_page_index(bm):
+    """Sayfa indeksi. .page_index (yeni PdfOutlineItem) yoksa
+    get_dest().get_index() (eski PdfBookmark) dener."""
+    pi = getattr(bm, "page_index", None)
+    if pi is not None:
+        return pi
+    get_dest = getattr(bm, "get_dest", None)
+    dest = get_dest() if callable(get_dest) else getattr(bm, "dest", None)
+    if dest:
+        get_index = getattr(dest, "get_index", None)
+        if callable(get_index):
+            try:
+                return get_index()
+            except Exception:
+                return None
+    return None
+
+
 class PdfBookmarksMixin:
 
     def _setup_bookmarks_panel(self):
@@ -45,10 +77,9 @@ class PdfBookmarksMixin:
 
         stack = []
         for bm in bookmarks:
-            title = bm.get_title() or ""
-            level = bm.level
-            dest = bm.get_dest()
-            page_idx = dest.get_index() if dest else None
+            title = _bm_title(bm)
+            level = _bm_level(bm)
+            page_idx = _bm_page_index(bm)
 
             item = QTreeWidgetItem([title])
             item.setData(0, Qt.ItemDataRole.UserRole, page_idx)
