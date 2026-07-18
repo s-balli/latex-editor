@@ -111,6 +111,13 @@ APPIMAGETOOL_BIN="${APPIMAGETOOL_EXTRACTED}/AppRun"
 UPDATE_INFO="gh-releases-zsync|s-balli|latex-editor|latest|latex-editor-*-x86_64.AppImage.zsync"
 ARCH=x86_64 "$(realpath "$APPIMAGETOOL_BIN")" -u "$UPDATE_INFO" "$APPDIR" "dist/${APP_NAME}-x86_64.AppImage"
 
+# appimagetool .zsync dosyasını CWD'ye bırakabilir; release yüklemesi için dist/'e garanti et
+ZSYNC="${APP_NAME}-x86_64.AppImage.zsync"
+if ! [ -f "dist/$ZSYNC" ]; then
+    FOUND=$(find "$SCRIPT_DIR" -name "$ZSYNC" -not -path "*/dist/*" -print -quit 2>/dev/null)
+    [ -n "$FOUND" ] && mv -f "$FOUND" "dist/$ZSYNC"
+fi
+
 # appimagetool kalıntılarını temizle
 rm -rf "$SCRIPT_DIR/$APPIMAGETOOL_EXTRACTED"
 rm -f "$SCRIPT_DIR"/appimagetool*
