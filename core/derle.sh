@@ -315,30 +315,29 @@ derle_dosya() {
         fi
     fi
 
-    # İkinci derleme — sadece yardımcı dosyalar oluştuysa gerekli
+    # Ek derleme geçişleri — yardımcı dosyalar (toc/bbl/bcf/lof/lot/idx/glo/nls)
+    # oluştuysa veya "rerun" mesajı varsa. Çapraz referans/TOC/cleveref için bazen
+    # 3-4 geçiş gerekir; bu yüzden sabit 3 yerine rerun bitene (MAX_GECIS'e kadar) döner.
     local SON_CIKTI="$DERLEME_CIKTI"
-    local IKINCI_DERLEME=false
+    local MAX_GECIS=5
+    local GECIS=1
+    local YARDIMCI_DOSYA=false
     for ext in toc bbl bcf lof lot idx glo nls; do
         if [ -f "$TMPDIR/${ISIM}.${ext}" ]; then
-            IKINCI_DERLEME=true
+            YARDIMCI_DOSYA=true
             break
         fi
     done
-    # İlk derleme çıktısında rerun gerektiren mesaj varsa
-    if echo "$DERLEME_CIKTI" | grep -q "Rerun to get\|Label(s) may have changed"; then
-        IKINCI_DERLEME=true
-    fi
-
-    if [ "$IKINCI_DERLEME" = true ]; then
-        local IKINCI_CIKTI
-        IKINCI_CIKTI=$(cd "$KLASOR" && "$MOTOR" -interaction=nonstopmode $SHELL_ESCAPE_FLAG $SYNCTEX_FLAG -output-directory="$TMPDIR" -- "$DOSYA_ADI" 2>&1) || true
-        SON_CIKTI="$IKINCI_CIKTI"
-        # Referanslar hala değişiyorsa üçüncü derleme
-        if echo "$IKINCI_CIKTI" | grep -q "Rerun to get\|Label(s) may have changed"; then
-            local UCUNCU_CIKTI
-            UCUNCU_CIKTI=$(cd "$KLASOR" && "$MOTOR" -interaction=nonstopmode $SHELL_ESCAPE_FLAG $SYNCTEX_FLAG -output-directory="$TMPDIR" -- "$DOSYA_ADI" 2>&1) || true
-            SON_CIKTI="$UCUNCU_CIKTI"
-        fi
+    # 2. geçiş: yardımcı dosya varsa VEYA ilk çıktıda rerun mesajı varsa.
+    if [ "$YARDIMCI_DOSYA" = true ] || echo "$SON_CIKTI" | grep -q "Rerun to get\|Label(s) may have changed"; then
+        # Sonraki geçişler yalnızca "rerun" mesajı kalırsa; toplam MAX_GECIS geçişle sınırlı.
+        while [ "$GECIS" -lt "$MAX_GECIS" ]; do
+            local EK_CIKTI
+            EK_CIKTI=$(cd "$KLASOR" && "$MOTOR" -interaction=nonstopmode $SHELL_ESCAPE_FLAG $SYNCTEX_FLAG -output-directory="$TMPDIR" -- "$DOSYA_ADI" 2>&1) || true
+            SON_CIKTI="$EK_CIKTI"
+            GECIS=$((GECIS + 1))
+            echo "$SON_CIKTI" | grep -q "Rerun to get\|Label(s) may have changed" || break
+        done
     fi
 
     # Hata var mı? (exit kodu VEYA çıktıda ^! hataları). PDF mesajından ÖNCE

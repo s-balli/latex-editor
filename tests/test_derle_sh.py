@@ -34,6 +34,18 @@ MINIMAL_TEX_INPUT = r"""\documentclass{article}
 BOLUM_TEX = r"""Bolum içeriği.
 """
 
+# TOC + çapraz referans: birden çok geçiş (rerun) gerektirir
+TOC_TEX = r"""\documentclass{article}
+\begin{document}
+\tableofcontents
+\section{Bir}\label{sec:bir}
+Bkz. b\"ol\"um \ref{sec:iki} (sayfa \pageref{sec:iki}).
+\newpage
+\section{Iki}\label{sec:iki}
+Bkz. b\"ol\"um \ref{sec:bir} (sayfa \pageref{sec:bir}).
+\end{document}
+"""
+
 
 def _run_derle(args, cwd, timeout=30):
     result = subprocess.run(
@@ -159,6 +171,19 @@ class TestHataDeseni:
         out = self._grep(snippet)
         assert "! Undefined control sequence." in out
         assert "l.42" in out
+
+
+class TestCokluGecis:
+    """Cok gecisli derleme: TOC + capraz referans rerun gerektirir; stabilize olmali."""
+
+    def test_toc_ve_referanslar_cozulur(self, tmp_path):
+        tex = tmp_path / "main.tex"
+        tex.write_text(TOC_TEX)
+        r = _run_derle([str(tex)], cwd=str(tmp_path), timeout=90)
+        assert r.returncode == 0
+        assert (tmp_path / "main.pdf").exists()
+        # Gecisler converge etmis olmali: "Rerun to get" uyari mesaji kalmamali
+        assert "Rerun to get" not in r.stdout
 
 
 class TestInputInclude:
