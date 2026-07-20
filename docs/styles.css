@@ -155,6 +155,9 @@ p { margin: 0 0 1em; }
 /* ===== Section titles ===== */
 .section-title { font-size: clamp(1.5rem, 3vw, 2rem); font-weight: 800; letter-spacing: -.01em; }
 .section-sub { color: var(--muted); margin-top: -.25em; }
+.why-intro { max-width: 70ch; color: var(--muted); line-height: 1.7; margin-top: 20px; }
+.why-intro p { margin: 0 0 14px; }
+.why-intro p:last-child { margin-bottom: 0; }
 
 /* ===== Card grids ===== */
 .card-grid { display: grid; gap: 16px; margin-top: 28px; }
