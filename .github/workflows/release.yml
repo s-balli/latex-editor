@@ -62,6 +62,7 @@ jobs:
             echo '   ```'
             echo "2. **Install TeX Live in WSL:**"
             echo '   ```'
+            echo "   sudo apt-get update"
             echo "   sudo apt-get install texlive-base texlive-binaries texlive-latex-base \\"
             echo "     texlive-latex-extra texlive-latex-recommended texlive-lang-european \\"
             echo "     texlive-luatex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
@@ -73,6 +74,7 @@ jobs:
             echo "### Linux"
             echo "**Install TeX Live:**"
             echo '   ```'
+            echo "   sudo apt-get update"
             echo "   sudo apt-get install texlive-base texlive-binaries texlive-latex-base \\"
             echo "     texlive-latex-extra texlive-latex-recommended texlive-lang-european \\"
             echo "     texlive-luatex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
@@ -83,6 +85,7 @@ jobs:
             echo ""
             echo "### Minimum installation (basic compilation only)"
             echo '   ```'
+            echo "   sudo apt-get update"
             echo "   sudo apt-get install texlive-base texlive-binaries texlive-latex-base \\"
             echo "     texlive-latex-recommended texlive-luatex libxcb-cursor0"
             echo '   ```'
@@ -100,6 +103,7 @@ jobs:
             echo '   ```'
             echo "2. **WSL içinde TeX Live kur:**"
             echo '   ```'
+            echo "   sudo apt-get update"
             echo "   sudo apt-get install texlive-base texlive-binaries texlive-latex-base \\"
             echo "     texlive-latex-extra texlive-latex-recommended texlive-lang-european \\"
             echo "     texlive-luatex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
@@ -111,6 +115,7 @@ jobs:
             echo "### Linux"
             echo "**TeX Live kur:**"
             echo '   ```'
+            echo "   sudo apt-get update"
             echo "   sudo apt-get install texlive-base texlive-binaries texlive-latex-base \\"
             echo "     texlive-latex-extra texlive-latex-recommended texlive-lang-european \\"
             echo "     texlive-luatex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
@@ -121,6 +126,7 @@ jobs:
             echo ""
             echo "### Minimum kurulum (sadece temel derleme)"
             echo '   ```'
+            echo "   sudo apt-get update"
             echo "   sudo apt-get install texlive-base texlive-binaries texlive-latex-base \\"
             echo "     texlive-latex-recommended texlive-luatex libxcb-cursor0"
             echo '   ```'
@@ -185,6 +191,7 @@ jobs:
             echo '   ```'
             echo "2. **Install TeX Live in WSL:**"
             echo '   ```'
+            echo "   sudo apt-get update"
             echo "   sudo apt-get install texlive-base texlive-binaries texlive-latex-base \\"
             echo "     texlive-latex-extra texlive-latex-recommended texlive-lang-european \\"
             echo "     texlive-luatex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
@@ -196,6 +203,7 @@ jobs:
             echo "### Linux"
             echo "**Install TeX Live:**"
             echo '   ```'
+            echo "   sudo apt-get update"
             echo "   sudo apt-get install texlive-base texlive-binaries texlive-latex-base \\"
             echo "     texlive-latex-extra texlive-latex-recommended texlive-lang-european \\"
             echo "     texlive-luatex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
@@ -206,6 +214,7 @@ jobs:
             echo ""
             echo "### Minimum installation (basic compilation only)"
             echo '   ```'
+            echo "   sudo apt-get update"
             echo "   sudo apt-get install texlive-base texlive-binaries texlive-latex-base \\"
             echo "     texlive-latex-recommended texlive-luatex libxcb-cursor0"
             echo '   ```'
@@ -223,6 +232,7 @@ jobs:
             echo '   ```'
             echo "2. **WSL içinde TeX Live kur:**"
             echo '   ```'
+            echo "   sudo apt-get update"
             echo "   sudo apt-get install texlive-base texlive-binaries texlive-latex-base \\"
             echo "     texlive-latex-extra texlive-latex-recommended texlive-lang-european \\"
             echo "     texlive-luatex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
@@ -234,6 +244,7 @@ jobs:
             echo "### Linux"
             echo "**TeX Live kur:**"
             echo '   ```'
+            echo "   sudo apt-get update"
             echo "   sudo apt-get install texlive-base texlive-binaries texlive-latex-base \\"
             echo "     texlive-latex-extra texlive-latex-recommended texlive-lang-european \\"
             echo "     texlive-luatex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
@@ -244,6 +255,7 @@ jobs:
             echo ""
             echo "### Minimum kurulum (sadece temel derleme)"
             echo '   ```'
+            echo "   sudo apt-get update"
             echo "   sudo apt-get install texlive-base texlive-binaries texlive-latex-base \\"
             echo "     texlive-latex-recommended texlive-luatex libxcb-cursor0"
             echo '   ```'
