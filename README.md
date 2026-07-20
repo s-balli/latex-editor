@@ -80,6 +80,7 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 #### WSL (for LaTeX compilation)
 
 ```bash
+sudo apt-get update
 sudo apt-get install texlive-base texlive-binaries texlive-latex-base \
   texlive-latex-extra texlive-latex-recommended texlive-lang-european texlive-luatex \
   texlive-fonts-extra texlive-science texlive-bibtex-extra texlive-font-utils \
@@ -148,12 +149,12 @@ To run on another computer:
 |----------|-------------|
 | `LaTeX Editor.exe` | Single file, no Python needed |
 | **WSL** | WSL must be enabled on Windows 10/11 |
-| **TeX Live** | Inside WSL: `sudo apt-get install texlive-base texlive-binaries texlive-latex-base texlive-latex-extra texlive-latex-recommended texlive-lang-european texlive-luatex texlive-fonts-extra texlive-science texlive-bibtex-extra texlive-font-utils texlive-extra-utils biber texlive-publishers texlive-humanities texlive-pstricks pandoc` |
+| **TeX Live** | Inside WSL: `sudo apt-get update && sudo apt-get install texlive-base texlive-binaries texlive-latex-base texlive-latex-extra texlive-latex-recommended texlive-lang-european texlive-luatex texlive-fonts-extra texlive-science texlive-bibtex-extra texlive-font-utils texlive-extra-utils biber texlive-publishers texlive-humanities texlive-pstricks pandoc` |
 | **pandoc** | For export: `sudo apt-get install pandoc` inside WSL |
 
 Installation steps:
 1. Enable WSL: `wsl --install` (PowerShell, as administrator)
-2. Open WSL and install TeX Live (command above)
+2. Open the Ubuntu app (or run `wsl` in PowerShell) and run the command above to install TeX Live
 3. Copy `LaTeX Editor.exe` to desktop, double-click
 
 ### Linux
@@ -171,6 +172,7 @@ chmod +x LaTeX_Editor_v*_Linux_x86_64.AppImage
 **2. Install TeX Live (for compilation):**
 
 ```bash
+sudo apt-get update
 sudo apt-get install texlive-base texlive-binaries texlive-latex-base \
   texlive-latex-extra texlive-latex-recommended texlive-lang-european \
   texlive-luatex texlive-fonts-extra texlive-science texlive-bibtex-extra \
@@ -201,6 +203,7 @@ sudo apt-get install texlive-base texlive-binaries texlive-latex-base \
 
 **Minimum installation** (basic compilation only):
 ```bash
+sudo apt-get update
 sudo apt-get install texlive-base texlive-binaries texlive-latex-base \
   texlive-latex-recommended texlive-luatex libxcb-cursor0
 ```

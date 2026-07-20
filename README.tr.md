@@ -80,6 +80,7 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 #### WSL (LaTeX derleme için)
 
 ```bash
+sudo apt-get update
 sudo apt-get install texlive-base texlive-binaries texlive-latex-base \
   texlive-latex-extra texlive-latex-recommended texlive-lang-european texlive-luatex \
   texlive-fonts-extra texlive-science texlive-bibtex-extra texlive-font-utils \
@@ -148,12 +149,12 @@ Başka bir bilgisayarda çalıştırmak için:
 |---------|----------|
 | `LaTeX Editor.exe` | Tek dosya, Python gerektirmez |
 | **WSL** | Windows 10/11'de WSL aktif olmalı |
-| **TeX Live** | WSL içinde: `sudo apt-get install texlive-base texlive-binaries texlive-latex-base texlive-latex-extra texlive-latex-recommended texlive-lang-european texlive-luatex texlive-fonts-extra texlive-science texlive-bibtex-extra texlive-font-utils texlive-extra-utils biber texlive-publishers texlive-humanities texlive-pstricks pandoc` |
+| **TeX Live** | WSL içinde: `sudo apt-get update && sudo apt-get install texlive-base texlive-binaries texlive-latex-base texlive-latex-extra texlive-latex-recommended texlive-lang-european texlive-luatex texlive-fonts-extra texlive-science texlive-bibtex-extra texlive-font-utils texlive-extra-utils biber texlive-publishers texlive-humanities texlive-pstricks pandoc` |
 | **pandoc** | Dışa aktarma için: WSL içinde `sudo apt-get install pandoc` |
 
 Kurulum adımları:
 1. WSL'i etkinleştir: `wsl --install` (PowerShell, yönetici olarak)
-2. WSL'i aç ve TeX Live kur (yukarıdaki komut)
+2. Ubuntu uygulamasını aç (veya PowerShell'de `wsl` yaz) ve yukarıdaki komutu çalıştırarak TeX Live'ı kur
 3. `LaTeX Editor.exe`'yi masaüstüne kopyala, çift tıkla
 
 ### Linux
@@ -171,6 +172,7 @@ chmod +x LaTeX_Editor_v*_Linux_x86_64.AppImage
 **2. TeX Live kur (derleme için):**
 
 ```bash
+sudo apt-get update
 sudo apt-get install texlive-base texlive-binaries texlive-latex-base \
   texlive-latex-extra texlive-latex-recommended texlive-lang-european \
   texlive-luatex texlive-fonts-extra texlive-science texlive-bibtex-extra \
@@ -201,6 +203,7 @@ sudo apt-get install texlive-base texlive-binaries texlive-latex-base \
 
 **Minimum kurulum** (sadece temel derleme):
 ```bash
+sudo apt-get update
 sudo apt-get install texlive-base texlive-binaries texlive-latex-base \
   texlive-latex-recommended texlive-luatex libxcb-cursor0
 ```
