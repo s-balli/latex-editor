@@ -71,12 +71,10 @@ async def run_compile(compile_id: str, rel_path: str, engine: str, output_queue:
         clean_output = re.sub(r'\x1b\[[0-9;]*m', '', raw_output)
         result = parse_output(clean_output, str(abs_path))
 
-        # PDF yolunu belirle
+        # PDF yolunu belirle — derle.sh her motor (lualatex/pdflatex) için
+        # <isim>.pdf üretir (desktop/core/compiler.py ile aynı).
         name = abs_path.stem
-        if engine == "pdflatex":
-            pdf_name = f"{name}_pdflatex.pdf"
-        else:
-            pdf_name = f"{name}.pdf"
+        pdf_name = f"{name}.pdf"
         pdf_path = abs_dir / pdf_name
         result.pdf_path = str(pdf_path) if pdf_path.exists() else ""
         result.success = pdf_path.exists()
