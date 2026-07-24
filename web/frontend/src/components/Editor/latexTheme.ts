@@ -1,6 +1,6 @@
 import type * as Monaco from 'monaco-editor';
 
-export type ThemeId = 'dark' | 'light' | 'dracula' | 'gruvbox';
+export type ThemeId = 'dark' | 'light' | 'solarized' | 'dracula' | 'monokai' | 'nord' | 'gruvbox';
 
 interface ThemeDef {
   monacoName: string;
@@ -149,7 +149,115 @@ const GRUVBOX: ThemeDef = {
   },
 };
 
-const THEMES: Record<ThemeId, ThemeDef> = { dark: DARK, light: LIGHT, dracula: DRACULA, gruvbox: GRUVBOX };
+const SOLARIZED: ThemeDef = {
+  monacoName: 'latex-solarized',
+  base: 'vs',
+  rules: [
+    { token: '', foreground: '586e75' },
+    { token: 'keyword', foreground: '268bd2' },
+    { token: 'comment', foreground: '93a1a1', fontStyle: 'italic' },
+    { token: 'string', foreground: '2aa198' },
+    { token: 'delimiter.bracket', foreground: '586e75' },
+    { token: 'delimiter.square', foreground: '859900' },
+    { token: 'number', foreground: '859900' },
+    { token: 'regexp', foreground: '6c71c4' },
+    { token: 'variable', foreground: '268bd2' },
+  ],
+  colors: {
+    'editor.background': '#fdf6e3',
+    'editor.foreground': '#586e75',
+    'editor.lineHighlightBackground': '#e8e2cf',
+    'editor.selectionBackground': '#c4d5e4',
+    'editorCursor.foreground': '#586e75',
+    'editorLineNumber.foreground': '#93a1a1',
+    'editorLineNumber.activeForeground': '#657b83',
+    'editorIndentGuide.background': '#d6ceb6',
+    'editorBracketMatch.border': '#268bd2',
+    'editorGutter.background': '#fdf6e3',
+    'editorHoverWidget.background': '#eee8d5',
+    'editorHoverWidget.border': '#d6ceb6',
+    'editorSuggestWidget.background': '#eee8d5',
+    'editorSuggestWidget.border': '#d6ceb6',
+    'editorSuggestWidget.selectedBackground': '#c4d5e4',
+    'scrollbarSlider.background': '#93a1a166',
+    'scrollbarSlider.hoverBackground': '#93a1a1b3',
+  },
+};
+
+const MONOKAI: ThemeDef = {
+  monacoName: 'latex-monokai',
+  base: 'vs-dark',
+  rules: [
+    { token: '', foreground: 'f8f8f2' },
+    { token: 'keyword', foreground: 'f92672' },
+    { token: 'comment', foreground: '75715e', fontStyle: 'italic' },
+    { token: 'string', foreground: 'e6db74' },
+    { token: 'delimiter.bracket', foreground: 'f8f8f2' },
+    { token: 'delimiter.square', foreground: 'a6e22e' },
+    { token: 'number', foreground: 'a6e22e' },
+    { token: 'regexp', foreground: 'ae81ff' },
+    { token: 'variable', foreground: '66d9ef' },
+  ],
+  colors: {
+    'editor.background': '#272822',
+    'editor.foreground': '#f8f8f2',
+    'editor.lineHighlightBackground': '#3e3d32',
+    'editor.selectionBackground': '#49483e',
+    'editorCursor.foreground': '#f8f8f2',
+    'editorLineNumber.foreground': '#75715e',
+    'editorLineNumber.activeForeground': '#f8f8f2',
+    'editorIndentGuide.background': '#3e3d32',
+    'editorBracketMatch.border': '#a6e22e',
+    'editorGutter.background': '#272822',
+    'editorHoverWidget.background': '#1e1f1c',
+    'editorHoverWidget.border': '#3e3d32',
+    'editorSuggestWidget.background': '#1e1f1c',
+    'editorSuggestWidget.border': '#3e3d32',
+    'editorSuggestWidget.selectedBackground': '#49483e',
+    'scrollbarSlider.background': '#75715e66',
+    'scrollbarSlider.hoverBackground': '#75715eb3',
+  },
+};
+
+const NORD: ThemeDef = {
+  monacoName: 'latex-nord',
+  base: 'vs-dark',
+  rules: [
+    { token: '', foreground: 'd8dee9' },
+    { token: 'keyword', foreground: '81a1c1' },
+    { token: 'comment', foreground: '616e88', fontStyle: 'italic' },
+    { token: 'string', foreground: 'a3be8c' },
+    { token: 'delimiter.bracket', foreground: 'd8dee9' },
+    { token: 'delimiter.square', foreground: '8fbcbb' },
+    { token: 'number', foreground: '8fbcbb' },
+    { token: 'regexp', foreground: 'b48ead' },
+    { token: 'variable', foreground: '88c0d0' },
+  ],
+  colors: {
+    'editor.background': '#2e3440',
+    'editor.foreground': '#d8dee9',
+    'editor.lineHighlightBackground': '#3b4252',
+    'editor.selectionBackground': '#434c5e',
+    'editorCursor.foreground': '#d8dee9',
+    'editorLineNumber.foreground': '#616e88',
+    'editorLineNumber.activeForeground': '#d8dee9',
+    'editorIndentGuide.background': '#3b4252',
+    'editorBracketMatch.border': '#88c0d0',
+    'editorGutter.background': '#2e3440',
+    'editorHoverWidget.background': '#292e39',
+    'editorHoverWidget.border': '#3b4252',
+    'editorSuggestWidget.background': '#292e39',
+    'editorSuggestWidget.border': '#3b4252',
+    'editorSuggestWidget.selectedBackground': '#434c5e',
+    'scrollbarSlider.background': '#616e8866',
+    'scrollbarSlider.hoverBackground': '#616e88b3',
+  },
+};
+
+const THEMES: Record<ThemeId, ThemeDef> = {
+  dark: DARK, light: LIGHT, solarized: SOLARIZED,
+  dracula: DRACULA, monokai: MONOKAI, nord: NORD, gruvbox: GRUVBOX,
+};
 
 /** Tüm temaları monaco'ya kaydet (beforeMount'ta çağrılır). */
 export function defineAllLatexThemes(monaco: typeof Monaco): void {
