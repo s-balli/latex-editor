@@ -34,7 +34,7 @@ function App() {
   const {
     tabs, activeTab, openTab, closeTab, setActiveTab,
     markDirty, setTabContent, tabContents, setDetectedEngine,
-    saveSession, loadSession, getDetectedEngine,
+    saveSession, loadSession,
   } = useEditorStore();
   const { result, outputLines } = useCompileStore();
   const { compile, stop, saveAndCompile } = useCompile();
@@ -66,7 +66,7 @@ function App() {
         try {
           const { engine } = await detectEngine(path);
           setDetectedEngine(path, engine);
-          useCompileStore.getState().setEngine(engine);
+          useCompileStore.getState().setEngine(engine as 'lualatex' | 'pdflatex');
         } catch { /* algılama başarısız — mevcut motor korunur */ }
       }
     } catch (err) {
@@ -80,7 +80,7 @@ function App() {
     const currentTabs = useEditorStore.getState().tabs;
     const tab = currentTabs.find(t => t.path === activeTab);
     if (tab?.detectedEngine) {
-      useCompileStore.getState().setEngine(tab.detectedEngine);
+      useCompileStore.getState().setEngine(tab.detectedEngine as 'lualatex' | 'pdflatex');
     }
   }, [activeTab]);
 
