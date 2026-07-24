@@ -62,6 +62,7 @@ def _fix_md_image_paths(tex_path: str, md_path: str):
 
     \graphicspath{{media/Bolum1/}} gibi LaTeX yol tanımlarını da hesaba katar.
     """
+    tex_dir = os.path.dirname(os.path.abspath(tex_path))
     graphics_paths = _extract_graphics_paths(tex_path)
 
     try:
@@ -75,11 +76,10 @@ def _fix_md_image_paths(tex_path: str, md_path: str):
             path = m.group(2)
             if os.path.isabs(path) or path.startswith(("http://", "https://")):
                 return f"![{alt}]({path})"
-            # graphicspath varsa öne ekle
-            if graphics_paths:
-                rel = (graphics_paths[0] + path).replace(os.sep, '/')
-                return f"![{alt}]({rel})"
-            return f"![{alt}]({path})"
+            # Önce graphicspath öneki (varsa), sonra .tex dizinine göre mutlak yap.
+            rel = (graphics_paths[0] + path) if graphics_paths else path
+            abs_path = os.path.normpath(os.path.join(tex_dir, rel)).replace(os.sep, '/')
+            return f"![{alt}]({abs_path})"
 
         # {width="70%"} gibi pandoc niteliklerini kaldır
         content = re.sub(r'\{[^}]*width[^}]*\}', '', content)

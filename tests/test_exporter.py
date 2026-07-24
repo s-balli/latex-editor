@@ -254,6 +254,8 @@ class TestFixMdImagePaths:
         _fix_md_image_paths(str(tex_file), str(md_file))
         content = md_file.read_text()
         assert "media/image.png" in content
+        # fix: göreceli yol .tex dizinine göre mutlak yapıldı (sadece substring değil)
+        assert str(tex_file.parent) in content
 
     def test_absolute_path_unchanged(self, tmp_path):
         tex_file = tmp_path / "doc.tex"
