@@ -1,6 +1,6 @@
 import type * as Monaco from 'monaco-editor';
 
-export type ThemeId = 'dark' | 'light' | 'dracula';
+export type ThemeId = 'dark' | 'light' | 'dracula' | 'gruvbox';
 
 interface ThemeDef {
   monacoName: string;
@@ -114,7 +114,42 @@ const DRACULA: ThemeDef = {
   },
 };
 
-const THEMES: Record<ThemeId, ThemeDef> = { dark: DARK, light: LIGHT, dracula: DRACULA };
+const GRUVBOX: ThemeDef = {
+  monacoName: 'latex-gruvbox',
+  base: 'vs-dark',
+  rules: [
+    { token: '', foreground: 'ebdbb2' },
+    { token: 'keyword', foreground: 'fe8019' },
+    { token: 'comment', foreground: '928374', fontStyle: 'italic' },
+    { token: 'string', foreground: 'b8bb26' },
+    { token: 'delimiter.bracket', foreground: 'ebdbb2' },
+    { token: 'delimiter.square', foreground: 'd3869b' },
+    { token: 'number', foreground: 'd3869b' },
+    { token: 'regexp', foreground: 'fb4934' },
+    { token: 'variable', foreground: '83a598' },
+  ],
+  colors: {
+    'editor.background': '#282828',
+    'editor.foreground': '#ebdbb2',
+    'editor.lineHighlightBackground': '#3c3836',
+    'editor.selectionBackground': '#665c54',
+    'editorCursor.foreground': '#ebdbb2',
+    'editorLineNumber.foreground': '#928374',
+    'editorLineNumber.activeForeground': '#ebdbb2',
+    'editorIndentGuide.background': '#504945',
+    'editorBracketMatch.border': '#fabd2f',
+    'editorGutter.background': '#282828',
+    'editorHoverWidget.background': '#3c3836',
+    'editorHoverWidget.border': '#504945',
+    'editorSuggestWidget.background': '#3c3836',
+    'editorSuggestWidget.border': '#504945',
+    'editorSuggestWidget.selectedBackground': '#504945',
+    'scrollbarSlider.background': '#92837466',
+    'scrollbarSlider.hoverBackground': '#928374b3',
+  },
+};
+
+const THEMES: Record<ThemeId, ThemeDef> = { dark: DARK, light: LIGHT, dracula: DRACULA, gruvbox: GRUVBOX };
 
 /** Tüm temaları monaco'ya kaydet (beforeMount'ta çağrılır). */
 export function defineAllLatexThemes(monaco: typeof Monaco): void {

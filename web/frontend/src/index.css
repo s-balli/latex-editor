@@ -49,6 +49,23 @@
   --warning: #f1fa8c;
 }
 
+[data-theme="gruvbox"] {
+  --bg: #282828;
+  --panel: #3c3836;
+  --panel-2: #504945;
+  --elevated: #504945;
+  --border: #504945;
+  --fg: #ebdbb2;
+  --fg-muted: #a89984;
+  --fg-dim: #928374;
+  --fg-bright: #fbf1c7;
+  --accent: #fabd2f;
+  --accent-bg: #504945;
+  --error: #fb4934;
+  --success: #b8bb26;
+  --warning: #fabd2f;
+}
+
 * {
   margin: 0;
   padding: 0;
