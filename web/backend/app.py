@@ -4,9 +4,8 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-from fastapi.staticfiles import StaticFiles
 
-from web.backend.routers import files, compile, session
+from web.backend.routers import files, compile, session, synctex
 from web.backend.services import file_system
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
@@ -27,6 +26,7 @@ def create_app() -> FastAPI:
     app.include_router(files.router, prefix="/api/files", tags=["files"])
     app.include_router(compile.router, prefix="/api/compile", tags=["compile"])
     app.include_router(session.router, prefix="/api/session", tags=["session"])
+    app.include_router(synctex.router, prefix="/api/synctex", tags=["synctex"])
 
     @app.get("/api/version")
     def get_version():

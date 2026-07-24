@@ -12,6 +12,7 @@ export interface MonacoEditorProps {
   path: string;
   onChange?: (value: string) => void;
   onMount?: (editor: MonacoEditorType.IStandaloneCodeEditor) => void;
+  onSynctexForward?: (line: number, col: number) => void;
 }
 
 const modelsMap = new Map<string, MonacoEditorType.ITextModel>();
@@ -32,11 +33,15 @@ export function MonacoEditor({
   path,
   onChange,
   onMount,
+  onSynctexForward,
 }: MonacoEditorProps) {
   const editorRef = useRef<MonacoEditorType.IStandaloneCodeEditor | null>(null);
   const monacoRef = useRef<typeof import('monaco-editor') | null>(null);
   const pathRef = useRef<string>(path);
   const suppressChangeRef = useRef(false);
+  // SyncTeX forward callback — ref ile sakla (mount'ta kaydedilen listener güncel kalsın)
+  const onForwardRef = useRef(onSynctexForward);
+  onForwardRef.current = onSynctexForward;
 
   const handleBeforeMount = useCallback((monaco: typeof import('monaco-editor')) => {
     ensureLatexRegistered(monaco);
@@ -111,6 +116,15 @@ export function MonacoEditor({
 
           ed.pushUndoStop();
         },
+      });
+
+      // Ctrl/Cmd+click → SyncTeX forward arama (editör satırı → PDF)
+      editor.onMouseDown((e) => {
+        const pos = e.target?.position;
+        if ((e.event.ctrlKey || e.event.metaKey) && pos) {
+          e.event.preventDefault();
+          onForwardRef.current?.(pos.lineNumber, pos.column);
+        }
       });
 
       pathRef.current = path;

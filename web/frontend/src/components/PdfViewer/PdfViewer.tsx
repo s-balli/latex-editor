@@ -8,8 +8,20 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url,
 ).toString();
 
+interface SynctexTarget {
+  page: number;
+  x: number;
+  y: number;
+  left: number;
+  width: number;
+  height: number;
+  nonce: number;
+}
+
 interface PdfViewerProps {
   pdfUrl: string | null;
+  onReverseSearch?: (page: number, x: number, y: number) => void;
+  synctexTarget?: SynctexTarget | null;
 }
 
 const MIN_ZOOM = 25;
@@ -18,7 +30,7 @@ const ZOOM_STEP = 25;
 const DEFAULT_ZOOM = 75;
 const RENDER_SCALE = 1.5;
 
-export default function PdfViewer({ pdfUrl }: PdfViewerProps) {
+export default function PdfViewer({ pdfUrl, onReverseSearch, synctexTarget }: PdfViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const pagesContainerRef = useRef<HTMLDivElement>(null);
   const docRef = useRef<PDFDocumentProxy | null>(null);
@@ -27,6 +39,7 @@ export default function PdfViewer({ pdfUrl }: PdfViewerProps) {
   const observerRef = useRef<IntersectionObserver | null>(null);
   const zoomRef = useRef(DEFAULT_ZOOM);
   const pageViewportsRef = useRef<{ width: number; height: number }[]>([]);
+  const highlightRef = useRef<HTMLDivElement | null>(null);
 
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
   const [currentPage, setCurrentPage] = useState(1);
@@ -118,6 +131,7 @@ export default function PdfViewer({ pdfUrl }: PdfViewerProps) {
         const pageDiv = document.createElement('div');
         pageDiv.className = 'pdf-page-wrapper';
         pageDiv.dataset.page = String(i);
+        pageDiv.style.position = 'relative';
         pageDiv.style.width = `${vp.width * zf}px`;
         pageDiv.style.height = `${vp.height * zf}px`;
         pageDiv.style.margin = '0 auto 8px auto';
@@ -244,6 +258,78 @@ export default function PdfViewer({ pdfUrl }: PdfViewerProps) {
     container.addEventListener('wheel', handleWheel, { passive: false });
     return () => container.removeEventListener('wheel', handleWheel);
   }, []);
+
+  // SyncTeX reverse: Ctrl/Cmd+click → kaynak konumu (CSS piksel → PDF point)
+  useEffect(() => {
+    const container = pagesContainerRef.current;
+    if (!container || !onReverseSearch) return;
+    const handler = (e: MouseEvent) => {
+      if (!(e.ctrlKey || e.metaKey)) return;
+      const canvas = (e.target as HTMLElement).closest('.pdf-page-canvas') as HTMLCanvasElement | null;
+      if (!canvas) return;
+      const pageDiv = canvas.closest('.pdf-page-wrapper') as HTMLElement | null;
+      const pageNum = Number(pageDiv?.dataset.page);
+      if (!pageNum) return;
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const zf = zoomRef.current / 100;
+      const x = (e.clientX - rect.left) / zf;
+      const y = (e.clientY - rect.top) / zf;
+      onReverseSearch(pageNum, x, y);
+    };
+    container.addEventListener('click', handler);
+    return () => container.removeEventListener('click', handler);
+  }, [onReverseSearch]);
+
+  // SyncTeX forward: hedef sayfaya kaydır + vurgu kutusu (PDF point → CSS piksel)
+  useEffect(() => {
+    if (!synctexTarget) return;
+    const div = pageDivRefs.current.get(synctexTarget.page);
+    const container = containerRef.current;
+    if (!div || !container) return;
+    const zf = zoomRef.current / 100;
+
+    const hadCanvas = !!div.querySelector('.pdf-page-canvas');
+    if (!hadCanvas) {
+      renderPage(synctexTarget.page, div); // sayfa görünür olsun
+    }
+
+    const yOnPage = (synctexTarget.y - synctexTarget.height) * zf;
+    const xOnPage = synctexTarget.left * zf;
+
+    // Hedefi container ortasına getir (getBoundingClientRect ile robust)
+    const divRect = div.getBoundingClientRect();
+    const containerRect = container.getBoundingClientRect();
+    container.scrollTop += (divRect.top + yOnPage) - (containerRect.top + containerRect.height / 2);
+    setCurrentPage(synctexTarget.page);
+
+    // Vurgu yalnızca sayfa zaten render edilmişse (yeni render innerHTML'i temizler)
+    if (hadCanvas) {
+      if (highlightRef.current) highlightRef.current.remove();
+      const hl = document.createElement('div');
+      const hPx = Math.max(synctexTarget.height * zf, 4);
+      const wPx = synctexTarget.width ? synctexTarget.width * zf : 0;
+      hl.style.position = 'absolute';
+      hl.style.left = `${xOnPage}px`;
+      hl.style.top = `${yOnPage}px`;
+      hl.style.height = `${hPx}px`;
+      if (wPx) hl.style.width = `${wPx}px`;
+      hl.style.background = 'rgba(255, 200, 0, 0.30)';
+      hl.style.border = '1px solid rgba(255, 165, 0, 0.9)';
+      hl.style.boxSizing = 'border-box';
+      hl.style.pointerEvents = 'none';
+      hl.style.zIndex = '5';
+      div.appendChild(hl);
+      highlightRef.current = hl;
+      const timer = window.setTimeout(() => {
+        if (highlightRef.current === hl) {
+          hl.remove();
+          highlightRef.current = null;
+        }
+      }, 2000);
+      return () => window.clearTimeout(timer);
+    }
+  }, [synctexTarget, renderPage]);
 
   const handleDownload = useCallback(() => {
     if (!pdfUrl) return;

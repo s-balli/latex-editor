@@ -7,6 +7,7 @@ import { useCompile } from './hooks/useCompile';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { listFiles, readFile, writeFile, detectEngine } from './api/files';
 import { getPdfUrl } from './api/compile';
+import { forwardSearch, reverseSearch, type ForwardResult } from './api/synctex';
 import { apiFetch } from './api/client';
 
 import Toolbar from './components/Toolbar/Toolbar';
@@ -27,6 +28,7 @@ function App() {
   const [cursorLine, setCursorLine] = useState(1);
   const [cursorCol, setCursorCol] = useState(1);
   const [appVersion, setAppVersion] = useState('');
+  const [synctexTarget, setSynctexTarget] = useState<(ForwardResult & { nonce: number }) | null>(null);
   const editorRef = useRef<any>(null);
 
   const {
@@ -110,7 +112,8 @@ function App() {
   }, [result]);
 
   // Hata/uyarı tıklama — async navigasyon
-  const handleErrorClick = useCallback(async (filePath: string, line: number) => {
+  // Dosya + satıra git (hata tıklama ve SyncTeX reverse ortak mantığı)
+  const gotoFileLine = useCallback(async (filePath: string, line: number) => {
     // Mutlak yol → mevcut tab'la eşleştir (tab'lar göreceli yol tutuyor)
     const existingTab = filePath
       ? tabs.find(t => t.path === filePath || filePath.endsWith('/' + t.path) || filePath.endsWith(t.path))
@@ -129,6 +132,34 @@ function App() {
       }
     });
   }, [handleFileClick, tabs, setActiveTab]);
+
+  const handleErrorClick = useCallback(async (filePath: string, line: number) => {
+    await gotoFileLine(filePath, line);
+  }, [gotoFileLine]);
+
+  // SyncTeX forward: editör Ctrl/Cmd+click → PDF konumu
+  const handleForwardSearch = useCallback(async (line: number, col: number) => {
+    const pdfPath = result?.pdf_path;
+    if (!pdfPath || !activeTab) return;
+    try {
+      const r = await forwardSearch(activeTab, line, col, pdfPath);
+      setSynctexTarget({ ...r, nonce: Date.now() });
+    } catch (err) {
+      console.warn('[SyncTeX] forward başarısız:', err);
+    }
+  }, [result, activeTab]);
+
+  // SyncTeX reverse: PDF Ctrl/Cmd+click → kaynak dosya + satır
+  const handleReverseSearch = useCallback(async (page: number, x: number, y: number) => {
+    const pdfPath = result?.pdf_path;
+    if (!pdfPath) return;
+    try {
+      const r = await reverseSearch(page, x, y, pdfPath);
+      await gotoFileLine(r.file_path, r.line);
+    } catch (err) {
+      console.warn('[SyncTeX] reverse başarısız:', err);
+    }
+  }, [result, gotoFileLine]);
 
   // Keyboard shortcuts
   useKeyboardShortcuts({
@@ -238,6 +269,7 @@ function App() {
                 path={activeTab}
                 onChange={handleChange}
                 onMount={handleEditorMount}
+                onSynctexForward={handleForwardSearch}
               />
             ) : (
               <div className="empty-editor">
@@ -246,7 +278,7 @@ function App() {
             )}
           </div>
         }
-        pdfViewer={<PdfViewer pdfUrl={pdfUrl} />}
+        pdfViewer={<PdfViewer pdfUrl={pdfUrl} synctexTarget={synctexTarget} onReverseSearch={handleReverseSearch} />}
         outputPanel={
           <OutputPanel
             errors={result?.errors || []}
