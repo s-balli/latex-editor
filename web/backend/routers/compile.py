@@ -1,11 +1,9 @@
 import asyncio
-import os
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 
 from web.backend.services import compiler, file_system
-from web.backend.config import WORKSPACE_ROOT
 
 router = APIRouter()
 
