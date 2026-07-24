@@ -15,13 +15,13 @@ A LaTeX editor & compiler desktop app (PyQt6). Combines Notepad++-style editing 
 
  ## Screenshot
 
-![Main window](./screenshot/01.png)
+![Main window](./docs/assets/01.png)
 
 ### SyncTeX in action
 
 Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl+Click the PDF → the editor jumps back to that source line.
 
-![SyncTeX: click source line ↔ jump to PDF](./screenshot/ss1.gif)
+![SyncTeX: click source line ↔ jump to PDF](./docs/assets/ss1.gif)
 
 ---
 
@@ -45,7 +45,7 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 - **License**: GPL-3.0 (PyQt6 GPL-compatible)
 - **Distribution**: GitHub Releases — Windows portable `.exe` + Linux `.AppImage` (auto-built via GitHub Actions)
 - **Auto-update check**: Via Help menu or on startup, checks GitHub Releases API for new versions
-- **331 unit tests**: engine_detector, input_parser, log_parser, paths, latex_utils, exporter, derle_sh, i18n, imports, autopair, latex_lexer, pdf_indicator, wordcount, updater, synctex_live
+- **333 unit tests**: engine_detector, input_parser, log_parser, paths, latex_utils, exporter, derle_sh, i18n, imports, autopair, latex_lexer, pdf_indicator, wordcount, updater, synctex_live
 - **Features**: Syntax highlighting, PDF preview, SyncTeX, 7 themes, multi-language (TR/EN), auto pairing, PDF bookmarks/search/selection, presentation mode, two-page view, smart engine detection, image drag & drop
 
 ---
@@ -363,7 +363,7 @@ Toggle auto-compile by clicking **● Auto** in the toolbar. In Auto mode, Ctrl+
 
 ## Test
 
-331 unit tests. No PyQt6 dependency, pure pytest.
+333 unit tests. No PyQt6 dependency, pure pytest.
 
 ```bash
 # Install pytest (first time)

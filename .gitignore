@@ -50,5 +50,5 @@ appimagetool
 appimagetool_extracted/
 squashfs-root/
 
-# UPX binary (kullanıcı kendisi indirmeli — README'ye bakın)
-desktop/upx/upx.exe
+# UPX (kullanıcı kendisi indirmeli; README'ye bakın. Binary ve dökümanlar repoda tutulmaz.)
+desktop/upx/

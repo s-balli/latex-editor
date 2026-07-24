@@ -15,13 +15,13 @@ PyQt6 tabanlı LaTeX editörü ve derleyici. Notepad++ tarzı düzenlemeyi göm�
 
  ## Ekran görüntüsü
 
-![Ana pencere](./screenshot/01.png)
+![Ana pencere](./docs/assets/01.png)
 
 ### SyncTeX canlı
 
 Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar. PDF'e Ctrl+Click → editör o kaynak satıra geri döner.
 
-![SyncTeX: kaynak satıra tıkla ↔ PDF'e geç](./screenshot/ss1.gif)
+![SyncTeX: kaynak satıra tıkla ↔ PDF'e geç](./docs/assets/ss1.gif)
 
 ---
 
@@ -45,7 +45,7 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 - **Lisans**: GPL-3.0 (PyQt6 GPL uyumlu)
 - **Dağıtım**: GitHub Releases — Windows portable `.exe` + Linux `.AppImage` (GitHub Actions ile otomatik derleme)
 - **Otomatik güncelleme kontrolü**: Yardım menüsünden veya açılışta GitHub Releases API ile sürüm kontrolü
-- **326 unit test**: engine_detector, input_parser, log_parser, paths, latex_utils, exporter, derle_sh, i18n, imports, autopair, latex_lexer, pdf_indicator, wordcount, updater
+- **333 unit test**: engine_detector, input_parser, log_parser, paths, latex_utils, exporter, derle_sh, i18n, imports, autopair, latex_lexer, pdf_indicator, wordcount, updater
 - **Özellikler**: Sözdizimi renklendirme, PDF önizleme, SyncTeX, 7 tema, çoklu dil (TR/EN), otomatik parantezleme, PDF yer imleri/arama/seçme, sunum modu, çift sayfa, akıllı motor algılama, görsel sürükle-bırak
 
 ---
@@ -363,7 +363,7 @@ Araç çubuğunda **● Otomatik** yazısına tıklayarak otomatik derlemeyi aç
 
 ## Test
 
-326 unit test. PyQt6 bağımlılığı yok, saf pytest.
+333 unit test. PyQt6 bağımlılığı yok, saf pytest.
 
 ```bash
 # pytest yükle (ilk sefer)
