@@ -48,6 +48,22 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 - **333 unit tests**: engine_detector, input_parser, log_parser, paths, latex_utils, exporter, derle_sh, i18n, imports, autopair, latex_lexer, pdf_indicator, wordcount, updater, synctex_live
 - **Features**: Syntax highlighting, PDF preview, SyncTeX, 7 themes, multi-language (TR/EN), auto pairing, PDF bookmarks/search/selection, presentation mode, two-page view, smart engine detection, image drag & drop
 
+### v1.0.3 — Compatibility Fix
+- **PDF bookmarks**: compatibility with the pypdfium2 outline API change (`PdfBookmark` → `PdfOutlineItem`)
+- **Linux packaging**: AppImage `.zsync` delta-update file and naming fixes
+
+### v1.0.2 — Release Infrastructure
+- **Dependencies**: pinned versions for reproducible builds
+- **Linux packaging**: AppImage convention-compliant naming + `updateinformation` for delta updates
+- **Docs**: dynamic release badges, version-agnostic references
+
+### v1.0.1 — Engine & Compile Improvements
+- **Engine selection**: `% !TEX program` magic comment support (e.g. `% !TEX program = pdflatex`)
+- **Compile watchdog**: 120s timeout, stuck compiles are cancelled
+- **Rerun loop**: re-compiles until cross-references resolve (max 5 passes)
+- **Bibliography**: suggests install command when `biber`/`bibtex` is missing
+- **Bugfix**: warning-context `l.NNN` lines no longer reported as compile errors
+
 ---
 
 ## Features

@@ -48,6 +48,22 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 - **333 unit test**: engine_detector, input_parser, log_parser, paths, latex_utils, exporter, derle_sh, i18n, imports, autopair, latex_lexer, pdf_indicator, wordcount, updater
 - **Özellikler**: Sözdizimi renklendirme, PDF önizleme, SyncTeX, 7 tema, çoklu dil (TR/EN), otomatik parantezleme, PDF yer imleri/arama/seçme, sunum modu, çift sayfa, akıllı motor algılama, görsel sürükle-bırak
 
+### v1.0.3 — Uyumluluk Düzeltmesi
+- **PDF yer imleri**: pypdfium2 outline API değişimine uyum (`PdfBookmark` → `PdfOutlineItem`)
+- **Linux paketleme**: AppImage `.zsync` delta güncelleme dosyası ve adlandırma düzeltmeleri
+
+### v1.0.2 — Dağıtım Altyapısı
+- **Bağımlılıklar**: tekrarlanabilir derlemeler için sürüm sabitleme
+- **Linux paketleme**: AppImage kurala uygun adlandırma + delta güncellemeler için `updateinformation`
+- **Dokümanlar**: dinamik sürüm rozetleri, sürümden bağımsız referanslar
+
+### v1.0.1 — Motor ve Derleme İyileştirmeleri
+- **Motor seçimi**: `% !TEX program` magic comment desteği (örn. `% !TEX program = pdflatex`)
+- **Derleme watchdog**: 120s zaman aşımı, takılı kalan derlemeler iptal edilir
+- **Rerun döngüsü**: çapraz referanslar çözülene kadar yeniden derler (maks. 5 geçiş)
+- **Kaynakça**: `biber`/`bibtex` eksikse kurulum komutu önerilir
+- **Hata düzeltme**: uyarı bağlamlı `l.NNN` satırları artık derleme hatası sayılmıyor
+
 ---
 
 ## Özellikler
