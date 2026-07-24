@@ -1,4 +1,6 @@
 import { useCompileStore } from '../../store/compileStore';
+import { useThemeStore, THEME_OPTIONS } from '../../store/themeStore';
+import type { ThemeId } from '../../store/themeStore';
 import './Toolbar.css';
 
 interface ToolbarProps {
@@ -10,6 +12,7 @@ interface ToolbarProps {
 
 export default function Toolbar({ onOpenFolder, onSave, onCompile, onStop }: ToolbarProps) {
   const { status, engine, autoCompile, setEngine, toggleAutoCompile } = useCompileStore();
+  const { theme, setTheme } = useThemeStore();
   const compiling = status === 'compiling';
 
   return (
@@ -76,6 +79,19 @@ export default function Toolbar({ onOpenFolder, onSave, onCompile, onStop }: Too
           )}
           <span>{autoCompile ? 'Otomatik Derle' : 'Manuel'}</span>
         </button>
+      </div>
+
+      <div className="toolbar-group">
+        <select
+          className="toolbar-engine-select"
+          value={theme}
+          onChange={(e) => setTheme(e.target.value as ThemeId)}
+          title="Tema"
+        >
+          {THEME_OPTIONS.map((o) => (
+            <option key={o.id} value={o.id}>{o.label}</option>
+          ))}
+        </select>
       </div>
     </div>
   );

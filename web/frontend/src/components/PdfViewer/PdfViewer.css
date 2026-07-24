@@ -3,7 +3,7 @@
   flex-direction: column;
   height: 100%;
   width: 100%;
-  background: #2d2d2d;
+  background: var(--panel-2);
   overflow: hidden;
 }
 
@@ -11,8 +11,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #2d2d2d;
-  border-bottom: 1px solid #3c3c3c;
+  background: var(--panel-2);
+  border-bottom: 1px solid var(--border);
   padding: 4px 12px;
   flex-shrink: 0;
   user-select: none;
@@ -27,9 +27,9 @@
 }
 
 .pdf-toolbar-btn {
-  background: #3c3c3c;
+  background: var(--border);
   border: none;
-  color: #ccc;
+  color: var(--fg);
   font-size: 16px;
   width: 28px;
   height: 26px;
@@ -42,8 +42,8 @@
 }
 
 .pdf-toolbar-btn:hover:not(:disabled) {
-  background: #505050;
-  color: #fff;
+  background: var(--fg-dim);
+  color: var(--fg-bright);
 }
 
 .pdf-toolbar-btn:disabled {
@@ -52,7 +52,7 @@
 }
 
 .pdf-page-counter {
-  color: #ccc;
+  color: var(--fg);
   font-size: 13px;
   min-width: 60px;
   text-align: center;
@@ -60,7 +60,7 @@
 }
 
 .pdf-zoom-label {
-  color: #ccc;
+  color: var(--fg);
   font-size: 12px;
   min-width: 42px;
   text-align: center;
@@ -88,7 +88,7 @@
 
 .pdf-page-wrapper {
   position: relative;
-  background: #fff;
+  background: var(--fg-bright);
   margin-bottom: 8px;
   display: flex;
   justify-content: center;
@@ -98,7 +98,7 @@
 }
 
 .pdf-page-placeholder {
-  color: #bbb;
+  color: var(--fg-muted);
   font-size: 18px;
   font-weight: 600;
   user-select: none;
@@ -118,7 +118,7 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: #888;
+  color: var(--fg-muted);
   font-size: 16px;
   user-select: none;
 }
@@ -128,7 +128,7 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: #aaa;
+  color: var(--fg-muted);
   font-size: 15px;
   user-select: none;
 }
@@ -138,7 +138,7 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: #e06060;
+  color: var(--error);
   font-size: 15px;
   user-select: none;
 }

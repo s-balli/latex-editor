@@ -3,8 +3,8 @@
   flex-direction: column;
   height: 100vh;
   width: 100vw;
-  background: #1e1e1e;
-  color: #cccccc;
+  background: var(--bg);
+  color: var(--fg);
   overflow: hidden;
 }
 
@@ -21,7 +21,7 @@
   align-items: center;
   justify-content: center;
   height: 100%;
-  color: #555;
+  color: var(--fg-dim);
   font-size: 24px;
   user-select: none;
 }

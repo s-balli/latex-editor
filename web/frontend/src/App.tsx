@@ -3,6 +3,7 @@ import './App.css';
 
 import { useEditorStore } from './store/editorStore';
 import { useCompileStore } from './store/compileStore';
+import { useThemeStore } from './store/themeStore';
 import { useCompile } from './hooks/useCompile';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import { listFiles, readFile, writeFile, detectEngine } from './api/files';
@@ -37,12 +38,18 @@ function App() {
     saveSession, loadSession,
   } = useEditorStore();
   const { result, outputLines } = useCompileStore();
+  const theme = useThemeStore((s) => s.theme);
   const { compile, stop, saveAndCompile } = useCompile();
 
   // Versiyonu çek
   useEffect(() => {
     apiFetch('/version').then((data: any) => setAppVersion(data.version)).catch(() => {});
   }, []);
+
+  // Tema uygula — <html data-theme="..."> CSS değişkenlerini belirler
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+  }, [theme]);
 
   // Klasör aç
   const handleOpenFolder = useCallback(async () => {

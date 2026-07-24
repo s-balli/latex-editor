@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef } from 'react';
 import MonacoEditorComponent from '@monaco-editor/react';
 import type { editor as MonacoEditorType } from 'monaco-editor';
-import { defineLatexTheme, THEME_NAME } from './latexTheme';
+import { defineAllLatexThemes, monacoThemeName } from './latexTheme';
+import { useThemeStore } from '../../store/themeStore';
 import { registerLatexLanguage } from './latexLanguage';
 import { registerLatexTokenizer } from './latexTokenizer';
 import { registerLatexCompletions } from '../../utils/latexCommands';
@@ -23,7 +24,7 @@ function ensureLatexRegistered(monaco: typeof import('monaco-editor')) {
   if (latexRegistered) return;
   registerLatexLanguage(monaco);
   registerLatexTokenizer(monaco);
-  defineLatexTheme(monaco);
+  defineAllLatexThemes(monaco);
   registerLatexCompletions(monaco);
   latexRegistered = true;
 }
@@ -42,6 +43,7 @@ export function MonacoEditor({
   // SyncTeX forward callback — ref ile sakla (mount'ta kaydedilen listener güncel kalsın)
   const onForwardRef = useRef(onSynctexForward);
   onForwardRef.current = onSynctexForward;
+  const theme = useThemeStore((s) => s.theme);
 
   const handleBeforeMount = useCallback((monaco: typeof import('monaco-editor')) => {
     ensureLatexRegistered(monaco);
@@ -51,8 +53,6 @@ export function MonacoEditor({
     (editor: MonacoEditorType.IStandaloneCodeEditor, monaco: typeof import('monaco-editor')) => {
       editorRef.current = editor;
       monacoRef.current = monaco;
-
-      monaco.editor.setTheme(THEME_NAME);
 
       // Create or reuse model for the initial path
       const uri = monaco.Uri.parse(`file:///${path}`);
@@ -179,7 +179,7 @@ export function MonacoEditor({
       <MonacoEditorComponent
         height="100%"
         language="latex"
-        theme={THEME_NAME}
+        theme={monacoThemeName(theme)}
         beforeMount={handleBeforeMount}
         onChange={handleChange}
         onMount={handleEditorDidMount}

@@ -1,7 +1,7 @@
 .main-layout {
   width: 100vw;
   height: 100vh;
-  background: #1e1e1e;
+  background: var(--bg);
   overflow: hidden;
 }
 
@@ -13,7 +13,7 @@
 .main-layout-file-tree {
   height: 100%;
   width: 100%;
-  background: #252526;
+  background: var(--panel);
   overflow: auto;
 }
 
@@ -33,5 +33,5 @@
   height: 100%;
   width: 100%;
   overflow: auto;
-  background: #1e1e1e;
+  background: var(--bg);
 }

@@ -4,8 +4,8 @@
   justify-content: space-between;
   height: 40px;
   padding: 0 8px;
-  background: #2d2d2d;
-  border-bottom: 1px solid #3c3c3c;
+  background: var(--panel-2);
+  border-bottom: 1px solid var(--border);
   gap: 8px;
   user-select: none;
   flex-shrink: 0;
@@ -23,8 +23,8 @@
   align-items: center;
   gap: 5px;
   padding: 4px 10px;
-  background: #3c3c3c;
-  color: #ccc;
+  background: var(--border);
+  color: var(--fg);
   border: 1px solid transparent;
   border-radius: 4px;
   font-size: 12px;
@@ -35,16 +35,16 @@
 }
 
 .toolbar-btn:hover {
-  background: #505050;
-  color: #fff;
+  background: var(--fg-dim);
+  color: var(--fg-bright);
 }
 
 .toolbar-btn:active {
-  background: #5a5a5a;
+  background: var(--fg-dim);
 }
 
 .toolbar-btn:focus-visible {
-  outline: 2px solid #0078d4;
+  outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
 
@@ -54,7 +54,7 @@
 
 /* Compiling state */
 .toolbar-btn--compiling {
-  color: #f0c040;
+  color: var(--warning);
 }
 
 /* Spinning animation */
@@ -70,8 +70,8 @@
 /* --- Engine select --- */
 .toolbar-engine-select {
   padding: 4px 6px;
-  background: #3c3c3c;
-  color: #ccc;
+  background: var(--border);
+  color: var(--fg);
   border: 1px solid transparent;
   border-radius: 4px;
   font-size: 12px;
@@ -82,18 +82,18 @@
 }
 
 .toolbar-engine-select:hover {
-  background: #505050;
-  color: #fff;
+  background: var(--fg-dim);
+  color: var(--fg-bright);
 }
 
 .toolbar-engine-select:focus-visible {
-  outline: 2px solid #0078d4;
+  outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
 
 .toolbar-engine-select option {
-  background: #3c3c3c;
-  color: #ccc;
+  background: var(--border);
+  color: var(--fg);
 }
 
 /* --- Auto-compile toggle --- */
@@ -103,7 +103,7 @@
   gap: 5px;
   padding: 4px 10px;
   background: transparent;
-  color: #888;
+  color: var(--fg-muted);
   border: 1px solid transparent;
   border-radius: 4px;
   font-size: 12px;
@@ -114,16 +114,16 @@
 }
 
 .toolbar-auto-toggle:hover {
-  background: #3c3c3c;
+  background: var(--border);
 }
 
 .toolbar-auto-toggle:focus-visible {
-  outline: 2px solid #0078d4;
+  outline: 2px solid var(--accent);
   outline-offset: -2px;
 }
 
 .toolbar-auto-toggle--on {
-  color: #4ec94e;
+  color: var(--success);
 }
 
 .toggle-indicator {
@@ -132,9 +132,9 @@
 }
 
 .toggle-indicator--on {
-  color: #4ec94e;
+  color: var(--success);
 }
 
 .toggle-indicator--off {
-  color: #888;
+  color: var(--fg-muted);
 }

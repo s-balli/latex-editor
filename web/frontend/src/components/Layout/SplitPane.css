@@ -9,7 +9,7 @@
 
 .split-pane-handle {
   position: relative;
-  background: #333;
+  background: var(--border);
   flex-shrink: 0;
   z-index: 10;
   transition: background-color 0.15s ease;
@@ -17,7 +17,7 @@
 
 .split-pane-handle:hover,
 .split-pane-handle-active {
-  background: #007acc;
+  background: var(--accent);
 }
 
 .split-pane-handle-horizontal {

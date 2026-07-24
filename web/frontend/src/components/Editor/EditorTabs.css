@@ -1,14 +1,14 @@
 .editor-tabs {
   display: flex;
   align-items: stretch;
-  background-color: #2d2d2d;
+  background-color: var(--panel-2);
   height: 35px;
   min-height: 35px;
   overflow-x: auto;
   overflow-y: hidden;
-  border-bottom: 1px solid #1e1e1e;
+  border-bottom: 1px solid var(--bg);
   scrollbar-width: thin;
-  scrollbar-color: #555 #2d2d2d;
+  scrollbar-color: var(--fg-dim) var(--panel-2);
 }
 
 .editor-tabs::-webkit-scrollbar {
@@ -16,11 +16,11 @@
 }
 
 .editor-tabs::-webkit-scrollbar-track {
-  background: #2d2d2d;
+  background: var(--panel-2);
 }
 
 .editor-tabs::-webkit-scrollbar-thumb {
-  background-color: #555;
+  background-color: var(--fg-dim);
   border-radius: 2px;
 }
 
@@ -29,10 +29,10 @@
   align-items: center;
   gap: 6px;
   padding: 0 12px;
-  background-color: #2d2d2d;
-  color: #969696;
+  background-color: var(--panel-2);
+  color: var(--fg-dim);
   border: none;
-  border-right: 1px solid #252526;
+  border-right: 1px solid var(--panel);
   cursor: pointer;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
     Ubuntu, Cantarell, 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
@@ -44,18 +44,18 @@
 }
 
 .editor-tab:hover {
-  background-color: #353535;
-  color: #cccccc;
+  background-color: var(--elevated);
+  color: var(--fg);
 }
 
 .editor-tab--active {
-  background-color: #1e1e1e;
-  color: #ffffff;
+  background-color: var(--bg);
+  color: var(--fg-bright);
 }
 
 .editor-tab--active:hover {
-  background-color: #1e1e1e;
-  color: #ffffff;
+  background-color: var(--bg);
+  color: var(--fg-bright);
 }
 
 .editor-tab__label {
@@ -75,7 +75,7 @@
   border-radius: 3px;
   font-size: 14px;
   line-height: 1;
-  color: #858585;
+  color: var(--fg-muted);
   opacity: 0;
   transition: opacity 0.1s ease, background-color 0.1s ease, color 0.1s ease;
   flex-shrink: 0;
@@ -87,6 +87,6 @@
 }
 
 .editor-tab__close:hover {
-  background-color: #484848;
-  color: #e0e0e0;
+  background-color: var(--fg-dim);
+  color: var(--fg-bright);
 }

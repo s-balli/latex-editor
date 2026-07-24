@@ -2,8 +2,8 @@
   display: flex;
   flex-direction: column;
   height: 100%;
-  background: #252526;
-  color: #ccc;
+  background: var(--panel);
+  color: var(--fg);
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
   font-size: 13px;
   user-select: none;
@@ -15,8 +15,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 8px 12px;
-  background: #252526;
-  border-bottom: 1px solid #333;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
   flex-shrink: 0;
 }
 
@@ -24,14 +24,14 @@
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.5px;
-  color: #bbbbbb;
+  color: var(--fg-muted);
   text-transform: uppercase;
 }
 
 .file-tree-refresh {
   background: none;
   border: none;
-  color: #ccc;
+  color: var(--fg);
   cursor: pointer;
   font-size: 16px;
   padding: 2px 6px;
@@ -41,8 +41,8 @@
 }
 
 .file-tree-refresh:hover:not(:disabled) {
-  background: #37373d;
-  color: #fff;
+  background: var(--elevated);
+  color: var(--fg-bright);
 }
 
 .file-tree-refresh:disabled {
@@ -62,16 +62,16 @@
 }
 
 .file-tree-content::-webkit-scrollbar-track {
-  background: #252526;
+  background: var(--panel);
 }
 
 .file-tree-content::-webkit-scrollbar-thumb {
-  background: #424242;
+  background: var(--border);
   border-radius: 4px;
 }
 
 .file-tree-content::-webkit-scrollbar-thumb:hover {
-  background: #555;
+  background: var(--fg-dim);
 }
 
 /* Tree lists */
@@ -96,11 +96,11 @@
 }
 
 .file-tree-row:hover {
-  background: #2a2d2e;
+  background: var(--elevated);
 }
 
 .file-tree-row-file:active {
-  background: #094771;
+  background: var(--accent-bg);
 }
 
 /* Arrow indicator for directories */
@@ -111,7 +111,7 @@
   width: 16px;
   height: 22px;
   font-size: 10px;
-  color: #aaa;
+  color: var(--fg-muted);
   flex-shrink: 0;
 }
 
@@ -136,7 +136,7 @@
 
 /* Empty folder message */
 .file-tree-empty {
-  color: #666;
+  color: var(--fg-dim);
   font-style: italic;
   font-size: 12px;
   height: 22px;
@@ -146,7 +146,7 @@
 /* Empty state */
 .file-tree-empty-state {
   padding: 16px 12px;
-  color: #666;
+  color: var(--fg-dim);
   text-align: center;
   font-size: 12px;
 }
@@ -154,7 +154,7 @@
 /* Error */
 .file-tree-error {
   padding: 8px 12px;
-  color: #f44747;
+  color: var(--error);
   font-size: 12px;
 }
 
@@ -163,26 +163,26 @@
   display: flex;
   align-items: center;
   padding: 6px 12px 4px 12px;
-  background: #252526;
-  border-top: 1px solid #333;
+  background: var(--panel);
+  border-top: 1px solid var(--border);
   flex-shrink: 0;
 }
 
 /* Input tree item — slightly different highlight */
 .file-tree-input-item:hover {
-  background: #2a2d2e;
+  background: var(--elevated);
 }
 
 .file-tree-input-item:active {
-  background: #094771;
+  background: var(--accent-bg);
 }
 
 /* Context menu */
 .file-tree-context-menu {
   position: fixed;
   z-index: 10000;
-  background: #252526;
-  border: 1px solid #454545;
+  background: var(--panel);
+  border: 1px solid var(--border);
   border-radius: 4px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   padding: 4px 0;
@@ -195,7 +195,7 @@
   padding: 6px 16px;
   background: none;
   border: none;
-  color: #ccc;
+  color: var(--fg);
   font-size: 13px;
   font-family: inherit;
   text-align: left;
@@ -204,11 +204,11 @@
 }
 
 .context-menu-item:hover {
-  background: #094771;
-  color: #fff;
+  background: var(--accent-bg);
+  color: var(--fg-bright);
 }
 
 .context-menu-item-danger:hover {
   background: #5a1d1d;
-  color: #f44747;
+  color: var(--error);
 }
