@@ -1,7 +1,5 @@
 """engine_detector modülü testleri."""
 
-import os
-import pytest
 
 from core.engine_detector import (
     detect_engine,

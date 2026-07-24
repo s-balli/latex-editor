@@ -74,7 +74,6 @@ class CompileOpsMixin:
         editor = self._current_editor()
         if not editor:
             return
-        dirty_before = editor.isModified()
         self._save_file()
         # Kayıt başarısız olduysa (hâlâ dirty veya dosya yolu yoksa) derleme yapma
         if editor.isModified() or not editor.file_path:

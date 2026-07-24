@@ -2,7 +2,7 @@
 
 import unicodedata
 
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import QTimer
 from PyQt6.QtGui import QKeySequence
 from PyQt6.QtWidgets import QLabel, QApplication, QMenu
 

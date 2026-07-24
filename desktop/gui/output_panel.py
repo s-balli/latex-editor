@@ -1,13 +1,13 @@
 """Derleme çıktı paneli — hatalar, uyarılar, ham log."""
 
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QAction, QColor, QTextCursor
+from PyQt6.QtGui import QColor, QTextCursor
 from PyQt6.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QTabWidget,
-    QListWidget, QListWidgetItem, QPlainTextEdit, QLabel, QMenu,
+    QApplication, QWidget, QVBoxLayout, QTabWidget,
+    QListWidget, QListWidgetItem, QPlainTextEdit, QMenu,
 )
 
-from core.log_parser import CompileResult, LatexError, LatexSuggestion
+from core.log_parser import CompileResult
 from PyQt6.QtCore import QCoreApplication
 
 _ = lambda s: QCoreApplication.translate("OutputPanel", s)

@@ -1,7 +1,6 @@
 """LaTeX Editor — giriş noktası."""
 
 import os, sys
-from pathlib import Path
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _HERE)

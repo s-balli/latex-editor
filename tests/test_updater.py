@@ -1,11 +1,9 @@
 """updater.py — güncelleme kontrolü testleri."""
 
-import time
-import pytest
 
 from core.updater import (
     _parse_semver, _is_newer, check_for_update, _extract_changelog,
-    clear_cache, VERSION, CACHE_INTERVAL,
+    clear_cache, VERSION,
 )
 
 

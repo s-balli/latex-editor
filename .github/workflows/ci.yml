@@ -29,6 +29,11 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r desktop/requirements.txt pytest
 
+      - name: Lint (ruff)
+        run: |
+          pip install ruff
+          ruff check desktop/ core/ tests/
+
       - name: Run tests
         env:
           QT_QPA_PLATFORM: offscreen

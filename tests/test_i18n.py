@@ -357,7 +357,6 @@ class TestMainStartup:
 
     def test_main_translate_lambda_before_mainwindow(self):
         """main.py'de _() lambda tanımı MainWindow importundan önce olmalı."""
-        import ast
         main_path = os.path.join(
             os.path.dirname(os.path.dirname(__file__)), "desktop", "main.py"
         )

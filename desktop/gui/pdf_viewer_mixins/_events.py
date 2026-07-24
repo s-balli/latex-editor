@@ -3,8 +3,6 @@
 import webbrowser
 
 from PyQt6.QtCore import Qt, QEvent, QTimer
-from PyQt6.QtGui import QPixmap
-from PyQt6.QtWidgets import QWidget
 
 from gui.pdf_links import (
     get_link_at_point, resolve_link_action, resolve_dest_scroll_y, get_dest_page_index,
@@ -132,7 +130,6 @@ class PdfEventsMixin:
         scroll_y = resolve_dest_scroll_y(self._pdf.raw, dest, self._pdf[idx].get_height(), scale)
 
         abs_y = label.pos().y() + scroll_y
-        viewport_height = self._scroll.viewport().height()
         self._scroll.verticalScrollBar().setValue(max(0, abs_y - 20))
         self._current_page = idx
         self._update_nav()

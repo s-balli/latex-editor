@@ -62,7 +62,6 @@ def _fix_md_image_paths(tex_path: str, md_path: str):
 
     \graphicspath{{media/Bolum1/}} gibi LaTeX yol tanımlarını da hesaba katar.
     """
-    tex_dir = os.path.dirname(os.path.abspath(tex_path))
     graphics_paths = _extract_graphics_paths(tex_path)
 
     try:

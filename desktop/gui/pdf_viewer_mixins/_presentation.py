@@ -1,7 +1,6 @@
 """PdfViewer sunum modu mixin — tam ekran sunum, tuş/mouse navigasyonu."""
 
-from PyQt6.QtCore import Qt, QEvent
-from PyQt6.QtGui import QPixmap
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel
 
 from gui.pdf_render import render_page_to_pixmap

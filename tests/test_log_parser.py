@@ -1,8 +1,7 @@
 """log_parser modülü testleri."""
 
-import pytest
 
-from core.log_parser import parse_output, LatexError, LatexWarning, LatexSuggestion
+from core.log_parser import parse_output
 
 
 # --- Başarılı derleme ---

@@ -1,6 +1,5 @@
 """SyncTeX bridge — ileri/geri arama via synctex CLI."""
 
-import os
 import subprocess
 import sys
 from dataclasses import dataclass

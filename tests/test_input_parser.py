@@ -1,7 +1,5 @@
 """input_parser modülü testleri."""
 
-import os
-import pytest
 
 from core.input_parser import parse_inputs, group_by_directory
 from core.latex_utils import strip_comments as _strip_comments

@@ -7,7 +7,6 @@ from PyQt6.QtWidgets import (
     QComboBox as QComboWidget,
 )
 
-from gui.editor import EditorWidget
 from PyQt6.QtCore import QCoreApplication
 
 _ = lambda s: QCoreApplication.translate("ImageOpsMixin", s)

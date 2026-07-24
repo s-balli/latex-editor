@@ -1,0 +1,27 @@
+# pyproject.toml — araç (ruff/pytest) ve proje metadatası için merkez.
+# Not: Bu bir pip paketi DEĞİLDİR; PyInstaller ile masaüstü uygulaması olarak paketlenir.
+# Çalışma zamanı sürüm kaynağı: core/version.py
+
+[project]
+name = "latex-editor"
+version = "1.0.3"
+description = "LaTeX editörü ve derleyici (PyQt6 masaüstü uygulaması)"
+requires-python = ">=3.10"
+license = "GPL-3.0"
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+# E9 (sözdizimi/çalışma zamanı hatası) + F (pyflakes): gerçek bug ve ölü kod.
+# Stil gürültüsü (E501 satır uzunluğu, whitespace) bilerek kapalı — kod tabanı
+# uzun HTML/docstring satırlarını bilinçle kullanıyor (287 satır >100).
+select = ["E9", "F"]
+
+[tool.ruff.lint.per-file-ignores]
+# __init__.py'ler alt modülleri bilerek re-export eder.
+"__init__.py" = ["F401"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

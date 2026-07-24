@@ -1,11 +1,9 @@
 """exporter.py — pandoc dışa aktarma testleri."""
 
-import os
 import subprocess
 import sys
 from unittest.mock import MagicMock, patch, mock_open
 
-import pytest
 
 # core.log PyQt6 gerektiriyor. Gerçek PyQt6 kuruluysa onu kullan; yoksa mock'la.
 # DİKKAT: mock eskiden "PyQt6 not in sys.modules" ile koşulsuz sys.modules'e
@@ -217,7 +215,7 @@ class TestExportWsl:
             MagicMock(returncode=0, stdout=b"content"),  # cat fallback
             MagicMock(returncode=0),              # rm (finally)
         ]
-        with patch("builtins.open", mock_open()) as m_open:
+        with patch("builtins.open", mock_open()):
             ok, err = _export_wsl(r"C:\Users\doc.tex", r"C:\Users\doc.docx")
         assert ok is True
 

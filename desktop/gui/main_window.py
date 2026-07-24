@@ -15,10 +15,8 @@ import sys
 
 from PyQt6.QtCore import Qt, QEvent, QSettings, QSize, QTimer, QThread, pyqtSignal
 from PyQt6.QtGui import QAction, QIcon, QKeySequence, QShortcut
-from PyQt6.QtWidgets import QTabBar as _QTabBar
 from PyQt6.QtWidgets import (
-    QMainWindow, QSplitter, QTabWidget, QFileDialog,
-    QComboBox, QToolBar, QLabel, QMessageBox, QStatusBar,
+    QMainWindow, QSplitter, QTabWidget, QComboBox, QToolBar, QLabel, QMessageBox, QStatusBar,
     QWidget, QApplication, QProgressBar, QVBoxLayout,
 )
 
@@ -316,7 +314,7 @@ class MainWindow(
         self._lang_label.setStyleSheet(f"color: {t['fg_label']}; font-weight: bold;")
         toolbar.addWidget(self._lang_label)
         self._lang_combo = QComboBox()
-        from core.i18n import available_languages, set_language
+        from core.i18n import available_languages
         from PyQt6.QtCore import QSettings
         self._lang_combo.addItem("Türkçe", "tr")
         for code, name in available_languages():
@@ -457,7 +455,7 @@ class MainWindow(
         msg.setInformativeText(_("Kaydetmek ister misiniz?"))
         btn_save = msg.addButton(_("&Kaydet"), QMessageBox.ButtonRole.AcceptRole)
         btn_discard = msg.addButton(_("&Kaydetme"), QMessageBox.ButtonRole.DestructiveRole)
-        btn_cancel = msg.addButton(_("İ&ptal"), QMessageBox.ButtonRole.RejectRole)
+        msg.addButton(_("İ&ptal"), QMessageBox.ButtonRole.RejectRole)
         msg.setDefaultButton(btn_save)
         msg.exec()
         clicked = msg.clickedButton()

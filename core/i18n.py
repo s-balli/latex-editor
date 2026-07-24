@@ -21,7 +21,7 @@ def init(app=None):
     from core.log import get_logger
     _logger = get_logger("i18n")
 
-    from PyQt6.QtCore import QCoreApplication, QLocale, QSettings, QTranslator
+    from PyQt6.QtCore import QSettings, QTranslator
 
     _trans_dir = os.path.normpath(_find_trans_dir())
     _logger.info("Çeviri dizini: %s (var: %s)", _trans_dir, os.path.isdir(_trans_dir))

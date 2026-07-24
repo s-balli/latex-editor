@@ -4,10 +4,8 @@ _find_derle_sh() ve temel LatexCompiler davranışlarını test eder.
 QProcess gerçek derleme yapmaz (mock).
 """
 
-import os
 import sys
 import pytest
-from pathlib import Path
 from unittest.mock import patch, MagicMock
 
 # PyQt6 gereklidir

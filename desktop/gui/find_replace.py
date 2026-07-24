@@ -2,7 +2,7 @@
 
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
-    QWidget, QHBoxLayout, QLineEdit, QPushButton, QLabel, QSizePolicy,
+    QWidget, QHBoxLayout, QLineEdit, QPushButton, QLabel,
 )
 from PyQt6.Qsci import QsciScintilla
 

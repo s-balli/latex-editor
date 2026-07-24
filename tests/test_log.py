@@ -3,7 +3,6 @@
 import os
 import logging
 import pytest
-from unittest.mock import patch
 
 
 @pytest.fixture

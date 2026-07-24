@@ -117,7 +117,6 @@ class PdfUISetupMixin:
         self._btn_present.clicked.connect(self.enter_presentation)
 
         from PyQt6.QtGui import QIcon, QPainter, QPen, QColor, QPixmap
-        from PyQt6.QtCore import QRectF
         bm_px = QPixmap(20, 20)
         bm_px.fill(QColor(0, 0, 0, 0))
         p = QPainter(bm_px)
