@@ -116,7 +116,11 @@ def _register_file_association():
                 except Exception:
                     pass
             # Mime veritabanını güncelle
-            os.system("update-desktop-database ~/.local/share/applications/ 2>/dev/null")
+            import subprocess
+            subprocess.run(
+                ["update-desktop-database", os.path.expanduser("~/.local/share/applications")],
+                capture_output=True,
+            )
         except Exception:
             pass
 

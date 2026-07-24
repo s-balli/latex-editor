@@ -57,6 +57,29 @@ def detect_engine_from_magic_comment(tex_path: str) -> str | None:
     return _magic_engine_from_content(head)
 
 
+_LUALATEX_TEX_SIGNALS = (
+    "\\usepackage{fontspec}",
+    "\\usepackage{unicode-math}",
+    "\\usepackage{polyglossia}",
+)
+_PDFLATEX_TEX_SIGNALS = ("{inputenc}", "{fontenc}")
+
+
+def _engine_from_tex_signals(clean: str) -> str | None:
+    """Yorumları temizlenmiş .tex içeriğindeki paket sinyallerinden motor döndür.
+
+    magic comment ve .cls sinyalleri burada ele alınmaz.
+    Dönüş: 'lualatex', 'pdflatex' veya None.
+    """
+    for signal in _LUALATEX_TEX_SIGNALS:
+        if signal in clean:
+            return "lualatex"
+    for signal in _PDFLATEX_TEX_SIGNALS:
+        if signal in clean:
+            return "pdflatex"
+    return None
+
+
 def detect_engine(tex_path: str) -> str | None:
     """
     .tex dosyasından ve referans verdiği .cls dosyasından
@@ -79,20 +102,9 @@ def detect_engine(tex_path: str) -> str | None:
     clean = strip_comments(content)
 
     # --- 1) .tex dosyasındaki sinyaller ---
-
-    # Güçlü LuaLaTeX sinyalleri
-    if "\\usepackage{fontspec}" in clean:
-        return "lualatex"
-    if "\\usepackage{unicode-math}" in clean:
-        return "lualatex"
-    if "\\usepackage{polyglossia}" in clean:
-        return "lualatex"
-
-    # Güçlü pdfLaTeX sinyalleri
-    if "{inputenc}" in clean:
-        return "pdflatex"
-    if "{fontenc}" in clean:
-        return "pdflatex"
+    engine = _engine_from_tex_signals(clean)
+    if engine:
+        return engine
 
     # --- 2) .cls dosyası kontrolü ---
     docclass = _extract_documentclass(clean)
@@ -117,19 +129,10 @@ def detect_engine_from_content(content: str, cls_content: str | None = None) -> 
 
     clean = strip_comments(content)
 
-    # LuaLaTeX sinyalleri (.tex)
-    if "\\usepackage{fontspec}" in clean:
-        return "lualatex"
-    if "\\usepackage{unicode-math}" in clean:
-        return "lualatex"
-    if "\\usepackage{polyglossia}" in clean:
-        return "lualatex"
-
-    # pdfLaTeX sinyalleri (.tex)
-    if "{inputenc}" in clean:
-        return "pdflatex"
-    if "{fontenc}" in clean:
-        return "pdflatex"
+    # .tex sinyalleri
+    engine = _engine_from_tex_signals(clean)
+    if engine:
+        return engine
 
     # .cls içeriği verildiyse kontrol et
     if cls_content:
