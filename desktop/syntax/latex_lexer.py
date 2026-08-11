@@ -156,6 +156,24 @@ class LatexLexer(QsciLexerCustom):
                 continue
 
             if ch == '\\':
+                nxt = source[i + 1] if i + 1 < n else ''
+                # \[ ... \] (display) ve \( ... \) (inline) math ayracı.
+                # Bu delimiter'lar birden çok satıra yayılabilir; _style_math_block
+                # kapanışı bulana (veya EOF'a) kadar tarayıp math modunu açar.
+                if nxt == '[':
+                    pos, closed = self._style_math_block(source, i, n, byte_at, '\\]')
+                    in_math = not closed
+                    if in_math:
+                        math_delim = '\\]'
+                    i = pos
+                    continue
+                if nxt == '(':
+                    pos, closed = self._style_math_block(source, i, n, byte_at, '\\)')
+                    in_math = not closed
+                    if in_math:
+                        math_delim = '\\)'
+                    i = pos
+                    continue
                 i = self._style_command(source, i, n, byte_at)
                 continue
 
