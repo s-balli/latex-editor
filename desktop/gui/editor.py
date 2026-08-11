@@ -23,6 +23,9 @@ from syntax.latex_lexer import LatexLexer
 # Otomatik parantezleme eşleştirmeleri — açma → kapanma
 _PAIRS = {'(': ')', '[': ']', '{': '}', '$': '$'}
 
+# Otomatik tamamlama ile seçilen \cmd{ / \cmd[ girdisinin kapanışı
+_CLOSE_FOR_OPEN = {'{': '}', '[': ']'}
+
 
 class EditorWidget(QsciScintilla):
     forward_search_requested = pyqtSignal(str, int, int)  # file_path, line(1-based), col(1-based)
@@ -52,6 +55,11 @@ class EditorWidget(QsciScintilla):
 
         if self._initial_theme:
             self.apply_theme(self._initial_theme)
+
+        # Otomatik tamamlama kabul edilince \cmd{ / \cmd[ kapanışını ekle.
+        # Popup seçimi keyPressEvent'i atladığı için normal autopair tetiklenmez;
+        # bu yüzden tamamlama sinyalinde manuel kapatıyoruz.
+        self.SCN_AUTOCCOMPLETED.connect(self._on_autoc_completed)
 
     @staticmethod
     def _hex_to_scintilla(hex_color: str) -> int:
@@ -201,6 +209,39 @@ class EditorWidget(QsciScintilla):
         self.SendScintilla(QsciScintilla.SCI_AUTOCSETSEPARATOR, ord(' '))
         entries = " ".join(matches).encode('utf-8')
         self.SendScintilla(QsciScintilla.SCI_AUTOCSHOW, len(word), entries)
+
+    def _on_autoc_completed(self, text, *rest):
+        """Otomatik tamamlama popup'ından seçilen komut kapanış ayracı ekler.
+
+        Popup seçimi SCN_AUTOCCOMPLETED ile gelir ve keyPressEvent'i atladığı için
+        normal autopair tetiklenmez. Bu yüzden \\cmd{ / \\cmd[ formundaki girdiler
+        seçilince karşılık gelen } / ] eklenir, imleç açılış ve kapanış arasında
+        kalır. Böylece elle yazılan \\cmd{ (autopair ile çiftlenir) ile popup'tan
+        seçilen aynı komut tutarlı olur.
+
+        \\begin{/\\end{ hariçtir: bunların { ayracı kasıtlı eşlenmez (begin/end
+        kapanışı ayrı çalışır). \\left( / \\left\\{ / \\verb| gibi ayraç-sözdizimi
+        girdileri regex ile eşleşmez.
+        """
+        try:
+            completed = bytes(text).decode("utf-8", "replace")
+        except Exception:
+            return
+        m = re.match(r'^(\\[a-zA-Z]+)([{\[])$', completed)
+        if not m:
+            return
+        cmd, open_ch = m.group(1), m.group(2)
+        if cmd in ("\\begin", "\\end"):
+            return
+        close = _CLOSE_FOR_OPEN.get(open_ch)
+        if not close:
+            return
+        # Manuel akışta zaten kapanış varsa (autopair eklediyse) çiftleme
+        if self._char_after_cursor() == close:
+            return
+        line, index = self.getCursorPosition()
+        self.insert(close)
+        self.setCursorPosition(line, index)  # imleç açılış ve kapanış arasında
 
     @property
     def file_path(self) -> str:
