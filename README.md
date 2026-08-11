@@ -49,10 +49,11 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 - **Features**: Syntax highlighting, PDF preview, SyncTeX, 7 themes, multi-language (TR/EN), auto pairing, PDF bookmarks/search/selection, presentation mode, two-page view, smart engine detection, image drag & drop
 
 ### Unreleased — Document-Aware Completion & Editor Performance
-- **Editor**: document-aware `\ref{` / `\eqref{` / `\cite{` completion — suggests `\label` keys from the document (and the `\input` chain) and `.bib` entry keys; `\cite{key1,key2}` multi-key supported
+- **Editor**: document-aware completion for `\ref`/`\eqref`/`\pageref` and `\cite`/`\citep`/`\citet` (and similar): suggests `\label` keys from the document (and the `\input` chain) and `.bib` entry keys; `\cite{key1,key2}` multi-key supported
+- **Editor**: paste an image from the clipboard (Ctrl+V): saves to `media/` and inserts a `\begin{figure}` block (reuses the drag-drop dialog)
 - **Editor perf**: faster typing in large documents (syntax lexer and `\begin`/`\end` highlight hot paths optimized)
 - **Bugfix**: editing inside a multi-line `verbatim` / `\[...\]` block no longer loses correct highlighting
-- **495 unit tests**
+- **500 unit tests**
 
 ### v1.0.4 — Editor & Export Improvements
 - **Editor**: `\[...\]` / `\(...\)` math highlighting, Ctrl+Space + environment-name completion, matched `\begin`/`\end` highlighting, smart indentation, comment/verbatim-aware completion, dynamic line-number margin
