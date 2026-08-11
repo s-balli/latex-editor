@@ -26,6 +26,9 @@ _PAIRS = {'(': ')', '[': ']', '{': '}', '$': '$'}
 # Otomatik tamamlama ile seçilen \cmd{ / \cmd[ girdisinin kapanışı
 _CLOSE_FOR_OPEN = {'{': '}', '[': ']'}
 
+# Eşleşen \begin{X} / \end{X} tag'lerini yakala (C.11)
+_BEGINEND_RE = re.compile(r'\\(begin|end)\s*\{([A-Za-z]+\*?)\}')
+
 
 def _decode_bytes(raw: bytes) -> tuple[str, str]:
     """Baytları decode et -> (metin, encoding).
@@ -70,6 +73,16 @@ class EditorWidget(QsciScintilla):
         self.setMarginLineNumbers(1, True)
         self.setMarginWidth(1, "0000")
         self.linesChanged.connect(self._update_margin_width)
+
+        # C.11: eşleşen \begin/\end vurgulama
+        self._beginend_indicator = 0
+        self._beginend_ranges = []          # vurgulu byte aralıkları (temizlik için)
+        self._beginend_tags_cache = None     # doküman tag listesi (textChanged'de invalid)
+        self.cursorPositionChanged.connect(self._update_beginend_highlight)
+        self.textChanged.connect(self._invalidate_beginend_cache)
+        self.SendScintilla(QsciScintilla.SCI_INDICSETSTYLE, self._beginend_indicator,
+                           QsciScintilla.INDIC_FULLBOX)
+        self.SendScintilla(QsciScintilla.SCI_INDICSETALPHA, self._beginend_indicator, 60)
         self.setFolding(QsciScintilla.FoldStyle.PlainFoldStyle, 2)
         self.setWrapMode(QsciScintilla.WrapMode.WrapWord)
         self.setTabWidth(4)
@@ -130,6 +143,10 @@ class EditorWidget(QsciScintilla):
         if self.lexer():
             self.lexer().apply_theme(t)
 
+        # C.11: eşleşen \begin/\end vurgu kutusu rengi
+        self.SendScintilla(QsciScintilla.SCI_INDICSETFORE, 0,
+                           self._hex_to_scintilla(t.get("accent", "#3a6ea5")))
+
     def mousePressEvent(self, event):
         if (event.modifiers() & Qt.KeyboardModifier.ControlModifier and
                 event.button() == Qt.MouseButton.LeftButton and self._file_path):
@@ -143,6 +160,7 @@ class EditorWidget(QsciScintilla):
                 self.forward_search_requested.emit(self._file_path, line + 1, col + 1)
                 return
         super().mousePressEvent(event)
+        self._update_beginend_highlight(*self.getCursorPosition())
 
     def mouseMoveEvent(self, event):
         if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
@@ -156,13 +174,17 @@ class EditorWidget(QsciScintilla):
         if (event.modifiers() & Qt.KeyboardModifier.ControlModifier and
                 event.key() == Qt.Key.Key_Space):
             self._check_autocomplete(manual=True)
-            return
-        if self._handle_autopair(event):
-            return
-        super().keyPressEvent(event)
-        text = event.text()
-        if text and text.isalpha():
-            self._check_autocomplete()
+        elif self._handle_autopair(event):
+            pass
+        else:
+            super().keyPressEvent(event)
+            text = event.text()
+            if text and text.isalpha():
+                self._check_autocomplete()
+        # C.11: imleç hareketinde eşleşen tag'i vurgula. cursorPositionChanged
+        # headless'te programatik harekette tetiklenmediğinden, tuş yolundan da
+        # güncelliyoruz (gerçek GUI'de her ikisi de çalışır).
+        self._update_beginend_highlight(*self.getCursorPosition())
 
     # --- Otomatik parantezleme + \begin/\end kapanışı ---
 
@@ -313,6 +335,93 @@ class EditorWidget(QsciScintilla):
         line, index = self.getCursorPosition()
         self.insert(close)
         self.setCursorPosition(line, index)  # imleç açılış ve kapanış arasında
+
+    # --- C.11: eşleşen \begin/\end vurgulama ---
+
+    def _invalidate_beginend_cache(self):
+        """textChanged'te önbelleği bırak ve eski vurguları temizle."""
+        self._beginend_tags_cache = None
+        self._clear_beginend_highlight()
+
+    def _clear_beginend_highlight(self):
+        if not self._beginend_ranges:
+            return
+        self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, self._beginend_indicator)
+        for start, length in self._beginend_ranges:
+            self.SendScintilla(QsciScintilla.SCI_INDICATORCLEARRANGE, start, length)
+        self._beginend_ranges = []
+
+    def _highlight_range(self, byte_start: int, byte_len: int):
+        self.SendScintilla(QsciScintilla.SCI_SETINDICATORCURRENT, self._beginend_indicator)
+        self.SendScintilla(QsciScintilla.SCI_INDICATORFILLRANGE, byte_start, byte_len)
+        self._beginend_ranges.append((byte_start, byte_len))
+
+    def _get_beginend_tags(self):
+        """Dokümandaki tüm \\begin{X}/\\end{X} tag'leri (satır, char_baş, char_son, kind, ad)."""
+        if self._beginend_tags_cache is None:
+            tags = []
+            for ln in range(self.lines()):
+                for m in _BEGINEND_RE.finditer(self.text(ln)):
+                    tags.append((ln, m.start(), m.end(), m.group(1), m.group(2)))
+            self._beginend_tags_cache = tags
+        return self._beginend_tags_cache
+
+    def _tag_byte_range(self, line: int, char_start: int, char_end: int) -> tuple[int, int]:
+        """Tag'in doküman byte offsetini ve uzunluğunu hesapla (satır-bazlı, UTF-8)."""
+        line_byte_start = self.SendScintilla(QsciScintilla.SCI_POSITIONFROMLINE, line)
+        lt = self.text(line)
+        byte_off = len(lt[:char_start].encode("utf-8"))
+        byte_len = len(lt[char_start:char_end].encode("utf-8"))
+        return line_byte_start + byte_off, byte_len
+
+    def _update_beginend_highlight(self, line: int, index: int):
+        """İmleç bir \\begin{X}/\\end{X} üzerindeyse eşleşen tag'i vurgula."""
+        self._clear_beginend_highlight()
+        line_text = self.text(line)
+        cur = None
+        for m in _BEGINEND_RE.finditer(line_text):
+            if m.start() <= index <= m.end():
+                cur = (line, m.start(), m.end(), m.group(1), m.group(2))
+                break
+        if cur is None:
+            return
+        match = self._find_matching_tag(cur)
+        if match is None:
+            return
+        self._highlight_range(*self._tag_byte_range(cur[0], cur[1], cur[2]))
+        self._highlight_range(*self._tag_byte_range(match[0], match[1], match[2]))
+
+    def _find_matching_tag(self, cur):
+        """Yığın (stack) ile eşleşen tag'i bul. İç içe ve farklı adları sayar."""
+        cur_line, _, _, kind, name = cur
+        tags = self._get_beginend_tags()
+        cur_idx = None
+        for i, (ln, s, e, k, n) in enumerate(tags):
+            if ln == cur_line and k == kind and n == name:
+                cur_idx = i
+                break
+        if cur_idx is None:
+            return None
+        if kind == "begin":
+            depth = 0
+            for i in range(cur_idx, len(tags)):
+                ln, s, e, k, n = tags[i]
+                if n != name:
+                    continue
+                depth += 1 if k == "begin" else -1
+                if depth == 0:
+                    return (ln, s, e)
+            return None
+        # end -> geriye doğru
+        depth = 0
+        for i in range(cur_idx, -1, -1):
+            ln, s, e, k, n = tags[i]
+            if n != name:
+                continue
+            depth += 1 if k == "end" else -1
+            if depth == 0:
+                return (ln, s, e)
+        return None
 
     @property
     def file_path(self) -> str:
