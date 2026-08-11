@@ -253,3 +253,47 @@ def test_completion_after_verbatim_block(qapp):
     ed.setCursorPosition(3, len("\\fra"))
     ed._check_autocomplete()
     assert _autoc_active(ed)
+
+
+# --- \ref / \cite doküman-farkında tamamlama ---
+
+
+def test_ref_completion_from_document_label(qapp):
+    r"""\label{sec:intro} varken \ref{sec -> popup, seçince \ref{sec:intro."""
+    ed = _editor()
+    ed.setText("\\label{sec:intro}\n\\ref{sec")
+    _style_all(ed)
+    ed.setCursorPosition(1, len("\\ref{sec"))
+    ed._check_autocomplete()
+    assert _autoc_active(ed)
+    ed.SendScintilla(QsciScintilla.SCI_AUTOCCOMPLETE)
+    qapp.processEvents()
+    assert _line(ed, 1) == "\\ref{sec:intro"
+
+
+def test_ref_completion_no_label_no_popup(qapp):
+    r"""Dokümanda \label yokken \ref{ -> popup çıkmaz."""
+    ed = _editor()
+    ed.setText("hiç label yok\n\\ref{")
+    _style_all(ed)
+    ed.setCursorPosition(1, len("\\ref{"))
+    ed._check_autocomplete()
+    assert not _autoc_active(ed)
+
+
+def test_cite_completion_from_bib(qapp, tmp_path):
+    r"""\addbibresource ile .bib varken \cite{smi -> \cite{smith2020."""
+    bib = tmp_path / "refs.bib"
+    bib.write_text("@article{smith2020, title={X}}\n", encoding="utf-8")
+    tex = tmp_path / "m.tex"
+    tex.write_text("\\addbibresource{refs.bib}\n\\cite{smi}", encoding="utf-8")
+    ed = _editor()
+    ed._file_path = str(tex)
+    ed.setText(tex.read_text(encoding="utf-8"))
+    _style_all(ed)
+    ed.setCursorPosition(1, len("\\cite{smi"))
+    ed._check_autocomplete()
+    assert _autoc_active(ed)
+    ed.SendScintilla(QsciScintilla.SCI_AUTOCCOMPLETE)
+    qapp.processEvents()
+    assert _line(ed, 1) == "\\cite{smith2020}"

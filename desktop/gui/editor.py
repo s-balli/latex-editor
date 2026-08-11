@@ -10,6 +10,7 @@ from PyQt6.QtGui import QColor, QPalette
 from PyQt6.QtWidgets import QMessageBox
 
 from core.log import get_logger
+from core.latex_refs import collect_cite_keys, collect_labels
 from PyQt6.QtCore import QCoreApplication
 
 _ = lambda s: QCoreApplication.translate("EditorWidget", s)
@@ -292,6 +293,18 @@ class EditorWidget(QsciScintilla):
             self._show_env_completion(env.group(1), manual)
             return
 
+        # \ref{ / \cite{ sonrası doküman-farkında tamamlama
+        ref = re.search(r'\\(?:ref|eqref|pageref|autoref|nameref|vref|cref|Cref)\{([A-Za-z0-9_:.\-]*)$',
+                        text_before)
+        if ref:
+            self._show_ref_completion(ref.group(1))
+            return
+        cite = re.search(r'\\(?:cite|citep|citet|citeauthor|citeyear|citealp|parencite|textcite|nocite)\{([A-Za-z0-9_:.,\-]*)$',
+                         text_before)
+        if cite:
+            self._show_cite_completion(cite.group(1))
+            return
+
         if not manual and col < 3:
             return
 
@@ -339,6 +352,35 @@ class EditorWidget(QsciScintilla):
         self.SendScintilla(QsciScintilla.SCI_AUTOCSETSEPARATOR, ord(' '))
         entries = " ".join(matches).encode('utf-8')
         self.SendScintilla(QsciScintilla.SCI_AUTOCSHOW, len(typed), entries)
+
+    def _show_ref_completion(self, typed: str):
+        r"""\ref{...} için projedeki \label anahtarlarını öner (doküman-farkında)."""
+        try:
+            labels = collect_labels(self.text(), self._file_path)
+        except Exception:
+            _logger.debug("label toplama başarısız", exc_info=True)
+            return
+        matches = [lab for lab in labels if lab.startswith(typed) and lab != typed]
+        if not matches:
+            return
+        self.SendScintilla(QsciScintilla.SCI_AUTOCSETSEPARATOR, ord(' '))
+        entries = " ".join(matches).encode('utf-8')
+        self.SendScintilla(QsciScintilla.SCI_AUTOCSHOW, len(typed), entries)
+
+    def _show_cite_completion(self, typed: str):
+        r"""\cite{...} için .bib anahtarlarını öner (key1,key2 çoklu destek)."""
+        partial = typed.rsplit(',', 1)[-1]   # son virgülden sonraki segment
+        try:
+            keys = collect_cite_keys(self.text(), self._file_path)
+        except Exception:
+            _logger.debug("cite anahtar toplama başarısız", exc_info=True)
+            return
+        matches = [k for k in keys if k.startswith(partial) and k != partial]
+        if not matches:
+            return
+        self.SendScintilla(QsciScintilla.SCI_AUTOCSETSEPARATOR, ord(' '))
+        entries = " ".join(matches).encode('utf-8')
+        self.SendScintilla(QsciScintilla.SCI_AUTOCSHOW, len(partial), entries)
 
     def _on_autoc_completed(self, text, *rest):
         """Otomatik tamamlama popup'ından seçilen komut kapanış ayracı ekler.
