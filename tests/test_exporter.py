@@ -4,6 +4,8 @@ import subprocess
 import sys
 from unittest.mock import MagicMock, patch, mock_open
 
+import pytest
+
 
 # core.log PyQt6 gerektiriyor. Gerçek PyQt6 kuruluysa onu kullan; yoksa mock'la.
 # DİKKAT: mock eskiden "PyQt6 not in sys.modules" ile koşulsuz sys.modules'e
@@ -30,6 +32,12 @@ from core.exporter import (
     _fix_md_image_paths,
     _export_native,
     _export_wsl,
+    _preprocess_tex,
+    _find_bibliography,
+    _resolve_md_citations,
+    _pandoc_csljson,
+    _fix_docx_compat,
+    _rewrite_docx_member,
 )
 
 
@@ -283,3 +291,333 @@ class TestFixMdImagePaths:
         _fix_md_image_paths(str(tex_file), str(md_file))
         content = md_file.read_text()
         assert '{width="70%"}' not in content
+
+
+# --- önişleme: abstract/title -> gövdeye taşı (elsarticle fix) ---
+
+
+class TestPreprocess:
+    def test_abstract_becomes_section(self, tmp_path):
+        tex = tmp_path / "d.tex"
+        tex.write_text("\\begin{abstract}\nÖzet metni.\n\\end{abstract}")
+        out = _preprocess_tex(str(tex))
+        content = open(out, encoding="utf-8").read()
+        assert "\\section*{Abstract}" in content
+        assert "\\begin{abstract}" not in content
+        assert "\\end{abstract}" not in content
+        if out != str(tex):
+            import os; os.unlink(out)
+
+    def test_title_becomes_section(self, tmp_path):
+        tex = tmp_path / "d.tex"
+        tex.write_text("\\title{Belge Başlığı}\n\\section{X}")
+        out = _preprocess_tex(str(tex))
+        content = open(out, encoding="utf-8").read()
+        assert "\\section*{Belge Başlığı}" in content
+        import os; os.unlink(out) if out != str(tex) else None
+
+    def test_title_with_optional_arg(self, tmp_path):
+        tex = tmp_path / "d.tex"
+        tex.write_text("\\title[Kısa]{Uzun Başlık}")
+        out = _preprocess_tex(str(tex))
+        content = open(out, encoding="utf-8").read()
+        assert "\\section*{Uzun Başlık}" in content
+        import os; os.unlink(out) if out != str(tex) else None
+
+    def test_frontmatter_stripped(self, tmp_path):
+        tex = tmp_path / "d.tex"
+        tex.write_text("\\begin{frontmatter}\n\\title{X}\n\\end{frontmatter}\n\\section{Y}")
+        out = _preprocess_tex(str(tex))
+        content = open(out, encoding="utf-8").read()
+        assert "\\begin{frontmatter}" not in content
+        assert "\\end{frontmatter}" not in content
+        import os; os.unlink(out) if out != str(tex) else None
+
+    def test_no_change_returns_original(self, tmp_path):
+        tex = tmp_path / "d.tex"
+        tex.write_text("\\section{Gövde}\nMetin.")
+        out = _preprocess_tex(str(tex))
+        assert out == str(tex)  # değişiklik yok -> geçici dosya yok
+
+
+# --- bibliography tespiti ---
+
+
+class TestFindBibliography:
+    def test_bibliography_command(self, tmp_path):
+        tex = tmp_path / "d.tex"
+        (tmp_path / "refs.bib").write_text("@article{x,...}")
+        tex.write_text("\\bibliography{refs}")
+        assert _find_bibliography(str(tex)) == str(tmp_path / "refs.bib")
+
+    def test_addbibresource(self, tmp_path):
+        tex = tmp_path / "d.tex"
+        (tmp_path / "src.bib").write_text("@article{x,...}")
+        tex.write_text("\\addbibresource{src.bib}")
+        assert _find_bibliography(str(tex)) == str(tmp_path / "src.bib")
+
+    def test_missing_bib_file(self, tmp_path):
+        tex = tmp_path / "d.tex"
+        tex.write_text("\\bibliography{refs}")  # refs.bib yok
+        assert _find_bibliography(str(tex)) == ""
+
+    def test_no_bibliography(self, tmp_path):
+        tex = tmp_path / "d.tex"
+        tex.write_text("\\section{X}\nMetin.")
+        assert _find_bibliography(str(tex)) == ""
+
+
+# --- _pandoc_args bibliography desteği ---
+
+
+class TestPandocArgsBib:
+    def test_args_include_citeproc_when_bib(self):
+        args = _pandoc_args("/d/a.tex", "/d/a.md", bib="/d/refs.bib")
+        assert "--bibliography=/d/refs.bib" in args
+        assert "--citeproc" in args
+
+    def test_args_no_citeproc_without_bib(self):
+        args = _pandoc_args("/d/a.tex", "/d/a.md")
+        assert not any(a.startswith("--bibliography") for a in args)
+        assert "--citeproc" not in args
+
+    def test_txt_args_force_plain(self):
+        # .txt pandoc'ta varsayılan markdown'dır; gerçek plain text iste
+        args = _pandoc_args("/d/a.tex", "/d/a.txt")
+        assert "-t" in args and "plain" in args
+
+
+# --- entegrasyon: gerçek pandoc ile abstract görünsün ---
+
+
+import shutil as _shutil
+_PANDOC = _shutil.which("pandoc")
+
+
+class TestExportIntegration:
+    @pytest.mark.skipif(not _PANDOC, reason="pandoc gerekli")
+    def test_abstract_present_in_md(self, tmp_path):
+        tex = tmp_path / "d.tex"
+        tex.write_text(
+            "\\documentclass{article}\n\\begin{document}\n"
+            "\\begin{abstract}\nBu özet dışa aktarımda görünmeli.\n\\end{abstract}\n"
+            "\\section{Giriş}\nGövde.\n\\end{document}\n"
+        )
+        md = tmp_path / "d.md"
+        ok, err = export(str(tex), str(md))
+        assert ok, f"export failed: {err}"
+        content = md.read_text(encoding="utf-8")
+        assert "Abstract" in content
+        assert "Bu özet dışa aktarımda görünmeli." in content
+
+    @pytest.mark.skipif(not _PANDOC, reason="pandoc gerekli")
+    def test_references_resolved_in_html_with_bib(self, tmp_path):
+        # citeproc HTML/DOCX/TXT'de citations'ı çözüp referans listesi ekler.
+        # (Markdown writer citeproc'u atlar; MD'de [@key] pandoc citation kalır.)
+        tex = tmp_path / "d.tex"
+        bib = tmp_path / "refs.bib"
+        bib.write_text(
+            "@article{kazemi2025synthetic,\nauthor={Kazemi},\ntitle={Synthetic},\nyear={2025}}\n"
+        )
+        tex.write_text(
+            "\\documentclass{article}\n\\begin{document}\n"
+            "Metin \\cite{kazemi2025synthetic}.\n"
+            "\\bibliography{refs}\n\\end{document}\n"
+        )
+        html = tmp_path / "d.html"
+        ok, err = export(str(tex), str(html))
+        assert ok, f"export failed: {err}"
+        content = html.read_text(encoding="utf-8")
+        assert "Kazemi" in content            # citeproc çözümü (html expand eder)
+        assert "references" in content.lower() or 'id="refs"' in content
+
+    @pytest.mark.skipif(not _PANDOC, reason="pandoc gerekli")
+    def test_md_resolves_citations_and_adds_references(self, tmp_path):
+        # pandoc MD'de citeproc'u atlar; bizim çözücümüz [@key]'i çözüp liste ekler.
+        tex = tmp_path / "d.tex"
+        bib = tmp_path / "refs.bib"
+        bib.write_text("@article{k,\nauthor={Kazemi, A.},\ntitle={T},\nyear={2020}}\n")
+        tex.write_text(
+            "\\documentclass{article}\n\\begin{document}\n"
+            "Metin \\cite{k}.\n\\bibliography{refs}\n\\end{document}\n"
+        )
+        md = tmp_path / "d.md"
+        ok, err = export(str(tex), str(md))
+        assert ok, f"export failed: {err}"
+        content = md.read_text(encoding="utf-8")
+        assert "[@k]" not in content          # çözüldü
+        assert "(Kazemi 2020)" in content     # inline çözüm
+        assert "## References" in content     # referans listesi eklendi
+
+    @pytest.mark.skipif(not _PANDOC, reason="pandoc gerekli")
+    def test_md_without_bib_keeps_citation_key(self, tmp_path):
+        # .bib yoksa çözücü çalışmaz; [@key] pandoc citation olarak kalır.
+        tex = tmp_path / "d.tex"
+        tex.write_text(
+            "\\documentclass{article}\n\\begin{document}\n"
+            "Metin \\cite{k}.\n\\end{document}\n"
+        )
+        md = tmp_path / "d.md"
+        ok, err = export(str(tex), str(md))
+        assert ok, f"export failed: {err}"
+        assert "[@k]" in md.read_text(encoding="utf-8")
+
+    @pytest.mark.skipif(not _PANDOC, reason="pandoc gerekli")
+    def test_md_references_full_quality_via_citeproc(self, tmp_path):
+        # MD referansları citeproc ile üretilir: dergi, DOI vb. TAM bilgi (basit format değil).
+        tex = tmp_path / "d.tex"
+        bib = tmp_path / "refs.bib"
+        bib.write_text(
+            "@article{k,\nauthor={Kazemi, Arefeh and B, C.},\ntitle={Paper One},\n"
+            "journal={Nature},\nyear={2025},\ndoi={10.1000/one}}\n"
+        )
+        tex.write_text(
+            "\\documentclass{article}\n\\begin{document}\n"
+            "Metin \\cite{k}.\n\\bibliography{refs}\n\\end{document}\n"
+        )
+        md = tmp_path / "d.md"
+        ok, err = export(str(tex), str(md))
+        assert ok, f"export failed: {err}"
+        content = md.read_text(encoding="utf-8")
+        assert "## References" in content
+        assert "Nature" in content              # citeproc tam referans (dergi)
+        assert "10.1000/one" in content         # DOI
+
+    @pytest.mark.skipif(not _PANDOC, reason="pandoc gerekli")
+    def test_txt_resolves_citations_and_is_plain(self, tmp_path):
+        # .txt -> -t plain: gerçek plain text + citeproc çözümü.
+        tex = tmp_path / "d.tex"
+        bib = tmp_path / "refs.bib"
+        bib.write_text("@article{k,\nauthor={Kazemi},\ntitle={T},\nyear={2025}}\n")
+        tex.write_text(
+            "\\documentclass{article}\n\\begin{document}\n"
+            "Metin \\cite{k}.\n\\bibliography{refs}\n\\end{document}\n"
+        )
+        txt = tmp_path / "d.txt"
+        ok, err = export(str(tex), str(txt))
+        assert ok, f"export failed: {err}"
+        content = txt.read_text(encoding="utf-8")
+        assert "Kazemi" in content          # citeproc çözümü
+        assert "[@" not in content          # çözülmemiş cite kalmadı
+        assert "# " not in content          # markdown başlık yok (gerçek plain)
+
+
+class TestResolveMdCitations:
+    @pytest.mark.skipif(not _PANDOC, reason="pandoc gerekli")
+    def test_multi_author_et_al(self, tmp_path):
+        bib = tmp_path / "r.bib"
+        bib.write_text(
+            "@article{k,\nauthor={A, X. and B, Y. and C, Z.},\ntitle={T},\nyear={2024}}\n"
+        )
+        md = tmp_path / "d.md"
+        md.write_text("See [@k].\n")
+        _resolve_md_citations(str(md), "", str(bib))   # tex yoksa inline yine çözülür
+        content = md.read_text(encoding="utf-8")
+        assert "(A et al. 2024)" in content   # 3+ yazar -> et al.
+
+    @pytest.mark.skipif(not _PANDOC, reason="pandoc gerekli")
+    def test_multi_cite_keys_inline(self, tmp_path):
+        bib = tmp_path / "r.bib"
+        bib.write_text(
+            "@article{k1,\nauthor={Kazemi, A.},\ntitle={S},\nyear={2025}}\n"
+            "@article{k2,\nauthor={Hasan, M.},\ntitle={L},\nyear={2026}}\n"
+        )
+        md = tmp_path / "d.md"
+        md.write_text("[@k1; @k2]\n")
+        _resolve_md_citations(str(md), "", str(bib))
+        content = md.read_text(encoding="utf-8")
+        assert "(Kazemi 2025; Hasan 2026)" in content
+
+    @pytest.mark.skipif(not _PANDOC, reason="pandoc gerekli")
+    def test_unknown_key_left_as_is(self, tmp_path):
+        bib = tmp_path / "r.bib"
+        bib.write_text("@article{k1,\nauthor={A},\ntitle={T},\nyear={2020}}\n")
+        md = tmp_path / "d.md"
+        md.write_text("[@k1] and [@unknownkey]\n")
+        _resolve_md_citations(str(md), "", str(bib))
+        content = md.read_text(encoding="utf-8")
+        assert "(A 2020)" in content
+        assert "[@unknownkey]" in content    # bilinmeyen -> dokunulmadı
+
+
+class TestPandocCsljson:
+    @patch("core.exporter.PLATFORM", "win32")
+    @patch("core.exporter.subprocess.run")
+    def test_wsl_pandoc_on_windows(self, mock_run):
+        # Windows'ta pandoc WSL'dedir; csljson çağrısı wsl üzerinden olmalı.
+        mock_run.return_value = MagicMock(returncode=0, stdout="[]", stderr="")
+        _pandoc_csljson(r"C:\refs.bib")
+        args = mock_run.call_args[0][0]
+        assert args[0] == "wsl" and "pandoc" in args
+
+    @patch("core.exporter.PLATFORM", "linux")
+    @patch("core.exporter.subprocess.run")
+    def test_native_pandoc_on_linux(self, mock_run):
+        mock_run.return_value = MagicMock(returncode=0, stdout="[]", stderr="")
+        _pandoc_csljson("/r/refs.bib")
+        args = mock_run.call_args[0][0]
+        assert args[0] == "pandoc" and args[1] == "/r/refs.bib"
+
+    @patch("core.exporter.PLATFORM", "linux")
+    def test_empty_on_pandoc_failure(self):
+        # pandoc bulunamazsa boş döner (sessiz başarısızlık değil).
+        with patch("core.exporter.subprocess.run", side_effect=FileNotFoundError):
+            assert _pandoc_csljson("/r/refs.bib") == ""
+
+
+class TestFixDocxBrokenAnchors:
+    @pytest.mark.skipif(not _PANDOC, reason="pandoc gerekli")
+    def test_broken_anchors_neutralized(self, tmp_path):
+        # \ref{fig:missing} figure'siz -> boş anchor -> Word açamaz. Düzeltici nötrleştirmeli.
+        import zipfile, re
+        tex = tmp_path / "d.tex"
+        tex.write_text(
+            "\\documentclass{article}\n\\begin{document}\n"
+            "See Figure \\ref{fig:missing}.\n"
+            "\\end{document}\n"
+        )
+        docx_path = tmp_path / "d.docx"
+        ok, _ = export(str(tex), str(docx_path))
+        assert ok
+        doc = zipfile.ZipFile(str(docx_path)).read('word/document.xml').decode('utf-8')
+        bookmarks = set(re.findall(r'<w:bookmarkStart[^>]*w:name="([^"]+)"', doc))
+        anchors = set(re.findall(r'<w:hyperlink[^>]*w:anchor="([^"]+)"', doc))
+        # Düzeltme sonrası boş anchor kalmamalı
+        assert (anchors - bookmarks) == set()
+
+    @pytest.mark.skipif(not _PANDOC, reason="pandoc gerekli")
+    def test_docx_opens_after_fix(self, tmp_path):
+        # Düzeltme docx'i bozmamalı (python-docx açabilmeli).
+        import docx as _docx
+        tex = tmp_path / "d.tex"
+        tex.write_text(
+            "\\documentclass{article}\n\\begin{document}\n"
+            "See \\ref{fig:missing}. Some text.\n\\end{document}\n"
+        )
+        docx_path = tmp_path / "d.docx"
+        ok, _ = export(str(tex), str(docx_path))
+        assert ok
+        d = _docx.Document(str(docx_path))   # çökmemeli
+        assert len(d.paragraphs) >= 1
+
+    @pytest.mark.skipif(not _PANDOC, reason="pandoc gereklib")
+    def test_undefined_table_style_replaced(self, tmp_path):
+        # pandoc 3.1.3 FigureTable bug'ı simülasyonu: tanımsız stili enjekte et, düzelir mi?
+        import zipfile, subprocess
+        tex = tmp_path / "d.tex"
+        tex.write_text(
+            "\\documentclass{article}\n\\begin{document}\n"
+            "\\begin{table}[h]\\caption{X}\\begin{tabular}{c}1\\\\\\end{tabular}\\end{table}\n"
+            "\\end{document}\n"
+        )
+        docx_path = tmp_path / "d.docx"
+        subprocess.run(["pandoc", str(tex), "-o", str(docx_path)],
+                       capture_output=True, check=True)
+        # tanımsız FigureTable stili enjekte et (ilk tablonun tblPr'sine)
+        doc = zipfile.ZipFile(str(docx_path)).read('word/document.xml').decode('utf-8')
+        doc = doc.replace('<w:tblPr>', '<w:tblPr><w:tblStyle w:val="FigureTable" />', 1)
+        _rewrite_docx_member(str(docx_path), 'word/document.xml', doc.encode('utf-8'))
+        _fix_docx_compat(str(docx_path))
+        doc2 = zipfile.ZipFile(str(docx_path)).read('word/document.xml').decode('utf-8')
+        assert "FigureTable" not in doc2          # tanımsız stil kaldırıldı
+        assert '<w:tblStyle w:val="Table"' in doc2  # tanımlı Table stiline yönlendirildi
