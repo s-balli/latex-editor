@@ -277,6 +277,12 @@ class EditorWidget(QsciScintilla):
 
     def _check_autocomplete(self, manual=False):
         line, col = self.getCursorPosition()
+        # Yorum/verbatim içinde komut tamamlaması yapma (C.8)
+        if col > 0:
+            style_before = self.SendScintilla(
+                QsciScintilla.SCI_GETSTYLEAT, self._cursor_byte_pos() - 1)
+            if style_before in (LatexLexer.COMMENT, LatexLexer.VERBATIM):
+                return
         line_text = self.text(line)
         text_before = line_text[:col]
 
@@ -404,6 +410,13 @@ class EditorWidget(QsciScintilla):
         byte_off = len(lt[:char_start].encode("utf-8"))
         byte_len = len(lt[char_start:char_end].encode("utf-8"))
         return line_byte_start + byte_off, byte_len
+
+    def _cursor_byte_pos(self) -> int:
+        """İmlecin doküman byte offseti (satır-bazlı, UTF-8)."""
+        line, index = self.getCursorPosition()
+        line_byte_start = self.SendScintilla(QsciScintilla.SCI_POSITIONFROMLINE, line)
+        lt = self.text(line)
+        return line_byte_start + len(lt[:index].encode("utf-8"))
 
     def _update_beginend_highlight(self, line: int, index: int):
         """İmleç bir \\begin{X}/\\end{X} üzerindeyse eşleşen tag'i vurgula."""

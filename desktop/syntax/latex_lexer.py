@@ -19,12 +19,19 @@ class LatexLexer(QsciLexerCustom):
     MATH = 5
     MATH_CMD = 6
     ENV_ARG = 7
+    VERBATIM = 8
 
     _ENV_COMMANDS = {"begin", "end"}
 
+    # İçeriği raw (komut/math stillenmeden) işlenen ortamlar (C.8 verbatim)
+    _VERB_ENVS = ("verbatim", "verbatim*", "lstlisting", "minted", "alltt",
+                  "comment", "Verbatim", "BVerbatim", "LVerbatim", "listing")
+
+    # _line_states satır-durumu: 0=normal, 1=math, 2=verbatim (math/verbatim
+    # birbirini dışlar). 0 falsy -> güvenli satır; 1/2 truthy -> devam eden.
     def __init__(self, parent=None):
         super().__init__(parent)
-        self._line_states = {0: False}
+        self._line_states = {0: 0}
 
     def apply_theme(self, t: dict):
         bg = QColor(t["bg_primary"])
@@ -64,13 +71,18 @@ class LatexLexer(QsciLexerCustom):
         self.setPaper(bg, self.ENV_ARG)
         self.setFont(env_font, self.ENV_ARG)
 
+        # Verbatim (raw kod) — yumuşak renkle, komut/math stillenmez (C.8)
+        self.setColor(QColor(t.get("fg_muted", t["syn_default"])), self.VERBATIM)
+        self.setPaper(bg, self.VERBATIM)
+        self.setFont(mono, self.VERBATIM)
+
     def language(self):
         return "LaTeX"
 
     def description(self, style):
         names = {
             0: "Default", 1: "Command", 2: "CmdArg", 3: "Bracket",
-            4: "Comment", 5: "Math", 6: "MathCmd", 7: "EnvArg",
+            4: "Comment", 5: "Math", 6: "MathCmd", 7: "EnvArg", 8: "Verbatim",
         }
         return names.get(style, "")
 
@@ -120,7 +132,9 @@ class LatexLexer(QsciLexerCustom):
         # Tarama — satır başlarında state kaydet
         new_states = {}
         in_math = False
+        in_verbatim = False
         math_delim = None
+        verb_name = None
         i = line_start
 
         # Eğer güvenli satırda değilsek (en baştan başlıyoruz demek)
@@ -134,7 +148,11 @@ class LatexLexer(QsciLexerCustom):
                 self.setStyling(byte_at[i + 1] - byte_at[i], self.DEFAULT)
                 i += 1
                 line_no += 1
-                new_states[line_no] = in_math
+                new_states[line_no] = self._state_val(in_math, in_verbatim)
+                continue
+
+            if in_verbatim:
+                i, in_verbatim = self._style_verbatim_continue(source, i, n, byte_at, verb_name)
                 continue
 
             if in_math:
@@ -156,6 +174,16 @@ class LatexLexer(QsciLexerCustom):
                 continue
 
             if ch == '\\':
+                # verbatim ortamı başlangıcı: \begin{verbatim|lstlisting|...} (C.8).
+                # İçerik raw işlenir (komut/math stillenmez); kapanış \end{ad}'e kadar.
+                verb_env = self._match_verbatim_begin(source, i, n)
+                if verb_env is not None:
+                    pos, closed = self._style_verbatim_block(source, i, n, byte_at, verb_env)
+                    in_verbatim = not closed
+                    if in_verbatim:
+                        verb_name = verb_env
+                    i = pos
+                    continue
                 nxt = source[i + 1] if i + 1 < n else ''
                 # \[ ... \] (display) ve \( ... \) (inline) math ayracı.
                 # Bu delimiter'lar birden çok satıra yayılabilir; _style_math_block
@@ -199,7 +227,7 @@ class LatexLexer(QsciLexerCustom):
             i = j
 
         # Son satırın state'ini de kaydet
-        new_states[line_no] = in_math
+        new_states[line_no] = self._state_val(in_math, in_verbatim)
         # Önceki satır durumlarını koru. styleText artımlı çağrılır: yalnızca
         # [line_start, EOF] aralığı taranır ve new_states de yalnızca bu aralığı
         # içerir. Eski davranış (`= new_states`) tarama dışındaki satırların doğru
@@ -280,6 +308,50 @@ class LatexLexer(QsciLexerCustom):
         if j < n:
             self.setStyling(ba[n] - ba[j], self.MATH)
         return n, True
+
+    # --- Verbatim (C.8) ---
+
+    @staticmethod
+    def _state_val(in_math: bool, in_verbatim: bool) -> int:
+        """Satır-durumu kodu: 0=normal, 1=math, 2=verbatim (birbirini dışlar)."""
+        if in_math:
+            return 1
+        if in_verbatim:
+            return 2
+        return 0
+
+    def _match_verbatim_begin(self, source, i, n):
+        """source[i:] \\begin{<verbenv>} ile başlıyorsa ortam adını, yoksa None."""
+        for env in self._VERB_ENVS:
+            tag = "\\begin{" + env + "}"
+            if source.startswith(tag, i):
+                return env
+        return None
+
+    def _style_verbatim_block(self, source, i, n, ba, env):
+        """\\begin{env} ... \\end{env} arasını (sınırlar dahil) VERBATIM stiller.
+
+        Kapanış bulunursa (end, True), bulunamazsa EOF'a kadar (n, False) döner.
+        """
+        close = "\\end{" + env + "}"
+        j = source.find(close, i + 1)
+        if j == -1:
+            self.setStyling(ba[n] - ba[i], self.VERBATIM)
+            return n, False
+        end = j + len(close)
+        self.setStyling(ba[end] - ba[i], self.VERBATIM)
+        return end, True
+
+    def _style_verbatim_continue(self, source, i, n, ba, env):
+        """Açık verbatim bloğunun devamı (artımlı tarama için, math_continue gibi)."""
+        close = "\\end{" + env + "}"
+        j = source.find(close, i)
+        if j == -1:
+            self.setStyling(ba[n] - ba[i], self.VERBATIM)
+            return n, True
+        end = j + len(close)
+        self.setStyling(ba[end] - ba[i], self.VERBATIM)
+        return end, False
 
     # --- Komutlar ---
 

@@ -138,8 +138,8 @@ def test_incremental_style_does_not_rewind_to_line_zero(qapp):
 # --- Doğruluk: tam tarama matematik/yorum durumlarını doğru sınıflandırmalı ---
 
 
-def test_full_style_populates_boolean_states(qapp):
-    """Tam tarama sonrası önbellek Boolean satır durumları içermeli (sağlık kontrolü)."""
+def test_full_style_populates_int_states(qapp):
+    """Tam tarama sonrası önbellek int satır durumları içermeli (0/1/2, C.8)."""
     editor = _make_editor()
     buf = "\n".join([
         "% bu bir yorum",        # 0
@@ -152,9 +152,10 @@ def test_full_style_populates_boolean_states(qapp):
 
     lexer.styleText(0, len(buf.encode("utf-8")))
 
-    # Önbellekteki değerler Boolean olmalı
+    # Önbellekteki değerler int (0=normal, 1=math, 2=verbatim) olmalı
     for line_no, state in lexer._line_states.items():
-        assert isinstance(state, bool), f"satır {line_no} durumu bool değil: {state!r}"
+        assert isinstance(state, int) and state in (0, 1, 2), \
+            f"satır {line_no} durumu geçersiz: {state!r}"
     # En az birkaç satır kaydedilmiş olmalı
     assert len(lexer._line_states) >= 3
 
@@ -172,8 +173,8 @@ def test_incremental_style_after_full_is_stable(qapp):
         start = _byte_offset_of_line(buf, line_no)
         lexer.styleText(start, start + 3)
 
-    # Önbellek hala Boolean değerler içermeli ve bir tutarsızlık olmamalı
-    assert all(isinstance(v, bool) for v in lexer._line_states.values())
+    # Önbellek int durumlar içermeli (0/1/2) ve tutarsızlık olmamalı
+    assert all(isinstance(v, int) and v in (0, 1, 2) for v in lexer._line_states.values())
 
 
 # --- Font taşınabilirliği ---
@@ -256,3 +257,46 @@ def test_stray_close_bracket_is_command(qapp):
     r"""Math dışında yalnız '\]' komut olarak stillenmeli (math kapanışı değil)."""
     editor, data = _style_text("some text \\]")
     assert _style_at(editor, data.index(b"\\]")) == LatexLexer.COMMAND
+
+
+# --- C.8: verbatim ortamı (içerik komut/math olarak stillenmez) ---
+
+
+def test_verbatim_content_not_command(qapp):
+    r"""verbatim içindeki \section komut gibi değil, VERBATIM stillenmeli."""
+    editor, data = _style_text("\\begin{verbatim}\n\\section{x}\n\\end{verbatim}")
+    sec_bs = data.index(b"section") - 1   # \section başlangıç backslash'i
+    assert _style_at(editor, sec_bs) == LatexLexer.VERBATIM
+
+
+def test_verbatim_after_close_resumes_command(qapp):
+    r"""verbatim kapandıktan sonra \section normal COMMAND stillenmeli."""
+    editor, data = _style_text("\\begin{verbatim}\nx\n\\end{verbatim}\n\\section{y}")
+    assert _style_at(editor, data.index(b"\\section")) == LatexLexer.COMMAND
+
+
+def test_verbatim_multiline_content(qapp):
+    r"""Çok satırlı verbatim: içerik VERBATIM, kapanış sonrası DEFAULT."""
+    buf = "\\begin{verbatim}\nline of code\nmore code\n\\end{verbatim}\nnormal"
+    editor, data = _style_text(buf)
+    assert _style_at(editor, data.index(b"line of code")) == LatexLexer.VERBATIM
+    assert _style_at(editor, data.index(b"normal")) == LatexLexer.DEFAULT
+
+
+def test_verbatim_math_not_styled(qapp):
+    r"""verbatim içinde $x$ math değil, VERBATIM."""
+    editor, data = _style_text("\\begin{verbatim}\n$x$\n\\end{verbatim}")
+    assert _style_at(editor, data.index(b"$x$")) == LatexLexer.VERBATIM
+
+
+def test_verbatim_lstlisting(qapp):
+    r"""lstlisting ortamı da raw işlenmeli."""
+    editor, data = _style_text("\\begin{lstlisting}\nint x = 1;\n\\end{lstlisting}")
+    assert _style_at(editor, data.index(b"int x")) == LatexLexer.VERBATIM
+
+
+def test_verbatim_unclosed_styles_rest(qapp):
+    r"""Kapanmamış verbatim — geri kalan VERBATIM, satır durumu 2."""
+    editor, data = _style_text("\\begin{verbatim}\ncode here\n")
+    assert _style_at(editor, data.index(b"code here")) == LatexLexer.VERBATIM
+    assert 2 in editor.lexer()._line_states.values()

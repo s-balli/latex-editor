@@ -193,3 +193,63 @@ def test_update_margin_width_no_crash_on_empty(qapp):
     ed = _editor()
     ed.setText("")
     ed._update_margin_width()  # boş belgede çalışmalı
+
+
+# --- C.8: yorum/verbatim içinde tamamlama bastırma ---
+
+
+def _style_all(ed):
+    """Lexer'ı tamamen çalıştır (stil verileri hazır olsun)."""
+    ed.lexer().styleText(0, len(ed.text().encode("utf-8")))
+
+
+def test_no_completion_in_comment(qapp):
+    r"""Yorum içinde \fra yazınca popup çıkmaz."""
+    ed = _editor()
+    ed.setText("% yorum içinde \\fra")
+    _style_all(ed)
+    ed.setCursorPosition(0, len("% yorum içinde \\fra"))
+    ed._check_autocomplete()
+    assert not _autoc_active(ed)
+
+
+def test_no_completion_in_verbatim(qapp):
+    r"""verbatim içinde \secti yazınca popup çıkmaz."""
+    ed = _editor()
+    text = "\\begin{verbatim}\n\\secti\n\\end{verbatim}"
+    ed.setText(text)
+    _style_all(ed)
+    ed.setCursorPosition(1, len("\\secti"))
+    ed._check_autocomplete()
+    assert not _autoc_active(ed)
+
+
+def test_manual_suppressed_in_comment(qapp):
+    r"""Ctrl+Space (manuel) de yorum içinde bastırılır."""
+    ed = _editor()
+    ed.setText("% \\fra")
+    _style_all(ed)
+    ed.setCursorPosition(0, len("% \\fra"))
+    ed._check_autocomplete(manual=True)
+    assert not _autoc_active(ed)
+
+
+def test_completion_outside_comment(qapp):
+    r"""Yorum dışında (sonraki satır) \fra -> popup çıkar."""
+    ed = _editor()
+    ed.setText("% comment\n\\fra")
+    _style_all(ed)
+    ed.setCursorPosition(1, len("\\fra"))
+    ed._check_autocomplete()
+    assert _autoc_active(ed)
+
+
+def test_completion_after_verbatim_block(qapp):
+    r"""verbatim kapandıktan sonra \fra -> popup çıkar."""
+    ed = _editor()
+    text = "\\begin{verbatim}\nx\n\\end{verbatim}\n\\fra"
+    ed.setText(text)
+    _style_all(ed)
+    ed.setCursorPosition(3, len("\\fra"))
+    ed._check_autocomplete()
+    assert _autoc_active(ed)
