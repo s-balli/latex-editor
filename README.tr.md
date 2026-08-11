@@ -48,6 +48,12 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 - **480+ unit test**: engine_detector, input_parser, log_parser, paths, latex_utils, exporter, derle_sh, i18n, imports, autopair, latex_lexer, pdf_indicator, wordcount, updater
 - **Özellikler**: Sözdizimi renklendirme, PDF önizleme, SyncTeX, 7 tema, çoklu dil (TR/EN), otomatik parantezleme, PDF yer imleri/arama/seçme, sunum modu, çift sayfa, akıllı motor algılama, görsel sürükle-bırak
 
+### Yayınlanmamış — Doküman-Farkında Tamamlama ve Editör Performansı
+- **Editör**: doküman-farkında `\ref{` / `\eqref{` / `\cite{` tamamlama — dokümandaki (ve `\input` zincirindeki) `\label` anahtarları ile `.bib` giriş anahtarlarını önerir; `\cite{key1,key2}` çoklu anahtar destekli
+- **Editör performansı**: büyük belgelerde daha hızlı yazım (sözdizimi lexer'ı ve `\begin`/`\end` vurgu sıcak yolları optimize edildi)
+- **Hata düzeltme**: çok satırlı `verbatim` / `\[...\]` bloğu içinde düzenleyince artık renklendirme bozulmuyor
+- **495 birim testi**
+
 ### v1.0.4 — Editör ve Dışa Aktarma İyileştirmeleri
 - **Editör**: `\[...\]` / `\(...\)` math renklendirme, Ctrl+Space + ortam adı tamamlama, eşleşen `\begin`/`\end` vurgulama, akıllı girintileme, yorum/verbatim algılayan tamamlama, dinamik satır numarası margin
 - **Dosya güvenliği**: atomik kayıt (çökmede truncation yok) ve UTF-8 / eski-Türkçe kodlama tespiti (sessiz bozulma yok)
