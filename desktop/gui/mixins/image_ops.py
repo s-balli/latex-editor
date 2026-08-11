@@ -209,3 +209,30 @@ class ImageOpsMixin:
         editor.setCursorPosition(line, col)
         editor.ensureLineVisible(line)
         editor.setFocus()
+
+    def _paste_image(self):
+        """Ctrl+V ile panodaki resmi media/'a kaydet ve görsel ekleme akışına sok.
+
+        Drag-drop ile aynı _insert_image akışını paylaşır (dialog + figure
+        bloğu). .tex'e sadece snippet ekler; resim ayrı bir PNG dosyası olur.
+        """
+        editor = self._current_editor()
+        if not editor or not editor.file_path:
+            self._status.showMessage(_("Önce bir .tex dosyası açın"))
+            return
+        from PyQt6.QtWidgets import QApplication
+        img = QApplication.clipboard().image()
+        if img.isNull():
+            return  # panoda resim yok; metin yapıştırma editörde zaten yapıldı
+        media_dir = os.path.join(os.path.dirname(editor.file_path), "media")
+        os.makedirs(media_dir, exist_ok=True)
+        n = 1
+        while True:
+            path = os.path.join(media_dir, f"image_{n}.png")
+            if not os.path.exists(path):
+                break
+            n += 1
+        if not img.save(path, "PNG"):
+            self._status.showMessage(_("Panodaki resim kaydedilemedi"))
+            return
+        self._insert_image(path)

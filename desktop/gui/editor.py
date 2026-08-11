@@ -7,7 +7,7 @@ from pathlib import Path
 
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor, QPalette
-from PyQt6.QtWidgets import QMessageBox
+from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from core.log import get_logger
 from core.latex_refs import collect_cite_keys, collect_labels
@@ -58,6 +58,7 @@ def _decode_bytes(raw: bytes) -> tuple[str, str]:
 
 class EditorWidget(QsciScintilla):
     forward_search_requested = pyqtSignal(str, int, int)  # file_path, line(1-based), col(1-based)
+    image_paste_requested = pyqtSignal()  # Ctrl+V + panoda resim → resim yapıştırma
 
     def __init__(self, parent=None, *, theme: dict = None):
         super().__init__(parent)
@@ -171,6 +172,12 @@ class EditorWidget(QsciScintilla):
         super().mouseMoveEvent(event)
 
     def keyPressEvent(self, event):
+        # Ctrl+V + panoda resim varsa resim yapıştırma (metin yapıştırmayı bırak).
+        if (event.modifiers() & Qt.KeyboardModifier.ControlModifier and
+                event.key() == Qt.Key.Key_V):
+            if not QApplication.clipboard().image().isNull():
+                self.image_paste_requested.emit()
+                return
         # Ctrl+Space -> manuel tamamlama (C.7)
         if (event.modifiers() & Qt.KeyboardModifier.ControlModifier and
                 event.key() == Qt.Key.Key_Space):
