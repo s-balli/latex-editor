@@ -218,12 +218,34 @@ class EditorWidget(QsciScintilla):
             QMessageBox.critical(self, _("Dosya Açma Hatası"), _("Dosya açılamadı:\n{path}\n\n{e}").format(path=path, e=e))
             return False
 
+    def _write_atomic(self, path: str, content: str) -> None:
+        """Aynı dizinde geçici dosyaya yaz, fsync et, atomik rename ile yerine koy.
+
+        Orijinal dosyaya truncate-on-open ile değil, tamamlanmış geçici dosyanın
+        atomik yer değiştirmesiyle yazılır; böylece yazma yarıda kalırsa orijinal
+        içerik korunur. Geçici dosya hedefle aynı filesystem'te (aynı dizinde)
+        tutulur ki os.replace gerçekten atomik olsun (çapraz-mount rename değil).
+        """
+        tmp = path + ".tmp"
+        try:
+            with open(tmp, "w", encoding="utf-8") as f:
+                f.write(content)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp, path)
+        except OSError:
+            # Geçici dosya kalmasın; orijinal dokunulmadı (truncate edilmedi).
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+            raise
+
     def save_file(self) -> bool:
         if not self._file_path:
             return False
         try:
-            with open(self._file_path, "w", encoding="utf-8") as f:
-                f.write(self.text())
+            self._write_atomic(self._file_path, self.text())
             self.setModified(False)
             return True
         except Exception as e:
