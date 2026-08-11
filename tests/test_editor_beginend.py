@@ -65,6 +65,23 @@ def test_get_tags_parses_begin_and_end():
     assert len(tags) == 2
 
 
+def test_get_tags_trailing_newline():
+    """Sondaki boş satır tag satır numarasını kaydırmaz (split('\n') seçimi)."""
+    ed = _setup("a\n\\begin{a}\n")   # satırlar: "a", "\\begin{a}", ""
+    tags = ed._get_beginend_tags()
+    assert (1, 0, B_BEGIN, "begin", "a") in tags
+    assert len(tags) == 1
+
+
+def test_get_tags_crlf_document():
+    """\\r\\n EOL'li belgede tag'ler doğru satırda (split('\\n') \r'yi satır sonunda bırakır)."""
+    ed = _setup("\\begin{a}\r\n\\end{a}\r\n")
+    tags = ed._get_beginend_tags()
+    assert (0, 0, B_BEGIN, "begin", "a") in tags
+    assert (1, 0, B_END, "end", "a") in tags
+    assert len(tags) == 2
+
+
 # --- eşleşme algoritması ---
 
 

@@ -397,8 +397,12 @@ class EditorWidget(QsciScintilla):
         """Dokümandaki tüm \\begin{X}/\\end{X} tag'leri (satır, char_baş, char_son, kind, ad)."""
         if self._beginend_tags_cache is None:
             tags = []
-            for ln in range(self.lines()):
-                for m in _BEGINEND_RE.finditer(self.text(ln)):
+            # Tek self.text() çek + Python'da split: eski kod her satırda ayrı
+            # self.text(ln) (n Scintilla çağrısı) yapıyordu. split('\n') Scintilla
+            # satır sayısına en yakın (sondaki boş satırı korur).
+            full = self.text()
+            for ln, line_text in enumerate(full.split('\n')):
+                for m in _BEGINEND_RE.finditer(line_text):
                     tags.append((ln, m.start(), m.end(), m.group(1), m.group(2)))
             self._beginend_tags_cache = tags
         return self._beginend_tags_cache

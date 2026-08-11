@@ -98,7 +98,10 @@ class LatexLexer(QsciLexerCustom):
         # Karakter → byte offset tablosu
         byte_at = [0] * (len(source) + 1)
         for idx, ch in enumerate(source):
-            byte_at[idx + 1] = byte_at[idx] + len(ch.encode('utf-8'))
+            # Tek codepoint'in UTF-8 bayt uzunluğu yalnızca ord(ch)'ya bağlıdır;
+            # len(ch.encode('utf-8')) her karakterde bytes ayırıyor, birebir aynı sonuç.
+            o = ord(ch)
+            byte_at[idx + 1] = byte_at[idx] + (1 if o < 0x80 else 2 if o < 0x800 else 3 if o < 0x10000 else 4)
 
         n = len(source)
 
