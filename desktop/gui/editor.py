@@ -27,6 +27,31 @@ _PAIRS = {'(': ')', '[': ']', '{': '}', '$': '$'}
 _CLOSE_FOR_OPEN = {'{': '}', '[': ']'}
 
 
+def _decode_bytes(raw: bytes) -> tuple[str, str]:
+    """Baytları decode et -> (metin, encoding).
+
+    UTF-8 (katı) önce denenir; başarısız olursa eski Türkçe kodlamalar (cp1254 /
+    iso-8859-9). Böylece eski Türkçe LaTeX dosyaları errors='replace' ile sessizce
+    bozulmaz (her bayt tanımlı bir karaktere eşlenir). Dönen encoding ile kayıt
+    edilirse baytlar birebir korunur (round-trip güvenli).
+
+    Not: charset_normalizer Türkçe tek-baytlı kodlamaları yanlışca cp1252
+    tespit ettiği için kullanılmaz; cp1254 doğrudan Türkçe harfleri doğru verir
+    ve yaygın Batı Avrupa metniyle de büyük oranda uyuşur.
+    """
+    try:
+        return raw.decode("utf-8"), "utf-8"
+    except UnicodeDecodeError:
+        pass
+    for enc in ("cp1254", "iso-8859-9"):
+        try:
+            return raw.decode(enc), enc
+        except (UnicodeDecodeError, LookupError):
+            continue
+    # Son çare (normalde ulaşılmaz — cp1254 tüm baytları karşılar).
+    return raw.decode("utf-8", errors="replace"), "utf-8"
+
+
 class EditorWidget(QsciScintilla):
     forward_search_requested = pyqtSignal(str, int, int)  # file_path, line(1-based), col(1-based)
 
@@ -35,6 +60,7 @@ class EditorWidget(QsciScintilla):
         self._file_path = ""
         self._detected_engine = ""
         self._initial_theme = theme
+        self._encoding = "utf-8"
         self._setup_editor()
 
     def _setup_editor(self):
@@ -249,32 +275,48 @@ class EditorWidget(QsciScintilla):
 
     def open_file(self, path: str) -> bool:
         try:
-            with open(path, "r", encoding="utf-8", errors="replace") as f:
-                self.setText(f.read())
+            with open(path, "rb") as f:
+                raw = f.read()
+            # İkili dosya koruması: null bayt -> binary, metin olarak açma
+            if b"\x00" in raw[:8192]:
+                raise ValueError(_("İkili (binary) dosya; metin editöründe açılamaz."))
+            text, encoding = _decode_bytes(raw)
+            self.setText(text)
             self._file_path = os.path.normpath(path)
+            self._encoding = encoding
             self.setModified(False)
+            if encoding != "utf-8":
+                _logger.warning("Dosya UTF-8 değil, %s olarak açıldı: %s", encoding, path)
+                QMessageBox.warning(
+                    self, _("Kodlama Uyarısı"),
+                    _("Bu dosya UTF-8 değil ({enc}). {enc} olarak açıldı ve aynı "
+                      "kodlamayla kaydedilecek. Sorunsuz derleme için UTF-8'e "
+                      "dönüştürmeniz önerilir.").format(enc=encoding),
+                )
             return True
         except Exception as e:
             _logger.error("Dosya açılamadı: %s", path, exc_info=True)
             QMessageBox.critical(self, _("Dosya Açma Hatası"), _("Dosya açılamadı:\n{path}\n\n{e}").format(path=path, e=e))
             return False
 
-    def _write_atomic(self, path: str, content: str) -> None:
+    def _write_atomic(self, path: str, content: str, encoding: str = "utf-8") -> None:
         """Aynı dizinde geçici dosyaya yaz, fsync et, atomik rename ile yerine koy.
 
         Orijinal dosyaya truncate-on-open ile değil, tamamlanmış geçici dosyanın
         atomik yer değiştirmesiyle yazılır; böylece yazma yarıda kalırsa orijinal
         içerik korunur. Geçici dosya hedefle aynı filesystem'te (aynı dizinde)
         tutulur ki os.replace gerçekten atomik olsun (çapraz-mount rename değil).
+        encoding verilirse o kodlamayla yazılır (UTF-8 dışı dosyalar round-trip
+        için); bu durumda UnicodeEncodeError da temizlik için yakalanır.
         """
         tmp = path + ".tmp"
         try:
-            with open(tmp, "w", encoding="utf-8") as f:
+            with open(tmp, "w", encoding=encoding) as f:
                 f.write(content)
                 f.flush()
                 os.fsync(f.fileno())
             os.replace(tmp, path)
-        except OSError:
+        except (OSError, UnicodeError):
             # Geçici dosya kalmasın; orijinal dokunulmadı (truncate edilmedi).
             try:
                 os.unlink(tmp)
@@ -286,7 +328,7 @@ class EditorWidget(QsciScintilla):
         if not self._file_path:
             return False
         try:
-            self._write_atomic(self._file_path, self.text())
+            self._write_atomic(self._file_path, self.text(), self._encoding)
             self.setModified(False)
             return True
         except Exception as e:
@@ -296,6 +338,7 @@ class EditorWidget(QsciScintilla):
 
     def save_file_as(self, path: str) -> bool:
         self._file_path = os.path.normpath(path)
+        self._encoding = "utf-8"  # yeni dosya -> modern varsayılan
         return self.save_file()
 
     @property
