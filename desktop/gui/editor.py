@@ -69,6 +69,7 @@ class EditorWidget(QsciScintilla):
 
         self.setMarginLineNumbers(1, True)
         self.setMarginWidth(1, "0000")
+        self.linesChanged.connect(self._update_margin_width)
         self.setFolding(QsciScintilla.FoldStyle.PlainFoldStyle, 2)
         self.setWrapMode(QsciScintilla.WrapMode.WrapWord)
         self.setTabWidth(4)
@@ -86,6 +87,15 @@ class EditorWidget(QsciScintilla):
         # Popup seçimi keyPressEvent'i atladığı için normal autopair tetiklenmez;
         # bu yüzden tamamlama sinyalinde manuel kapatıyoruz.
         self.SCN_AUTOCCOMPLETED.connect(self._on_autoc_completed)
+
+    def _update_margin_width(self):
+        """Satır numarası margin'ini satır sayısına göre dinamik genişlet (C.10).
+
+        Sabit 4 hane yerine satır sayısının basamak sayısına uyar; 9999+ satırlı
+        dosyalarda satır numaralarının kesilmesini önler (minimum 4 hane).
+        """
+        digits = max(4, len(str(self.lines())))
+        self.setMarginWidth(1, "0" * digits)
 
     @staticmethod
     def _hex_to_scintilla(hex_color: str) -> int:
@@ -142,6 +152,11 @@ class EditorWidget(QsciScintilla):
         super().mouseMoveEvent(event)
 
     def keyPressEvent(self, event):
+        # Ctrl+Space -> manuel tamamlama (C.7)
+        if (event.modifiers() & Qt.KeyboardModifier.ControlModifier and
+                event.key() == Qt.Key.Key_Space):
+            self._check_autocomplete(manual=True)
+            return
         if self._handle_autopair(event):
             return
         super().keyPressEvent(event)
@@ -207,26 +222,36 @@ class EditorWidget(QsciScintilla):
         self.setCursorPosition(line + 1, 0)
         self.endUndoAction()
 
-    def _check_autocomplete(self):
+    def _check_autocomplete(self, manual=False):
         line, col = self.getCursorPosition()
-        if col < 3:
-            return
-
         line_text = self.text(line)
         text_before = line_text[:col]
 
-        # \ ile başlayan kelimeyi bul
-        match = re.search(r'\\[a-zA-Z]+$', text_before)
+        # \begin{ / \end{ sonrası ortam adı tamamlama (C.6)
+        env = re.search(r'\\(?:begin|end)\{([A-Za-z*]*)$', text_before)
+        if env:
+            self._show_env_completion(env.group(1), manual)
+            return
+
+        if not manual and col < 3:
+            return
+
+        # \ ile başlayan komut kelimesini bul (manuel modda 0 harfe izin ver)
+        pattern = r'\\[a-zA-Z]*$' if manual else r'\\[a-zA-Z]+$'
+        match = re.search(pattern, text_before)
         if not match:
             return
 
         word = match.group(0)
-        if len(word) < 3:  # \ + en az 2 harf
+        if not manual and len(word) < 3:  # auto: \ + en az 2 harf
             return
 
         # Binary search ile eşleşen komutları bul (sorted listede aralık bul)
         lo = bisect.bisect_left(_LATEX_COMMANDS, word)
-        hi = bisect.bisect_left(_LATEX_COMMANDS, word[:-1] + chr(ord(word[-1]) + 1))
+        if word:
+            hi = bisect.bisect_left(_LATEX_COMMANDS, word[:-1] + chr(ord(word[-1]) + 1))
+        else:
+            hi = len(_LATEX_COMMANDS)
         matches = [cmd for cmd in _LATEX_COMMANDS[lo:hi] if cmd != word]
         if not matches:
             return
@@ -235,6 +260,26 @@ class EditorWidget(QsciScintilla):
         self.SendScintilla(QsciScintilla.SCI_AUTOCSETSEPARATOR, ord(' '))
         entries = " ".join(matches).encode('utf-8')
         self.SendScintilla(QsciScintilla.SCI_AUTOCSHOW, len(word), entries)
+
+    def _show_env_completion(self, typed: str, manual: bool):
+        """\\begin{ / \\end{ sonrası yaygın ortam adlarını tamamlar (C.6).
+
+        `typed`: kaşlı ayraçtan sonra yazılan kısmın adı. Auto tetikleme için en az
+        1 harf gerekir; manuel (Ctrl+Space) tüm listeyi gösterir.
+        """
+        if not manual and len(typed) < 1:
+            return
+        if typed:
+            lo = bisect.bisect_left(_LATEX_ENVIRONMENTS, typed)
+            hi = bisect.bisect_left(_LATEX_ENVIRONMENTS, typed[:-1] + chr(ord(typed[-1]) + 1))
+        else:
+            lo, hi = 0, len(_LATEX_ENVIRONMENTS)
+        matches = [e for e in _LATEX_ENVIRONMENTS[lo:hi] if e != typed]
+        if not matches:
+            return
+        self.SendScintilla(QsciScintilla.SCI_AUTOCSETSEPARATOR, ord(' '))
+        entries = " ".join(matches).encode('utf-8')
+        self.SendScintilla(QsciScintilla.SCI_AUTOCSHOW, len(typed), entries)
 
     def _on_autoc_completed(self, text, *rest):
         """Otomatik tamamlama popup'ından seçilen komut kapanış ayracı ekler.
@@ -346,6 +391,31 @@ class EditorWidget(QsciScintilla):
         if self._file_path:
             return Path(self._file_path).name
         return _("Yeni Dosya")
+
+
+_LATEX_ENVIRONMENTS = sorted([
+    # Belge yapısı
+    "document", "abstract", "titlepage", "frontmatter",
+    # Bölüm/materyal
+    "figure", "figure*", "table", "table*", "tabular", "tabular*", "tabbing",
+    "subfigure", "wrapfigure", "minipage", "picture",
+    # Matematik
+    "equation", "equation*", "align", "align*", "gather", "gather*",
+    "multline", "multline*", "eqnarray", "displaymath", "math", "array",
+    "cases", "matrix", "pmatrix", "bmatrix", "vmatrix", "Vmatrix", "split",
+    # Listeler
+    "itemize", "enumerate", "description", "list", "trivlist",
+    # Hizalama/blok
+    "center", "centering", "flushleft", "flushright", "quote", "quotation",
+    "verse",
+    # Kod/katı metin
+    "verbatim", "verbatim*", "lstlisting", "minted", "comment", "alltt",
+    # Teorem benzeri
+    "theorem", "proof", "lemma", "corollary", "definition", "proposition",
+    "remark", "example",
+    # Kaynakça/dizin
+    "thebibliography", "theindex",
+])
 
 
 _LATEX_COMMANDS = sorted([
