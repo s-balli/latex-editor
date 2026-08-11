@@ -45,8 +45,14 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 - **Lisans**: GPL-3.0 (PyQt6 GPL uyumlu)
 - **Dağıtım**: GitHub Releases — Windows portable `.exe` + Linux `.AppImage` (GitHub Actions ile otomatik derleme)
 - **Otomatik güncelleme kontrolü**: Yardım menüsünden veya açılışta GitHub Releases API ile sürüm kontrolü
-- **360+ unit test**: engine_detector, input_parser, log_parser, paths, latex_utils, exporter, derle_sh, i18n, imports, autopair, latex_lexer, pdf_indicator, wordcount, updater
+- **480+ unit test**: engine_detector, input_parser, log_parser, paths, latex_utils, exporter, derle_sh, i18n, imports, autopair, latex_lexer, pdf_indicator, wordcount, updater
 - **Özellikler**: Sözdizimi renklendirme, PDF önizleme, SyncTeX, 7 tema, çoklu dil (TR/EN), otomatik parantezleme, PDF yer imleri/arama/seçme, sunum modu, çift sayfa, akıllı motor algılama, görsel sürükle-bırak
+
+### v1.0.4 — Editör ve Dışa Aktarma İyileştirmeleri
+- **Editör**: `\[...\]` / `\(...\)` math renklendirme, Ctrl+Space + ortam adı tamamlama, eşleşen `\begin`/`\end` vurgulama, akıllı girintileme, yorum/verbatim algılayan tamamlama, dinamik satır numarası margin
+- **Dosya güvenliği**: atomik kayıt (çökmede truncation yok) ve UTF-8 / eski-Türkçe kodlama tespiti (sessiz bozulma yok)
+- **Dışa aktarma**: abstract ve başlık artık tüm formatlarda; kaynakça HTML/DOCX/TXT/Markdown'da çözülüyor; Plain Text artık gerçek plain text; docx Word uyumluluk düzeltmeleri
+- **480+ unit test**
 
 ### v1.0.3 — Uyumluluk Düzeltmesi
 - **PDF yer imleri**: pypdfium2 outline API değişimine uyum (`PdfBookmark` → `PdfOutlineItem`)
@@ -379,7 +385,7 @@ Araç çubuğunda **● Otomatik** yazısına tıklayarak otomatik derlemeyi aç
 
 ## Test
 
-360+ unit test. PyQt6 bağımlılığı yok, saf pytest.
+480+ unit test. PyQt6 bağımlılığı yok, saf pytest.
 
 ```bash
 # pytest yükle (ilk sefer)
