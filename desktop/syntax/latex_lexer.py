@@ -155,11 +155,15 @@ class LatexLexer(QsciLexerCustom):
                 continue
 
             if in_verbatim:
+                prev = i
                 i, in_verbatim = self._style_verbatim_continue(source, i, n, byte_at, verb_name)
+                line_no += source.count('\n', prev, i)  # çok satırlı blok: satır no senkron
                 continue
 
             if in_math:
+                prev = i
                 i, in_math = self._style_math_continue(source, i, n, byte_at, math_delim)
+                line_no += source.count('\n', prev, i)
                 continue
 
             if ch == '%':
@@ -171,7 +175,9 @@ class LatexLexer(QsciLexerCustom):
                 continue
 
             if ch == '$':
+                prev = i
                 i, in_math = self._style_math(source, i, n, byte_at)
+                line_no += source.count('\n', prev, i)  # $$...$$ çok satırlı olabilir
                 if in_math:
                     math_delim = '$'
                 continue
@@ -182,6 +188,7 @@ class LatexLexer(QsciLexerCustom):
                 verb_env = self._match_verbatim_begin(source, i, n)
                 if verb_env is not None:
                     pos, closed = self._style_verbatim_block(source, i, n, byte_at, verb_env)
+                    line_no += source.count('\n', i, pos)  # çok satırlı blok: satır no senkron
                     in_verbatim = not closed
                     if in_verbatim:
                         verb_name = verb_env
@@ -193,6 +200,7 @@ class LatexLexer(QsciLexerCustom):
                 # kapanışı bulana (veya EOF'a) kadar tarayıp math modunu açar.
                 if nxt == '[':
                     pos, closed = self._style_math_block(source, i, n, byte_at, '\\]')
+                    line_no += source.count('\n', i, pos)  # çok satırlı blok: satır no senkron
                     in_math = not closed
                     if in_math:
                         math_delim = '\\]'
@@ -200,6 +208,7 @@ class LatexLexer(QsciLexerCustom):
                     continue
                 if nxt == '(':
                     pos, closed = self._style_math_block(source, i, n, byte_at, '\\)')
+                    line_no += source.count('\n', i, pos)
                     in_math = not closed
                     if in_math:
                         math_delim = '\\)'

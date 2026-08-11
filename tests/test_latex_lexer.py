@@ -177,6 +177,40 @@ def test_incremental_style_after_full_is_stable(qapp):
     assert all(isinstance(v, int) and v in (0, 1, 2) for v in lexer._line_states.values())
 
 
+def test_incremental_restyle_inside_verbatim_stays_verbatim(qapp):
+    """Blok içi satır artımlı restyle'de VERBATIM kalmalı (satır-no senkron bug'ı).
+
+    Çok satırlı \\begin{verbatim} bloğu lexer tarafından tek seferde taranıp aradaki
+    satır başları sayılmadığında, ``_line_states`` yanlış satır numarasına state
+    yazıyordu. Sonuç: blok içinde bir satır kirli olduğunda artımlı restyle o
+    satırı 'güvenli/normal' sanıyor, DEFAULT stilliyordu (komut/math gibi görünür).
+    Düzeltme: blok tarayıcılar tükettiği ``\\n`` kadar ``line_no``'yu ilerletir.
+    """
+    editor = _make_editor()
+    buf = "\n".join([
+        "before text",        # 0
+        "\\begin{verbatim}",  # 1
+        "FIRST CODE LINE",    # 2  — blok içi
+        "SECOND CODE LINE",   # 3  — blok içi
+        "\\end{verbatim}",    # 4
+        "after text",         # 5
+    ])
+    editor.setText(buf)
+    lexer = editor.lexer()
+    data = buf.encode("utf-8")
+    lexer.styleText(0, len(data))  # önbelleği doldur
+
+    # Blok içi bir satırı (satır 2) artımlı restyle et (Scintilla düzenleme sonrası böyle çağırır)
+    start = _byte_offset_of_line(buf, 2)
+    lexer.styleText(start, start + len("FIRST CODE LINE"))
+
+    # İçerik satırları hâlâ VERBATIM olmalı (DEFAULT değil)
+    assert _style_at(editor, _byte_offset_of_line(buf, 2)) == LatexLexer.VERBATIM
+    assert _style_at(editor, _byte_offset_of_line(buf, 3)) == LatexLexer.VERBATIM
+    # Blok sonrası yine DEFAULT
+    assert _style_at(editor, _byte_offset_of_line(buf, 5)) == LatexLexer.DEFAULT
+
+
 # --- Font taşınabilirliği ---
 
 
