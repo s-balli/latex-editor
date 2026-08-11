@@ -133,15 +133,18 @@ def test_brace_not_paired_after_end(qapp):
 
 
 def test_begin_end_close(qapp):
-    r"""\\begin{ad} + '}' → \\end{ad} bloğu, imleç boş satırda."""
+    r"""\\begin{ad} + '}' → \\end{ad} bloğu; gövde girintili, imleç gövdede (C.9)."""
     ed = _editor()
     ed.setText("\\begin{equation")
     _cursor_end(ed)
     assert ed._handle_autopair(_FakeEvent("}")) is True
     assert _line(ed, 0) == "\\begin{equation}"
-    assert _line(ed, 1) == ""                    # boş satır — imleç burada
+    # C.9: gövde satırı girintili (yalnızca girinti boşluğu içerir)
+    assert _line(ed, 1).strip() == "" and _line(ed, 1) != ""
     assert _line(ed, 2) == "\\end{equation}"
-    assert ed.getCursorPosition() == (1, 0)
+    line, idx = ed.getCursorPosition()
+    assert line == 1                        # imleç gövde satırında
+    assert idx == len(_line(ed, 1))         # girinti sonunda (tab/space bağımsız)
 
 
 def test_begin_end_starred(qapp):

@@ -179,7 +179,9 @@ class EditorWidget(QsciScintilla):
         else:
             super().keyPressEvent(event)
             text = event.text()
-            if text and text.isalpha():
+            if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+                self._smart_indent_after_enter()
+            elif text and text.isalpha():
                 self._check_autocomplete()
         # C.11: imleç hareketinde eşleşen tag'i vurgula. cursorPositionChanged
         # headless'te programatik harekette tetiklenmediğinden, tuş yolundan da
@@ -236,12 +238,41 @@ class EditorWidget(QsciScintilla):
         self.setCursorPosition(line, index + 1)
         self.endUndoAction()
 
+    def _smart_indent_after_enter(self):
+        """Enter'da önceki satır \\begin{X} ile bitiyorsa yeni satırı +1 girintile (C.9).
+
+        Yalnızca 'bare' begin satırı (sonra sadece boşluk) tetikler; aynı satırda
+        içerik varsa veya başka bir satırsa dokunmaz. autoIndent zaten önceki
+        satırın girintisini kopyaladığı için burada sadece ek bir seviye eklenir.
+        """
+        line, _ = self.getCursorPosition()
+        if line == 0:
+            return
+        prev = self.text(line - 1).rstrip("\n")
+        if not re.search(r'\\begin\{([A-Za-z]+\*?)\}\s*$', prev):
+            return
+        prev_indent = self.SendScintilla(QsciScintilla.SCI_GETLINEINDENTATION, line - 1)
+        new_indent = prev_indent + self.tabWidth()
+        self.SendScintilla(QsciScintilla.SCI_SETLINEINDENTATION, line, new_indent)
+        self.setCursorPosition(line, len(self.text(line).rstrip("\n")))
+
     def _insert_begin_end(self, name: str):
-        r"""\\begin{ad} → '}' + boş satır + \\end{ad}, imleç boş satırda."""
+        r"""\\begin{ad} → '}' + gövde + \\end{ad}; gövde +1 seviye, \end \\begin hizasında.
+
+        \begin satırının girintisi okunur; gövde satırı bir seviye girintili,
+        \end satırı \begin ile aynı hizada yazılır. Böylece iç içe ortamlarda
+        hizalama bozulmaz (C.9).
+        """
         line, _index = self.getCursorPosition()
+        indent = self.SendScintilla(QsciScintilla.SCI_GETLINEINDENTATION, line)
+        body_indent = indent + self.tabWidth()
         self.beginUndoAction()
         self.insert("}\n\n\\end{" + name + "}")
-        self.setCursorPosition(line + 1, 0)
+        # gövde satırı +1 seviye, \end satırı \begin ile aynı girintide
+        self.SendScintilla(QsciScintilla.SCI_SETLINEINDENTATION, line + 1, body_indent)
+        self.SendScintilla(QsciScintilla.SCI_SETLINEINDENTATION, line + 2, indent)
+        # imleç gövde satırında girintinin sonunda (tab/space fark etmez)
+        self.setCursorPosition(line + 1, len(self.text(line + 1).rstrip("\n")))
         self.endUndoAction()
 
     def _check_autocomplete(self, manual=False):
