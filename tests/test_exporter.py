@@ -588,7 +588,7 @@ class TestFixDocxBrokenAnchors:
     @pytest.mark.skipif(not _PANDOC, reason="pandoc gerekli")
     def test_docx_opens_after_fix(self, tmp_path):
         # Düzeltme docx'i bozmamalı (python-docx açabilmeli).
-        import docx as _docx
+        _docx = pytest.importorskip("docx")
         tex = tmp_path / "d.tex"
         tex.write_text(
             "\\documentclass{article}\n\\begin{document}\n"
