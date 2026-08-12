@@ -546,7 +546,7 @@ class MainWindow(
         left += "<span style='color:" + dim + "'>" + _("Derleyince hata satırları gutter'da kırmızı işaretlenir. F4/Shift+F4 ile hatalar arasında dolaşın.") + "</span>"
         left += "<br><br>"
         left += "<b>" + _("Tanıma Git") + " (Alt+" + _("Tıklama") + ")</b><br>"
-        left += "<span style='color:" + dim + "'>" + _("\\ref/\\cite üzerine Alt basılı tıkla → \\label veya .bib girişine atlar. .bib girdisine tıklayınca makaledeki \\cite yerine gider. Çok dosyalı (\\input) ve çok anahtarlı \\cite destekli.") + "</span>"
+        left += "<span style='color:" + dim + "'>" + _("\\ref/\\cite üzerine Alt basılı tıkla → \\label, .bib veya \\bibitem girişine atlar. .bib girdisine tıklayınca makaledeki \\cite yerine gider. Çok dosyalı (\\input) ve çok anahtarlı \\cite destekli.") + "</span>"
         left += "<br><br>"
         left += "<b>" + _("Otomatik Derleme") + "</b><br>"
         left += "<span style='color:" + dim + "'>" + _("Ctrl+S ile kaydederken otomatik derler. Toolbar'dan kapatıp Manuel mod'a geçebilirsiniz — büyük belgelerde her kayıtta derleme yapmak yavaşlatır, o durumda Ctrl+B ile derleyin.") + "</span>"
@@ -683,6 +683,7 @@ class MainWindow(
         makaledeki \\cite yerine."""
         from core.latex_refs import (
             find_label_location, find_cite_location, find_cite_usage,
+            find_bibitem_location,
         )
         ed = self.sender()
         if not isinstance(ed, EditorWidget):
@@ -694,6 +695,9 @@ class MainWindow(
             loc = find_label_location(content, ed.file_path, key)
         elif kind == "cite":
             loc = find_cite_location(content, ed.file_path, key)
+            # .bib yoksa / anahtar .bib'te yoksa: el ile kaynakça (\bibitem) fallback
+            if loc is None:
+                loc = find_bibitem_location(content, ed.file_path, key)
         else:  # cite-usage: .bib girdisinden makalede \cite edildiği yere
             loc = find_cite_usage(ed.file_path, key)
         if loc:

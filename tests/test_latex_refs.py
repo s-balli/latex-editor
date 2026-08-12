@@ -182,3 +182,32 @@ def test_find_cite_usage_not_found(tmp_path):
     tex = tmp_path / "m.tex"
     tex.write_text("\\cite{baska}\n", encoding="utf-8")
     assert latex_refs.find_cite_usage(str(bib), "yok") is None
+
+
+# --- find_bibitem_location (\cite için .bib yoksa el ile kaynakça fallback) ---
+
+def test_find_bibitem_location(tmp_path):
+    main = tmp_path / "m.tex"
+    main.write_text("Metin \\cite{k}.\n\\begin{thebibliography}{}\n\\bibitem{k} Yazar.\n\\end{thebibliography}\n", encoding="utf-8")
+    assert latex_refs.find_bibitem_location(main.read_text(encoding="utf-8"), str(main), "k") == (str(main), 3)
+
+
+def test_find_bibitem_location_with_label(tmp_path):
+    # \bibitem[Author(2020)]{key} — opsiyonel etiket
+    main = tmp_path / "m.tex"
+    main.write_text("\\bibitem[Author(2020)]{karaca2024} Karaca.\n", encoding="utf-8")
+    assert latex_refs.find_bibitem_location(main.read_text(encoding="utf-8"), str(main), "karaca2024") == (str(main), 1)
+
+
+def test_find_bibitem_location_in_input_child(tmp_path):
+    child = tmp_path / "ch.tex"
+    child.write_text("\\bibitem{c}\n", encoding="utf-8")
+    main = tmp_path / "m.tex"
+    main.write_text("\\input{ch}\n", encoding="utf-8")
+    assert latex_refs.find_bibitem_location(main.read_text(encoding="utf-8"), str(main), "c") == (str(child), 1)
+
+
+def test_find_bibitem_location_not_found(tmp_path):
+    main = tmp_path / "m.tex"
+    main.write_text("\\bibitem{baska}\n", encoding="utf-8")
+    assert latex_refs.find_bibitem_location(main.read_text(encoding="utf-8"), str(main), "yok") is None

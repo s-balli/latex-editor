@@ -174,6 +174,42 @@ def find_cite_location(content: str, base_path: str, key: str) -> tuple[str, int
     return None
 
 
+# --- \bibitem (thebibliography, el ile kaynakça): \cite için .bib yoksa fallback ---
+
+def _bibitem_line_in(text: str, key: str) -> int | None:
+    """\\bibitem{key}'in 1-bazlı satır numarası (yorumlar strip edilmiş metinde).
+
+    \\bibitem[label]{key} opsiyonel etiketini de destekler.
+    """
+    pat = re.compile(r'\\bibitem\s*(?:\[[^\]]*\])?\s*\{\s*' + re.escape(key) + r'\s*\}')
+    for i, ln in enumerate(strip_comments(text).split('\n'), start=1):
+        if pat.search(ln):
+            return i
+    return None
+
+
+def find_bibitem_location(content: str, base_path: str, key: str) -> tuple[str, int] | None:
+    """\\bibitem{key}'in (thebibliography) (dosya yolu, satır) konumu.
+
+    El ile kaynakça kullanan (.bib'siz) belgelerde \\cite tanıma git için
+    fallback. Önce mevcut content'te, sonra \\input zincirinde arar.
+    """
+    loc = _bibitem_line_in(content, key)
+    if loc is not None:
+        return (base_path, loc)
+    bdir = _base_dir(base_path)
+    for path in _flatten_input_paths(content, bdir):
+        try:
+            with open(path, 'r', encoding='utf-8', errors='replace') as f:
+                t = f.read()
+        except OSError:
+            continue
+        loc = _bibitem_line_in(t, key)
+        if loc is not None:
+            return (path, loc)
+    return None
+
+
 # .bib girdisinden makalede \cite edildiği yere (ters yön) git
 _RE_CITEUSE = re.compile(
     r'\\(?:cite|citep|citet|citeauthor|citeyear|citealp|parencite|textcite|nocite)'

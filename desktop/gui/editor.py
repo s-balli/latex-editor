@@ -39,6 +39,8 @@ _RE_CITEARG = re.compile(
 )
 # .bib girdi anahtarı: @article{key, — Alt+tık ile makaledeki \cite yerine git
 _RE_BIBENTRY = re.compile(r'@\w+\s*\{\s*([^,\s}]+)\s*,')
+# \bibitem{key} (thebibliography) — Alt+tık ile ters yön: makaledeki \cite yerine
+_RE_BIBITEMARG = re.compile(r'\\bibitem\s*(?:\[[^\]]*\])?\s*\{([^}]+)\}')
 
 
 def _decode_bytes(raw: bytes) -> tuple[str, str]:
@@ -218,6 +220,11 @@ class EditorWidget(QsciScintilla):
                         if hit:
                             self.goto_definition_requested.emit(hit[0], hit[1])
                             return
+                        # \bibitem{key} üzerinden ters yön: makalede \cite edildiği yere
+                        bkey = self._bibitem_key_at(line_text, col)
+                        if bkey:
+                            self.goto_definition_requested.emit(bkey, "cite-usage")
+                            return
         super().mousePressEvent(event)
         self._update_beginend_highlight(*self.getCursorPosition())
 
@@ -267,6 +274,15 @@ class EditorWidget(QsciScintilla):
             a, b = m.span(1)
             if a <= col <= b:
                 return m.group(1)
+        return None
+
+    @staticmethod
+    def _bibitem_key_at(line_text: str, col: int) -> str | None:
+        """line_text'te col bir '\\bibitem{key}' girdi anahtarındaysa key'i döndür."""
+        for m in _RE_BIBITEMARG.finditer(line_text):
+            a, b = m.span(1)
+            if a <= col <= b:
+                return m.group(1).strip()
         return None
 
     def keyPressEvent(self, event):

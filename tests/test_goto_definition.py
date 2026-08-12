@@ -83,6 +83,18 @@ def test_bib_key_outside(qapp):
     assert ed._bib_key_at("@article{k,}\n author={K},", 0) is None  # @ üzerinde, key değil
 
 
+def test_bibitem_key_at(qapp):
+    ed = EditorWidget()
+    line = r"\bibitem{karaca2024} Karaca, 2024."
+    assert ed._bibitem_key_at(line, line.index("karaca") + 2) == "karaca2024"
+
+
+def test_bibitem_key_at_with_label(qapp):
+    ed = EditorWidget()
+    line = r"\bibitem[Hasan(2026)]{hasan2026} Hasan."
+    assert ed._bibitem_key_at(line, line.index("hasan2026") + 2) == "hasan2026"
+
+
 def test_nearest_key_segments(qapp):
     assert EditorWidget._nearest_key("a, b, c", 0) == "a"
     assert EditorWidget._nearest_key("a, b, c", 4) == "b"
@@ -157,6 +169,62 @@ def test_handler_jumps_to_cite(tmp_path, qapp):
     stub = _StubMain(ed)
     MainWindow._on_goto_definition(stub, "k2024", "cite")
     assert stub.goto_calls == [(str(bib), 1)]
+
+
+def test_handler_cite_fallback_to_bibitem(tmp_path, qapp):
+    # .bib yok; el ile thebibliography + \bibitem var → \bibitem satırına atlar
+    main = tmp_path / "m.tex"
+    main.write_text(
+        "Metin \\cite{k}.\n"
+        "\\begin{thebibliography}{}\n"
+        "\\bibitem{k} Yazar, Baslik.\n"
+        "\\end{thebibliography}\n",
+        encoding="utf-8",
+    )
+    ed = EditorWidget()
+    ed.setText(main.read_text(encoding="utf-8"))
+    ed._file_path = str(main)
+
+    stub = _StubMain(ed)
+    MainWindow._on_goto_definition(stub, "k", "cite")
+    assert stub.goto_calls == [(str(main), 3)]
+
+
+def test_handler_cite_prefers_bib_over_bibitem(tmp_path, qapp):
+    # Hem .bib hem \bibitem varsa → .bib öncelikli (fallback devreye girmez)
+    bib = tmp_path / "refs.bib"
+    bib.write_text("@article{k,\n}\n", encoding="utf-8")
+    main = tmp_path / "m.tex"
+    main.write_text(
+        "\\bibliography{refs}\n\\cite{k}\n\\bibitem{k} yazar\n",
+        encoding="utf-8",
+    )
+    ed = EditorWidget()
+    ed.setText(main.read_text(encoding="utf-8"))
+    ed._file_path = str(main)
+
+    stub = _StubMain(ed)
+    MainWindow._on_goto_definition(stub, "k", "cite")
+    assert stub.goto_calls == [(str(bib), 1)]
+
+
+def test_handler_bibitem_to_cite(tmp_path, qapp):
+    # .bib'in thebibliography'deki \bibitem'inden makaledeki \cite yerine (ters yön)
+    main = tmp_path / "m.tex"
+    main.write_text(
+        "Giris \\cite{k}.\n"
+        "\\begin{thebibliography}{}\n"
+        "\\bibitem{k} Yazar.\n"
+        "\\end{thebibliography}\n",
+        encoding="utf-8",
+    )
+    ed = EditorWidget()
+    ed.setText(main.read_text(encoding="utf-8"))
+    ed._file_path = str(main)
+
+    stub = _StubMain(ed)
+    MainWindow._on_goto_definition(stub, "k", "cite-usage")
+    assert stub.goto_calls == [(str(main), 1)]
 
 
 def test_handler_not_found_shows_message(tmp_path, qapp):

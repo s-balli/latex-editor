@@ -40,22 +40,14 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 
 ## Sürüm Geçmişi
 
-### v1.0.0 — İlk Public Sürüm
-- **Public lansman**: İlk halka açık sürüm
-- **Lisans**: GPL-3.0 (PyQt6 GPL uyumlu)
-- **Dağıtım**: GitHub Releases — Windows portable `.exe` + Linux `.AppImage` (GitHub Actions ile otomatik derleme)
-- **Otomatik güncelleme kontrolü**: Yardım menüsünden veya açılışta GitHub Releases API ile sürüm kontrolü
-- **480+ unit test**: engine_detector, input_parser, log_parser, paths, latex_utils, exporter, derle_sh, i18n, imports, autopair, latex_lexer, pdf_indicator, wordcount, updater
-- **Özellikler**: Sözdizimi renklendirme, PDF önizleme, SyncTeX, 7 tema, çoklu dil (TR/EN), otomatik parantezleme, PDF yer imleri/arama/seçme, sunum modu, çift sayfa, akıllı motor algılama, görsel sürükle-bırak
-
 ### Yayınlanmamış — Doküman-Farkında Tamamlama ve Editör Performansı
 - **Editör**: doküman-farkında tamamlama: `\ref`/`\eqref`/`\pageref` ve `\cite`/`\citep`/`\citet` (ve benzerleri) için dokümandaki (ve `\input` zincirindeki) `\label` anahtarları ile `.bib` giriş anahtarlarını önerir; `\cite{key1,key2}` çoklu anahtar destekli
 - **Editör**: panodan resim yapıştırma (Ctrl+V): resmi `media/`'a kaydeder ve `\begin{figure}` bloğu ekler (sürükle-bırak diyaloğunu paylaşır)
 - **Editör**: derleme hataları gutter'da işaretlenir; F4 / Shift+F4 ile hatalar arasında dolaşılır (çok dosyalı belgeleri destekler)
-- **Editör**: `\ref`/`\cite` üzerine Alt basılı tıkla → tanıma git (`\label` veya `.bib` girişi); `.bib` girdisine tıkla → makalede `\cite` edildiği yere. Çok dosyalı `\input` ve çok anahtarlı `\cite` destekli
+- **Editör**: `\ref`/`\cite` üzerine Alt basılı tıkla → tanıma git (`\label`, `.bib` veya `\bibitem` girişi); `.bib` girdisine tıkla → makalede `\cite` edildiği yere. Çok dosyalı `\input` ve çok anahtarlı `\cite` destekli
 - **Editör performansı**: büyük belgelerde daha hızlı yazım (sözdizimi lexer'ı ve `\begin`/`\end` vurgu sıcak yolları optimize edildi)
 - **Hata düzeltme**: çok satırlı `verbatim` / `\[...\]` bloğu içinde düzenleyince artık renklendirme bozulmuyor
-- **540 birim testi**
+- **549 birim testi**
 
 ### v1.0.4 — Editör ve Dışa Aktarma İyileştirmeleri
 - **Editör**: `\[...\]` / `\(...\)` math renklendirme, Ctrl+Space + ortam adı tamamlama, eşleşen `\begin`/`\end` vurgulama, akıllı girintileme, yorum/verbatim algılayan tamamlama, dinamik satır numarası margin
@@ -78,6 +70,14 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 - **Rerun döngüsü**: çapraz referanslar çözülene kadar yeniden derler (maks. 5 geçiş)
 - **Kaynakça**: `biber`/`bibtex` eksikse kurulum komutu önerilir
 - **Hata düzeltme**: uyarı bağlamlı `l.NNN` satırları artık derleme hatası sayılmıyor
+
+### v1.0.0 — İlk Public Sürüm
+- **Public lansman**: İlk halka açık sürüm
+- **Lisans**: GPL-3.0 (PyQt6 GPL uyumlu)
+- **Dağıtım**: GitHub Releases — Windows portable `.exe` + Linux `.AppImage` (GitHub Actions ile otomatik derleme)
+- **Otomatik güncelleme kontrolü**: Yardım menüsünden veya açılışta GitHub Releases API ile sürüm kontrolü
+- **480+ unit test**: engine_detector, input_parser, log_parser, paths, latex_utils, exporter, derle_sh, i18n, imports, autopair, latex_lexer, pdf_indicator, wordcount, updater
+- **Özellikler**: Sözdizimi renklendirme, PDF önizleme, SyncTeX, 7 tema, çoklu dil (TR/EN), otomatik parantezleme, PDF yer imleri/arama/seçme, sunum modu, çift sayfa, akıllı motor algılama, görsel sürükle-bırak
 
 ---
 
