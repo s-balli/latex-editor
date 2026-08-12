@@ -92,3 +92,93 @@ def test_collect_cite_keys_cache_invalidates(tmp_path):
     fut = time.time() + 10
     os.utime(bib, (fut, fut))
     assert latex_refs.collect_cite_keys(content, str(tex)) == ["b"]
+
+
+# --- find_label_location / find_cite_location (Alt+tık tanıma git) ---
+
+def test_find_label_location_in_main(tmp_path):
+    main = tmp_path / "m.tex"
+    main.write_text("baslik\n\\label{fig:x}\n", encoding="utf-8")
+    loc = latex_refs.find_label_location(main.read_text(encoding="utf-8"), str(main), "fig:x")
+    assert loc == (str(main), 2)
+
+
+def test_find_label_location_in_input_child(tmp_path):
+    child = tmp_path / "ch.tex"
+    child.write_text("\\section{X}\n\\label{eq:1}\n", encoding="utf-8")
+    main = tmp_path / "m.tex"
+    main.write_text("\\input{ch}\n", encoding="utf-8")
+    loc = latex_refs.find_label_location(main.read_text(encoding="utf-8"), str(main), "eq:1")
+    assert loc == (str(child), 2)
+
+
+def test_find_label_location_not_found(tmp_path):
+    main = tmp_path / "m.tex"
+    main.write_text("\\label{a}\n", encoding="utf-8")
+    assert latex_refs.find_label_location(main.read_text(encoding="utf-8"), str(main), "yok") is None
+
+
+def test_find_label_location_ignores_commented(tmp_path):
+    # yorumdaki \label sayılmamalı; gerçek satır no'su dönmeli
+    main = tmp_path / "m.tex"
+    main.write_text("% \\label{a}\n\\label{a}\n", encoding="utf-8")
+    loc = latex_refs.find_label_location(main.read_text(encoding="utf-8"), str(main), "a")
+    assert loc == (str(main), 2)
+
+
+def test_find_cite_location(tmp_path):
+    bib = tmp_path / "refs.bib"
+    bib.write_text("preamble\n@article{karaca2024,\n author={K},\n}\n", encoding="utf-8")
+    tex = tmp_path / "m.tex"
+    tex.write_text("\\bibliography{refs}\n\\cite{karaca2024}\n", encoding="utf-8")
+    loc = latex_refs.find_cite_location(tex.read_text(encoding="utf-8"), str(tex), "karaca2024")
+    assert loc == (str(bib), 2)
+
+
+def test_find_cite_location_no_bib_or_key(tmp_path):
+    tex = tmp_path / "m.tex"
+    tex.write_text("\\bibliography{refs}\n", encoding="utf-8")
+    # .bib yok
+    assert latex_refs.find_cite_location(tex.read_text(encoding="utf-8"), str(tex), "k") is None
+    bib = tmp_path / "refs.bib"
+    bib.write_text("@article{baska,}\n", encoding="utf-8")
+    # anahtar yok
+    assert latex_refs.find_cite_location(tex.read_text(encoding="utf-8"), str(tex), "yok") is None
+
+
+# --- find_cite_usage (.bib girdisinden makalede \cite yerine, ters yön) ---
+
+def test_find_cite_usage_in_tex(tmp_path):
+    bib = tmp_path / "refs.bib"
+    bib.write_text("@article{k,\n author={A},\n}\n", encoding="utf-8")
+    tex = tmp_path / "m.tex"
+    tex.write_text("baslik\nMetin \\citep{k} burada.\n", encoding="utf-8")
+    assert latex_refs.find_cite_usage(str(bib), "k") == (str(tex), 2)
+
+
+def test_find_cite_usage_multi_key(tmp_path):
+    # \cite{a, b, c} — anahtarlardan biri eşleşmeli
+    bib = tmp_path / "refs.bib"
+    bib.write_text("@article{b,}\n", encoding="utf-8")
+    tex = tmp_path / "m.tex"
+    tex.write_text("\\cite{a, b, c}\n", encoding="utf-8")
+    assert latex_refs.find_cite_usage(str(bib), "b") == (str(tex), 1)
+
+
+def test_find_cite_usage_in_subdir_tex(tmp_path):
+    # .bib ana dizinde, .tex alt dizinde — os.walk bulmalı
+    sub = tmp_path / "ch"
+    sub.mkdir()
+    bib = tmp_path / "refs.bib"
+    bib.write_text("@article{k,}\n", encoding="utf-8")
+    tex = sub / "c.tex"
+    tex.write_text("\\cite{k}\n", encoding="utf-8")
+    assert latex_refs.find_cite_usage(str(bib), "k") == (str(tex), 1)
+
+
+def test_find_cite_usage_not_found(tmp_path):
+    bib = tmp_path / "refs.bib"
+    bib.write_text("@article{k,}\n", encoding="utf-8")
+    tex = tmp_path / "m.tex"
+    tex.write_text("\\cite{baska}\n", encoding="utf-8")
+    assert latex_refs.find_cite_usage(str(bib), "yok") is None

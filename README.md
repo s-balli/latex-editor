@@ -52,9 +52,10 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 - **Editor**: document-aware completion for `\ref`/`\eqref`/`\pageref` and `\cite`/`\citep`/`\citet` (and similar): suggests `\label` keys from the document (and the `\input` chain) and `.bib` entry keys; `\cite{key1,key2}` multi-key supported
 - **Editor**: paste an image from the clipboard (Ctrl+V): saves to `media/` and inserts a `\begin{figure}` block (reuses the drag-drop dialog)
 - **Editor**: compile errors flagged in the gutter; F4 / Shift+F4 to jump between errors (multi-file aware)
+- **Editor**: Alt+click on `\ref`/`\cite` to go to its definition (`\label` or `.bib` entry); Alt+click a `.bib` entry to jump to where it is `\cite`d in the article. Multi-file `\input` and multi-key `\cite` aware
 - **Editor perf**: faster typing in large documents (syntax lexer and `\begin`/`\end` highlight hot paths optimized)
 - **Bugfix**: editing inside a multi-line `verbatim` / `\[...\]` block no longer loses correct highlighting
-- **513 unit tests**
+- **540 unit tests**
 
 ### v1.0.4 — Editor & Export Improvements
 - **Editor**: `\[...\]` / `\(...\)` math highlighting, Ctrl+Space + environment-name completion, matched `\begin`/`\end` highlighting, smart indentation, comment/verbatim-aware completion, dynamic line-number margin

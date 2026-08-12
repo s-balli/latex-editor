@@ -497,7 +497,9 @@ class MainWindow(
         html += "Ctrl+" + _("Fare Tekerleği") + " — " + _("PDF Yakınlaştır") + "<br><br>"
         html += "<b>SyncTeX (PDF ↔ " + _("Kaynak") + ")</b><br>"
         html += "Ctrl+" + _("Tıklama") + " (" + _("Editör") + ") — " + _("PDF'te konumu göster") + "<br>"
-        html += "Ctrl+" + _("Tıklama") + " (PDF) — " + _("Kaynak koda git")
+        html += "Ctrl+" + _("Tıklama") + " (PDF) — " + _("Kaynak koda git") + "<br><br>"
+        html += "<b>" + _("Tanıma Git") + "</b><br>"
+        html += "Alt+" + _("Tıklama") + " — " + _("\\ref/\\cite tanıma git (\\label veya .bib girişi)")
         html += "</span>"
         QMessageBox.information(self, _("Klavye Kısayolları"), html)
 
@@ -542,6 +544,9 @@ class MainWindow(
         left += "<br><br>"
         left += "<b>" + _("Hata İşareti + F4") + "</b><br>"
         left += "<span style='color:" + dim + "'>" + _("Derleyince hata satırları gutter'da kırmızı işaretlenir. F4/Shift+F4 ile hatalar arasında dolaşın.") + "</span>"
+        left += "<br><br>"
+        left += "<b>" + _("Tanıma Git") + " (Alt+" + _("Tıklama") + ")</b><br>"
+        left += "<span style='color:" + dim + "'>" + _("\\ref/\\cite üzerine Alt basılı tıkla → \\label veya .bib girişine atlar. .bib girdisine tıklayınca makaledeki \\cite yerine gider. Çok dosyalı (\\input) ve çok anahtarlı \\cite destekli.") + "</span>"
         left += "<br><br>"
         left += "<b>" + _("Otomatik Derleme") + "</b><br>"
         left += "<span style='color:" + dim + "'>" + _("Ctrl+S ile kaydederken otomatik derler. Toolbar'dan kapatıp Manuel mod'a geçebilirsiniz — büyük belgelerde her kayıtta derleme yapmak yavaşlatır, o durumda Ctrl+B ile derleyin.") + "</span>"
@@ -672,6 +677,31 @@ class MainWindow(
             editor.setCursorPosition(line, 0)
             editor.ensureLineVisible(line)
             editor.setFocus()
+
+    def _on_goto_definition(self, key: str, kind: str):
+        """Alt+tık ile \\ref/\\cite tanıma git: \\label, .bib girişi veya .bib'ten
+        makaledeki \\cite yerine."""
+        from core.latex_refs import (
+            find_label_location, find_cite_location, find_cite_usage,
+        )
+        ed = self.sender()
+        if not isinstance(ed, EditorWidget):
+            ed = self._current_editor()
+        if not ed or not ed.file_path or not key:
+            return
+        content = ed.text()
+        if kind == "label":
+            loc = find_label_location(content, ed.file_path, key)
+        elif kind == "cite":
+            loc = find_cite_location(content, ed.file_path, key)
+        else:  # cite-usage: .bib girdisinden makalede \cite edildiği yere
+            loc = find_cite_usage(ed.file_path, key)
+        if loc:
+            path, line = loc
+            self._goto_line(path, line)
+            self._status.showMessage(_("Tanım") + f": {os.path.basename(path)}:{line}")
+        else:
+            self._status.showMessage(_("Tanım bulunamadı") + f": {key}")
 
     def _open_log_dir(self):
         from PyQt6.QtGui import QDesktopServices

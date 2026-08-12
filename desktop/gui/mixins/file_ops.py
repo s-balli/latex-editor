@@ -75,6 +75,7 @@ class FileOpsMixin:
             editor.textChanged.connect(lambda e=editor: self._update_outline_debounced(e))
             editor.forward_search_requested.connect(self._on_forward_search)
             editor.image_paste_requested.connect(self._paste_image)
+            editor.goto_definition_requested.connect(self._on_goto_definition)
             idx = self._editor_tabs.addTab(editor, editor.display_name)
             self._editor_tabs.setCurrentIndex(idx)
             self._add_tab_close_button(idx)

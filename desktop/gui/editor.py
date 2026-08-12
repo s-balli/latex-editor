@@ -30,6 +30,16 @@ _CLOSE_FOR_OPEN = {'{': '}', '[': ']'}
 # Eşleşen \begin{X} / \end{X} tag'lerini yakala (C.11)
 _BEGINEND_RE = re.compile(r'\\(begin|end)\s*\{([A-Za-z]+\*?)\}')
 
+# Alt+tık ile \ref/\cite tanıma git: tıklanan konumdaki argümanı yakala.
+# (cite ailesi opsiyonel [...] argümanları olabilir: \citep[see][]{key})
+_RE_REFARG = re.compile(r'\\(?:ref|eqref|pageref|autoref|nameref|vref|cref|Cref)\s*\{([^}]*)\}')
+_RE_CITEARG = re.compile(
+    r'\\(?:cite|citep|citet|citeauthor|citeyear|citealp|parencite|textcite|nocite)'
+    r'\s*(?:\[[^\]]*\]\s*)*\{([^}]*)\}'
+)
+# .bib girdi anahtarı: @article{key, — Alt+tık ile makaledeki \cite yerine git
+_RE_BIBENTRY = re.compile(r'@\w+\s*\{\s*([^,\s}]+)\s*,')
+
 
 def _decode_bytes(raw: bytes) -> tuple[str, str]:
     """Baytları decode et -> (metin, encoding).
@@ -59,6 +69,7 @@ def _decode_bytes(raw: bytes) -> tuple[str, str]:
 class EditorWidget(QsciScintilla):
     forward_search_requested = pyqtSignal(str, int, int)  # file_path, line(1-based), col(1-based)
     image_paste_requested = pyqtSignal()  # Ctrl+V + panoda resim → resim yapıştırma
+    goto_definition_requested = pyqtSignal(str, str)  # key, kind("label"|"cite") — Alt+tık
 
     def __init__(self, parent=None, *, theme: dict = None):
         super().__init__(parent)
@@ -173,26 +184,90 @@ class EditorWidget(QsciScintilla):
                            self._hex_to_scintilla(t.get("fg_bright", "#ffffff")))
 
     def mousePressEvent(self, event):
-        if (event.modifiers() & Qt.KeyboardModifier.ControlModifier and
-                event.button() == Qt.MouseButton.LeftButton and self._file_path):
-            pos = self.SendScintilla(
-                self.SCI_POSITIONFROMPOINT,
-                int(event.position().toPoint().x()),
-                int(event.position().toPoint().y()),
-            )
-            if pos >= 0:
-                line, col = self.lineIndexFromPosition(pos)
-                self.forward_search_requested.emit(self._file_path, line + 1, col + 1)
-                return
+        if (event.button() == Qt.MouseButton.LeftButton and self._file_path):
+            mods = event.modifiers()
+            if mods & Qt.KeyboardModifier.ControlModifier:
+                # Ctrl+tık → SyncTeX forward-search (editör→PDF)
+                pos = self.SendScintilla(
+                    self.SCI_POSITIONFROMPOINT,
+                    int(event.position().toPoint().x()),
+                    int(event.position().toPoint().y()),
+                )
+                if pos >= 0:
+                    line, col = self.lineIndexFromPosition(pos)
+                    self.forward_search_requested.emit(self._file_path, line + 1, col + 1)
+                    return
+            elif mods & Qt.KeyboardModifier.AltModifier:
+                # Alt+tık → \ref/\cite tanıma git (\label veya .bib girişi);
+                # .bib dosyasındaysa ters yön: girdiden makaledeki \cite yerine git
+                pos = self.SendScintilla(
+                    self.SCI_POSITIONFROMPOINT,
+                    int(event.position().toPoint().x()),
+                    int(event.position().toPoint().y()),
+                )
+                if pos >= 0:
+                    line, col = self.lineIndexFromPosition(pos)
+                    line_text = self.text(line)
+                    if self._file_path.endswith('.bib'):
+                        key = self._bib_key_at(line_text, col)
+                        if key:
+                            self.goto_definition_requested.emit(key, "cite-usage")
+                            return
+                    else:
+                        hit = self._ref_cite_key_at(line_text, col)
+                        if hit:
+                            self.goto_definition_requested.emit(hit[0], hit[1])
+                            return
         super().mousePressEvent(event)
         self._update_beginend_highlight(*self.getCursorPosition())
 
     def mouseMoveEvent(self, event):
-        if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+        mods = event.modifiers()
+        if (mods & Qt.KeyboardModifier.ControlModifier) or (mods & Qt.KeyboardModifier.AltModifier):
             self.setCursor(Qt.CursorShape.PointingHandCursor)
         else:
             self.setCursor(Qt.CursorShape.IBeamCursor)
         super().mouseMoveEvent(event)
+
+    def _ref_cite_key_at(self, line_text: str, col: int) -> tuple[str, str] | None:
+        """line_text'te col bir \\ref/\\cite ailesi argümanı içindeyse (key, kind).
+
+        kind 'label' (ref ailesi) veya 'cite'. Çok anahtarlı \\cite{a,b,c}'de
+        imlece en yakın segmenti döndürür. Alt+tık tanıma git için kullanılır.
+        """
+        for m in _RE_REFARG.finditer(line_text):
+            a, b = m.span(1)
+            if a <= col <= b:
+                return (self._nearest_key(m.group(1), col - a), "label")
+        for m in _RE_CITEARG.finditer(line_text):
+            a, b = m.span(1)
+            if a <= col <= b:
+                return (self._nearest_key(m.group(1), col - a), "cite")
+        return None
+
+    @staticmethod
+    def _nearest_key(keys_text: str, offset: int) -> str:
+        """'a, b, c' gibi virgülle ayrılmış anahtarlar içinde offset'e düşen segment."""
+        start = 0
+        last = ""
+        for part in keys_text.split(','):
+            k = part.strip()
+            if k:
+                last = k
+            end = start + len(part)
+            if offset <= end:
+                return k
+            start = end + 1  # virgülü atla
+        return last
+
+    @staticmethod
+    def _bib_key_at(line_text: str, col: int) -> str | None:
+        """line_text'te col bir '@type{key,' girdi anahtarındaysa key'i döndür."""
+        for m in _RE_BIBENTRY.finditer(line_text):
+            a, b = m.span(1)
+            if a <= col <= b:
+                return m.group(1)
+        return None
 
     def keyPressEvent(self, event):
         # Ctrl+V + panoda resim varsa resim yapıştırma (metin yapıştırmayı bırak).

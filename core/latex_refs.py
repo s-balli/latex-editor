@@ -114,3 +114,96 @@ def collect_cite_keys(content: str, base_path: str) -> list[str]:
         return []
     _bib_cache[bib_path] = (mtime, keys)
     return keys
+
+
+# --- Alt+tık ile tanıma git: anahtarın (dosya, satır) konumu ---
+
+def _label_line_in(text: str, key: str) -> int | None:
+    """\\label{key}'in 1-bazlı satır numarası (yorumlar strip edilmiş metinde).
+
+    strip_comments satır sayısını korur (\\n'leri silmez), bu yüzden strip
+    edilmiş metindeki satır no'su orijinalle aynıdır. Yorum içindeki \\label
+    doğru şekilde yok sayılır.
+    """
+    pat = re.compile(r'\\label\s*\{\s*' + re.escape(key) + r'\s*\}')
+    for i, ln in enumerate(strip_comments(text).split('\n'), start=1):
+        if pat.search(ln):
+            return i
+    return None
+
+
+def find_label_location(content: str, base_path: str, key: str) -> tuple[str, int] | None:
+    """\\label{key}'in (dosya yolu, 1-bazlı satır) konumu.
+
+    Önce mevcut ``content``'te, sonra \\input zincirindeki çocuk dosyalarda arar.
+    Bulunamazsa None. Alt+tık ile \\ref tanıma git için kullanılır.
+    """
+    loc = _label_line_in(content, key)
+    if loc is not None:
+        return (base_path, loc)
+    bdir = _base_dir(base_path)
+    for path in _flatten_input_paths(content, bdir):
+        try:
+            with open(path, 'r', encoding='utf-8', errors='replace') as f:
+                t = f.read()
+        except OSError:
+            continue
+        loc = _label_line_in(t, key)
+        if loc is not None:
+            return (path, loc)
+    return None
+
+
+def find_cite_location(content: str, base_path: str, key: str) -> tuple[str, int] | None:
+    """\\cite{key} için .bib girişinin (dosya yolu, 1-bazlı satır) konumu.
+
+    .bib bulunamaz veya anahtar yoksa None. Alt+tık ile \\cite tanıma git için.
+    """
+    bib_path = _find_bib_path(content, base_path)
+    if not bib_path:
+        return None
+    pat = re.compile(r'@\w+\s*\{\s*' + re.escape(key) + r'\s*,')
+    try:
+        with open(bib_path, 'r', encoding='utf-8', errors='replace') as f:
+            text = f.read()
+    except OSError:
+        return None
+    for i, ln in enumerate(text.split('\n'), start=1):
+        if pat.search(ln):
+            return (bib_path, i)
+    return None
+
+
+# .bib girdisinden makalede \cite edildiği yere (ters yön) git
+_RE_CITEUSE = re.compile(
+    r'\\(?:cite|citep|citet|citeauthor|citeyear|citealp|parencite|textcite|nocite)'
+    r'\s*(?:\[[^\]]*\]\s*)*\{([^}]*)\}'
+)
+
+
+def find_cite_usage(bib_path: str, key: str) -> tuple[str, int] | None:
+    """\\bib girdisi ``key``'in makalede \\cite edildiği (tex yolu, satır) konumu.
+
+    .bib ile aynı dizin ağacındaki .tex dosyalarını tarar; ilk eşleşmeyi döndürür.
+    Alt+tık ile .bib'ten makaledeki atıfa gitmek için (ters yön).
+    """
+    bdir = os.path.dirname(os.path.abspath(bib_path)) if bib_path else ""
+    if not bdir:
+        return None
+    for root, dirs, files in os.walk(bdir):
+        dirs.sort()
+        for fn in sorted(files):
+            if not fn.endswith('.tex'):
+                continue
+            path = os.path.join(root, fn)
+            try:
+                with open(path, 'r', encoding='utf-8', errors='replace') as f:
+                    text = f.read()
+            except OSError:
+                continue
+            for i, ln in enumerate(strip_comments(text).split('\n'), start=1):
+                for m in _RE_CITEUSE.finditer(ln):
+                    keys = [k.strip() for k in m.group(1).split(',')]
+                    if key in keys:
+                        return (path, i)
+    return None
