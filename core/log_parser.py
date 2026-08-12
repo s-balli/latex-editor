@@ -1,5 +1,6 @@
 """LaTeX derleme çıktısını parse etme — hatalar ve uyarıları ayıklama."""
 
+import os
 import re
 from dataclasses import dataclass, field
 
@@ -72,10 +73,14 @@ def parse_output(raw: str, source_file: str = "") -> CompileResult:
     current_error: LatexError | None = None
 
     for line in lines:
-        # Dosya referansı takibi
+        # Dosya referansı takibi: yalnız .tex kaynak dosyalarını takip et.
+        # .cls/.sty/.bib paket/font yüklemelerini izlemek current_file'ı sistem
+        # dosyasına kaydırır (parser '(' ile girer ama ')' ile çıkmaz); böylece
+        # hatalar yanlışlıkla epstopdf-base.sty gibi paketlere atfedilip editörde
+        # işaretlenmezdi. Kullanıcı kaynağı (.tex) takip tutmak hatları dokümana atfeder.
         m = _RE_FILE_REF.search(line)
-        if m:
-            current_file = m.group(2) if m.group(2) else current_file
+        if m and m.group(3) == "tex" and not os.path.isabs(m.group(2)):
+            current_file = m.group(2)
 
         # Paket hatası (daha spesifik, önce kontrol edilmeli)
         m = _RE_PKG_ERROR.match(line)
@@ -193,3 +198,22 @@ def parse_output(raw: str, source_file: str = "") -> CompileResult:
 
     result.success = len(result.errors) == 0
     return result
+
+
+def resolve_error_path(file_path: str, base_dir: str) -> str:
+    """Hata kaynağı olan dosya yolunu ana dosya dizinine göre çözümle.
+
+    Parser çok dosyalı belgelerde çocuk dosyalar (\\input) için bare filename
+    (örn. 'bolum1.tex'), ana dosya için tam yol döndürür. UI katmanı bunu
+    base_dir (ana dosyanın dizini) ile birleştirip gerçek yola çevirir; böylece
+    F4 ile hata satırına ve gutter işaretine doğru dosyada ulaşılabilir.
+
+    Çözümlenen dosya diskte yoksa (parser yanlış yakalamış olabilir) yolu
+    olduğu gibi geri döndürür — çağıran yine de deneyebilir.
+    """
+    if not file_path:
+        return file_path
+    if os.path.isabs(file_path) and os.path.isfile(file_path):
+        return file_path
+    cand = os.path.normpath(os.path.join(base_dir, file_path))
+    return cand if os.path.isfile(cand) else file_path

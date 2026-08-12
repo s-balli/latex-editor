@@ -1,7 +1,7 @@
 """log_parser modülü testleri."""
 
 
-from core.log_parser import parse_output
+from core.log_parser import parse_output, resolve_error_path
 
 
 # --- Başarılı derleme ---
@@ -162,6 +162,18 @@ class TestFileRef:
         assert r.errors[0].file_path == "chapter1.tex"
         assert r.errors[1].file_path == "chapter2.tex"
 
+    def test_system_package_ref_does_not_hijack(self):
+        # Sistem paketi yüklemesi current_file'ı çalmamalı; hata ana dosyaya atfedilmeli.
+        raw = "(/usr/share/texlive/texmf-dist/foo.sty\n! Error.\nl.5"
+        r = parse_output(raw, source_file="main.tex")
+        assert r.errors[0].file_path == "main.tex"
+
+    def test_system_tex_module_ref_does_not_hijack(self):
+        # PGF/TikZ .code.tex modülleri de .tex ama sistem altında; takip edilmez.
+        raw = "(/usr/share/texlive/pgfmodulematrix.code.tex\n! Error.\nl.9"
+        r = parse_output(raw, source_file="main.tex")
+        assert r.errors[0].file_path == "main.tex"
+
 
 # --- Karmaşık çıktı ---
 
@@ -191,3 +203,27 @@ l.20
         assert r.errors[0].file_path == "main.tex"
         # Second error belongs to chapter1.tex
         assert r.errors[1].file_path == "chapter1.tex"
+
+
+class TestResolveErrorPath:
+    def test_bare_filename_resolved_against_base(self, tmp_path):
+        (tmp_path / "bolum1.tex").write_text("x")
+        out = resolve_error_path("bolum1.tex", str(tmp_path))
+        assert out == str(tmp_path / "bolum1.tex")
+
+    def test_absolute_existing_returned_as_is(self, tmp_path):
+        f = tmp_path / "a.tex"
+        f.write_text("x")
+        assert resolve_error_path(str(f), str(tmp_path)) == str(f)
+
+    def test_nonexistent_bare_left_unchanged(self, tmp_path):
+        # diskte yok → olduğu gibi döner (çağıran yine deneyebilir)
+        assert resolve_error_path("yok.tex", str(tmp_path)) == "yok.tex"
+
+    def test_empty_path_returned_empty(self, tmp_path):
+        assert resolve_error_path("", str(tmp_path)) == ""
+
+    def test_dot_slash_prefix_stripped(self, tmp_path):
+        (tmp_path / "ch.tex").write_text("x")
+        out = resolve_error_path("./ch.tex", str(tmp_path))
+        assert out == str(tmp_path / "ch.tex")

@@ -176,7 +176,7 @@ class TestHataDeseni:
     def _grep(snippet):
         # derle.sh'in hata ayıklama deseniyle aynı davranış (gerçek '!' + bağlamı)
         r = subprocess.run(
-            ["bash", "-c", "printf '%s' \"$1\" | grep -A1 -E '^!' | grep -v '^--$' || true",
+            ["bash", "-c", "printf '%s' \"$1\" | grep -A4 -E '^!' | grep -v '^--$' || true",
              "bash", snippet],
             capture_output=True, text=True,
         )
@@ -198,6 +198,18 @@ class TestHataDeseni:
         out = self._grep(snippet)
         assert "! Undefined control sequence." in out
         assert "l.42" in out
+
+    def test_cascade_hatasinda_lNNN_yakalanir(self):
+        # TikZ/math cascade: l.NNN, '!'dan 3 satır sonra. -A1 onu kaçırıyordu;
+        # -A4 sayesinde editör hata işareti için satır numarasını alabilmeli.
+        snippet = (
+            "! Paragraph ended before \\tikz@picture was complete.\n"
+            "<to be read again>\n"
+            "                   \\par\n"
+            "l.399 }}\n"
+        )
+        out = self._grep(snippet)
+        assert "l.399" in out
 
 
 class TestCokluGecis:

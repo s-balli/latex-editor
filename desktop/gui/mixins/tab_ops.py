@@ -172,6 +172,7 @@ class TabOpsMixin:
         if isinstance(editor, EditorWidget):
             self._file_tree.update_input_tree(editor.file_path, editor.text())
             self._outline.update_outline(editor.text())
+            self._refresh_error_markers()
 
     def _update_cursor_pos(self):
         editor = self._current_editor()

@@ -78,6 +78,9 @@ class MainWindow(
         self._compiler = LatexCompiler(self)
         self._auto_compile = True
         self._current_pdf = ""
+        self._last_errors = []          # son derlemenin hataları (line>0, çözümlü yol)
+        self._err_index = -1            # F4/Shift+F4 imleci (_last_errors içinde)
+        self._compile_target = ""       # derlenen ana dosya yolu (path resolve base)
         self._synctex_dir = tempfile.mkdtemp(prefix="latex_editor_")
         self._settings = QSettings("LatexEditor", "LatexEditor")
         self._theme_mgr = ThemeManager(self._settings, self)
@@ -219,6 +222,9 @@ class MainWindow(
         edit_menu.addSeparator()
         self._add_action(edit_menu, _("Yorum &Toggle"), self._toggle_comment)
         self._add_action(edit_menu, _("Satıra &Git..."), self._goto_line_dialog, "Ctrl+G")
+        edit_menu.addSeparator()
+        self._add_action(edit_menu, _("&Sonraki Hata"), self._goto_next_error, "F4", app_shortcut=True)
+        self._add_action(edit_menu, _("Ö&nceki Hata"), self._goto_prev_error, "Shift+F4", app_shortcut=True)
 
         # Derle menüsü
         build_menu = menubar.addMenu(_("&Derle"))
@@ -482,7 +488,9 @@ class MainWindow(
         html += "Ctrl+F — " + _("Bul") + "<br>"
         html += "Ctrl+H — " + _("Bul ve Değiştir") + "<br>"
         html += "Ctrl+/ — " + _("Yorum Toggle") + "<br>"
-        html += "Ctrl+G — " + _("Satıra Git") + "<br><br>"
+        html += "Ctrl+G — " + _("Satıra Git") + "<br>"
+        html += "F4 — " + _("Sonraki Hata") + "<br>"
+        html += "Shift+F4 — " + _("Önceki Hata") + "<br><br>"
         html += "<b>" + _("Diğer") + "</b><br>"
         html += "Esc — " + _("Derlemeyi Durdur") + "<br>"
         html += "F5 — " + _("Sunum Modu") + "<br>"
@@ -531,6 +539,9 @@ class MainWindow(
         left += "<br><br>"
         left += "<b>" + _("Yeni Dosya") + " (Ctrl+N)</b><br>"
         left += "<span style='color:" + dim + "'>" + _("Otomatik \\documentclass şablonu ile yeni .tex dosyası.") + "</span>"
+        left += "<br><br>"
+        left += "<b>" + _("Hata İşareti + F4") + "</b><br>"
+        left += "<span style='color:" + dim + "'>" + _("Derleyince hata satırları gutter'da kırmızı işaretlenir. F4/Shift+F4 ile hatalar arasında dolaşın.") + "</span>"
         left += "<br><br>"
         left += "<b>" + _("Otomatik Derleme") + "</b><br>"
         left += "<span style='color:" + dim + "'>" + _("Ctrl+S ile kaydederken otomatik derler. Toolbar'dan kapatıp Manuel mod'a geçebilirsiniz — büyük belgelerde her kayıtta derleme yapmak yavaşlatır, o durumda Ctrl+B ile derleyin.") + "</span>"

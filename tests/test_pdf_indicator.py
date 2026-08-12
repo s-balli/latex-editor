@@ -133,12 +133,19 @@ class _StubMain:
             show_result=lambda r: None, show_engine_hint=lambda a, b: None
         )
         self._engine_combo = SimpleNamespace(currentText=lambda: "lualatex")
+        self._compile_target = ""
         self.last_msg = ""
 
     def _set_msg(self, msg):
         self.last_msg = msg
 
     def setCursor(self, *_a, **_k):
+        pass
+
+    def _current_editor(self):
+        return None
+
+    def _refresh_error_markers(self):
         pass
 
 

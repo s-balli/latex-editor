@@ -247,7 +247,7 @@ derle_dosya() {
 
     if [ $DERLEME_HATA -ne 0 ]; then
         local HATALAR
-        HATALAR=$(echo "$DERLEME_CIKTI" | grep -A1 -E '^!' | grep -v '^--$' | head -40)
+        HATALAR=$(echo "$DERLEME_CIKTI" | grep -A4 -E '^!' | grep -v '^--$' | head -60)
         if [ "$USE_WATCH" = true ]; then
             echo -e "${KIRMIZI}[hata] $(date +%H:%M:%S) — Derleme basarisiz:${SIFIRLA}"
         else
@@ -389,7 +389,7 @@ derle_dosya() {
             echo -e "${KIRMIZI}[hata] $DOSYA_ADI — PDF olusmadi${SIFIRLA}"
         fi
         local HATALAR
-        HATALAR=$(echo "$DERLEME_CIKTI" | grep -A1 -E '^!' | grep -v '^--$' | head -40)
+        HATALAR=$(echo "$DERLEME_CIKTI" | grep -A4 -E '^!' | grep -v '^--$' | head -60)
         if [ -n "$HATALAR" ]; then
             echo "$HATALAR" | while read -r line; do
                 printf "${KIRMIZI}  %s${SIFIRLA}\n" "$line"

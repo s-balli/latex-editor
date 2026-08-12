@@ -76,6 +76,13 @@ class EditorWidget(QsciScintilla):
         self.setMarginWidth(1, "0000")
         self.linesChanged.connect(self._update_margin_width)
 
+        # Derleme hataları için gutter (margin 0) işareti.
+        self._ERR_MARKER = 10
+        self.setMarginType(0, QsciScintilla.MarginType.SymbolMargin)
+        self.setMarginWidth(0, 16)
+        self.setMarginMarkerMask(0, 1 << self._ERR_MARKER)
+        self.markerDefine(QsciScintilla.MarkerSymbol.Circle, self._ERR_MARKER)
+
         # C.11: eşleşen \begin/\end vurgulama
         self._beginend_indicator = 0
         self._beginend_ranges = []          # vurgulu byte aralıkları (temizlik için)
@@ -111,6 +118,16 @@ class EditorWidget(QsciScintilla):
         """
         digits = max(4, len(str(self.lines())))
         self.setMarginWidth(1, "0" * digits)
+
+    def clear_error_markers(self):
+        """Derleme hatalarının gutter işaretlerini temizle."""
+        self.markerDeleteAll(self._ERR_MARKER)
+
+    def add_error_marker(self, line_1based: int):
+        """Belirli bir satıra hata işareti koy (gutter). 1-based satır."""
+        ln = line_1based - 1
+        if 0 <= ln < self.lines():
+            self.markerAdd(ln, self._ERR_MARKER)
 
     @staticmethod
     def _hex_to_scintilla(hex_color: str) -> int:
@@ -148,6 +165,12 @@ class EditorWidget(QsciScintilla):
         # C.11: eşleşen \begin/\end vurgu kutusu rengi
         self.SendScintilla(QsciScintilla.SCI_INDICSETFORE, 0,
                            self._hex_to_scintilla(t.get("accent", "#3a6ea5")))
+
+        # Derleme hata işareti (gutter) rengi.
+        self.SendScintilla(QsciScintilla.SCI_MARKERSETBACK, self._ERR_MARKER,
+                           self._hex_to_scintilla(t.get("error", "#c62828")))
+        self.SendScintilla(QsciScintilla.SCI_MARKERSETFORE, self._ERR_MARKER,
+                           self._hex_to_scintilla(t.get("fg_bright", "#ffffff")))
 
     def mousePressEvent(self, event):
         if (event.modifiers() & Qt.KeyboardModifier.ControlModifier and
