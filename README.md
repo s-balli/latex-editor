@@ -40,7 +40,7 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 
 ## Version History
 
-### Unreleased — Document-Aware Completion & Editor Performance
+### v1.0.5 — Goto-Definition, Error Markers & Editor Improvements
 - **Editor**: document-aware completion for `\ref`/`\eqref`/`\pageref` and `\cite`/`\citep`/`\citet` (and similar): suggests `\label` keys from the document (and the `\input` chain) and `.bib` entry keys; `\cite{key1,key2}` multi-key supported
 - **Editor**: paste an image from the clipboard (Ctrl+V): saves to `media/` and inserts a `\begin{figure}` block (reuses the drag-drop dialog)
 - **Editor**: compile errors flagged in the gutter; F4 / Shift+F4 to jump between errors (multi-file aware)

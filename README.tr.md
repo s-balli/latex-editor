@@ -40,7 +40,7 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 
 ## Sürüm Geçmişi
 
-### Yayınlanmamış — Doküman-Farkında Tamamlama ve Editör Performansı
+### v1.0.5 — Tanıma Git, Hata İşaretleri ve Editör İyileştirmeleri
 - **Editör**: doküman-farkında tamamlama: `\ref`/`\eqref`/`\pageref` ve `\cite`/`\citep`/`\citet` (ve benzerleri) için dokümandaki (ve `\input` zincirindeki) `\label` anahtarları ile `.bib` giriş anahtarlarını önerir; `\cite{key1,key2}` çoklu anahtar destekli
 - **Editör**: panodan resim yapıştırma (Ctrl+V): resmi `media/`'a kaydeder ve `\begin{figure}` bloğu ekler (sürükle-bırak diyaloğunu paylaşır)
 - **Editör**: derleme hataları gutter'da işaretlenir; F4 / Shift+F4 ile hatalar arasında dolaşılır (çok dosyalı belgeleri destekler)
