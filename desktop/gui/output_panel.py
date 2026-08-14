@@ -158,6 +158,25 @@ class OutputPanel(QWidget):
         self._tabs.setTabText(self._suggest_tab_index, _("Öneriler ({n})").format(n=len(suggestions)))
         self._tabs.setCurrentIndex(self._warn_tab_index if warnings else self._suggest_tab_index)
 
+    def append_audit(self, warnings: list[tuple[str, str, int]],
+                     suggestions: list[tuple[str, str, int]]):
+        """Referans denetimi bulgularını mevcut panel sonuçlarının ÜZERİNE ekle.
+
+        Derleme sonrası otomatik denetim için; show_audit paneli temizlerken bu
+        temizlemez ve sekme odağını değiştirmez (derleme hataları öncelikli
+        kalır). Sekme başlıklarındaki sayılar güncellenir.
+        """
+        for text, path, line in warnings:
+            item = QListWidgetItem(text)
+            item.setData(Qt.ItemDataRole.UserRole, (path, line))
+            self._warn_list.addItem(item)
+        for text, path, line in suggestions:
+            item = QListWidgetItem(text)
+            item.setData(Qt.ItemDataRole.UserRole, (path, line))
+            self._suggest_list.addItem(item)
+        self._tabs.setTabText(self._warn_tab_index, _("Uyarılar ({n})").format(n=self._warn_list.count()))
+        self._tabs.setTabText(self._suggest_tab_index, _("Öneriler ({n})").format(n=self._suggest_list.count()))
+
     def show_engine_hint(self, current: str, others: list[str]):
         """Başarısız derlemede motor değiştirme önerisini ekle ve tab'ı aç."""
         hint = QListWidgetItem(

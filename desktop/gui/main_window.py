@@ -232,6 +232,11 @@ class MainWindow(
         build_menu = menubar.addMenu(_("&Derle"))
         self._add_action(build_menu, _("&Derle"), self._compile, "Ctrl+B", app_shortcut=True)
         self._add_action(build_menu, _("&Durdur"), self._stop_compile)
+        build_menu.addSeparator()
+        act = self._add_action(build_menu, _("Derleme Sonrası &Referans Denetimi"), self._toggle_auto_audit)
+        act.setCheckable(True)
+        act.setChecked(self._auto_audit_enabled(self._settings))
+        self._auto_audit_action = act
 
         # Görünüm menüsü
         view_menu = menubar.addMenu(_("&Görünüm"))

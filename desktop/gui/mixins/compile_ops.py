@@ -173,6 +173,41 @@ class CompileOpsMixin:
             self._output_panel.show_engine_hint(current, others)
 
         self._refresh_error_markers()
+        self._maybe_auto_audit()
+
+    # --- Derleme sonrası otomatik referans denetimi (Derle menüsü anahtarı) ---
+
+    @staticmethod
+    def _auto_audit_enabled(settings) -> bool:
+        return settings.value("compile/auto_audit", False) in (True, "true", "True")
+
+    def _toggle_auto_audit(self, checked: bool):
+        self._settings.setValue("compile/auto_audit", bool(checked))
+        self._status.showMessage(
+            _("Derleme sonrası referans denetimi açıldı") if checked
+            else _("Derleme sonrası referans denetimi kapatıldı")
+        )
+
+    def _maybe_auto_audit(self):
+        """Derleme bitince (anahtar açıksa) referans denetimini panelin sonuna ekle.
+
+        Derlenen ana dosya diskten okunur (derleme öncesi kaydedilmiş hali).
+        Bulgular Uyarılar/Öneriler listelerine eklenir; derleme sonucu ve sekme
+        odağı korunur. edit_ops._collect_audit_items'i kullanır.
+        """
+        if not self._auto_audit_enabled(self._settings):
+            return
+        target = getattr(self, "_compile_target", "")
+        if not target or not os.path.isfile(target):
+            return
+        try:
+            with open(target, "r", encoding="utf-8", errors="replace") as f:
+                content = f.read()
+        except OSError:
+            return
+        warnings, suggestions, _counts = self._collect_audit_items(content, target)
+        if warnings or suggestions:
+            self._output_panel.append_audit(warnings, suggestions)
 
     def _refresh_error_markers(self):
         """Mevcut editörün gutter'ına son derlemenin hata satırlarını koy.

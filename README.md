@@ -40,6 +40,9 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 
 ## Version History
 
+### Unreleased
+- **Editor**: optional post-compile reference audit (Build menu toggle): findings are appended to the output panel after each compile without clearing compile errors; clickable as before
+
 ### v1.0.6 — Completions, Reference Audit, Rename & XeLaTeX
 - **Editor**: settings dialog (View > Editor Settings): tab width, editor font size and word wrap; persisted across sessions and applied to open tabs and new ones
 - **Engine**: XeLaTeX support: third engine in the toolbar/combos, `--xelatex` flag in `derle.sh`, magic-comment & package-based detection (`mathspec`, `xeCJK`, `xltxtra`, `requires XeLaTeX`), and a missing-engine hint suggesting `sudo apt-get install texlive-xetex`

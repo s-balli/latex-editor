@@ -138,6 +138,9 @@ class _StubMain:
     def _current_editor(self):
         return None
 
+    def _maybe_auto_audit(self):
+        pass  # derleme sonrası otomatik denetim bu stub'da devre dışı
+
     def _refresh_error_markers(self):
         pass
 

@@ -40,6 +40,9 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 
 ## Sürüm Geçmişi
 
+### Unreleased
+- **Editör**: isteğe bağlı derleme sonrası referans denetimi (Derle menüsü anahtarı): her derlemeden sonra bulgular, derleme hatalarını silmeden panelin sonuna eklenir; eskisi gibi tıklanabilir
+
 ### v1.0.6 — Tamamlamalar, Referans Denetimi, Yeniden Adlandırma ve XeLaTeX
 - **Editör**: ayarlar penceresi (Görünüm > Editör Ayarları): tab genişliği, font boyutu ve satır kaydırma; oturmlar arası kalıcı, açık sekmelere ve yenilerine uygulanır
 - **Motor**: XeLaTeX desteği: araç çubuğunda üçüncü motor, `derle.sh`'de `--xelatex` bayrağı, magic comment ve paket bazlı algılama (`mathspec`, `xeCJK`, `xltxtra`, `requires XeLaTeX`), motor eksikse `sudo apt-get install texlive-xetex` önerisi

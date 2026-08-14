@@ -111,49 +111,55 @@ class EditOpsMixin:
             return (f"{os.path.basename(path)}:{line} — {label}: {key}", path, line)
         return (f"{label}: {key}", "", 0)
 
-    def _audit_references(self):
-        """Düzenle > Referansları Denetle — derlemeden bağımsız lokal analiz.
+    @staticmethod
+    def _collect_audit_items(content: str, base_path: str) -> tuple[list, list, dict]:
+        """İçerikten tıklanabilir denetim bulguları üret.
 
-        Bulgular tıklanabilir: tanımsız \ref/\cite kullanıldığı satıra,
-        kullanılmayan .bib girdisi .bib'teki satırına atlar.
+        Dönüş: (warnings, suggestions, counts). Hem Düzenle > Referansları
+        Denetle hem derleme sonrası otomatik denetim (compile_ops) kullanır.
+        Tanımsız \\ref/\\cite kullanıldığı satıra, kullanılmayan .bib/label
+        kendi satırına atlar.
         """
         from core.latex_refs import (
             audit_references, find_cite_location, find_key_usage, find_label_location,
         )
-        editor = self._current_editor()
-        if not editor or not editor.file_path:
-            self._status.showMessage(_("Önce bir .tex dosyası açın"))
-            return
-        content, base_path = editor.text(), editor.file_path
         report = audit_references(content, base_path)
 
         warnings = []
         for k in report.undefined_refs:
             loc = find_key_usage(content, base_path, k, "ref")
-            warnings.append(self._audit_item(_("Tanımsız \\ref"), k, loc))
+            warnings.append(EditOpsMixin._audit_item(_("Tanımsız \\ref"), k, loc))
         for k in report.undefined_cites:
             loc = find_key_usage(content, base_path, k, "cite")
-            warnings.append(self._audit_item(_("Tanımsız \\cite"), k, loc))
+            warnings.append(EditOpsMixin._audit_item(_("Tanımsız \\cite"), k, loc))
         suggestions = []
         for k in report.unused_bib_keys:
             loc = find_cite_location(content, base_path, k)
-            suggestions.append(self._audit_item(_("Kullanılmayan .bib girdisi"), k, loc))
+            suggestions.append(EditOpsMixin._audit_item(_("Kullanılmayan .bib girdisi"), k, loc))
         for k in report.unused_labels:
             loc = find_label_location(content, base_path, k)
-            suggestions.append(self._audit_item(_("Kullanılmayan label"), k, loc))
+            suggestions.append(EditOpsMixin._audit_item(_("Kullanılmayan label"), k, loc))
+        counts = {
+            "r": len(report.undefined_refs),
+            "c": len(report.undefined_cites),
+            "b": len(report.unused_bib_keys),
+            "l": len(report.unused_labels),
+        }
+        return warnings, suggestions, counts
 
+    def _audit_references(self):
+        """Düzenle > Referansları Denetle — derlemeden bağımsız lokal analiz."""
+        editor = self._current_editor()
+        if not editor or not editor.file_path:
+            self._status.showMessage(_("Önce bir .tex dosyası açın"))
+            return
+        warnings, suggestions, c = self._collect_audit_items(editor.text(), editor.file_path)
         self._output_panel.show_audit(warnings, suggestions)
-        total = len(warnings) + len(suggestions)
-        if total == 0:
+        if not warnings and not suggestions:
             self._status.showMessage(_("Referans denetimi: sorun yok"))
         else:
             self._status.showMessage(
-                _("Referans denetimi: {r} tanımsız ref, {c} tanımsız cite, {b} kullanılmayan .bib, {l} kullanılmayan label").format(
-                    r=len(report.undefined_refs),
-                    c=len(report.undefined_cites),
-                    b=len(report.unused_bib_keys),
-                    l=len(report.unused_labels),
-                )
+                _("Referans denetimi: {r} tanımsız ref, {c} tanımsız cite, {b} kullanılmayan .bib, {l} kullanılmayan label").format(**c)
             )
 
     # --- F2: \label yeniden adlandırma (doküman + \input zinciri) ---
