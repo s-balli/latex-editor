@@ -41,7 +41,7 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 ## Version History
 
 ### Unreleased
-- **Editor**: optional post-compile reference audit (Build menu toggle): findings are appended to the output panel after each compile without clearing compile errors; clickable as before
+- **Editor**: optional post-compile reference audit (Build menu toggle): findings are appended to the output panel after each compile without clearing compile errors; clickable as before; a one-line summary (zero categories omitted) is appended to the status bar next to the compile result
 
 ### v1.0.6 — Completions, Reference Audit, Rename & XeLaTeX
 - **Editor**: settings dialog (View > Editor Settings): tab width, editor font size and word wrap; persisted across sessions and applied to open tabs and new ones

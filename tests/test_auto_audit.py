@@ -33,13 +33,25 @@ class _FakeSettings:
         self.d[key] = val
 
 
+class _Status:
+    """QStatusBar kayıdı: son mesaj + currentMessage geri okuma."""
+
+    def __init__(self):
+        self.msg = ""
+
+    def showMessage(self, m):
+        self.msg = m
+
+    def currentMessage(self):
+        return self.msg
+
+
 class _StubMain(CompileOpsMixin, EditOpsMixin):
     def __init__(self, settings=None, target=""):
         self._settings = settings or _FakeSettings()
         self._compile_target = target
         self._output_panel = OutputPanel(theme=THEMES["dark"])
-        self.messages = []
-        self._status = SimpleNamespace(showMessage=self.messages.append)
+        self._status = _Status()
 
 
 def _broken_doc(tmp_path):
@@ -94,7 +106,7 @@ def test_toggle_persists(qapp):
     stub = _StubMain()
     MainWindow._toggle_auto_audit(stub, True)
     assert stub._settings.d["compile/auto_audit"] is True
-    assert any("aç" in m for m in stub.messages)
+    assert "aç" in stub._status.msg
     MainWindow._toggle_auto_audit(stub, False)
     assert stub._settings.d["compile/auto_audit"] is False
 
@@ -105,3 +117,44 @@ def test_missing_target_noop(qapp):
     stub = _StubMain(settings=s, target="/yok/bulunmayan.tex")
     MainWindow._maybe_auto_audit(stub)             # hata vermez, sessiz geçer
     assert stub._output_panel._warn_list.count() == 0
+
+
+# --- durum çubuğu özeti ---
+
+
+def test_summary_appended_to_compile_message(qapp, tmp_path):
+    """Derleme mesajı korunur, özet sonuna ' · ' ile eklenir."""
+    tex = _broken_doc(tmp_path)
+    s = _FakeSettings()
+    s.d["compile/auto_audit"] = True
+    stub = _StubMain(settings=s, target=str(tex))
+    stub._status.msg = "Başarılı (1.2s) | 3 uyari"
+    MainWindow._maybe_auto_audit(stub)
+    assert stub._status.msg.startswith("Başarılı (1.2s) | 3 uyari  ·  ")
+    assert "Denetim:" in stub._status.msg
+    assert "1 tanımsız ref" in stub._status.msg
+
+
+def test_summary_skips_zero_categories(qapp, tmp_path):
+    """Yalnız kullanılmayan label varsa özet onu içerir, sıfırları yazmaz."""
+    tex = tmp_path / "m.tex"
+    tex.write_text("\\label{bos}\n", encoding="utf-8")
+    s = _FakeSettings()
+    s.d["compile/auto_audit"] = True
+    stub = _StubMain(settings=s, target=str(tex))
+    MainWindow._maybe_auto_audit(stub)
+    msg = stub._status.msg
+    assert "kullanılmayan label" in msg
+    assert "tanımsız ref" not in msg and "tanımsız cite" not in msg
+
+
+def test_summary_without_current_message(qapp, tmp_path):
+    """currentMessage'i olmayan durum çubuğunda özet tek başına yazılır."""
+    tex = _broken_doc(tmp_path)
+    s = _FakeSettings()
+    s.d["compile/auto_audit"] = True
+    stub = _StubMain(settings=s, target=str(tex))
+    msgs = []
+    stub._status = SimpleNamespace(showMessage=msgs.append)   # currentMessage yok
+    MainWindow._maybe_auto_audit(stub)                        # hata vermemeli
+    assert any(m.startswith("Denetim:") for m in msgs)

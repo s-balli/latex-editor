@@ -205,9 +205,29 @@ class CompileOpsMixin:
                 content = f.read()
         except OSError:
             return
-        warnings, suggestions, _counts = self._collect_audit_items(content, target)
+        warnings, suggestions, c = self._collect_audit_items(content, target)
         if warnings or suggestions:
             self._output_panel.append_audit(warnings, suggestions)
+            # Derleme durum mesajını ezmeden sonuna tek satır özet ekle.
+            # currentMessage olmayan stub'larda (test) boş tabanla ilerle.
+            cur = getattr(self._status, "currentMessage", None)
+            base = cur() if callable(cur) else ""
+            summary = self._audit_summary(c)
+            self._status.showMessage((base + "  ·  " + summary) if base else summary)
+
+    @staticmethod
+    def _audit_summary(c: dict) -> str:
+        """Denetim sayılarından sıfırları atlayan tek satır özet üret."""
+        parts = []
+        if c["r"]:
+            parts.append(_("{n} tanımsız ref").format(n=c["r"]))
+        if c["c"]:
+            parts.append(_("{n} tanımsız cite").format(n=c["c"]))
+        if c["b"]:
+            parts.append(_("{n} kullanılmayan .bib").format(n=c["b"]))
+        if c["l"]:
+            parts.append(_("{n} kullanılmayan label").format(n=c["l"]))
+        return _("Denetim: ") + ", ".join(parts)
 
     def _refresh_error_markers(self):
         """Mevcut editörün gutter'ına son derlemenin hata satırlarını koy.
