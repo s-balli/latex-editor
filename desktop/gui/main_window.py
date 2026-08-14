@@ -288,7 +288,7 @@ class MainWindow(
         self._engine_label.setStyleSheet(f"color: {t['fg_label']}; font-weight: bold;")
         toolbar.addWidget(self._engine_label)
         self._engine_combo = QComboBox()
-        self._engine_combo.addItems(["lualatex", "pdflatex"])
+        self._engine_combo.addItems(["lualatex", "pdflatex", "xelatex"])
         self._engine_combo.setToolTip(_("Derleme motoru"))
         toolbar.addWidget(self._engine_combo)
 

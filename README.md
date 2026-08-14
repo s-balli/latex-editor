@@ -41,6 +41,7 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 ## Version History
 
 ### Unreleased
+- **Engine**: XeLaTeX support: third engine in the toolbar/combos, `--xelatex` flag in `derle.sh`, magic-comment & package-based detection (`mathspec`, `xeCJK`, `xltxtra`, `requires XeLaTeX`), and a missing-engine hint suggesting `sudo apt-get install texlive-xetex`
 - **Editor**: `\input{` / `\include{` completion: suggests `.tex` files from the project (relative paths, extension-free), subdirectories included
 - **Editor**: `\includegraphics{` completion: suggests image files (`png/jpg/jpeg/pdf/eps`) from the project, same path convention as image paste/drag-drop (relative to the main file, extension kept); optional `[width=...]` argument aware
 - **Editor**: reference audit (Edit > Check References): undefined `\ref`/`\cite` keys and unused `.bib` entries, computed locally without compiling; multi-file (`\input`) aware, respects comments and `\nocite{*}`; findings are clickable (jump to the usage line or the `.bib` entry)
@@ -91,7 +92,7 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 - **LaTeX syntax highlighting** — commands, comments, math, environments
 - **PDF preview** — live PDF view in side panel, zoom
 - **Auto-compile** — Ctrl+S to save and compile
-- **Dual engine support** — lualatex (default) and pdflatex
+- **Triple engine support** — lualatex (default), pdflatex and xelatex
 - **Project management** — folder open, file tree, multi-file tabs
 - **Error display** — compile errors and warnings in separate tabs
 - **7 themes** — Dark, Light, Solarized Light, Dracula, Monokai, Nord, Gruvbox
@@ -118,7 +119,7 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 ```bash
 sudo apt-get update
 sudo apt-get install texlive-base texlive-binaries texlive-latex-base \
-  texlive-latex-extra texlive-latex-recommended texlive-lang-european texlive-luatex \
+  texlive-latex-extra texlive-latex-recommended texlive-lang-european texlive-luatex texlive-xetex \
   texlive-fonts-extra texlive-science texlive-bibtex-extra texlive-font-utils \
   texlive-extra-utils biber texlive-publishers texlive-humanities texlive-pstricks pandoc
 ```
@@ -185,7 +186,7 @@ To run on another computer:
 |----------|-------------|
 | `LaTeX Editor.exe` | Single file, no Python needed |
 | **WSL** | WSL must be enabled on Windows 10/11 |
-| **TeX Live** | Inside WSL: `sudo apt-get update && sudo apt-get install texlive-base texlive-binaries texlive-latex-base texlive-latex-extra texlive-latex-recommended texlive-lang-european texlive-luatex texlive-fonts-extra texlive-science texlive-bibtex-extra texlive-font-utils texlive-extra-utils biber texlive-publishers texlive-humanities texlive-pstricks pandoc` |
+| **TeX Live** | Inside WSL: `sudo apt-get update && sudo apt-get install texlive-base texlive-binaries texlive-latex-base texlive-latex-extra texlive-latex-recommended texlive-lang-european texlive-luatex texlive-xetex texlive-fonts-extra texlive-science texlive-bibtex-extra texlive-font-utils texlive-extra-utils biber texlive-publishers texlive-humanities texlive-pstricks pandoc` |
 | **pandoc** | For export: `sudo apt-get install pandoc` inside WSL |
 
 Installation steps:
@@ -211,7 +212,7 @@ chmod +x LaTeX_Editor_v*_Linux_x86_64.AppImage
 sudo apt-get update
 sudo apt-get install texlive-base texlive-binaries texlive-latex-base \
   texlive-latex-extra texlive-latex-recommended texlive-lang-european \
-  texlive-luatex texlive-fonts-extra texlive-science texlive-bibtex-extra \
+  texlive-luatex texlive-xetex texlive-fonts-extra texlive-science texlive-bibtex-extra \
   texlive-font-utils texlive-extra-utils biber texlive-publishers \
   texlive-humanities texlive-pstricks libxcb-cursor0 pandoc
 ```
@@ -226,6 +227,7 @@ sudo apt-get install texlive-base texlive-binaries texlive-latex-base \
 | `texlive-latex-recommended` | ~40 MB | Common packages |
 | `texlive-latex-extra` | ~200 MB | Extra packages (tcolorbox, minted etc.) |
 | `texlive-luatex` | ~30 MB | LuaLaTeX support |
+| `texlive-xetex` | ~20 MB | XeLaTeX support |
 | `texlive-fonts-extra` | ~300 MB | Extra fonts |
 | `texlive-science` | ~50 MB | algorithm, siunitx etc. |
 | `texlive-bibtex-extra` + `biber` | ~30 MB | Bibliography |
@@ -241,7 +243,7 @@ sudo apt-get install texlive-base texlive-binaries texlive-latex-base \
 ```bash
 sudo apt-get update
 sudo apt-get install texlive-base texlive-binaries texlive-latex-base \
-  texlive-latex-recommended texlive-luatex libxcb-cursor0
+  texlive-latex-recommended texlive-luatex texlive-xetex libxcb-cursor0
 ```
 
 **To build AppImage:**
@@ -257,7 +259,7 @@ Result: `dist/LaTeX_Editor_v*_Linux_x86_64.AppImage`
 Install Python and TeX Live:
 ```bash
 sudo apt-get install python3 python3-pip texlive-base texlive-binaries texlive-latex-base \
-  texlive-latex-extra texlive-latex-recommended texlive-lang-european texlive-luatex \
+  texlive-latex-extra texlive-latex-recommended texlive-lang-european texlive-luatex texlive-xetex \
   texlive-fonts-extra texlive-science texlive-bibtex-extra texlive-font-utils \
   texlive-extra-utils biber texlive-publishers texlive-humanities texlive-pstricks libxcb-cursor0 pandoc
 

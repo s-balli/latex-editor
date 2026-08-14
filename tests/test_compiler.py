@@ -117,6 +117,21 @@ class TestLatexCompiler:
             proc1.deleteLater.assert_called_once()
         compiler._timeout_timer.stop()
 
+    def test_compile_xelatex_arg(self, tmp_path):
+        """xelatex motoru derle.sh'e --xelatex bayrağıyla iletilmeli (native yol)."""
+        tex = tmp_path / "test.tex"
+        tex.write_text("\\documentclass{article}\n\\begin{document}\n\\end{document}")
+        compiler = LatexCompiler()
+        with patch.object(compiler, "_start_windows"), \
+             patch("core.compiler.QProcess") as mock_qproc:
+            mock_proc = MagicMock()
+            mock_qproc.return_value = mock_proc
+            assert compiler.compile(str(tex), engine="xelatex") is True
+            args = mock_proc.start.call_args[0][1]
+            assert "--xelatex" in args
+            assert "--pdflatex" not in args
+        compiler._timeout_timer.stop()
+
     def test_stop_no_process(self):
         """Process yoksa stop() hata vermemeli."""
         compiler = LatexCompiler()

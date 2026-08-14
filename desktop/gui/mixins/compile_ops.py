@@ -169,8 +169,8 @@ class CompileOpsMixin:
 
         if failed:
             current = self._engine_combo.currentText()
-            other = "pdflatex" if current == "lualatex" else "lualatex"
-            self._output_panel.show_engine_hint(current, other)
+            others = [e for e in ("lualatex", "pdflatex", "xelatex") if e != current]
+            self._output_panel.show_engine_hint(current, others)
 
         self._refresh_error_markers()
 

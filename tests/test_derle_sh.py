@@ -382,3 +382,50 @@ class TestLogDosyasi:
         r = _run_derle([str(tex)], cwd=str(tmp_path), timeout=60)
         assert r.returncode != 0
         assert (tmp_path / "hata.log").exists()
+
+
+class TestXelatexModu:
+    # xelatex ayrı paket (texlive-xetex); kurulu değilse bu sınıf skip
+    _xe = pytest.mark.skipif(not shutil.which("xelatex"), reason="xelatex kurulu değil — texlive-xetex gerektirir")
+
+    @_xe
+    def test_xelatex_flag(self, tmp_path):
+        tex = tmp_path / "test.tex"
+        tex.write_text(MINIMAL_TEX)
+        r = _run_derle([str(tex), "--xelatex"], cwd=str(tmp_path), timeout=90)
+        assert r.returncode == 0
+        assert "xelatex" in r.stdout.lower()
+        assert (tmp_path / "test.pdf").exists()
+
+    @_xe
+    def test_xelatex_fontspec_pdf(self, tmp_path):
+        # fontspec + sistem fontu: XeLaTeX'e özgü iş akışı, PDF üretmeli
+        tex = tmp_path / "xe.tex"
+        tex.write_text(
+            "\\documentclass{article}\n"
+            "\\usepackage{fontspec}\n"
+            "\\setmainfont{DejaVu Serif}\n"
+            "\\begin{document}\nMerhaba XeLaTeX Dünya!\n\\end{document}\n"
+        )
+        r = _run_derle([str(tex), "--xelatex"], cwd=str(tmp_path), timeout=90)
+        assert r.returncode == 0
+        assert (tmp_path / "xe.pdf").exists()
+
+    def test_motor_yoksa_paket_onerisi(self, tmp_path):
+        # Kurulu olmayan motor: hata + '==> Eksik paket' önerisi (GUI Öneriler
+        # sekmesi bu çıktıyı parse eder). Motoru sandbox PATH ile görünmez kıl.
+        tex = tmp_path / "test.tex"
+        tex.write_text(MINIMAL_TEX)
+        sandbox = tmp_path / "bin"
+        sandbox.mkdir()
+        for tool in ("bash", "dirname", "realpath", "basename"):
+            os.symlink(shutil.which(tool), sandbox / tool)
+        r = subprocess.run(
+            ["bash", SCRIPT, str(tex), "--xelatex"],
+            capture_output=True, text=True, timeout=30,
+            env={"PATH": str(sandbox)},
+            cwd=str(tmp_path),
+        )
+        assert r.returncode != 0
+        assert "Eksik paket" in r.stdout
+        assert "texlive-xetex" in r.stdout

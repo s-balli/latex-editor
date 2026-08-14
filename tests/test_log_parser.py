@@ -138,7 +138,7 @@ class TestEngineSuggestion:
 
     def test_requires_xelatex(self):
         r = parse_output("! Error: this file requires XeLaTeX.\nl.1")
-        assert any("lualatex" in s.message.lower() for s in r.suggestions)
+        assert any("xelatex" in s.message.lower() for s in r.suggestions)
 
     def test_no_engine_requirement(self):
         r = parse_output("! Undefined control sequence.\nl.1")

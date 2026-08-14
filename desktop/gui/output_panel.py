@@ -158,10 +158,11 @@ class OutputPanel(QWidget):
         self._tabs.setTabText(self._suggest_tab_index, _("Öneriler ({n})").format(n=len(suggestions)))
         self._tabs.setCurrentIndex(self._warn_tab_index if warnings else self._suggest_tab_index)
 
-    def show_engine_hint(self, current: str, other: str):
+    def show_engine_hint(self, current: str, others: list[str]):
         """Başarısız derlemede motor değiştirme önerisini ekle ve tab'ı aç."""
         hint = QListWidgetItem(
-            _("Derleme başarısız oldu. Şu an {current} kullanılıyor.\n    → Araç çubuğundan motoru {other} olarak değiştirip tekrar deneyin.").format(current=current, other=other)
+            _("Derleme başarısız oldu. Şu an {current} kullanılıyor.\n    → Araç çubuğundan motoru {other} olarak değiştirip tekrar deneyin.").format(
+                current=current, other=" veya ".join(others))
         )
         hint.setForeground(QColor(self._theme["sem_hint"]))
         self._suggest_list.insertItem(0, hint)

@@ -1,9 +1,9 @@
 #!/bin/bash
 # LaTeX Derleme Betiği — tek seferlik + watch modu
 # Kullanim:
-#   bash derle-new.sh dosya.tex [--pdflatex] [--watch] [--shell-escape]
+#   bash derle-new.sh dosya.tex [--pdflatex | --xelatex] [--watch] [--shell-escape]
 #   bash derle-new.sh *.tex [--pdflatex]
-#   bash derle-new.sh /klasor/ [--pdflatex]
+#   bash derle-new.sh /klasor/ [--xelatex]
 
 set -euo pipefail
 
@@ -128,6 +128,7 @@ if [ $# -lt 1 ]; then
 fi
 
 USE_PDFLATEX=false
+USE_XELATEX=false
 USE_WATCH=false
 FORCE_SHELL_ESCAPE=false
 DOSYALAR=()
@@ -135,6 +136,7 @@ DOSYALAR=()
 for arg in "$@"; do
     case $arg in
         --pdflatex) USE_PDFLATEX=true ;;
+        --xelatex) USE_XELATEX=true ;;
         --watch) USE_WATCH=true ;;
         --shell-escape) FORCE_SHELL_ESCAPE=true ;;
         *) DOSYALAR+=("$arg") ;;
@@ -194,10 +196,26 @@ derle_dosya() {
     local MOTOR CIKTI_ISIM
     if [ "$USE_PDFLATEX" = true ]; then
         MOTOR="pdflatex"
-        CIKTI_ISIM="$ISIM"
+    elif [ "$USE_XELATEX" = true ]; then
+        MOTOR="xelatex"
     else
         MOTOR="lualatex"
-        CIKTI_ISIM="$ISIM"
+    fi
+    CIKTI_ISIM="$ISIM"
+
+    # Motor kurulu mu? — biber/bibtex deseninde öneriyle bildir (GUI Öneriler
+    # sekmesi bu çıktıyı parse eder).
+    local MOTOR_PAKET
+    case "$MOTOR" in
+        lualatex) MOTOR_PAKET="texlive-luatex" ;;
+        pdflatex) MOTOR_PAKET="texlive-latex-base" ;;
+        xelatex)  MOTOR_PAKET="texlive-xetex" ;;
+    esac
+    if ! command -v "$MOTOR" &>/dev/null; then
+        echo -e "${KIRMIZI}[hata] $MOTOR kurulu değil — derlenemedi${SIFIRLA}"
+        printf "${MAVI2}==> Eksik paket: %s (%s)${SIFIRLA}\n" "$MOTOR_PAKET" "$MOTOR"
+        printf "${MAVI2}    sudo apt-get install %s${SIFIRLA}\n" "$MOTOR_PAKET"
+        return 1
     fi
 
     # -shell-escape: yalnızca minted tespit edildiğinde veya zorlandığında
@@ -455,6 +473,8 @@ if [ "$USE_WATCH" = false ]; then
     # Motor bilgisi
     if [ "$USE_PDFLATEX" = true ]; then
         echo -e "${MAVI}[bilgi] pdflatex modu${SIFIRLA}"
+    elif [ "$USE_XELATEX" = true ]; then
+        echo -e "${MAVI}[bilgi] xelatex modu${SIFIRLA}"
     else
         echo -e "${MAVI}[bilgi] lualatex modu${SIFIRLA}"
     fi
@@ -509,6 +529,8 @@ WATCH_KLASOR=$(dirname "$(realpath "$DOSYA_YOLU")")
 
 if [ "$USE_PDFLATEX" = true ]; then
     MOTOR="pdflatex"
+elif [ "$USE_XELATEX" = true ]; then
+    MOTOR="xelatex"
 else
     MOTOR="lualatex"
 fi

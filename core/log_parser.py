@@ -61,7 +61,7 @@ _RE_SUGGESTION = re.compile(r'^==>\s*(Eksik (?:dil )?paket[ie]?): (.+)')
 # Kurulum komutu: "    sudo apt-get install ..."
 _RE_INSTALL = re.compile(r'^\s+sudo apt-get install (.+)')
 # Motor gereksinimi: hata mesajında "requires LuaLaTeX" vb.
-_RE_ENGINE_REQ = re.compile(r'requires\s+(LuaLaTeX|LuaTeX|XeLaTeX|pdfTeX)', re.IGNORECASE)
+_RE_ENGINE_REQ = re.compile(r'requires\s+(LuaLaTeX|LuaTeX|XeLaTeX|XeTeX|pdfTeX)', re.IGNORECASE)
 
 def parse_output(raw: str, source_file: str = "") -> CompileResult:
     """derle.sh çıktısını parse eder."""
@@ -185,7 +185,8 @@ def parse_output(raw: str, source_file: str = "") -> CompileResult:
     _engine_map = {
         "lualatex": "lualatex",
         "luatex": "lualatex",
-        "xelatex": "lualatex",
+        "xelatex": "xelatex",
+        "xetex": "xelatex",
     }
     for err in result.errors:
         m = _RE_ENGINE_REQ.search(err.message)

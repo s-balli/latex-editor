@@ -107,10 +107,10 @@ class TestDetectFromClsContent:
         assert _detect_from_cls_content("foo\nrequires LuaLaTeX\nbar") == "lualatex"
 
     def test_requires_xelatex(self):
-        assert _detect_from_cls_content("requires XeLaTeX") == "lualatex"
+        assert _detect_from_cls_content("requires XeLaTeX") == "xelatex"
 
     def test_require_xetex(self):
-        assert _detect_from_cls_content("\\RequireXeTeX") == "lualatex"
+        assert _detect_from_cls_content("\\RequireXeTeX") == "xelatex"
 
     def test_require_luatex(self):
         assert _detect_from_cls_content("\\RequireLuaTeX") == "lualatex"
@@ -135,9 +135,11 @@ class TestMagicComment:
     def test_lualatex(self):
         assert _magic_engine_from_content("% !TEX program = lualatex\n") == "lualatex"
 
-    def test_xelatex_maps_to_lualatex(self):
-        # derle.sh xelatex'i doğrudan çalıştırmaz; lualatex'e eşlenir
-        assert _magic_engine_from_content("% !TEX program = xelatex\n") == "lualatex"
+    def test_xelatex(self):
+        assert _magic_engine_from_content("% !TEX program = xelatex\n") == "xelatex"
+
+    def test_xetex_maps_to_xelatex(self):
+        assert _magic_engine_from_content("% !TEX program = xetex\n") == "xelatex"
 
     def test_ts_program_variant(self):
         assert _magic_engine_from_content("% !TEX TS-program = pdflatex\n") == "pdflatex"
@@ -196,6 +198,17 @@ class TestMagicComment:
 class TestDetectEngineFromContent:
     def test_fontspec(self):
         assert detect_engine_from_content("\\usepackage{fontspec}") == "lualatex"
+
+    def test_mathspec_xelatex(self):
+        # mathspec yalnız XeLaTeX'te derlenir
+        assert detect_engine_from_content("\\usepackage{mathspec}") == "xelatex"
+
+    def test_xecjk_xelatex(self):
+        assert detect_engine_from_content("\\usepackage{xeCJK}") == "xelatex"
+
+    def test_xecjk_beats_fontspec(self):
+        # xe'e özgü paket, ortak paket sinyalini (fontspec) geçersiz kılar
+        assert detect_engine_from_content("\\usepackage{fontspec}\n\\usepackage{xeCJK}") == "xelatex"
 
     def test_unicode_math(self):
         assert detect_engine_from_content("\\usepackage{unicode-math}") == "lualatex"
@@ -281,7 +294,7 @@ class TestDetectEngine:
         tex.write_text("\\documentclass{myclass}\n\\begin{document}\\end{document}")
         cls = tmp_path / "myclass.cls"
         cls.write_text("\\RequireXeTeX")
-        assert detect_engine(str(tex)) == "lualatex"
+        assert detect_engine(str(tex)) == "xelatex"
 
     def test_cls_not_found(self, tmp_path):
         tex = tmp_path / "main.tex"

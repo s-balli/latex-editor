@@ -104,6 +104,8 @@ class LatexCompiler(QObject):
         args = ["-e", "bash", wsl_derle, wsl_tex]
         if engine == "pdflatex":
             args.append("--pdflatex")
+        elif engine == "xelatex":
+            args.append("--xelatex")
         self.process.start("wsl", args)
 
     def _start_native(self, tex_path: str, engine: str):
@@ -113,6 +115,8 @@ class LatexCompiler(QObject):
         args = [derle_sh, tex_path]
         if engine == "pdflatex":
             args.append("--pdflatex")
+        elif engine == "xelatex":
+            args.append("--xelatex")
 
         self.process.start("bash", args)
 

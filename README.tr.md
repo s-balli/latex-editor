@@ -41,6 +41,7 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 ## Sürüm Geçmişi
 
 ### Unreleased
+- **Motor**: XeLaTeX desteği: araç çubuğunda üçüncü motor, `derle.sh`'de `--xelatex` bayrağı, magic comment ve paket bazlı algılama (`mathspec`, `xeCJK`, `xltxtra`, `requires XeLaTeX`), motor eksikse `sudo apt-get install texlive-xetex` önerisi
 - **Editör**: `\input{` / `\include{` tamamlaması: projedeki `.tex` dosyalarını önerir (göreli yol, uzantısız), alt dizinler dahil
 - **Editör**: `\includegraphics{` tamamlaması: projedeki resim dosyalarını (`png/jpg/jpeg/pdf/eps`) önerir; resim yapıştırma/sürükle-bırak ile aynı yol kuralı (ana dosyaya göre, uzantılı); `[width=...]` argümanlı kullanımı da tanır
 - **Editör**: referans denetimi (Düzenle > Referansları Denetle): tanımsız `\ref`/`\cite` anahtarları ve kullanılmayan `.bib` girdileri, derlemeden bağımsız lokal analiz; çok dosyalı (`\input`) farkında, yorumları ve `\nocite{*}` gözeten; bulgular tıklanabilir (kullanım satırına ya da `.bib` girdisine atlar)
@@ -91,7 +92,7 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 - **LaTeX sözdizimi renklendirme** — komutlar, yorumlar, matematik, ortamlar
 - **PDF önizleme** — yan panelde anlık PDF görüntüleme, yakınlaştırma
 - **Otomatik derleme** — Ctrl+S ile kaydet ve derle
-- **Çift motor desteği** — lualatex (varsayılan) ve pdflatex
+- **Üçlü motor desteği** — lualatex (varsayılan), pdflatex ve xelatex
 - **Proje yönetimi** — klasör açma, dosya ağacı, çoklu dosya sekmeleri
 - **Hata görüntüleme** — derleme hataları ve uyarıları ayrı sekmelerde
 - **7 tema** — Koyu, Açık, Solarized Light, Dracula, Monokai, Nord, Gruvbox
@@ -118,7 +119,7 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 ```bash
 sudo apt-get update
 sudo apt-get install texlive-base texlive-binaries texlive-latex-base \
-  texlive-latex-extra texlive-latex-recommended texlive-lang-european texlive-luatex \
+  texlive-latex-extra texlive-latex-recommended texlive-lang-european texlive-luatex texlive-xetex \
   texlive-fonts-extra texlive-science texlive-bibtex-extra texlive-font-utils \
   texlive-extra-utils biber texlive-publishers texlive-humanities texlive-pstricks pandoc
 ```
@@ -185,7 +186,7 @@ Başka bir bilgisayarda çalıştırmak için:
 |---------|----------|
 | `LaTeX Editor.exe` | Tek dosya, Python gerektirmez |
 | **WSL** | Windows 10/11'de WSL aktif olmalı |
-| **TeX Live** | WSL içinde: `sudo apt-get update && sudo apt-get install texlive-base texlive-binaries texlive-latex-base texlive-latex-extra texlive-latex-recommended texlive-lang-european texlive-luatex texlive-fonts-extra texlive-science texlive-bibtex-extra texlive-font-utils texlive-extra-utils biber texlive-publishers texlive-humanities texlive-pstricks pandoc` |
+| **TeX Live** | WSL içinde: `sudo apt-get update && sudo apt-get install texlive-base texlive-binaries texlive-latex-base texlive-latex-extra texlive-latex-recommended texlive-lang-european texlive-luatex texlive-xetex texlive-fonts-extra texlive-science texlive-bibtex-extra texlive-font-utils texlive-extra-utils biber texlive-publishers texlive-humanities texlive-pstricks pandoc` |
 | **pandoc** | Dışa aktarma için: WSL içinde `sudo apt-get install pandoc` |
 
 Kurulum adımları:
@@ -211,7 +212,7 @@ chmod +x LaTeX_Editor_v*_Linux_x86_64.AppImage
 sudo apt-get update
 sudo apt-get install texlive-base texlive-binaries texlive-latex-base \
   texlive-latex-extra texlive-latex-recommended texlive-lang-european \
-  texlive-luatex texlive-fonts-extra texlive-science texlive-bibtex-extra \
+  texlive-luatex texlive-xetex texlive-fonts-extra texlive-science texlive-bibtex-extra \
   texlive-font-utils texlive-extra-utils biber texlive-publishers \
   texlive-humanities texlive-pstricks libxcb-cursor0 pandoc
 ```
@@ -226,6 +227,7 @@ sudo apt-get install texlive-base texlive-binaries texlive-latex-base \
 | `texlive-latex-recommended` | ~40 MB | Sık kullanılan paketler |
 | `texlive-latex-extra` | ~200 MB | Ek paketler (tcolorbox, minted vb.) |
 | `texlive-luatex` | ~30 MB | LuaLaTeX desteği |
+| `texlive-xetex` | ~20 MB | XeLaTeX desteği |
 | `texlive-fonts-extra` | ~300 MB | Ek fontlar |
 | `texlive-science` | ~50 MB | algorithm, siunitx vb. |
 | `texlive-bibtex-extra` + `biber` | ~30 MB | Kaynakça |
@@ -241,7 +243,7 @@ sudo apt-get install texlive-base texlive-binaries texlive-latex-base \
 ```bash
 sudo apt-get update
 sudo apt-get install texlive-base texlive-binaries texlive-latex-base \
-  texlive-latex-recommended texlive-luatex libxcb-cursor0
+  texlive-latex-recommended texlive-luatex texlive-xetex libxcb-cursor0
 ```
 
 **AppImage oluşturmak için:**
@@ -257,7 +259,7 @@ Sonuç: `dist/LaTeX_Editor_v*_Linux_x86_64.AppImage`
 Python ve TeX Live kur:
 ```bash
 sudo apt-get install python3 python3-pip texlive-base texlive-binaries texlive-latex-base \
-  texlive-latex-extra texlive-latex-recommended texlive-lang-european texlive-luatex \
+  texlive-latex-extra texlive-latex-recommended texlive-lang-european texlive-luatex texlive-xetex \
   texlive-fonts-extra texlive-science texlive-bibtex-extra texlive-font-utils \
   texlive-extra-utils biber texlive-publishers texlive-humanities texlive-pstricks libxcb-cursor0 pandoc
 

@@ -21,16 +21,14 @@ def _magic_engine_from_content(content: str) -> str | None:
     """
     İçeriğin üst satırlarındaki '% !TEX program = ...' yönergesinden motoru döndür.
 
-    Dönüş: 'lualatex' veya 'pdflatex'; tanınmazsa None.
-    XeLaTeX yönergesi lualatex'e eşlenir (derle.sh xelatex'i doğrudan
-    çalıştırmaz; mevcut XeLaTeX→LuaLaTeX eşlemesiyle tutarlı).
+    Dönüş: 'lualatex', 'pdflatex' veya 'xelatex'; tanınmazsa None.
     """
     _map = {
         "pdflatex": "pdflatex",
         "lualatex": "lualatex",
         "luatex": "lualatex",
-        "xelatex": "lualatex",
-        "xetex": "lualatex",
+        "xelatex": "xelatex",
+        "xetex": "xelatex",
     }
     for line in content.splitlines()[:_MAGIC_SCAN_LINES]:
         m = _MAGIC_TEX_PROGRAM.match(line.strip())
@@ -46,7 +44,7 @@ def detect_engine_from_magic_comment(tex_path: str) -> str | None:
     """
     Dosyanın üst satırlarındaki '% !TEX program = ...' yönergesini oku.
 
-    Dönüş: 'lualatex', 'pdflatex' veya None.
+    Dönüş: 'lualatex', 'pdflatex', 'xelatex' veya None.
     """
     try:
         with open(tex_path, "r", encoding="utf-8", errors="replace") as f:
@@ -62,6 +60,13 @@ _LUALATEX_TEX_SIGNALS = (
     "\\usepackage{unicode-math}",
     "\\usepackage{polyglossia}",
 )
+# XeLaTeX'e özgü paketler: mathspec/xeCJK LuaLaTeX'te çalışmaz. fontspec/
+# polyglossia her ikisinde de çalıştığından lualatex tarafında kalır.
+_XELATEX_TEX_SIGNALS = (
+    "\\usepackage{mathspec}",
+    "\\usepackage{xeCJK}",
+    "\\usepackage{xltxtra}",
+)
 _PDFLATEX_TEX_SIGNALS = ("{inputenc}", "{fontenc}")
 
 
@@ -69,8 +74,11 @@ def _engine_from_tex_signals(clean: str) -> str | None:
     """Yorumları temizlenmiş .tex içeriğindeki paket sinyallerinden motor döndür.
 
     magic comment ve .cls sinyalleri burada ele alınmaz.
-    Dönüş: 'lualatex', 'pdflatex' veya None.
+    Dönüş: 'lualatex', 'pdflatex', 'xelatex' veya None.
     """
+    for signal in _XELATEX_TEX_SIGNALS:
+        if signal in clean:
+            return "xelatex"
     for signal in _LUALATEX_TEX_SIGNALS:
         if signal in clean:
             return "lualatex"
@@ -85,7 +93,7 @@ def detect_engine(tex_path: str) -> str | None:
     .tex dosyasından ve referans verdiği .cls dosyasından
     uygun derleme motorunu algıla.
 
-    Dönüş: 'lualatex', 'pdflatex' veya None (belirsiz — pdflatex varsayılmalı)
+    Dönüş: 'lualatex', 'pdflatex', 'xelatex' veya None (belirsiz — pdflatex varsayılmalı)
     """
     try:
         with open(tex_path, "r", encoding="utf-8", errors="replace") as f:
@@ -211,13 +219,20 @@ def _detect_from_cls_content(content: str) -> str | None:
     """Yorumları temizlenmiş .cls içeriğinden motor algıla."""
     clean = strip_comments(content)
 
+    # XeLaTeX sinyalleri
+    xelatex_signals = [
+        "requires XeLaTeX",
+        "\\RequireXeTeX",
+    ]
+    for signal in xelatex_signals:
+        if signal in clean:
+            return "xelatex"
+
     # LuaLaTeX sinyalleri
     lualatex_signals = [
         "requires LuaLaTeX",
         "requires LuaTeX",
-        "requires XeLaTeX",
         "\\RequireLuaTeX",
-        "\\RequireXeTeX",
     ]
     for signal in lualatex_signals:
         if signal in clean:
