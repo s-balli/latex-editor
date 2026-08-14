@@ -41,6 +41,7 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 ## Version History
 
 ### Unreleased
+- **Editor**: settings dialog (View > Editor Settings): tab width, editor font size and word wrap; persisted across sessions and applied to open tabs and new ones
 - **Engine**: XeLaTeX support: third engine in the toolbar/combos, `--xelatex` flag in `derle.sh`, magic-comment & package-based detection (`mathspec`, `xeCJK`, `xltxtra`, `requires XeLaTeX`), and a missing-engine hint suggesting `sudo apt-get install texlive-xetex`
 - **Editor**: `\input{` / `\include{` completion: suggests `.tex` files from the project (relative paths, extension-free), subdirectories included
 - **Editor**: `\includegraphics{` completion: suggests image files (`png/jpg/jpeg/pdf/eps`) from the project, same path convention as image paste/drag-drop (relative to the main file, extension kept); optional `[width=...]` argument aware

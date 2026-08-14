@@ -82,6 +82,8 @@ class EditorWidget(QsciScintilla):
         self._detected_engine = ""
         self._initial_theme = theme
         self._encoding = "utf-8"
+        self._font_size = 11      # ayarlardan (apply_editor_settings) değişir
+        self._theme = None        # son uygulanan tema (font boyutu korunarak yeniden uygulanır)
         self._setup_editor()
 
     def _setup_editor(self):
@@ -152,6 +154,7 @@ class EditorWidget(QsciScintilla):
         return (b << 16) | (g << 8) | r
 
     def apply_theme(self, t: dict):
+        self._theme = t
         c = lambda key: QColor(t[key])
         s = lambda key: self._hex_to_scintilla(t[key])
 
@@ -176,7 +179,7 @@ class EditorWidget(QsciScintilla):
         self.setPalette(pal)
 
         if self.lexer():
-            self.lexer().apply_theme(t)
+            self.lexer().apply_theme(t, self._font_size)
 
         # C.11: eşleşen \begin/\end vurgu kutusu rengi
         self.SendScintilla(QsciScintilla.SCI_INDICSETFORE, 0,
@@ -187,6 +190,15 @@ class EditorWidget(QsciScintilla):
                            self._hex_to_scintilla(t.get("error", "#c62828")))
         self.SendScintilla(QsciScintilla.SCI_MARKERSETFORE, self._ERR_MARKER,
                            self._hex_to_scintilla(t.get("fg_bright", "#ffffff")))
+
+    def apply_editor_settings(self, tab_width: int, font_size: int, wrap: bool):
+        """Ayarlar dialogu değerlerini uygula; tema yeniden uygulansa da korunur."""
+        self._font_size = font_size
+        self.setTabWidth(tab_width)
+        self.setWrapMode(QsciScintilla.WrapMode.WrapWord if wrap
+                         else QsciScintilla.WrapMode.WrapNone)
+        if self._theme:
+            self.apply_theme(self._theme)
 
     def mousePressEvent(self, event):
         if (event.button() == Qt.MouseButton.LeftButton and self._file_path):

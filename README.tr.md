@@ -41,6 +41,7 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 ## Sürüm Geçmişi
 
 ### Unreleased
+- **Editör**: ayarlar penceresi (Görünüm > Editör Ayarları): tab genişliği, font boyutu ve satır kaydırma; oturmlar arası kalıcı, açık sekmelere ve yenilerine uygulanır
 - **Motor**: XeLaTeX desteği: araç çubuğunda üçüncü motor, `derle.sh`'de `--xelatex` bayrağı, magic comment ve paket bazlı algılama (`mathspec`, `xeCJK`, `xltxtra`, `requires XeLaTeX`), motor eksikse `sudo apt-get install texlive-xetex` önerisi
 - **Editör**: `\input{` / `\include{` tamamlaması: projedeki `.tex` dosyalarını önerir (göreli yol, uzantısız), alt dizinler dahil
 - **Editör**: `\includegraphics{` tamamlaması: projedeki resim dosyalarını (`png/jpg/jpeg/pdf/eps`) önerir; resim yapıştırma/sürükle-bırak ile aynı yol kuralı (ana dosyaya göre, uzantılı); `[width=...]` argümanlı kullanımı da tanır

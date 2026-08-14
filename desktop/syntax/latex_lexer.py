@@ -33,9 +33,9 @@ class LatexLexer(QsciLexerCustom):
         super().__init__(parent)
         self._line_states = {0: 0}
 
-    def apply_theme(self, t: dict):
+    def apply_theme(self, t: dict, font_size: int = 11):
         bg = QColor(t["bg_primary"])
-        mono = QFont(_MONO_FONTS, 11)
+        mono = QFont(_MONO_FONTS, font_size)
 
         self.setColor(QColor(t["syn_default"]), self.DEFAULT)
         self.setPaper(bg, self.DEFAULT)
@@ -53,7 +53,7 @@ class LatexLexer(QsciLexerCustom):
         self.setPaper(bg, self.BRACKET)
         self.setFont(mono, self.BRACKET)
 
-        comment_font = QFont(_MONO_FONTS, 11, italic=True)
+        comment_font = QFont(_MONO_FONTS, font_size, italic=True)
         self.setColor(QColor(t["syn_comment"]), self.COMMENT)
         self.setPaper(bg, self.COMMENT)
         self.setFont(comment_font, self.COMMENT)
@@ -66,7 +66,7 @@ class LatexLexer(QsciLexerCustom):
         self.setPaper(math_bg, self.MATH_CMD)
         self.setFont(mono, self.MATH_CMD)
 
-        env_font = QFont(_MONO_FONTS, 11, QFont.Weight.Bold)
+        env_font = QFont(_MONO_FONTS, font_size, QFont.Weight.Bold)
         self.setColor(QColor(t["syn_env_arg"]), self.ENV_ARG)
         self.setPaper(bg, self.ENV_ARG)
         self.setFont(env_font, self.ENV_ARG)

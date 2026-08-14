@@ -245,6 +245,8 @@ class MainWindow(
             act.triggered.connect(lambda checked, n=name: self._select_theme(n))
             theme_menu.addAction(act)
             self._theme_actions[name] = act
+        view_menu.addSeparator()
+        self._add_action(view_menu, _("Editör A&yarları..."), self._open_settings_dialog)
 
         # Yardım menüsü
         help_menu = menubar.addMenu(_("&Yardım"))
@@ -449,6 +451,39 @@ class MainWindow(
         if code:
             set_language(code)
             QMessageBox.information(self, "LaTeX Editor", _("Dil değişikliği yeniden başlatma gerektirir."))
+
+    # --- Editör ayarları (tab genişliği, font boyutu, satır kaydırma) ---
+
+    _EDITOR_SETTING_DEFAULTS = {"editor/tab_width": 4, "editor/font_size": 11, "editor/wrap": True}
+
+    def _read_editor_settings(self) -> dict:
+        d = self._EDITOR_SETTING_DEFAULTS
+        return {
+            "tab_width": int(self._settings.value("editor/tab_width", d["editor/tab_width"])),
+            "font_size": int(self._settings.value("editor/font_size", d["editor/font_size"])),
+            "wrap": self._settings.value("editor/wrap", d["editor/wrap"]) in (True, "true", "True"),
+        }
+
+    def _apply_editor_settings(self, editor):
+        """Kayıtlı editör ayarlarını bir editöre uygula (yeni sekmelerde çağrılır)."""
+        s = self._read_editor_settings()
+        editor.apply_editor_settings(s["tab_width"], s["font_size"], s["wrap"])
+
+    def _open_settings_dialog(self):
+        from PyQt6.QtWidgets import QDialog
+        from gui.settings_dialog import EditorSettingsDialog
+        dlg = EditorSettingsDialog(self._read_editor_settings(), self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        vals = dlg.values()
+        self._settings.setValue("editor/tab_width", vals["tab_width"])
+        self._settings.setValue("editor/font_size", vals["font_size"])
+        self._settings.setValue("editor/wrap", vals["wrap"])
+        for i in range(self._editor_tabs.count()):
+            ed = self._editor_tabs.widget(i)
+            if isinstance(ed, EditorWidget):
+                self._apply_editor_settings(ed)
+        self._status.showMessage(_("Editör ayarları kaydedildi"))
 
     # --- Yardımcılar ---
 

@@ -34,6 +34,7 @@ class FileOpsMixin:
         if not path:
             return
         editor = EditorWidget(theme=self._theme_mgr.theme)
+        self._apply_editor_settings(editor)
         editor.setText("\\documentclass{article}\n\\begin{document}\n\n\\end{document}\n")
         editor.save_file_as(path)
         editor.setCursorPosition(3, 0)
@@ -68,6 +69,7 @@ class FileOpsMixin:
                 return
 
         editor = EditorWidget(theme=self._theme_mgr.theme)
+        self._apply_editor_settings(editor)
         if editor.open_file(path):
             _logger.info("Dosya açıldı: %s", path)
             editor.modificationChanged.connect(lambda m, e=editor: self._update_tab_title(e))
