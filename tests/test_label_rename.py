@@ -11,6 +11,8 @@ from unittest.mock import patch
 import pytest
 
 try:
+    from PyQt6.QtCore import QEvent, Qt
+    from PyQt6.QtGui import QKeyEvent
     from PyQt6.QtWidgets import QApplication
     from gui.editor import EditorWidget
     from gui.main_window import MainWindow
@@ -276,3 +278,54 @@ def test_f2_label_line_start(qapp):
     ed.setCursorPosition(0, 0)
     ed._request_rename()
     assert caught == ["fig:a"]
+
+
+# --- F2 tuş basışı (keyPressEvent dalı) ---
+
+
+def test_f2_keypress_triggers(qapp):
+    """Gerçek QKeyEvent ile F2 → imleç altındaki anahtar yakalanır."""
+    ed = EditorWidget()
+    ed.setText("\\label{fig:a}\n")
+    caught = []
+    ed.rename_label_requested.connect(caught.append)
+    ed.setCursorPosition(0, 7)
+    ev = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_F2, Qt.KeyboardModifier.NoModifier)
+    ed.keyPressEvent(ev)
+    assert caught == ["fig:a"]
+
+
+def test_f2_with_modifier_ignored(qapp):
+    """Ctrl+F2 yakalanmaz — pencere/menü kısayollarına kalır."""
+    ed = EditorWidget()
+    ed.setText("\\label{fig:a}\n")
+    caught = []
+    ed.rename_label_requested.connect(caught.append)
+    ed.setCursorPosition(0, 7)
+    ev = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_F2,
+                   Qt.KeyboardModifier.ControlModifier)
+    ed.keyPressEvent(ev)
+    assert caught == []
+
+
+# --- kodlama round-trip: eski Türkçe (cp1254) zincir dosyası ---
+
+
+def test_rename_preserves_legacy_encoding(qapp, tmp_path):
+    """Diskteki çocuk cp1254 ise rename sonrası da cp1254 kalmalı (baytlar bozulmaz)."""
+    ch_bytes = "metin \\ref{fig:a} ve Türkçe karakter: şğı\n".encode("cp1254")
+    (tmp_path / "ch.tex").write_bytes(ch_bytes)
+    main = tmp_path / "m.tex"
+    main.write_text("\\label{fig:a}\n\\input{ch}\n", encoding="utf-8")
+    ed = EditorWidget()
+    ed._file_path = str(main)
+    ed.setText(main.read_text(encoding="utf-8"))
+
+    stub = _StubMain(editors=[ed])
+    with patch("gui.mixins.edit_ops.QInputDialog.getText", return_value=("fig:yeni", True)):
+        MainWindow._on_rename_label(stub, "fig:a")
+
+    raw = (tmp_path / "ch.tex").read_bytes()
+    # cp1254 olarak decode edilip birebir korunmuş olmalı; utf-8'e dönüşmemiş
+    assert raw.decode("cp1254") == "metin \\ref{fig:yeni} ve Türkçe karakter: şğı\n"
+    assert "şğı".encode("cp1254") in raw

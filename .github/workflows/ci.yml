@@ -45,8 +45,17 @@ jobs:
 
       - name: Lint (ruff)
         run: |
-          pip install ruff
+          pip install "ruff==0.16.2"
           ruff check desktop/ core/ tests/
+
+      - name: EN çeviriler tamamlanmış mı
+        run: |
+          if grep -q 'type="unfinished"' desktop/translations/latexeditor_en.ts; then
+            echo "latexeditor_en.ts içinde unfinished çeviri var:"
+            grep -c 'type="unfinished"' desktop/translations/latexeditor_en.ts
+            echo "Düzeltme: PATH=/usr/lib/qt6/bin:\$PATH bash scripts/update_translations.sh + EN doldurma"
+            exit 1
+          fi
 
       - name: Run tests
         env:

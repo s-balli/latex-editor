@@ -132,3 +132,34 @@ def test_summary_without_current_message(qapp, tmp_path):
     stub._status = SimpleNamespace(showMessage=msgs.append)   # currentMessage yok
     MainWindow._maybe_auto_audit(stub)                        # hata vermemeli
     assert any(m.startswith("Denetim:") for m in msgs)
+
+
+# --- entegrasyon: derleme bitişi otomatik denetimi tetikler ---
+
+
+class _Viewer:
+    """PDF viewer yerine: clear/load_pdf yeterli."""
+
+    def clear(self):
+        pass
+
+    def load_pdf(self, path):
+        return True
+
+
+def test_compile_finish_runs_auto_audit(qapp, tmp_path):
+    """_on_compile_finished → panelde derleme sonucu DURURKEN denetim bulgusu eklenir."""
+    tex = _broken_doc(tmp_path)
+    s = FakeSettings()
+    s.d["compile/auto_audit"] = True
+    stub = _StubMain(settings=s, target=str(tex))
+    stub._pdf_viewer = _Viewer()
+
+    from core.log_parser import CompileResult
+    MainWindow._on_compile_finished(stub, CompileResult(success=False))
+
+    panel = stub._output_panel
+    assert panel._error_list.count() == 0        # hata yok (errors boş)
+    assert panel._warn_list.count() == 1         # denetim bulgusu geldi
+    assert "fig:yok" in panel._warn_list.item(0).text()
+    assert "Denetim:" in stub._status.msg

@@ -233,7 +233,7 @@ class EditOpsMixin:
         return changed
 
     def _on_rename_label(self, key: str):
-        """F2 (label): \label anahtarını doküman + \input zincirinde değiştir.
+        r"""F2 (label): \label anahtarını doküman + \input zincirinde değiştir.
 
         Yeni ad projede zaten varsa engellenir.
         """
@@ -279,7 +279,7 @@ class EditOpsMixin:
             self._status.showMessage(_("Değişiklik yok: {k}").format(k=key))
 
     def _on_rename_cite(self, key: str):
-        """F2 (cite): .bib girdi anahtarını tüm \cite kullanımlarıyla değiştir.
+        r"""F2 (cite): .bib girdi anahtarını tüm \cite kullanımlarıyla değiştir.
 
         .tex'ten tetiklenirse o dosyanın \input zinciri + .bib; .bib
         editöründen tetiklenirse anahtarı kullanan ilk .tex'in zinciri + .bib
