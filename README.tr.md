@@ -40,10 +40,11 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 
 ## Sürüm Geçmişi
 
-### Unreleased
+### v1.0.7 — Hızlı Açma, Yeniden Adlandırma ve Otomatik Denetim
 - **Editör**: hızlı dosya açma (Ctrl+P): proje klasöründeki dosyalar (.tex/.bib/.cls/.sty) bulanık filtreyle; yaz, ok tuşlarıyla gez, Enter ile aç
 - **Editör**: `\cite` anahtarı veya `.bib` girdisi üzerinde F2 ile kaynakça anahtarını doküman, `\input` zinciri ve `.bib` girdisinin kendisinde toplu yeniden adlandır; `\bibitem` (el ile kaynakça) girdileri de desteklenir (çoklu `\cite{a,b}` segmentleri destekli; açık sekmeler tek undo adımı alır; çift isim engellenir). Label'da F2 eskisi gibi çalışır
 - **Editör**: isteğe bağlı derleme sonrası referans denetimi (Derle menüsü anahtarı): her derlemeden sonra bulgular, derleme hatalarını silmeden panelin sonuna eklenir; eskisi gibi tıklanabilir; durum çubuğuna, derleme sonucunun yanına sıfır kategorileri atlayan tek satır özet düşer
+- **656 birim testi**
 
 ### v1.0.6 — Tamamlamalar, Referans Denetimi, Yeniden Adlandırma ve XeLaTeX
 - **Editör**: ayarlar penceresi (Görünüm > Editör Ayarları): tab genişliği, font boyutu ve satır kaydırma; oturmlar arası kalıcı, açık sekmelere ve yenilerine uygulanır

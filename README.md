@@ -40,10 +40,11 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 
 ## Version History
 
-### Unreleased
+### v1.0.7 — Quick Open, Rename & Auto Audit
 - **Editor**: quick open (Ctrl+P): fuzzy-filtered file picker over the project folder (.tex/.bib/.cls/.sty); type, navigate with arrow keys, Enter opens
 - **Editor**: F2 on a `\cite` key or a `.bib` entry renames the bibliography key across the document, the `\input` chain and the `.bib` entry itself; `\bibitem` entries (manual thebibliography) are also supported (multi-key `\cite{a,b}` segments handled; single undo step in open tabs; duplicates blocked). F2 on labels keeps working as before
 - **Editor**: optional post-compile reference audit (Build menu toggle): findings are appended to the output panel after each compile without clearing compile errors; clickable as before; a one-line summary (zero categories omitted) is appended to the status bar next to the compile result
+- **656 unit tests**
 
 ### v1.0.6 — Completions, Reference Audit, Rename & XeLaTeX
 - **Editor**: settings dialog (View > Editor Settings): tab width, editor font size and word wrap; persisted across sessions and applied to open tabs and new ones
