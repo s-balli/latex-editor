@@ -69,6 +69,12 @@ class LatexCompiler(QObject):
         self._start_time = time.time()
         self._finished_emitted = False
 
+        # Önceki derlemenin QProcess'ini bırak: her derleme yeni nesne yaratır,
+        # eskisi QObject child olarak birikir (uzun oturumda sızıntı). Üstteki
+        # guard NotRunning garantisi verir; deleteLater bağlantılarını da koparır.
+        if self.process is not None:
+            self.process.deleteLater()
+
         self.process = QProcess(self)
         self.process.setProcessChannelMode(QProcess.ProcessChannelMode.MergedChannels)
         self.process.readyReadStandardOutput.connect(self._on_output)

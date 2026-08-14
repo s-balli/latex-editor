@@ -96,6 +96,27 @@ class TestLatexCompiler:
             assert compiler._tex_name == "test"
             assert compiler._tex_path == str(tex)
 
+    def test_recompile_releases_old_process(self, tmp_path):
+        """Yeni derleme başlarken eski QProcess deleteLater ile bırakılmalı (sızıntı)."""
+        tex = tmp_path / "test.tex"
+        tex.write_text("\\documentclass{article}\n\\begin{document}\n\\end{document}")
+        compiler = LatexCompiler()
+        with patch.object(compiler, "_start_windows"), \
+             patch.object(compiler, "_start_native"), \
+             patch("core.compiler.QProcess") as mock_qproc:
+            proc1, proc2 = MagicMock(), MagicMock()
+            mock_qproc.side_effect = [proc1, proc2]
+            assert compiler.compile(str(tex)) is True
+            assert compiler.process is proc1
+            # İlk derleme bitti (NotRunning) — yenisi eskisini bırakmalı.
+            # Not: derleyicinin baktığı QProcess globali de patch'li olduğundan
+            # guard karşılaştırması mock'un enum'uyla yapılmalı.
+            proc1.state.return_value = mock_qproc.ProcessState.NotRunning
+            assert compiler.compile(str(tex)) is True
+            assert compiler.process is proc2
+            proc1.deleteLater.assert_called_once()
+        compiler._timeout_timer.stop()
+
     def test_stop_no_process(self):
         """Process yoksa stop() hata vermemeli."""
         compiler = LatexCompiler()
