@@ -14,7 +14,7 @@ Contributions are welcome! This guide covers building, testing, and submitting c
 - **TeX Live** (for compilation testing — optional, tests auto-skip if missing):
   ```bash
   sudo apt-get install texlive-base texlive-binaries texlive-latex-base \
-    texlive-latex-recommended texlive-luatex pandoc
+    texlive-latex-recommended texlive-luatex texlive-xetex pandoc
   ```
 
 ### Run from source

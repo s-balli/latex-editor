@@ -65,7 +65,7 @@ jobs:
             echo "   sudo apt-get update"
             echo "   sudo apt-get install texlive-base texlive-binaries texlive-latex-base \\"
             echo "     texlive-latex-extra texlive-latex-recommended texlive-lang-european \\"
-            echo "     texlive-luatex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
+            echo "     texlive-luatex texlive-xetex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
             echo "     texlive-font-utils texlive-extra-utils biber texlive-publishers \\"
             echo "     texlive-humanities texlive-pstricks pandoc"
             echo '   ```'
@@ -77,7 +77,7 @@ jobs:
             echo "   sudo apt-get update"
             echo "   sudo apt-get install texlive-base texlive-binaries texlive-latex-base \\"
             echo "     texlive-latex-extra texlive-latex-recommended texlive-lang-european \\"
-            echo "     texlive-luatex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
+            echo "     texlive-luatex texlive-xetex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
             echo "     texlive-font-utils texlive-extra-utils biber texlive-publishers \\"
             echo "     texlive-humanities texlive-pstricks libxcb-cursor0 pandoc"
             echo '   ```'
@@ -87,7 +87,7 @@ jobs:
             echo '   ```'
             echo "   sudo apt-get update"
             echo "   sudo apt-get install texlive-base texlive-binaries texlive-latex-base \\"
-            echo "     texlive-latex-recommended texlive-luatex libxcb-cursor0"
+            echo "     texlive-latex-recommended texlive-luatex texlive-xetex libxcb-cursor0"
             echo '   ```'
             echo ""
             echo "---"
@@ -106,7 +106,7 @@ jobs:
             echo "   sudo apt-get update"
             echo "   sudo apt-get install texlive-base texlive-binaries texlive-latex-base \\"
             echo "     texlive-latex-extra texlive-latex-recommended texlive-lang-european \\"
-            echo "     texlive-luatex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
+            echo "     texlive-luatex texlive-xetex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
             echo "     texlive-font-utils texlive-extra-utils biber texlive-publishers \\"
             echo "     texlive-humanities texlive-pstricks pandoc"
             echo '   ```'
@@ -118,7 +118,7 @@ jobs:
             echo "   sudo apt-get update"
             echo "   sudo apt-get install texlive-base texlive-binaries texlive-latex-base \\"
             echo "     texlive-latex-extra texlive-latex-recommended texlive-lang-european \\"
-            echo "     texlive-luatex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
+            echo "     texlive-luatex texlive-xetex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
             echo "     texlive-font-utils texlive-extra-utils biber texlive-publishers \\"
             echo "     texlive-humanities texlive-pstricks libxcb-cursor0 pandoc"
             echo '   ```'
@@ -128,7 +128,7 @@ jobs:
             echo '   ```'
             echo "   sudo apt-get update"
             echo "   sudo apt-get install texlive-base texlive-binaries texlive-latex-base \\"
-            echo "     texlive-latex-recommended texlive-luatex libxcb-cursor0"
+            echo "     texlive-latex-recommended texlive-luatex texlive-xetex libxcb-cursor0"
             echo '   ```'
             echo ""
             echo "---"
@@ -194,7 +194,7 @@ jobs:
             echo "   sudo apt-get update"
             echo "   sudo apt-get install texlive-base texlive-binaries texlive-latex-base \\"
             echo "     texlive-latex-extra texlive-latex-recommended texlive-lang-european \\"
-            echo "     texlive-luatex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
+            echo "     texlive-luatex texlive-xetex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
             echo "     texlive-font-utils texlive-extra-utils biber texlive-publishers \\"
             echo "     texlive-humanities texlive-pstricks pandoc"
             echo '   ```'
@@ -206,7 +206,7 @@ jobs:
             echo "   sudo apt-get update"
             echo "   sudo apt-get install texlive-base texlive-binaries texlive-latex-base \\"
             echo "     texlive-latex-extra texlive-latex-recommended texlive-lang-european \\"
-            echo "     texlive-luatex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
+            echo "     texlive-luatex texlive-xetex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
             echo "     texlive-font-utils texlive-extra-utils biber texlive-publishers \\"
             echo "     texlive-humanities texlive-pstricks libxcb-cursor0 pandoc"
             echo '   ```'
@@ -216,7 +216,7 @@ jobs:
             echo '   ```'
             echo "   sudo apt-get update"
             echo "   sudo apt-get install texlive-base texlive-binaries texlive-latex-base \\"
-            echo "     texlive-latex-recommended texlive-luatex libxcb-cursor0"
+            echo "     texlive-latex-recommended texlive-luatex texlive-xetex libxcb-cursor0"
             echo '   ```'
             echo ""
             echo "---"
@@ -235,7 +235,7 @@ jobs:
             echo "   sudo apt-get update"
             echo "   sudo apt-get install texlive-base texlive-binaries texlive-latex-base \\"
             echo "     texlive-latex-extra texlive-latex-recommended texlive-lang-european \\"
-            echo "     texlive-luatex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
+            echo "     texlive-luatex texlive-xetex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
             echo "     texlive-font-utils texlive-extra-utils biber texlive-publishers \\"
             echo "     texlive-humanities texlive-pstricks pandoc"
             echo '   ```'
@@ -247,7 +247,7 @@ jobs:
             echo "   sudo apt-get update"
             echo "   sudo apt-get install texlive-base texlive-binaries texlive-latex-base \\"
             echo "     texlive-latex-extra texlive-latex-recommended texlive-lang-european \\"
-            echo "     texlive-luatex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
+            echo "     texlive-luatex texlive-xetex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
             echo "     texlive-font-utils texlive-extra-utils biber texlive-publishers \\"
             echo "     texlive-humanities texlive-pstricks libxcb-cursor0 pandoc"
             echo '   ```'
@@ -257,7 +257,7 @@ jobs:
             echo '   ```'
             echo "   sudo apt-get update"
             echo "   sudo apt-get install texlive-base texlive-binaries texlive-latex-base \\"
-            echo "     texlive-latex-recommended texlive-luatex libxcb-cursor0"
+            echo "     texlive-latex-recommended texlive-luatex texlive-xetex libxcb-cursor0"
             echo '   ```'
             echo ""
             echo "---"
