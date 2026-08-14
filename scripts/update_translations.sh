@@ -38,11 +38,23 @@ for src in $(find desktop/gui desktop/gui/mixins desktop/gui/pdf_viewer_mixins -
     # _("text") → QCoreApplication.translate("Ctx", "text") dönüştür
     ctx=$(grep '_ = lambda s: QCoreApplication.translate(' "$src" 2>/dev/null | head -1 | sed 's/.*translate("//;s/".*//')
     if [ -n "$ctx" ]; then
-        # -0777: tüm dosyayı tek string olarak oku (multiline _() yakalamak için)
         # _("[text]") → QCoreApplication.translate("Ctx", "[text]")
-        # _('[text]') → QCoreApplication.translate("Ctx", '[text]')
-        perl -0777 -pe 's/\_\("((?:[^"\\]|\\.)*)"\)/QCoreApplication.translate("'"$ctx"'", "$1")/g;
-                        s/\_\('"'"'((?:[^'"'"'\\]|\\.)*)'"'"'\)/QCoreApplication.translate("'"$ctx"'", '"'"'$1'"'"'")/g' "$src" > "$tmp"
+        # _('[text]') → QCoreApplication.translate('Ctx', '[text]')
+        # Bağlam tırnakları argüman tırnaklarıyla eşleşir: f-string içindeki
+        # _('...') çağrısına çift tırnaklı bağlam koymak geçici dosyada
+        # sözdizimi bozuyor (pylupdate6 "Invalid syntax" veriyordu).
+        python3 - "$src" "$tmp" "$ctx" <<'PYEOF'
+import re
+import sys
+
+src_path, dst_path, ctx = sys.argv[1], sys.argv[2], sys.argv[3]
+text = open(src_path, encoding="utf-8").read()
+text = re.sub(r'_\("((?:[^"\\]|\\.)*)"\)',
+              lambda m: f'QCoreApplication.translate("{ctx}", "{m.group(1)}")', text)
+text = re.sub(r"_\('((?:[^'\\]|\\.)*)'\)",
+              lambda m: f"QCoreApplication.translate('{ctx}', '{m.group(1)}')", text)
+open(dst_path, "w", encoding="utf-8").write(text)
+PYEOF
     else
         cp "$src" "$tmp"
     fi
