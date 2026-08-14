@@ -15,11 +15,7 @@ Bu testler iki regression'ı korur (ikisi de düzeltildi):
    tam reparse).
 """
 
-import os
-import sys
-
 # Headless (ekransız) çalıştır — CI / WSL ortamı için
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
 
@@ -33,9 +29,6 @@ except ImportError:  # pragma: no cover
 
 # desktop/ altındaki syntax.latex_lexer import edilebilir olsun
 # (test_imports.py ile aynı konvensiyon; desktop bir paket değil)
-_DESKTOP = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "desktop"))
-if _DESKTOP not in sys.path:
-    sys.path.insert(0, _DESKTOP)
 
 from syntax.latex_lexer import LatexLexer
 

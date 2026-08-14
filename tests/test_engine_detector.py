@@ -1,6 +1,5 @@
 """engine_detector modülü testleri."""
 
-
 from core.engine_detector import (
     detect_engine,
     detect_engine_from_content,

@@ -5,11 +5,6 @@ pypdfium2 get_toc() çıktısı sürümler arası değişti: eski PdfBookmark
 Helper'lar her iki formu da handle etmeli.
 """
 
-import os
-import sys
-
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "desktop")))
-
 import pytest
 
 pytest.importorskip("PyQt6")

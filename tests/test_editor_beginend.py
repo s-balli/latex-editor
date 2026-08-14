@@ -4,16 +4,7 @@
 adları sayarak) bulunur ve ikisi indicator ile vurgulanır.
 """
 
-import os
-import sys
-
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-
 import pytest
-
-_DESKTOP = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "desktop"))
-if _DESKTOP not in sys.path:
-    sys.path.insert(0, _DESKTOP)
 
 try:
     from PyQt6.QtCore import QEvent, Qt
@@ -33,7 +24,6 @@ def qapp():
 @pytest.fixture(autouse=True)
 def _ensure_qapp(qapp):
     """Tüm testler EditorWidget kurar; QApplication'ı garantile."""
-
 
 def _editor():
     return EditorWidget()

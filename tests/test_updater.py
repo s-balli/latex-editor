@@ -1,6 +1,5 @@
 """updater.py — güncelleme kontrolü testleri."""
 
-
 from core.updater import (
     _parse_semver, _is_newer, check_for_update, _extract_changelog,
     clear_cache, VERSION,

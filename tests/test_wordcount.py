@@ -6,17 +6,9 @@ matematik ağırlıklı belgelerde kelime sayısı şişiyordu (ör. "$x^2 + y^2
 3 kelime sayılıyordu).
 """
 
-import os
-import sys
-
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-
 import pytest
 
 # desktop/ path'e ekle (gui/syntax için); core pytest'in rootdir'inden gelir
-_DESKTOP = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "desktop"))
-if _DESKTOP not in sys.path:
-    sys.path.insert(0, _DESKTOP)
 
 try:
     from gui.mixins.tab_ops import _latex_wordcount

@@ -1,12 +1,7 @@
 """latex_refs: \\label ve .bib anahtar toplama testleri (\\ref/\\cite tamamlama)."""
 
 import os
-import sys
 import time
-
-_REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-if _REPO not in sys.path:
-    sys.path.insert(0, _REPO)
 
 from core import latex_refs
 

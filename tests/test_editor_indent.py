@@ -4,16 +4,7 @@ C.9a: \\begin{X} → \\end{X} bloğunda gövde +1 seviye, \\end \\begin hizasın
 C.9b: Enter'da önceki satır \\begin{X} ile bitiyorsa yeni satır +1 girintilenir.
 """
 
-import os
-import sys
-
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-
 import pytest
-
-_DESKTOP = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "desktop"))
-if _DESKTOP not in sys.path:
-    sys.path.insert(0, _DESKTOP)
 
 try:
     from PyQt6.QtCore import QEvent, Qt

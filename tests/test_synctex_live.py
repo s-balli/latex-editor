@@ -13,16 +13,9 @@ synctex CLI, koordinat→piksel, highlight, reverse round-trip) test eder ama ne
 import os
 import shutil
 import subprocess
-import sys
 import tempfile
 
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-
 import pytest
-
-_DESKTOP = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "desktop"))
-if _DESKTOP not in sys.path:
-    sys.path.insert(0, _DESKTOP)
 
 # lualatex + synctex yoksa tüm modül skip
 pytestmark = pytest.mark.skipif(

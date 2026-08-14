@@ -1,6 +1,5 @@
 """log_parser modülü testleri."""
 
-
 from core.log_parser import parse_output, resolve_error_path
 
 

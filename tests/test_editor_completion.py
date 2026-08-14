@@ -5,18 +5,9 @@ C.7: Ctrl+Space manuel tamamlama (kısa kelimede de çalışır).
 C.10: satır numarası margin'i satır sayısına göre dinamik genişler.
 """
 
-import os
-import sys
-
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-
 import bisect
 
 import pytest
-
-_DESKTOP = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "desktop"))
-if _DESKTOP not in sys.path:
-    sys.path.insert(0, _DESKTOP)
 
 try:
     from PyQt6.QtCore import QEvent, Qt

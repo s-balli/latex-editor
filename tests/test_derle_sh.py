@@ -60,7 +60,6 @@ Bkz. b\"ol\"um \ref{sec:bir} (sayfa \pageref{sec:bir}).
 \end{document}
 """
 
-
 BIB_TEX = r"""\documentclass{article}
 \usepackage[backend=biber]{biblatex}
 \addbibresource{refs.bib}
@@ -72,7 +71,6 @@ BIB_TEX = r"""\documentclass{article}
 
 BIB_REF = r"""@article{test2020, author={Test}, title={Sample}, journal={J}, year={2020}}
 """
-
 
 def _run_derle(args, cwd, timeout=30):
     result = subprocess.run(

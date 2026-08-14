@@ -3,7 +3,6 @@
 import ast
 import importlib
 import os
-import sys
 
 import pytest
 
@@ -12,10 +11,8 @@ pyqt6 = pytest.importorskip("PyQt6")
 pytest.importorskip("PyQt6.Qsci")
 pytest.importorskip("pypdfium2")
 
-# core ve gui paketlerini bulunabilir yap
+# Modül taraması için desktop/ kökü (sys.path'i conftest.py ayarlar)
 _DESKTOP = os.path.join(os.path.dirname(__file__), "..", "desktop")
-if _DESKTOP not in sys.path:
-    sys.path.insert(0, os.path.abspath(_DESKTOP))
 
 
 # desktop/ altindaki tüm .py dosyalarini topla

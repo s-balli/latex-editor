@@ -1,16 +1,5 @@
 """Panodan resim yapıştırma testleri (Ctrl+V → media/'a kaydet + figure akışı)."""
 
-import os
-import sys
-
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-
-_REPO = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-_DESKTOP = os.path.join(_REPO, "desktop")
-for _p in (_REPO, _DESKTOP):
-    if _p not in sys.path:
-        sys.path.insert(0, _p)
-
 import pytest
 from types import SimpleNamespace
 

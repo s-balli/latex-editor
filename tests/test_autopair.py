@@ -5,16 +5,7 @@ kapanışı yerleştirir. Kapanış karakteri imleç sağındakiyle aynıysa üz
 çiftlemek yerine atlar (skip-over).
 """
 
-import os
-import sys
-
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-
 import pytest
-
-_DESKTOP = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "desktop"))
-if _DESKTOP not in sys.path:
-    sys.path.insert(0, _DESKTOP)
 
 try:
     from PyQt6.QtWidgets import QApplication
