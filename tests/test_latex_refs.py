@@ -117,6 +117,31 @@ def test_collect_input_paths_skips_hidden_dirs(tmp_path):
     assert latex_refs.collect_input_paths(str(main)) == []
 
 
+# --- collect_image_paths (\includegraphics tamamlama) ---
+
+def test_collect_image_paths_basic(tmp_path):
+    main = tmp_path / "main.tex"
+    main.write_text("x", encoding="utf-8")
+    (tmp_path / "sekil.png").write_bytes(b"")
+    sub = tmp_path / "media"
+    sub.mkdir()
+    (sub / "fig.jpg").write_bytes(b"")
+    (sub / "logo.pdf").write_bytes(b"")
+    (tmp_path / "main.pdf").write_bytes(b"")    # derleme çıktısı — önerilmez
+    (tmp_path / "notlar.md").write_text("x", encoding="utf-8")
+    paths = latex_refs.collect_image_paths(str(main))
+    assert paths == ["media/fig.jpg", "media/logo.pdf", "sekil.png"]
+
+
+def test_collect_image_paths_skips_hidden_dirs(tmp_path):
+    main = tmp_path / "main.tex"
+    main.write_text("x", encoding="utf-8")
+    hid = tmp_path / ".git"
+    hid.mkdir()
+    (hid / "a.png").write_bytes(b"")
+    assert latex_refs.collect_image_paths(str(main)) == []
+
+
 # --- find_label_location / find_cite_location (Alt+tık tanıma git) ---
 
 def test_find_label_location_in_main(tmp_path):

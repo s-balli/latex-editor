@@ -119,6 +119,33 @@ def collect_input_paths(base_path: str) -> list[str]:
     return sorted(rels)
 
 
+# Grafik uzantıları: derleyicinin/graphicx'in kabul ettiği yaygın biçimler
+# (uygulamanın sürükle-bırak/yapıştır da desteklediği küme).
+_IMG_EXTS = (".png", ".jpg", ".jpeg", ".pdf", ".eps")
+
+
+def collect_image_paths(base_path: str) -> list[str]:
+    """\\includegraphics{ tamamlaması için projedeki resim dosyaları.
+
+    Ana dosyanın dizinini ve alt dizinlerini tarar (media/ vb. dahil); kök
+    dizine göre, uzantısı KORUNMUŞ göreli yollar döndürür — görsel ekleme
+    (sürükle-bırak/panodan yapıştır) da aynı kurala yazar. Ana dosyanın kendi
+    derleme çıktısı (main.pdf) önerilmez; gizli dizinlere inilmez. Yol ayracı
+    her platformda LaTeX'in beklediği '/'tir.
+    """
+    bdir = _base_dir(base_path)
+    base_pdf = os.path.splitext(os.path.basename(os.path.abspath(base_path)))[0].lower() + ".pdf"
+    rels: list[str] = []
+    for root, dirs, files in os.walk(bdir):
+        dirs[:] = [d for d in dirs if not d.startswith('.')]
+        for fn in files:
+            if not fn.lower().endswith(_IMG_EXTS) or fn.lower() == base_pdf:
+                continue
+            rel = os.path.relpath(os.path.join(root, fn), bdir)
+            rels.append(rel.replace(os.sep, '/'))
+    return sorted(rels)
+
+
 def collect_cite_keys(content: str, base_path: str) -> list[str]:
     """Referans verilen .bib dosyasındaki tüm giriş anahtarları (mtime önbellekli).
 

@@ -342,7 +342,11 @@ def test_input_completion_excludes_self(qapp, tmp_path):
 
 
 def test_includegraphics_not_input_completion(qapp, tmp_path):
-    r"""\includegraphics{ resim komutudur — input tamamlaması tetiklenmez."""
+    r"""\includegraphics{ resim komutudur — \include dosya dalı tetiklenmez.
+
+    Projede ay.tex olsa bile (input dalı yanılmışsa popup açardı) çıkmaz.
+    """
+    (tmp_path / "ay.tex").write_text("x", encoding="utf-8")
     tex = tmp_path / "m.tex"
     tex.write_text("\\includegraphics{a", encoding="utf-8")
     ed = _editor()
@@ -350,5 +354,56 @@ def test_includegraphics_not_input_completion(qapp, tmp_path):
     ed.setText(tex.read_text(encoding="utf-8"))
     _style_all(ed)
     ed.setCursorPosition(0, len("\\includegraphics{a"))
+    ed._check_autocomplete()
+    assert not _autoc_active(ed)
+
+
+# --- \includegraphics resim tamamlama ---
+
+def test_includegraphics_completion(qapp, tmp_path):
+    r"""media/fig.png varken \includegraphics{me -> popup, seçince uzantılı tam yol."""
+    sub = tmp_path / "media"
+    sub.mkdir()
+    (sub / "fig.png").write_bytes(b"")
+    tex = tmp_path / "m.tex"
+    tex.write_text("\\includegraphics{me", encoding="utf-8")
+    ed = _editor()
+    ed._file_path = str(tex)
+    ed.setText(tex.read_text(encoding="utf-8"))
+    _style_all(ed)
+    ed.setCursorPosition(0, len("\\includegraphics{me"))
+    ed._check_autocomplete()
+    assert _autoc_active(ed)
+    ed.SendScintilla(QsciScintilla.SCI_AUTOCCOMPLETE)
+    qapp.processEvents()
+    assert _line(ed, 0) == "\\includegraphics{media/fig.png"
+
+
+def test_includegraphics_completion_with_options(qapp, tmp_path):
+    r"""[width=...] argümanlı kullanımda da tamamlama çalışır."""
+    (tmp_path / "sekil.png").write_bytes(b"")
+    tex = tmp_path / "m.tex"
+    tex.write_text("\\includegraphics[width=0.5\\textwidth]{se", encoding="utf-8")
+    ed = _editor()
+    ed._file_path = str(tex)
+    ed.setText(tex.read_text(encoding="utf-8"))
+    _style_all(ed)
+    ed.setCursorPosition(0, len("\\includegraphics[width=0.5\\textwidth]{se"))
+    ed._check_autocomplete()
+    assert _autoc_active(ed)
+    ed.SendScintilla(QsciScintilla.SCI_AUTOCCOMPLETE)
+    qapp.processEvents()
+    assert _line(ed, 0) == "\\includegraphics[width=0.5\\textwidth]{sekil.png"
+
+
+def test_includegraphics_no_images_no_popup(qapp, tmp_path):
+    r"""Projede resim yokken popup çıkmaz."""
+    tex = tmp_path / "m.tex"
+    tex.write_text("\\includegraphics{", encoding="utf-8")
+    ed = _editor()
+    ed._file_path = str(tex)
+    ed.setText(tex.read_text(encoding="utf-8"))
+    _style_all(ed)
+    ed.setCursorPosition(0, len("\\includegraphics{"))
     ed._check_autocomplete()
     assert not _autoc_active(ed)
