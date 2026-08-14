@@ -10,7 +10,6 @@
 
 import os
 import time
-from types import SimpleNamespace
 
 import pytest
 
@@ -19,6 +18,7 @@ try:
     from core.compiler import LatexCompiler
     from core.log_parser import CompileResult
     from gui.mixins.compile_ops import CompileOpsMixin
+    from tests.stub_main import StubMain
 except ImportError:  # pragma: no cover
     pytest.skip("PyQt6 / core / gui import edilemiyor", allow_module_level=True)
 
@@ -114,32 +114,13 @@ class _StubViewer:
         self.loaded = None
 
 
-class _StubMain:
+class _StubMain(StubMain):
     """MainWindow'un _on_compile_finished'inin ihtiyaç duyduğu minimum arayüz."""
+
     def __init__(self, tmp_path, load_ok=True):
-        self._pdf_viewer = _StubViewer(load_ok)
+        super().__init__(pdf_viewer=_StubViewer(load_ok))
         self._current_pdf = "/old/onceki-derleme.pdf"  # ekrandaki eski PDF
         self._synctex_dir = str(tmp_path)
-        self._progress = SimpleNamespace(hide=lambda: None)
-        self._status = SimpleNamespace(showMessage=self._set_msg)
-        self._output_panel = SimpleNamespace(
-            show_result=lambda r: None, show_engine_hint=lambda a, b: None
-        )
-        self._engine_combo = SimpleNamespace(currentText=lambda: "lualatex")
-        self._compile_target = ""
-        self.last_msg = ""
-
-    def _set_msg(self, msg):
-        self.last_msg = msg
-
-    def setCursor(self, *_a, **_k):
-        pass
-
-    def _current_editor(self):
-        return None
-
-    def _maybe_auto_audit(self):
-        pass  # derleme sonrası otomatik denetim bu stub'da devre dışı
 
     def _refresh_error_markers(self):
         pass
@@ -152,7 +133,7 @@ def test_clears_stale_pdf_on_total_failure(tmp_path, qapp):
     CompileOpsMixin._on_compile_finished(stub, result)
     assert stub._pdf_viewer.cleared is True
     assert stub._current_pdf == ""
-    assert "Basarisiz" in stub.last_msg
+    assert "Basarisiz" in stub._status.msg
 
 
 def test_loads_partial_pdf_on_failure(tmp_path, qapp):
@@ -165,7 +146,7 @@ def test_loads_partial_pdf_on_failure(tmp_path, qapp):
     assert stub._pdf_viewer.cleared is False
     assert stub._pdf_viewer.loaded == str(fresh)
     assert stub._current_pdf == str(fresh)
-    assert "Basarisiz" in stub.last_msg
+    assert "Basarisiz" in stub._status.msg
 
 
 def test_success_loads_pdf_no_clear(tmp_path, qapp):
@@ -177,7 +158,7 @@ def test_success_loads_pdf_no_clear(tmp_path, qapp):
     CompileOpsMixin._on_compile_finished(stub, result)
     assert stub._pdf_viewer.cleared is False
     assert stub._pdf_viewer.loaded == str(fresh)
-    assert "Basarili" in stub.last_msg
+    assert "Basarili" in stub._status.msg
 
 
 def test_clears_when_load_fails(tmp_path, qapp):

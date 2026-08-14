@@ -6,13 +6,12 @@
   (sekme arabellekleri seç-değiştir ile, disk dosyaları atomik yazar)
 """
 
-from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
 
 try:
-    from PyQt6.QtWidgets import QApplication, QTabWidget
+    from PyQt6.QtWidgets import QApplication
     from gui.editor import EditorWidget
     from gui.main_window import MainWindow
     from gui.mixins.edit_ops import EditOpsMixin
@@ -62,22 +61,11 @@ def test_f2_elsewhere_no_signal(qapp):
 # --- MainWindow handler: zincirde toplu değiştirme ---
 
 
-class _StubMain(EditOpsMixin):
+from tests.stub_main import StubMain
+
+
+class _StubMain(EditOpsMixin, StubMain):
     """MainWindow yerine: _on_rename_label'in ihtiyaç duyduğu arayüz."""
-
-    def __init__(self, editors):
-        self._editor_tabs = QTabWidget()
-        for ed in editors:
-            self._editor_tabs.addTab(ed, ed.display_name)
-        self._cur = editors[0] if editors else None
-        self.messages = []
-        self._status = SimpleNamespace(showMessage=self.messages.append)
-
-    def _current_editor(self):
-        return self._cur
-
-    def sender(self):
-        return None
 
 
 def test_rename_updates_tab_and_disk(qapp, tmp_path):
@@ -90,7 +78,7 @@ def test_rename_updates_tab_and_disk(qapp, tmp_path):
     ed._file_path = str(main)
     ed.setText(main.read_text(encoding="utf-8"))
 
-    stub = _StubMain([ed])
+    stub = _StubMain(editors=[ed])
     with patch("gui.mixins.edit_ops.QInputDialog.getText", return_value=("fig:yeni", True)):
         MainWindow._on_rename_label(stub, "fig:a")
 
@@ -99,7 +87,7 @@ def test_rename_updates_tab_and_disk(qapp, tmp_path):
     assert "fig:a" not in buf
     disk = ch.read_text(encoding="utf-8")
     assert disk == "metin \\ref{fig:yeni} ve \\cref{fig:yeni, tab:b}\n"
-    assert any("2 dosya" in m for m in stub.messages)
+    assert "2 dosya" in stub._status.msg
 
 
 def test_rename_child_open_in_tab(qapp, tmp_path):
@@ -113,7 +101,7 @@ def test_rename_child_open_in_tab(qapp, tmp_path):
     ed_ch = EditorWidget(); ed_ch._file_path = str(ch)
     ed_ch.setText(ch.read_text(encoding="utf-8"))
 
-    stub = _StubMain([ed_main, ed_ch])
+    stub = _StubMain(editors=[ed_main, ed_ch])
     with patch("gui.mixins.edit_ops.QInputDialog.getText", return_value=("fig:yeni", True)):
         MainWindow._on_rename_label(stub, "fig:a")
 
@@ -129,7 +117,7 @@ def test_rename_undo_restores(qapp, tmp_path):
     ed = EditorWidget(); ed._file_path = str(main)
     ed.setText(main.read_text(encoding="utf-8"))
 
-    stub = _StubMain([ed])
+    stub = _StubMain(editors=[ed])
     with patch("gui.mixins.edit_ops.QInputDialog.getText", return_value=("fig:yeni", True)):
         MainWindow._on_rename_label(stub, "fig:a")
     assert "fig:yeni" in ed.text()
@@ -146,7 +134,7 @@ def test_rename_duplicate_blocked(qapp, tmp_path):
     ed = EditorWidget(); ed._file_path = str(main)
     ed.setText(main.read_text(encoding="utf-8"))
 
-    stub = _StubMain([ed])
+    stub = _StubMain(editors=[ed])
     with patch("gui.mixins.edit_ops.QInputDialog.getText", return_value=("fig:b", True)), \
          patch("gui.mixins.edit_ops.QMessageBox.warning") as warn:
         MainWindow._on_rename_label(stub, "fig:a")
@@ -162,8 +150,8 @@ def test_rename_invalid_chars_blocked(qapp, tmp_path):
     ed = EditorWidget(); ed._file_path = str(main)
     ed.setText(main.read_text(encoding="utf-8"))
 
-    stub = _StubMain([ed])
+    stub = _StubMain(editors=[ed])
     with patch("gui.mixins.edit_ops.QInputDialog.getText", return_value=("boşluk lu", True)):
         MainWindow._on_rename_label(stub, "fig:a")
     assert ed.text() == main.read_text(encoding="utf-8")
-    assert any("Geçersiz" in m for m in stub.messages)
+    assert "Geçersiz" in stub._status.msg

@@ -5,7 +5,6 @@
 - gui.mixins.compile_ops.CompileOpsMixin: _goto_error index cycling mantığı
 """
 
-from types import SimpleNamespace
 
 import pytest
 
@@ -76,27 +75,18 @@ def test_clear_error_markers_when_empty(qapp):
 # =====================================================================
 
 
-class _StubMain(CompileOpsMixin):
+from tests.stub_main import StubMain
+
+
+class _StubMain(CompileOpsMixin, StubMain):
     """MainWindow yerine: _goto_error'nin ihtiyaç duyduğu minimum arayüz.
 
     _refresh_error_markers gerçek mixin metodu; _current_editor None döndüğünden
     erken döner (marker yan etkisi olmadan yalnızca index mantığı test edilir).
     """
+
     def __init__(self, errors):
-        self._last_errors = errors
-        self._err_index = -1
-        self._status = SimpleNamespace(showMessage=self._set_msg)
-        self._goto_calls = []
-        self.msg = ""
-
-    def _set_msg(self, m):
-        self.msg = m
-
-    def _goto_line(self, path, line):
-        self._goto_calls.append((path, line))
-
-    def _current_editor(self):
-        return None
+        super().__init__(last_errors=errors)
 
 
 def _errs(tmp_path, lines):
@@ -115,7 +105,7 @@ def test_next_cycles_forward_and_wraps(tmp_path, qapp):
     s._goto_next_error()
     s._goto_next_error()
     s._goto_next_error()  # wrap → ilk hataya
-    assert [c[1] for c in s._goto_calls] == [5, 7, 9, 5]
+    assert [c[1] for c in s.goto_calls] == [5, 7, 9, 5]
     assert s._err_index == 0
 
 
@@ -124,19 +114,19 @@ def test_prev_from_start_goes_to_last(tmp_path, qapp):
     s = _StubMain(errs)
     s._goto_prev_error()
     assert s._err_index == 2
-    assert s._goto_calls[-1][1] == 9
+    assert s.goto_calls[-1][1] == 9
 
 
 def test_empty_errors_shows_message(tmp_path, qapp):
     s = _StubMain([])
     s._goto_next_error()
-    assert s._goto_calls == []
-    assert "Hata yok" in s.msg
+    assert s.goto_calls == []
+    assert "Hata yok" in s._status.msg
 
 
 def test_unresolvable_path_shows_not_found(tmp_path, qapp):
     errs = [LatexError(line_number=3, message="x", file_path=str(tmp_path / "yok.tex"))]
     s = _StubMain(errs)
     s._goto_next_error()
-    assert s._goto_calls == []
-    assert "konumu bulunamadı" in s.msg
+    assert s.goto_calls == []
+    assert "konumu bulunamadı" in s._status.msg

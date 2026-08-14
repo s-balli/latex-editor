@@ -5,17 +5,17 @@
 - gui.output_panel: show_audit listeleri doldurur, tıklama error_clicked üretir
 """
 
-from types import SimpleNamespace
-
 import pytest
 
 try:
+    from PyQt6.QtCore import Qt
     from PyQt6.QtWidgets import QApplication
     from gui.editor import EditorWidget
     from gui.main_window import MainWindow
     from gui.mixins.edit_ops import EditOpsMixin
     from gui.output_panel import OutputPanel
     from gui.theme import THEMES
+    from tests.stub_main import StubMain
 except ImportError:  # pragma: no cover
     pytest.skip("PyQt6 / gui import edilemiyor", allow_module_level=True)
 
@@ -26,28 +26,14 @@ def qapp():
     yield app
 
 
-class _StubPanel:
-    def __init__(self):
-        self.audits = []
-
-    def show_audit(self, warnings, suggestions):
-        self.audits.append((warnings, suggestions))
-
-
-class _StubMain(EditOpsMixin):
+class _StubMain(EditOpsMixin, StubMain):
     """MainWindow yerine: _audit_references'in ihtiyaç duyduğu arayüz.
 
-    EditOpsMixin'den miras alır — handler self._audit_item çağırır.
+    EditOpsMixin'den miras alır — handler self._collect_audit_items çağırır.
     """
 
     def __init__(self, editor):
-        self._editor = editor
-        self._output_panel = _StubPanel()
-        self.messages = []
-        self._status = SimpleNamespace(showMessage=self.messages.append)
-
-    def _current_editor(self):
-        return self._editor
+        super().__init__(editors=[editor])
 
 
 # --- handler: bulgular (metin, dosya, satır) üretir ---
@@ -62,14 +48,14 @@ def test_handler_undefined_ref_clickable(qapp, tmp_path):
 
     stub = _StubMain(ed)
     MainWindow._audit_references(stub)
-    warnings, suggestions = stub._output_panel.audits[0]
-    assert suggestions == []
-    assert len(warnings) == 1
-    text, path, line = warnings[0]
-    assert "Tanımsız \\ref" in text and "fig:yok" in text
-    assert "m.tex:1" in text
-    assert (path, line) == (str(main), 1)
-    assert any("1 tanımsız ref" in m for m in stub.messages)
+    panel = stub._output_panel
+    assert panel._suggest_list.count() == 0
+    assert panel._warn_list.count() == 1
+    item = panel._warn_list.item(0)
+    assert "Tanımsız \\ref" in item.text() and "fig:yok" in item.text()
+    assert "m.tex:1" in item.text()
+    assert item.data(Qt.ItemDataRole.UserRole) == (str(main), 1)
+    assert "1 tanımsız ref" in stub._status.msg
 
 
 def test_handler_unused_bib_clickable(qapp, tmp_path):
@@ -83,13 +69,13 @@ def test_handler_unused_bib_clickable(qapp, tmp_path):
 
     stub = _StubMain(ed)
     MainWindow._audit_references(stub)
-    warnings, suggestions = stub._output_panel.audits[0]
-    assert warnings == []
-    assert len(suggestions) == 1
-    text, path, line = suggestions[0]
-    assert "Kullanılmayan .bib girdisi" in text and "kullanilmayan" in text
-    assert "refs.bib:1" in text
-    assert (path, line) == (str(bib), 1)
+    panel = stub._output_panel
+    assert panel._warn_list.count() == 0
+    assert panel._suggest_list.count() == 1
+    item = panel._suggest_list.item(0)
+    assert "Kullanılmayan .bib girdisi" in item.text() and "kullanilmayan" in item.text()
+    assert "refs.bib:1" in item.text()
+    assert item.data(Qt.ItemDataRole.UserRole) == (str(bib), 1)
 
 
 def test_handler_unused_label_clickable(qapp, tmp_path):
@@ -101,14 +87,14 @@ def test_handler_unused_label_clickable(qapp, tmp_path):
 
     stub = _StubMain(ed)
     MainWindow._audit_references(stub)
-    warnings, suggestions = stub._output_panel.audits[0]
-    assert warnings == []
-    assert len(suggestions) == 1
-    text, path, line = suggestions[0]
-    assert "Kullanılmayan label" in text and "bos" in text
-    assert "m.tex:1" in text
-    assert (path, line) == (str(main), 1)
-    assert any("1 kullanılmayan label" in m for m in stub.messages)
+    panel = stub._output_panel
+    assert panel._warn_list.count() == 0
+    assert panel._suggest_list.count() == 1
+    item = panel._suggest_list.item(0)
+    assert "Kullanılmayan label" in item.text() and "bos" in item.text()
+    assert "m.tex:1" in item.text()
+    assert item.data(Qt.ItemDataRole.UserRole) == (str(main), 1)
+    assert "1 kullanılmayan label" in stub._status.msg
 
 
 def test_handler_clean_doc(qapp, tmp_path):
@@ -120,17 +106,22 @@ def test_handler_clean_doc(qapp, tmp_path):
 
     stub = _StubMain(ed)
     MainWindow._audit_references(stub)
-    warnings, suggestions = stub._output_panel.audits[0]
-    assert warnings == [] and suggestions == []
-    assert any("sorun yok" in m for m in stub.messages)
+    panel = stub._output_panel
+    assert panel._warn_list.count() == 0
+    # temiz belgede tek 'Sorun bulunamadı' mesajı Öneriler'de
+    assert panel._suggest_list.count() == 1
+    assert "Sorun bulunamadı" in panel._suggest_list.item(0).text()
+    assert "sorun yok" in stub._status.msg
 
 
 def test_handler_needs_saved_file(qapp):
     ed = EditorWidget()  # dosya yolu yok
     stub = _StubMain(ed)
     MainWindow._audit_references(stub)
-    assert stub._output_panel.audits == []
-    assert any(".tex dosyası açın" in m for m in stub.messages)
+    panel = stub._output_panel
+    assert panel._warn_list.count() == 0
+    assert panel._suggest_list.count() == 0   # temiz-belge mesajı da yok
+    assert ".tex dosyası açın" in stub._status.msg
 
 
 # --- OutputPanel: show_audit + tıklama ---

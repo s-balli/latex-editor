@@ -5,7 +5,6 @@
 - gui.main_window.MainWindow._on_goto_definition: anahtarın tanımına (file, line) zıpla
 """
 
-from types import SimpleNamespace
 
 import pytest
 
@@ -96,28 +95,14 @@ def test_nearest_key_segments(qapp):
 # =====================================================================
 
 
-class _StubMain:
-    """MainWindow yerine: _on_goto_definition'in ihtiyaç duyduğu arayüz.
+from tests.stub_main import StubMain
 
-    sender() None döner → handler _current_editor()'e düşer.
-    """
+
+class _StubMain(StubMain):
+    """Paylaşımlı StubMain; sender() None döner → handler _current_editor()'e düşer."""
+
     def __init__(self, editor):
-        self._editor = editor
-        self._status = SimpleNamespace(showMessage=self._set_msg)
-        self.goto_calls = []
-        self.msg = ""
-
-    def _set_msg(self, m):
-        self.msg = m
-
-    def sender(self):
-        return None
-
-    def _current_editor(self):
-        return self._editor
-
-    def _goto_line(self, path, line):
-        self.goto_calls.append((path, line))
+        super().__init__(editors=[editor])
 
 
 def test_handler_jumps_to_label(tmp_path, qapp):
@@ -130,7 +115,7 @@ def test_handler_jumps_to_label(tmp_path, qapp):
     stub = _StubMain(ed)
     MainWindow._on_goto_definition(stub, "fig:one", "label")
     assert stub.goto_calls == [(str(main), 2)]
-    assert "Tanım" in stub.msg
+    assert "Tanım" in stub._status.msg
 
 
 def test_handler_label_in_input_child(tmp_path, qapp):
@@ -227,7 +212,7 @@ def test_handler_not_found_shows_message(tmp_path, qapp):
     stub = _StubMain(ed)
     MainWindow._on_goto_definition(stub, "yok", "label")
     assert stub.goto_calls == []
-    assert "bulunamadı" in stub.msg
+    assert "bulunamadı" in stub._status.msg
 
 
 def test_handler_cite_usage_bib_to_tex(tmp_path, qapp):

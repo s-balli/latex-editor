@@ -9,9 +9,8 @@ try:
     from gui.main_window import MainWindow
     from gui.mixins.compile_ops import CompileOpsMixin
     from gui.mixins.edit_ops import EditOpsMixin
-    from gui.output_panel import OutputPanel
-    from gui.theme import THEMES
     from core.log_parser import CompileResult, LatexError
+    from tests.stub_main import StubMain, FakeSettings
 except ImportError:  # pragma: no cover
     pytest.skip("PyQt6 / gui import edilemiyor", allow_module_level=True)
 
@@ -22,36 +21,11 @@ def qapp():
     yield app
 
 
-class _FakeSettings:
-    def __init__(self):
-        self.d = {}
+class _StubMain(CompileOpsMixin, EditOpsMixin, StubMain):
+    """MainWindow yerine: _maybe_auto_audit ve _toggle_auto_audit arayüzü."""
 
-    def value(self, key, default=None):
-        return self.d.get(key, default)
-
-    def setValue(self, key, val):
-        self.d[key] = val
-
-
-class _Status:
-    """QStatusBar kayıdı: son mesaj + currentMessage geri okuma."""
-
-    def __init__(self):
-        self.msg = ""
-
-    def showMessage(self, m):
-        self.msg = m
-
-    def currentMessage(self):
-        return self.msg
-
-
-class _StubMain(CompileOpsMixin, EditOpsMixin):
     def __init__(self, settings=None, target=""):
-        self._settings = settings or _FakeSettings()
-        self._compile_target = target
-        self._output_panel = OutputPanel(theme=THEMES["dark"])
-        self._status = _Status()
+        super().__init__(settings=settings, target=target)
 
 
 def _broken_doc(tmp_path):
@@ -69,7 +43,7 @@ def test_disabled_noop(qapp, tmp_path):
 
 def test_enabled_appends_findings(qapp, tmp_path):
     tex = _broken_doc(tmp_path)
-    s = _FakeSettings()
+    s = FakeSettings()
     s.d["compile/auto_audit"] = True
     stub = _StubMain(settings=s, target=str(tex))
     MainWindow._maybe_auto_audit(stub)
@@ -81,7 +55,7 @@ def test_enabled_appends_findings(qapp, tmp_path):
 def test_append_preserves_compile_result(qapp, tmp_path):
     """Derleme hataları dururken denetim bulguları ÜSTÜNE eklenir, silinmez."""
     tex = _broken_doc(tmp_path)
-    s = _FakeSettings()
+    s = FakeSettings()
     s.d["compile/auto_audit"] = True
     stub = _StubMain(settings=s, target=str(tex))
     result = CompileResult(success=False)
@@ -96,10 +70,10 @@ def test_append_preserves_compile_result(qapp, tmp_path):
 
 
 def test_enabled_string_true_from_qsettings(qapp):
-    s = _FakeSettings()
+    s = FakeSettings()
     s.d["compile/auto_audit"] = "true"             # QSettings string'i
     assert MainWindow._auto_audit_enabled(s) is True
-    assert MainWindow._auto_audit_enabled(_FakeSettings()) is False
+    assert MainWindow._auto_audit_enabled(FakeSettings()) is False
 
 
 def test_toggle_persists(qapp):
@@ -112,7 +86,7 @@ def test_toggle_persists(qapp):
 
 
 def test_missing_target_noop(qapp):
-    s = _FakeSettings()
+    s = FakeSettings()
     s.d["compile/auto_audit"] = True
     stub = _StubMain(settings=s, target="/yok/bulunmayan.tex")
     MainWindow._maybe_auto_audit(stub)             # hata vermez, sessiz geçer
@@ -125,7 +99,7 @@ def test_missing_target_noop(qapp):
 def test_summary_appended_to_compile_message(qapp, tmp_path):
     """Derleme mesajı korunur, özet sonuna ' · ' ile eklenir."""
     tex = _broken_doc(tmp_path)
-    s = _FakeSettings()
+    s = FakeSettings()
     s.d["compile/auto_audit"] = True
     stub = _StubMain(settings=s, target=str(tex))
     stub._status.msg = "Başarılı (1.2s) | 3 uyari"
@@ -139,7 +113,7 @@ def test_summary_skips_zero_categories(qapp, tmp_path):
     """Yalnız kullanılmayan label varsa özet onu içerir, sıfırları yazmaz."""
     tex = tmp_path / "m.tex"
     tex.write_text("\\label{bos}\n", encoding="utf-8")
-    s = _FakeSettings()
+    s = FakeSettings()
     s.d["compile/auto_audit"] = True
     stub = _StubMain(settings=s, target=str(tex))
     MainWindow._maybe_auto_audit(stub)
@@ -151,7 +125,7 @@ def test_summary_skips_zero_categories(qapp, tmp_path):
 def test_summary_without_current_message(qapp, tmp_path):
     """currentMessage'i olmayan durum çubuğunda özet tek başına yazılır."""
     tex = _broken_doc(tmp_path)
-    s = _FakeSettings()
+    s = FakeSettings()
     s.d["compile/auto_audit"] = True
     stub = _StubMain(settings=s, target=str(tex))
     msgs = []
