@@ -40,6 +40,9 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 
 ## Version History
 
+### Unreleased
+- **Bugfix (Linux/AppImage)**: XeLaTeX failed inside the AppImage with `GLIBCXX_3.4.32 not found` — the bundled (older) `libstdc++` leaked into system binaries via `LD_LIBRARY_PATH`. The compile chain (`derle.sh`), pandoc export and SyncTeX now strip the bundled library paths before spawning system tools
+
 ### v1.0.7 — Quick Open, Rename & Auto Audit
 - **Editor**: quick open (Ctrl+P): fuzzy-filtered file picker over the project folder (.tex/.bib/.cls/.sty); type, navigate with arrow keys, Enter opens
 - **Editor**: F2 on a `\cite` key or a `.bib` entry renames the bibliography key across the document, the `\input` chain and the `.bib` entry itself; `\bibitem` entries (manual thebibliography) are also supported (multi-key `\cite{a,b}` segments handled; single undo step in open tabs; duplicates blocked). F2 on labels keeps working as before

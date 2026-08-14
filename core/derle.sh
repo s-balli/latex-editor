@@ -7,6 +7,12 @@
 
 set -euo pipefail
 
+# AppImage ortamı LD_LIBRARY_PATH ile gömülü (eski) kütüphanelerini sızdırır;
+# sistem ikilileri (xelatex/biber/...) gömülü libstdc++'yi bulunca
+# "GLIBCXX_3.4.32 not found" ile düşer. Derleme zinciri sistem araçlarıyla
+# çalıştığından yol baştan temizlenir.
+unset LD_LIBRARY_PATH LD_PRELOAD
+
 # Renk kodlari
 KIRMIZI='\033[0;31m'
 YESIL='\033[0;32m'

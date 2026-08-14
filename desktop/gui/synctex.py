@@ -5,7 +5,7 @@ import sys
 from dataclasses import dataclass
 
 from core.log import get_logger
-from core.paths import windows_to_wsl, wsl_to_windows
+from core.paths import clean_child_env, windows_to_wsl, wsl_to_windows
 
 _logger = get_logger("synctex")
 
@@ -119,7 +119,7 @@ def _forward_native(tex_path: str, line: int, col: int, pdf_path: str,
     if synctex_dir:
         cmd += ["-d", synctex_dir]
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=3)
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=3, env=clean_child_env())
         if r.returncode != 0:
             return None
         return _parse_forward(r.stdout)
@@ -156,7 +156,7 @@ def _reverse_native(page: int, x: float, y: float, pdf_path: str,
     if synctex_dir:
         cmd += ["-d", synctex_dir]
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=3)
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=3, env=clean_child_env())
         if r.returncode != 0:
             return None
         return _parse_reverse(r.stdout)

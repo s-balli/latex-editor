@@ -69,3 +69,22 @@ class TestRoundTrip:
     def test_wsl_roundtrip(self):
         original = "/mnt/c/Users/test/document.tex"
         assert windows_to_wsl(wsl_to_windows(original)) == original
+
+
+# --- clean_child_env: AppImage kütüphane sızıntısı temizliği ---
+
+def test_clean_child_env_removes_library_paths(monkeypatch):
+    from core.paths import clean_child_env
+    monkeypatch.setenv("LD_LIBRARY_PATH", "/tmp/.mount_AppDir/usr/lib")
+    monkeypatch.setenv("LD_PRELOAD", "birsey.so")
+    monkeypatch.setenv("PATH", "/usr/bin")
+    env = clean_child_env()
+    assert "LD_LIBRARY_PATH" not in env and "LD_PRELOAD" not in env
+    assert env["PATH"] == "/usr/bin"
+
+
+def test_clean_child_env_keeps_env_when_clean(monkeypatch):
+    from core.paths import clean_child_env
+    monkeypatch.delenv("LD_LIBRARY_PATH", raising=False)
+    monkeypatch.delenv("LD_PRELOAD", raising=False)
+    assert clean_child_env() == dict(__import__("os").environ)

@@ -8,6 +8,7 @@ import subprocess
 import sys
 
 from core.log import get_logger
+from core.paths import clean_child_env
 
 _logger = get_logger("exporter")
 
@@ -85,7 +86,8 @@ def _pandoc_run(args, input_text=None, timeout=40):
             kw = dict(creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0))
         else:
             cmd = ["pandoc"] + args
-            kw = {}
+            # AppImage gömülü kütüphane yolları sızmasın (bkz. clean_child_env)
+            kw = {"env": clean_child_env()}
         r = subprocess.run(
             cmd, input=input_text, capture_output=True, text=True,
             encoding="utf-8", errors="replace", timeout=timeout, **kw,
@@ -419,7 +421,7 @@ def _export_native(tex_path: str, dest_path: str, bib: str = "") -> tuple[bool, 
             _pandoc_args(tex_path, dest_path, bib),
             capture_output=True, text=True, encoding="utf-8",
             errors="replace", timeout=30,
-            cwd=work_dir,
+            cwd=work_dir, env=clean_child_env(),
         )
         if r.returncode != 0:
             _logger.warning("Export başarısız (native): %s → %s — %s", tex_path, dest_path, r.stderr)

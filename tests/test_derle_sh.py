@@ -411,6 +411,28 @@ class TestXelatexModu:
         assert r.returncode == 0
         assert (tmp_path / "xe.pdf").exists()
 
+    @_xe
+    def test_appimage_library_path_zehirlenmesi(self, tmp_path):
+        """AppImage gömülü libstdc++ sızıntısı (LD_LIBRARY_PATH) derleyiciyi bozmamalı.
+
+        Sahte bir libstdc++.so.6 içeren dizini LD_LIBRARY_PATH'e koyup xelatex
+        ile derleriz; betik yolu temizlemezse xelatex sahte kütüphaneyi yüklemeye
+        çalışıp düşer (GLIBCXX hatasının mekanizması).
+        """
+        libdir = tmp_path / "libs"
+        libdir.mkdir()
+        (libdir / "libstdc++.so.6").write_bytes(b"bozuk-ikili")
+        tex = tmp_path / "test.tex"
+        tex.write_text(MINIMAL_TEX)
+        r = subprocess.run(
+            ["bash", SCRIPT, str(tex), "--xelatex"],
+            capture_output=True, text=True, timeout=90,
+            env={**os.environ, "LD_LIBRARY_PATH": str(libdir)},
+            cwd=str(tmp_path),
+        )
+        assert r.returncode == 0
+        assert (tmp_path / "test.pdf").exists()
+
     def test_motor_yoksa_paket_onerisi(self, tmp_path):
         # Kurulu olmayan motor: hata + '==> Eksik paket' önerisi (GUI Öneriler
         # sekmesi bu çıktıyı parse eder). Motoru sandbox PATH ile görünmez kıl.
