@@ -376,3 +376,22 @@ def test_find_key_usage_not_found(tmp_path):
     main = tmp_path / "m.tex"
     main.write_text("\\ref{baska}\n", encoding="utf-8")
     assert latex_refs.find_key_usage(main.read_text(encoding="utf-8"), str(main), "yok", "ref") is None
+
+
+# --- audit_references: kullanılmayan label ---
+
+def test_audit_unused_labels(tmp_path):
+    main = tmp_path / "m.tex"
+    main.write_text("\\label{kullanilan}\n\\ref{kullanilan}\n\\label{bos}\n", encoding="utf-8")
+    r = latex_refs.audit_references(main.read_text(encoding="utf-8"), str(main))
+    assert r.unused_labels == ["bos"]
+
+
+def test_audit_unused_labels_chain_usage(tmp_path):
+    # label ana dosyada, \ref çocukta → kullanılmış sayılır
+    child = tmp_path / "ch.tex"
+    child.write_text("\\ref{fig:x}\n", encoding="utf-8")
+    main = tmp_path / "m.tex"
+    main.write_text("\\label{fig:x}\n\\input{ch}\n", encoding="utf-8")
+    r = latex_refs.audit_references(main.read_text(encoding="utf-8"), str(main))
+    assert r.unused_labels == []

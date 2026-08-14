@@ -319,10 +319,14 @@ class RefAudit:
                      \\cite anahtarları
     unused_bib_keys: .bib'te olup hiç \\cite edilmemiş girdi anahtarları
                      (\\nocite{*} varsa boş — her şey kullanılmış sayılır)
+    unused_labels:   tanımlı olup hiç \\ref ailesiyle kullanılmayan \\label
+                     anahtarları (bilgi amaçlı; "ilerde lazım" label'ları da
+                     yakalar, bu yüzden hata değil öneri olarak sunulur)
     """
     undefined_refs: list[str] = field(default_factory=list)
     undefined_cites: list[str] = field(default_factory=list)
     unused_bib_keys: list[str] = field(default_factory=list)
+    unused_labels: list[str] = field(default_factory=list)
 
 
 def _chain_texts(content: str, base_path: str) -> list[tuple[str, str]]:
@@ -372,6 +376,7 @@ def audit_references(content: str, base_path: str) -> RefAudit:
         undefined_refs=sorted(used_refs - defined_labels),
         undefined_cites=sorted(used_cites - bib_keys - bibitem_keys),
         unused_bib_keys=[] if nocite_all else sorted(bib_keys - used_cites),
+        unused_labels=sorted(defined_labels - used_refs),
     )
 
 

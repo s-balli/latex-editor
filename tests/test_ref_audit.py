@@ -92,6 +92,25 @@ def test_handler_unused_bib_clickable(qapp, tmp_path):
     assert (path, line) == (str(bib), 1)
 
 
+def test_handler_unused_label_clickable(qapp, tmp_path):
+    main = tmp_path / "m.tex"
+    main.write_text("\\label{bos}\n", encoding="utf-8")
+    ed = EditorWidget()
+    ed._file_path = str(main)
+    ed.setText(main.read_text(encoding="utf-8"))
+
+    stub = _StubMain(ed)
+    MainWindow._audit_references(stub)
+    warnings, suggestions = stub._output_panel.audits[0]
+    assert warnings == []
+    assert len(suggestions) == 1
+    text, path, line = suggestions[0]
+    assert "Kullanılmayan label" in text and "bos" in text
+    assert "m.tex:1" in text
+    assert (path, line) == (str(main), 1)
+    assert any("1 kullanılmayan label" in m for m in stub.messages)
+
+
 def test_handler_clean_doc(qapp, tmp_path):
     main = tmp_path / "m.tex"
     main.write_text("\\label{a}\n\\ref{a}\n", encoding="utf-8")

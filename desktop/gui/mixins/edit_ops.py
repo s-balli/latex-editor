@@ -116,7 +116,9 @@ class EditOpsMixin:
         Bulgular tıklanabilir: tanımsız \ref/\cite kullanıldığı satıra,
         kullanılmayan .bib girdisi .bib'teki satırına atlar.
         """
-        from core.latex_refs import audit_references, find_cite_location, find_key_usage
+        from core.latex_refs import (
+            audit_references, find_cite_location, find_key_usage, find_label_location,
+        )
         editor = self._current_editor()
         if not editor or not editor.file_path:
             self._status.showMessage(_("Önce bir .tex dosyası açın"))
@@ -135,6 +137,9 @@ class EditOpsMixin:
         for k in report.unused_bib_keys:
             loc = find_cite_location(content, base_path, k)
             suggestions.append(self._audit_item(_("Kullanılmayan .bib girdisi"), k, loc))
+        for k in report.unused_labels:
+            loc = find_label_location(content, base_path, k)
+            suggestions.append(self._audit_item(_("Kullanılmayan label"), k, loc))
 
         self._output_panel.show_audit(warnings, suggestions)
         total = len(warnings) + len(suggestions)
@@ -142,9 +147,10 @@ class EditOpsMixin:
             self._status.showMessage(_("Referans denetimi: sorun yok"))
         else:
             self._status.showMessage(
-                _("Referans denetimi: {r} tanımsız ref, {c} tanımsız cite, {b} kullanılmayan .bib girdisi").format(
+                _("Referans denetimi: {r} tanımsız ref, {c} tanımsız cite, {b} kullanılmayan .bib, {l} kullanılmayan label").format(
                     r=len(report.undefined_refs),
                     c=len(report.undefined_cites),
                     b=len(report.unused_bib_keys),
+                    l=len(report.unused_labels),
                 )
             )
