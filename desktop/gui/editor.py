@@ -10,7 +10,7 @@ from PyQt6.QtGui import QColor, QPalette
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from core.log import get_logger
-from core.latex_refs import collect_cite_keys, collect_labels
+from core.latex_refs import collect_cite_keys, collect_input_paths, collect_labels
 from PyQt6.QtCore import QCoreApplication
 
 _ = lambda s: QCoreApplication.translate("EditorWidget", s)
@@ -426,6 +426,13 @@ class EditorWidget(QsciScintilla):
             self._show_cite_completion(cite.group(1))
             return
 
+        # \input{ / \include{ sonrası proje dosyası tamamlama. \includegraphics{
+        # buraya düşmez: 'include' sonrası \s*\{ yalnız ayraç kabul eder.
+        inp = re.search(r'\\(?:input|include)\s*\{([^}]*)$', text_before)
+        if inp:
+            self._show_input_completion(inp.group(1))
+            return
+
         if not manual and col < 3:
             return
 
@@ -502,6 +509,24 @@ class EditorWidget(QsciScintilla):
         self.SendScintilla(QsciScintilla.SCI_AUTOCSETSEPARATOR, ord(' '))
         entries = " ".join(matches).encode('utf-8')
         self.SendScintilla(QsciScintilla.SCI_AUTOCSHOW, len(partial), entries)
+
+    def _show_input_completion(self, typed: str):
+        r"""\input{...} için projedeki .tex dosyalarını öner (göreli yol, .tex'siz)."""
+        if not self._file_path:
+            return
+        try:
+            paths = collect_input_paths(self._file_path)
+        except Exception:
+            _logger.debug("input dosya toplama başarısız", exc_info=True)
+            return
+        # Tamamlama listesi ayırıcısı boşluk olduğundan adında boşluk geçen
+        # yollar listeye konamaz (popup'a sığmaz).
+        matches = [p for p in paths if p.startswith(typed) and p != typed and " " not in p]
+        if not matches:
+            return
+        self.SendScintilla(QsciScintilla.SCI_AUTOCSETSEPARATOR, ord(' '))
+        entries = " ".join(matches).encode('utf-8')
+        self.SendScintilla(QsciScintilla.SCI_AUTOCSHOW, len(typed), entries)
 
     def _on_autoc_completed(self, text, *rest):
         """Otomatik tamamlama popup'ından seçilen komut kapanış ayracı ekler.

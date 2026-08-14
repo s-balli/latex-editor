@@ -89,6 +89,34 @@ def test_collect_cite_keys_cache_invalidates(tmp_path):
     assert latex_refs.collect_cite_keys(content, str(tex)) == ["b"]
 
 
+# --- collect_input_paths (\input / \include tamamlama) ---
+
+def test_collect_input_paths_basic(tmp_path):
+    (tmp_path / "main.tex").write_text("\\input{bolum1}", encoding="utf-8")
+    (tmp_path / "bolum1.tex").write_text("x", encoding="utf-8")
+    sub = tmp_path / "bolumler"
+    sub.mkdir()
+    (sub / "giris.tex").write_text("x", encoding="utf-8")
+    assert latex_refs.collect_input_paths(str(tmp_path / "main.tex")) == ["bolum1", "bolumler/giris"]
+
+
+def test_collect_input_paths_excludes_self_and_non_tex(tmp_path):
+    main = tmp_path / "main.tex"
+    main.write_text("\\input{b}", encoding="utf-8")
+    (tmp_path / "b.tex").write_text("x", encoding="utf-8")
+    (tmp_path / "notlar.md").write_text("x", encoding="utf-8")
+    assert latex_refs.collect_input_paths(str(main)) == ["b"]
+
+
+def test_collect_input_paths_skips_hidden_dirs(tmp_path):
+    main = tmp_path / "main.tex"
+    main.write_text("x", encoding="utf-8")
+    hid = tmp_path / ".git"
+    hid.mkdir()
+    (hid / "t.tex").write_text("x", encoding="utf-8")
+    assert latex_refs.collect_input_paths(str(main)) == []
+
+
 # --- find_label_location / find_cite_location (Alt+tık tanıma git) ---
 
 def test_find_label_location_in_main(tmp_path):

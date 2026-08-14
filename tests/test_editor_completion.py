@@ -288,3 +288,67 @@ def test_cite_completion_from_bib(qapp, tmp_path):
     ed.SendScintilla(QsciScintilla.SCI_AUTOCCOMPLETE)
     qapp.processEvents()
     assert _line(ed, 1) == "\\cite{smith2020}"
+
+
+# --- \input / \include dosya tamamlama ---
+
+def test_input_completion_from_project(qapp, tmp_path):
+    r"""bolumler/giris.tex varken \input{bolumler/gi -> popup, seçince tam yol."""
+    sub = tmp_path / "bolumler"
+    sub.mkdir()
+    (sub / "giris.tex").write_text("x", encoding="utf-8")
+    tex = tmp_path / "m.tex"
+    tex.write_text("\\input{bolumler/gi}", encoding="utf-8")
+    ed = _editor()
+    ed._file_path = str(tex)
+    ed.setText(tex.read_text(encoding="utf-8"))
+    _style_all(ed)
+    ed.setCursorPosition(0, len("\\input{bolumler/gi"))
+    ed._check_autocomplete()
+    assert _autoc_active(ed)
+    ed.SendScintilla(QsciScintilla.SCI_AUTOCCOMPLETE)
+    qapp.processEvents()
+    assert _line(ed, 0) == "\\input{bolumler/giris}"
+
+
+def test_include_completion(qapp, tmp_path):
+    r"""\include{ için de aynı tamamlama çalışır."""
+    (tmp_path / "ek.tex").write_text("x", encoding="utf-8")
+    tex = tmp_path / "m.tex"
+    tex.write_text("\\include{e", encoding="utf-8")
+    ed = _editor()
+    ed._file_path = str(tex)
+    ed.setText(tex.read_text(encoding="utf-8"))
+    _style_all(ed)
+    ed.setCursorPosition(0, len("\\include{e"))
+    ed._check_autocomplete()
+    assert _autoc_active(ed)
+    ed.SendScintilla(QsciScintilla.SCI_AUTOCCOMPLETE)
+    qapp.processEvents()
+    assert _line(ed, 0) == "\\include{ek"
+
+
+def test_input_completion_excludes_self(qapp, tmp_path):
+    r"""Tek aday kendi dosyasıysa popup çıkmaz (kendini \input etmek döngü)."""
+    tex = tmp_path / "m.tex"
+    tex.write_text("\\input{m", encoding="utf-8")
+    ed = _editor()
+    ed._file_path = str(tex)
+    ed.setText(tex.read_text(encoding="utf-8"))
+    _style_all(ed)
+    ed.setCursorPosition(0, len("\\input{m"))
+    ed._check_autocomplete()
+    assert not _autoc_active(ed)
+
+
+def test_includegraphics_not_input_completion(qapp, tmp_path):
+    r"""\includegraphics{ resim komutudur — input tamamlaması tetiklenmez."""
+    tex = tmp_path / "m.tex"
+    tex.write_text("\\includegraphics{a", encoding="utf-8")
+    ed = _editor()
+    ed._file_path = str(tex)
+    ed.setText(tex.read_text(encoding="utf-8"))
+    _style_all(ed)
+    ed.setCursorPosition(0, len("\\includegraphics{a"))
+    ed._check_autocomplete()
+    assert not _autoc_active(ed)
