@@ -34,7 +34,7 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 
 ➜ **[Download (Releases) page](https://github.com/s-balli/latex-editor/releases)**
 
-> ⚠️ **Important:** The app only includes the GUI. The LaTeX compiler (`lualatex`/`pdflatex`) must be installed separately via **TeX Live** — on Windows through **WSL**, on Linux via `apt`. See [Requirements](#requirements) section for details.
+> ⚠️ **Important:** The app only includes the GUI. The LaTeX compiler (`lualatex`/`pdflatex`/`xelatex`) must be installed separately via **TeX Live** — on Windows through **WSL**, on Linux via `apt`. See [Requirements](#requirements) section for details.
 
 ---
 

@@ -41,6 +41,10 @@ jobs:
       - name: Generate release notes
         shell: bash
         run: |
+          # actions/checkout tag push'ta refs/tags/<tag>'i dogrudan commit SHA'si ile
+          # yazar (annotated tag hafifletilir, %(contents) commit mesajini verir);
+          # gercek tag objesini cekip sonra oku.
+          git fetch --no-tags --force origin "+refs/tags/${{ github.ref_name }}:refs/tags/${{ github.ref_name }}"
           TAG_MSG=$(git tag -l --format='%(contents)' ${{ github.ref_name }})
           TAG_MSG=$(echo "$TAG_MSG" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')
           V="${{ steps.ver.outputs.VERSION }}"
@@ -53,7 +57,7 @@ jobs:
             echo ""
             echo "## Installation"
             echo ""
-            echo "> Warning: The app only includes the GUI. The LaTeX compiler (\`lualatex\`/\`pdflatex\`) must be installed separately via **TeX Live**."
+            echo "> Warning: The app only includes the GUI. The LaTeX compiler (\`lualatex\`/\`pdflatex\`/\`xelatex\`) must be installed separately via **TeX Live**."
             echo ""
             echo "### Windows"
             echo "1. **Install WSL** (PowerShell, as administrator):"
@@ -94,7 +98,7 @@ jobs:
             echo ""
             echo "## Kurulum"
             echo ""
-            echo "> Önemli: Uygulama yalnızca GUI'yi içerir. LaTeX derleyicisi (\`lualatex\`/\`pdflatex\`) ayrıca **TeX Live** ile kurulmalıdır."
+            echo "> Önemli: Uygulama yalnızca GUI'yi içerir. LaTeX derleyicisi (\`lualatex\`/\`pdflatex\`/\`xelatex\`) ayrıca **TeX Live** ile kurulmalıdır."
             echo ""
             echo "### Windows"
             echo "1. **WSL kur** (PowerShell, yönetici olarak):"
@@ -170,6 +174,10 @@ jobs:
       - name: Generate release notes
         shell: bash
         run: |
+          # actions/checkout tag push'ta refs/tags/<tag>'i dogrudan commit SHA'si ile
+          # yazar (annotated tag hafifletilir, %(contents) commit mesajini verir);
+          # gercek tag objesini cekip sonra oku.
+          git fetch --no-tags --force origin "+refs/tags/${{ github.ref_name }}:refs/tags/${{ github.ref_name }}"
           TAG_MSG=$(git tag -l --format='%(contents)' ${{ github.ref_name }})
           TAG_MSG=$(echo "$TAG_MSG" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')
           V="${{ steps.ver.outputs.VERSION }}"
@@ -182,7 +190,7 @@ jobs:
             echo ""
             echo "## Installation"
             echo ""
-            echo "> Warning: The app only includes the GUI. The LaTeX compiler (\`lualatex\`/\`pdflatex\`) must be installed separately via **TeX Live**."
+            echo "> Warning: The app only includes the GUI. The LaTeX compiler (\`lualatex\`/\`pdflatex\`/\`xelatex\`) must be installed separately via **TeX Live**."
             echo ""
             echo "### Windows"
             echo "1. **Install WSL** (PowerShell, as administrator):"
@@ -223,7 +231,7 @@ jobs:
             echo ""
             echo "## Kurulum"
             echo ""
-            echo "> Önemli: Uygulama yalnızca GUI'yi içerir. LaTeX derleyicisi (\`lualatex\`/\`pdflatex\`) ayrıca **TeX Live** ile kurulmalıdır."
+            echo "> Önemli: Uygulama yalnızca GUI'yi içerir. LaTeX derleyicisi (\`lualatex\`/\`pdflatex\`/\`xelatex\`) ayrıca **TeX Live** ile kurulmalıdır."
             echo ""
             echo "### Windows"
             echo "1. **WSL kur** (PowerShell, yönetici olarak):"

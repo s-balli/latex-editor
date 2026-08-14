@@ -34,7 +34,7 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 
 ➜ **[Download (Releases) sayfası](https://github.com/s-balli/latex-editor/releases)**
 
-> ⚠️ **Önemli:** Uygulama yalnızca GUI'yi içerir. LaTeX derleyicisi (`lualatex`/`pdflatex`) ayrıca **TeX Live** ile kurulmalıdır — Windows'ta **WSL** üzerinden, Linux'ta `apt` ile. Detaylar için [Gereksinimler](#gereksinimler) bölümüne bakın.
+> ⚠️ **Önemli:** Uygulama yalnızca GUI'yi içerir. LaTeX derleyicisi (`lualatex`/`pdflatex`/`xelatex`) ayrıca **TeX Live** ile kurulmalıdır — Windows'ta **WSL** üzerinden, Linux'ta `apt` ile. Detaylar için [Gereksinimler](#gereksinimler) bölümüne bakın.
 
 ---
 
