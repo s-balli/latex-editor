@@ -40,8 +40,9 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 
 ## Sürüm Geçmişi
 
-### Unreleased
+### v1.0.8 — AppImage XeLaTeX Düzeltmesi
 - **Hata düzeltme (Linux/AppImage)**: AppImage içinde XeLaTeX `GLIBCXX_3.4.32 not found` hatasıyla düşüyordu — gömülü (eski) `libstdc++`, `LD_LIBRARY_PATH` üzerinden sistem ikililerine sızıyordu. Derleme zinciri (`derle.sh`), pandoc dışa aktarma ve SyncTeX artık sistem araçlarını başlatmadan önce gömülü kütüphane yollarını temizliyor
+- **659 birim testi**
 
 ### v1.0.7 — Hızlı Açma, Yeniden Adlandırma ve Otomatik Denetim
 - **Editör**: hızlı dosya açma (Ctrl+P): proje klasöründeki dosyalar (.tex/.bib/.cls/.sty) bulanık filtreyle; yaz, ok tuşlarıyla gez, Enter ile aç

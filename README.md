@@ -40,8 +40,9 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 
 ## Version History
 
-### Unreleased
+### v1.0.8 — AppImage XeLaTeX Fix
 - **Bugfix (Linux/AppImage)**: XeLaTeX failed inside the AppImage with `GLIBCXX_3.4.32 not found` — the bundled (older) `libstdc++` leaked into system binaries via `LD_LIBRARY_PATH`. The compile chain (`derle.sh`), pandoc export and SyncTeX now strip the bundled library paths before spawning system tools
+- **659 unit tests**
 
 ### v1.0.7 — Quick Open, Rename & Auto Audit
 - **Editor**: quick open (Ctrl+P): fuzzy-filtered file picker over the project folder (.tex/.bib/.cls/.sty); type, navigate with arrow keys, Enter opens
