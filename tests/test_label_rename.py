@@ -240,3 +240,39 @@ def test_rename_cite_duplicate_blocked(qapp, tmp_path):
     warn.assert_called_once()
     assert "\\cite{a}" in ed.text()
     assert "@article{a," in bib.read_text(encoding="utf-8")
+
+
+# --- F2 fallback: Alt+tıkla satır başına gelinen durum (imleç argüman dışında) ---
+
+
+def test_f2_bib_entry_line_start(qapp):
+    """Alt+tık .bib girdisine zıplar → imleç sütun 0'da; F2 yine çalışmalı."""
+    ed = EditorWidget()
+    ed._file_path = "/x/refs.bib"
+    ed.setText("@article{karaca2024,\n title={X},\n}\n")
+    caught = []
+    ed.rename_cite_requested.connect(caught.append)
+    ed.setCursorPosition(0, 0)
+    ed._request_rename()
+    assert caught == ["karaca2024"]
+
+
+def test_f2_cite_line_start(qapp):
+    """Alt+tık kullanıma zıplar → imleç sütun 0'da; satırdaki cite yakalanır."""
+    ed = EditorWidget()
+    ed.setText("Metin \\cite{karaca2024} burada.\n")
+    caught = []
+    ed.rename_cite_requested.connect(caught.append)
+    ed.setCursorPosition(0, 0)
+    ed._request_rename()
+    assert caught == ["karaca2024"]
+
+
+def test_f2_label_line_start(qapp):
+    ed = EditorWidget()
+    ed.setText("Metin \\label{fig:a} burada.\n")
+    caught = []
+    ed.rename_label_requested.connect(caught.append)
+    ed.setCursorPosition(0, 0)
+    ed._request_rename()
+    assert caught == ["fig:a"]

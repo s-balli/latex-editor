@@ -368,12 +368,17 @@ class EditorWidget(QsciScintilla):
 
         .tex içinde \\label{key}/\\ref ailesi → label rename; \\cite ailesi →
         .bib anahtarı rename. .bib dosyasında girdi anahtarı → bib anahtarı
-        rename. Anahtar MainWindow'da zincirde toplu değiştirilir.
+        rename. İmleç argüman dışındaysa (ör. Alt+tıkla satır başına gelinen
+        durumda) satırdaki kullanımın imlece en yakın anahtarı kabul edilir.
+        Anahtar MainWindow'da zincirde toplu değiştirilir.
         """
         line, col = self.getCursorPosition()
         line_text = self.text(line)
         if self._file_path.endswith('.bib'):
             key = self._bib_key_at(line_text, col)
+            if not key:
+                m = _RE_BIBENTRY.search(line_text)
+                key = m.group(1) if m else None
             if key:
                 self.rename_cite_requested.emit(key)
             return
@@ -382,13 +387,24 @@ class EditorWidget(QsciScintilla):
             if a <= col <= b:
                 self.rename_label_requested.emit(m.group(1).strip())
                 return
-        hit = self._ref_cite_key_at(line_text, col)
+        hit = self._ref_cite_key_at(line_text, col) or self._nearest_family_hit(line_text, col)
         if not hit:
             return
         if hit[1] == "label":
             self.rename_label_requested.emit(hit[0])
         else:
             self.rename_cite_requested.emit(hit[0])
+
+    def _nearest_family_hit(self, line_text: str, col: int) -> tuple[str, str] | None:
+        """İmleç argüman dışındaysa satırdaki ilk \\label/\\ref/\\cite kullanımının
+        imlece en yakın segmentini döndür: (anahtar, 'label'|'cite')."""
+        for m in _RE_LABELARG.finditer(line_text):
+            return (self._nearest_key(m.group(1), max(0, col - m.start(1))), "label")
+        for m in _RE_REFARG.finditer(line_text):
+            return (self._nearest_key(m.group(1), max(0, col - m.start(1))), "label")
+        for m in _RE_CITEARG.finditer(line_text):
+            return (self._nearest_key(m.group(1), max(0, col - m.start(1))), "cite")
+        return None
 
     def _text_before_cursor(self) -> str:
         line, index = self.getCursorPosition()
