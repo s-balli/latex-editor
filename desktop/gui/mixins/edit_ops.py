@@ -1,5 +1,7 @@
 """Düzenleme işlemleri mixin — geri al, yinele, bul, değiştir, yorum, satıra git."""
 
+import os
+
 from PyQt6.QtWidgets import QInputDialog, QApplication
 from PyQt6.QtCore import QCoreApplication
 
@@ -96,32 +98,46 @@ class EditOpsMixin:
     # --- Referans denetimi (tanımsız \ref/\cite, kullanılmayan .bib girdileri) ---
 
     @staticmethod
-    def _audit_lines(r) -> list[str]:
-        """RefAudit raporunu OutputPanel'e yazılacak satırlara çevir."""
-        lines = []
-        if r.undefined_refs:
-            lines.append(_("Tanımsız \\ref (etiketi yok): {n}").format(n=len(r.undefined_refs)))
-            lines.extend(f"    {k}" for k in r.undefined_refs)
-        if r.undefined_cites:
-            lines.append(_("Tanımsız \\cite (.bib/\\bibitem'te yok): {n}").format(n=len(r.undefined_cites)))
-            lines.extend(f"    {k}" for k in r.undefined_cites)
-        if r.unused_bib_keys:
-            lines.append(_("Kullanılmayan .bib girdisi: {n}").format(n=len(r.unused_bib_keys)))
-            lines.extend(f"    {k}" for k in r.unused_bib_keys)
-        if not lines:
-            lines.append(_("Sorun bulunamadı — tüm \\ref/\\cite anahtarları tanımlı."))
-        return lines
+    def _audit_item(label: str, key: str, loc) -> tuple[str, str, int]:
+        """Bulguyu OutputPanel öğesine çevir: (metin, dosya, satır).
+
+        Konum varsa metne 'dosya: satır' öneki eklenir; yoksa (ör. kullanım
+        zincirde bir önceki denetimden sonra değişti) satır 0 olur ve öğe
+        tıklanamaz kalır.
+        """
+        if loc:
+            path, line = loc
+            return (f"{os.path.basename(path)}:{line} — {label}: {key}", path, line)
+        return (f"{label}: {key}", "", 0)
 
     def _audit_references(self):
-        """Düzenle > Referansları Denetle — derlemeden bağımsız lokal analiz."""
-        from core.latex_refs import audit_references
+        """Düzenle > Referansları Denetle — derlemeden bağımsız lokal analiz.
+
+        Bulgular tıklanabilir: tanımsız \ref/\cite kullanıldığı satıra,
+        kullanılmayan .bib girdisi .bib'teki satırına atlar.
+        """
+        from core.latex_refs import audit_references, find_cite_location, find_key_usage
         editor = self._current_editor()
         if not editor or not editor.file_path:
             self._status.showMessage(_("Önce bir .tex dosyası açın"))
             return
-        report = audit_references(editor.text(), editor.file_path)
-        self._output_panel.show_report(_("== Referans Denetimi =="), self._audit_lines(report))
-        total = len(report.undefined_refs) + len(report.undefined_cites) + len(report.unused_bib_keys)
+        content, base_path = editor.text(), editor.file_path
+        report = audit_references(content, base_path)
+
+        warnings = []
+        for k in report.undefined_refs:
+            loc = find_key_usage(content, base_path, k, "ref")
+            warnings.append(self._audit_item(_("Tanımsız \\ref"), k, loc))
+        for k in report.undefined_cites:
+            loc = find_key_usage(content, base_path, k, "cite")
+            warnings.append(self._audit_item(_("Tanımsız \\cite"), k, loc))
+        suggestions = []
+        for k in report.unused_bib_keys:
+            loc = find_cite_location(content, base_path, k)
+            suggestions.append(self._audit_item(_("Kullanılmayan .bib girdisi"), k, loc))
+
+        self._output_panel.show_audit(warnings, suggestions)
+        total = len(warnings) + len(suggestions)
         if total == 0:
             self._status.showMessage(_("Referans denetimi: sorun yok"))
         else:

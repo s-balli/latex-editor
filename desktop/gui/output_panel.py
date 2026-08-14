@@ -56,7 +56,7 @@ class OutputPanel(QWidget):
         # Uyarılar sekmesi
         self._warn_list = QListWidget()
         self._warn_list.setStyleSheet(f"{list_base} color: {t['sem_warning']};")
-        self._warn_list.itemClicked.connect(self._on_warn_click)
+        self._warn_list.itemClicked.connect(self._on_result_click)
         self._warn_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self._warn_list.customContextMenuRequested.connect(self._on_list_context_menu)
         self._warn_tab_index = self._tabs.addTab(self._warn_list, _("Uyarılar"))
@@ -66,6 +66,7 @@ class OutputPanel(QWidget):
         self._suggest_list.setStyleSheet(f"{list_base} color: {t['sem_suggestion']};")
         self._suggest_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self._suggest_list.customContextMenuRequested.connect(self._on_list_context_menu)
+        self._suggest_list.itemClicked.connect(self._on_result_click)
         self._suggest_tab_index = self._tabs.addTab(self._suggest_list, _("Öneriler"))
 
         # Ham log sekmesi
@@ -133,15 +134,29 @@ class OutputPanel(QWidget):
         elif result.warnings:
             self._tabs.setCurrentIndex(self._warn_tab_index)
 
-    def show_report(self, title: str, lines: list[str]):
-        """Serbest metin raporunu (referans denetimi vb.) Log sekmesinde göster.
+    def show_audit(self, warnings: list[tuple[str, str, int]],
+                   suggestions: list[tuple[str, str, int]]):
+        """Referans denetimi bulgularını tıklanabilir öğeler olarak göster.
 
-        Derleme sonucu değil; panelden bağımsız üretilmiş bir analiz çıktısı.
-        Panel temizlenir ve Log sekmesi öne getirilir.
+        Öğeler (metin, dosya, satır) üçlüsü; warnings Uyarılar, suggestions
+        Öneriler sekmesine gider. İkisi de boşsa tek satır 'sorun yok' mesajı
+        Öneriler'de gösterilir. Tıklanınca error_clicked sinyali ile editöre
+        atlanır (satır > 0 olan öğeler).
         """
         self.clear()
-        self._log_text.setPlainText(title + "\n" + "\n".join(lines))
-        self._tabs.setCurrentIndex(self._log_tab_index)
+        for text, path, line in warnings:
+            item = QListWidgetItem(text)
+            item.setData(Qt.ItemDataRole.UserRole, (path, line))
+            self._warn_list.addItem(item)
+        for text, path, line in suggestions:
+            item = QListWidgetItem(text)
+            item.setData(Qt.ItemDataRole.UserRole, (path, line))
+            self._suggest_list.addItem(item)
+        if not warnings and not suggestions:
+            self._suggest_list.addItem(QListWidgetItem(_("Sorun bulunamadı — tüm \\ref/\\cite anahtarları tanımlı.")))
+        self._tabs.setTabText(self._warn_tab_index, _("Uyarılar ({n})").format(n=len(warnings)))
+        self._tabs.setTabText(self._suggest_tab_index, _("Öneriler ({n})").format(n=len(suggestions)))
+        self._tabs.setCurrentIndex(self._warn_tab_index if warnings else self._suggest_tab_index)
 
     def show_engine_hint(self, current: str, other: str):
         """Başarısız derlemede motor değiştirme önerisini ekle ve tab'ı aç."""
@@ -194,7 +209,8 @@ class OutputPanel(QWidget):
             if line and line > 0:
                 self.error_clicked.emit(file_path or "", line)
 
-    def _on_warn_click(self, item: QListWidget):
+    def _on_result_click(self, item: QListWidget):
+        """Uyarı/Öneri öğesine tıkla → (dosya, satır)'a atla (satır > 0 ise)."""
         data = item.data(Qt.ItemDataRole.UserRole)
         if data:
             file_path, line = data

@@ -325,17 +325,22 @@ class RefAudit:
     unused_bib_keys: list[str] = field(default_factory=list)
 
 
-def _audit_texts(content: str, base_path: str) -> list[str]:
-    """Denetim metinleri: mevcut içerik + \\input zinciri (yorumlar soyulmuş)."""
-    texts = [strip_comments(content)]
+def _chain_texts(content: str, base_path: str) -> list[tuple[str, str]]:
+    """\\input zincirindeki çocuk dosyaların (yol, yorumları soyulmuş metin) listesi."""
     bdir = _base_dir(base_path)
+    out: list[tuple[str, str]] = []
     for path in _flatten_input_paths(content, bdir):
         try:
             with open(path, 'r', encoding='utf-8', errors='replace') as f:
-                texts.append(strip_comments(f.read()))
+                out.append((path, strip_comments(f.read())))
         except OSError:
             continue
-    return texts
+    return out
+
+
+def _audit_texts(content: str, base_path: str) -> list[str]:
+    """Denetim metinleri: mevcut içerik + \\input zinciri (yorumlar soyulmuş)."""
+    return [strip_comments(content)] + [t for _p, t in _chain_texts(content, base_path)]
 
 
 def audit_references(content: str, base_path: str) -> RefAudit:
@@ -368,3 +373,23 @@ def audit_references(content: str, base_path: str) -> RefAudit:
         undefined_cites=sorted(used_cites - bib_keys - bibitem_keys),
         unused_bib_keys=[] if nocite_all else sorted(bib_keys - used_cites),
     )
+
+
+def find_key_usage(content: str, base_path: str, key: str, family: str) -> tuple[str, int] | None:
+    """``family`` ('ref' veya 'cite') komutlarında ``key``'in ilk kullanım konumu.
+
+    Tanımsız \\ref/\\cite bulgusuna tıklayınca kullanıldığı yere atlamak için.
+    Ana dosyanın canlı içeriği ve \\input zinciri taranır; yorumlar soyulur ama
+    satır numaraları korunur (strip_comments satır sayısını bozmaz). Çok
+    anahtarlı kullanımda (\\cref{a,b}) segment segment eşleşilir.
+    Bulunamazsa None.
+    """
+    pat = _RE_REFUSE if family == "ref" else _RE_CITEUSE
+    entries = [(base_path, strip_comments(content))] + _chain_texts(content, base_path)
+    for path, t in entries:
+        for i, ln in enumerate(t.split('\n'), start=1):
+            for m in pat.finditer(ln):
+                keys = [k.strip() for k in m.group(1).split(',')]
+                if key in keys:
+                    return (path, i)
+    return None

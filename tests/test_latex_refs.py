@@ -338,3 +338,41 @@ def test_audit_cref_multi_key(tmp_path):
     main.write_text("\\cref{a,b}\n\\label{a}\n", encoding="utf-8")
     r = latex_refs.audit_references(main.read_text(encoding="utf-8"), str(main))
     assert r.undefined_refs == ["b"]
+
+
+# --- find_key_usage (denetim bulgusundan kullanım yerine atlama) ---
+
+def test_find_key_usage_ref_in_main(tmp_path):
+    main = tmp_path / "m.tex"
+    main.write_text("baslik\nMetin \\ref{fig:x} burada.\n", encoding="utf-8")
+    loc = latex_refs.find_key_usage(main.read_text(encoding="utf-8"), str(main), "fig:x", "ref")
+    assert loc == (str(main), 2)
+
+
+def test_find_key_usage_cite_in_chain_child(tmp_path):
+    child = tmp_path / "ch.tex"
+    child.write_text("\\cite{k2024}\n", encoding="utf-8")
+    main = tmp_path / "m.tex"
+    main.write_text("\\input{ch}\n", encoding="utf-8")
+    loc = latex_refs.find_key_usage(main.read_text(encoding="utf-8"), str(main), "k2024", "cite")
+    assert loc == (str(child), 1)
+
+
+def test_find_key_usage_ignores_commented(tmp_path):
+    main = tmp_path / "m.tex"
+    main.write_text("% \\ref{fig:x}\n\\ref{fig:x}\n", encoding="utf-8")
+    loc = latex_refs.find_key_usage(main.read_text(encoding="utf-8"), str(main), "fig:x", "ref")
+    assert loc == (str(main), 2)
+
+
+def test_find_key_usage_multi_key_cite(tmp_path):
+    main = tmp_path / "m.tex"
+    main.write_text("\\cite{a, hedef, b}\n", encoding="utf-8")
+    loc = latex_refs.find_key_usage(main.read_text(encoding="utf-8"), str(main), "hedef", "cite")
+    assert loc == (str(main), 1)
+
+
+def test_find_key_usage_not_found(tmp_path):
+    main = tmp_path / "m.tex"
+    main.write_text("\\ref{baska}\n", encoding="utf-8")
+    assert latex_refs.find_key_usage(main.read_text(encoding="utf-8"), str(main), "yok", "ref") is None
