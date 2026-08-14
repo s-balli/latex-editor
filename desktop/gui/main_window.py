@@ -531,7 +531,7 @@ class MainWindow(
         html += "Ctrl+H — " + _("Bul ve Değiştir") + "<br>"
         html += "Ctrl+/ — " + _("Yorum Toggle") + "<br>"
         html += "Ctrl+G — " + _("Satıra Git") + "<br>"
-        html += "F2 — " + _("Etiketi Yeniden Adlandır (imleç \\label/\\ref üzerinde)") + "<br>"
+        html += "F2 — " + _("Etiketi/Kaynakça Anahtarını Yeniden Adlandır (imleç \\label/\\ref/\\cite veya .bib girdisi üzerinde)") + "<br>"
         html += "F4 — " + _("Sonraki Hata") + "<br>"
         html += "Shift+F4 — " + _("Önceki Hata") + "<br><br>"
         html += "<b>" + _("Diğer") + "</b><br>"

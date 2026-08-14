@@ -77,7 +77,7 @@ def collect_labels(content: str, base_path: str) -> list[str]:
     return sorted(labels)
 
 
-def _find_bib_path(content: str, base_path: str) -> str:
+def find_bib_path(content: str, base_path: str) -> str:
     """\\addbibresource{X.bib} / \\bibliography{X} ile referans verilen .bib yolu."""
     bdir = _base_dir(base_path)
     for pat in (_RE_ADDBIB, _RE_BIBLIO):
@@ -152,7 +152,7 @@ def collect_cite_keys(content: str, base_path: str) -> list[str]:
 
     .bib bulunamazsa boş liste.
     """
-    bib_path = _find_bib_path(content, base_path)
+    bib_path = find_bib_path(content, base_path)
     if not bib_path:
         return []
     try:
@@ -214,7 +214,7 @@ def find_cite_location(content: str, base_path: str, key: str) -> tuple[str, int
 
     .bib bulunamaz veya anahtar yoksa None. Alt+tık ile \\cite tanıma git için.
     """
-    bib_path = _find_bib_path(content, base_path)
+    bib_path = find_bib_path(content, base_path)
     if not bib_path:
         return None
     pat = re.compile(r'@\w+\s*\{\s*' + re.escape(key) + r'\s*,')
@@ -443,3 +443,33 @@ def rename_label_in_text(text: str, old: str, new: str) -> str:
     for s, e in sorted(label_rename_spans(text, old), reverse=True):
         out = out[:s] + new + out[e:]
     return out
+
+
+# --- \cite anahtarı yeniden adlandırma (F2): kullanımlar + .bib girdisi ---
+
+def cite_rename_spans(text: str, old: str) -> list[tuple[int, int]]:
+    """``old`` cite anahtarının \\cite ailesi kullanımlarındaki karakter aralıkları.
+
+    Çok anahtarlı kullanımda (\\cite{a, old, b}) yalnız eşleşen segment;
+    'old' önekli anahtarlar ('oldx') eşleşmez. \nocite dahil tüm aile.
+    """
+    spans: list[tuple[int, int]] = []
+    for m in _RE_CITEUSE.finditer(text):
+        arg_a, _ = m.span(1)
+        arg = m.group(1)
+        off = 0
+        for part in arg.split(','):
+            if part.strip() == old:
+                s = arg_a + off + (len(part) - len(part.lstrip()))
+                spans.append((s, s + len(old)))
+            off += len(part) + 1  # virgülü atla
+    return spans
+
+
+def bib_key_rename_spans(text: str, old: str) -> list[tuple[int, int]]:
+    """.bib içeriğinde ``old`` anahtarlı @type{old, girdisinin anahtar aralığı."""
+    spans: list[tuple[int, int]] = []
+    for m in _RE_BIBENTRY.finditer(text):
+        if m.group(1) == old:
+            spans.append(m.span(1))
+    return spans

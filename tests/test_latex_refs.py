@@ -423,3 +423,30 @@ def test_rename_label_in_text_multi_segment():
 def test_rename_label_no_match_unchanged():
     t = "\\label{baska}\n"
     assert latex_refs.rename_label_in_text(t, "fig:a", "x") == t
+
+
+# --- cite_rename_spans / bib_key_rename_spans (F2 cite) ---
+
+def test_cite_rename_spans_multi_segment():
+    text = "\\cite{a, hedef, b} ve \\citep[see][]{hedef}"
+    spans = latex_refs.cite_rename_spans(text, "hedef")
+    assert len(spans) == 2
+    for s, e in spans:
+        assert text[s:e] == "hedef"
+
+
+def test_cite_rename_spans_exact_segment():
+    # 'a' segmenti 'ab' ile karışmaz
+    text = "\\cite{a, ab}"
+    spans = latex_refs.cite_rename_spans(text, "a")
+    assert len(spans) == 1 and text[spans[0][0]:spans[0][1]] == "a"
+
+
+def test_bib_key_rename_spans():
+    text = "@article{hedef,\n title={X},\n}\n@book{baska,}\n"
+    spans = latex_refs.bib_key_rename_spans(text, "hedef")
+    assert spans == [(9, 14)]          # '@article{' 9 karakter; 'hedef' 9..13
+
+
+def test_bib_key_rename_spans_no_match():
+    assert latex_refs.bib_key_rename_spans("@book{baska,}", "yok") == []

@@ -34,7 +34,7 @@ def test_f2_on_label_arg(qapp):
     caught = []
     ed.rename_label_requested.connect(caught.append)
     ed.setCursorPosition(0, len("\\label{fig:a") - 2)
-    ed._request_rename_label()
+    ed._request_rename()
     assert caught == ["fig:a"]
 
 
@@ -44,7 +44,7 @@ def test_f2_on_ref_arg(qapp):
     caught = []
     ed.rename_label_requested.connect(caught.append)
     ed.setCursorPosition(0, len("bkz \\ref{fig:a") - 1)
-    ed._request_rename_label()
+    ed._request_rename()
     assert caught == ["fig:a"]
 
 
@@ -54,7 +54,7 @@ def test_f2_elsewhere_no_signal(qapp):
     caught = []
     ed.rename_label_requested.connect(caught.append)
     ed.setCursorPosition(1, 3)
-    ed._request_rename_label()
+    ed._request_rename()
     assert caught == []
 
 
@@ -155,3 +155,88 @@ def test_rename_invalid_chars_blocked(qapp, tmp_path):
         MainWindow._on_rename_label(stub, "fig:a")
     assert ed.text() == main.read_text(encoding="utf-8")
     assert "Geçersiz" in stub._status.msg
+
+
+# --- F2 cite: .bib anahtarını tüm \cite kullanımlarıyla değiştirme ---
+
+
+def test_f2_on_cite_arg(qapp):
+    ed = EditorWidget()
+    ed.setText("bkz \\cite{karaca2024} burada\n")
+    caught = []
+    ed.rename_cite_requested.connect(caught.append)
+    ed.setCursorPosition(0, len("bkz \\cite{karaca2024") - 1)
+    ed._request_rename()
+    assert caught == ["karaca2024"]
+
+
+def test_f2_in_bib_file_on_entry(qapp):
+    ed = EditorWidget()
+    ed._file_path = "/x/refs.bib"
+    ed.setText("@article{karaca2024,\n title={X},\n}\n")
+    caught = []
+    ed.rename_cite_requested.connect(caught.append)
+    ed.setCursorPosition(0, len("@article{karaca2024") - 1)
+    ed._request_rename()
+    assert caught == ["karaca2024"]
+
+
+def test_rename_cite_updates_tex_chain_and_bib(qapp, tmp_path):
+    """Ana dosya sekmede, çocuk + .bib diskte → üçü de değişir."""
+    bib = tmp_path / "refs.bib"
+    bib.write_text("@article{karaca2024,\n title={X},\n}\n", encoding="utf-8")
+    ch = tmp_path / "ch.tex"
+    ch.write_text("bakın \\citep{karaca2024} ve \\cite{karaca2024, baska}\n", encoding="utf-8")
+    main = tmp_path / "m.tex"
+    main.write_text("\\addbibresource{refs.bib}\n\\input{ch}\n\\cite{karaca2024}\n", encoding="utf-8")
+    ed = EditorWidget()
+    ed._file_path = str(main)
+    ed.setText(main.read_text(encoding="utf-8"))
+
+    stub = _StubMain(editors=[ed])
+    with patch("gui.mixins.edit_ops.QInputDialog.getText", return_value=("yeni2024", True)):
+        MainWindow._on_rename_cite(stub, "karaca2024")
+
+    assert ed.text().count("yeni2024") == 1
+    ch_disk = ch.read_text(encoding="utf-8")
+    assert ch_disk.count("yeni2024") == 2          # \citep + çoklu \cite segmenti
+    assert "karaca2024" not in ch_disk
+    bib_disk = bib.read_text(encoding="utf-8")
+    assert bib_disk.startswith("@article{yeni2024,")
+    assert "3 dosya" in stub._status.msg
+
+
+def test_rename_cite_from_bib_editor(qapp, tmp_path):
+    """.bib sekmede tetiklenirse: .bib arabelleği + kullanım dosyası (disk) değişir."""
+    bib = tmp_path / "refs.bib"
+    bib.write_text("@article{k, title={X}}\n", encoding="utf-8")
+    main = tmp_path / "m.tex"
+    main.write_text("\\bibliography{refs}\n\\cite{k}\n", encoding="utf-8")
+    ed_bib = EditorWidget(); ed_bib._file_path = str(bib)
+    ed_bib.setText(bib.read_text(encoding="utf-8"))
+
+    stub = _StubMain(editors=[ed_bib])
+    with patch("gui.mixins.edit_ops.QInputDialog.getText", return_value=("yeni", True)):
+        MainWindow._on_rename_cite(stub, "k")
+
+    assert "@article{yeni," in ed_bib.text()
+    assert "\\cite{yeni}" in main.read_text(encoding="utf-8")
+    assert "2 dosya" in stub._status.msg
+
+
+def test_rename_cite_duplicate_blocked(qapp, tmp_path):
+    bib = tmp_path / "refs.bib"
+    bib.write_text("@article{a, title={X}}\n@book{b, title={Y}}\n", encoding="utf-8")
+    main = tmp_path / "m.tex"
+    main.write_text("\\bibliography{refs}\n\\cite{a}\n", encoding="utf-8")
+    ed = EditorWidget(); ed._file_path = str(main)
+    ed.setText(main.read_text(encoding="utf-8"))
+
+    stub = _StubMain(editors=[ed])
+    with patch("gui.mixins.edit_ops.QInputDialog.getText", return_value=("b", True)), \
+         patch("gui.mixins.edit_ops.QMessageBox.warning") as warn:
+        MainWindow._on_rename_cite(stub, "a")
+
+    warn.assert_called_once()
+    assert "\\cite{a}" in ed.text()
+    assert "@article{a," in bib.read_text(encoding="utf-8")

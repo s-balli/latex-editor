@@ -75,6 +75,7 @@ class EditorWidget(QsciScintilla):
     image_paste_requested = pyqtSignal()  # Ctrl+V + panoda resim → resim yapıştırma
     goto_definition_requested = pyqtSignal(str, str)  # key, kind("label"|"cite") — Alt+tık
     rename_label_requested = pyqtSignal(str)  # key — F2
+    rename_cite_requested = pyqtSignal(str)   # bib anahtarı — F2 (\cite veya .bib girdisi)
 
     def __init__(self, parent=None, *, theme: dict = None):
         super().__init__(parent)
@@ -301,9 +302,9 @@ class EditorWidget(QsciScintilla):
         return None
 
     def keyPressEvent(self, event):
-        # F2 -> imleç altındaki \label / \ref anahtarını yeniden adlandır
+        # F2 -> imleç altındaki \label / \ref / \cite anahtarını yeniden adlandır
         if event.key() == Qt.Key.Key_F2 and not event.modifiers():
-            self._request_rename_label()
+            self._request_rename()
             return
         # Ctrl+V + panoda resim varsa resim yapıştırma (metin yapıştırmayı bırak).
         if (event.modifiers() & Qt.KeyboardModifier.ControlModifier and
@@ -362,21 +363,32 @@ class EditorWidget(QsciScintilla):
 
         return False
 
-    def _request_rename_label(self):
-        """F2: imleç bir \\label{key} veya \\ref ailesi argümanındaysa sinyal ver.
+    def _request_rename(self):
+        """F2: imleç altındaki anahtara göre doğru yeniden adlandırma sinyali.
 
-        Anahtar F2 ile zincirde toplu yeniden adlandırılır (MainWindow).
+        .tex içinde \\label{key}/\\ref ailesi → label rename; \\cite ailesi →
+        .bib anahtarı rename. .bib dosyasında girdi anahtarı → bib anahtarı
+        rename. Anahtar MainWindow'da zincirde toplu değiştirilir.
         """
         line, col = self.getCursorPosition()
         line_text = self.text(line)
+        if self._file_path.endswith('.bib'):
+            key = self._bib_key_at(line_text, col)
+            if key:
+                self.rename_cite_requested.emit(key)
+            return
         for m in _RE_LABELARG.finditer(line_text):
             a, b = m.span(1)
             if a <= col <= b:
                 self.rename_label_requested.emit(m.group(1).strip())
                 return
         hit = self._ref_cite_key_at(line_text, col)
-        if hit and hit[1] == "label":
+        if not hit:
+            return
+        if hit[1] == "label":
             self.rename_label_requested.emit(hit[0])
+        else:
+            self.rename_cite_requested.emit(hit[0])
 
     def _text_before_cursor(self) -> str:
         line, index = self.getCursorPosition()
