@@ -329,3 +329,69 @@ def test_rename_preserves_legacy_encoding(qapp, tmp_path):
     # cp1254 olarak decode edilip birebir korunmuş olmalı; utf-8'e dönüşmemiş
     assert raw.decode("cp1254") == "metin \\ref{fig:yeni} ve Türkçe karakter: şğı\n"
     assert "şğı".encode("cp1254") in raw
+
+
+# --- F2 bibitem: el ile kaynakça (thebibliography) ---
+
+
+def test_f2_on_bibitem_arg(qapp):
+    ed = EditorWidget()
+    ed.setText("\\bibitem[Yazar(2020)]{karaca2024} Açıklama.\n")
+    caught = []
+    ed.rename_bibitem_requested.connect(caught.append)
+    ed.setCursorPosition(0, len("\\bibitem[Yazar(2020)]{karaca2024") - 1)
+    ed._request_rename()
+    assert caught == ["karaca2024"]
+
+
+def test_f2_bibitem_line_start_fallback(qapp):
+    """Alt+tıkla kullanıma gidip döndükten sonra \bibitem satırında F2."""
+    ed = EditorWidget()
+    ed.setText("\\bibitem{karaca2024} Açıklama.\n")
+    caught = []
+    ed.rename_bibitem_requested.connect(caught.append)
+    ed.setCursorPosition(0, 0)
+    ed._request_rename()
+    assert caught == ["karaca2024"]
+
+
+def test_rename_bibitem_updates_chain(qapp, tmp_path):
+    """bibitem + zincirdeki tüm \cite kullanımları birlikte değişir."""
+    ch = tmp_path / "ch.tex"
+    ch.write_text("bakın \\cite{karaca2024} ve \\cite{karaca2024, baska}\n", encoding="utf-8")
+    main = tmp_path / "m.tex"
+    main.write_text(
+        "\\begin{thebibliography}{}\n"
+        "\\bibitem{karaca2024} K.\n"
+        "\\end{thebibliography}\n"
+        "\\input{ch}\n", encoding="utf-8")
+    ed = EditorWidget()
+    ed._file_path = str(main)
+    ed.setText(main.read_text(encoding="utf-8"))
+
+    stub = _StubMain(editors=[ed])
+    with patch("gui.mixins.edit_ops.QInputDialog.getText", return_value=("yeni2024", True)):
+        MainWindow._on_rename_bibitem(stub, "karaca2024")
+
+    assert "\\bibitem{yeni2024} K." in ed.text()
+    ch_disk = ch.read_text(encoding="utf-8")
+    assert ch_disk.count("yeni2024") == 2
+    assert "karaca2024" not in ch_disk
+    assert "2 dosya" in stub._status.msg
+
+
+def test_rename_bibitem_duplicate_blocked(qapp, tmp_path):
+    main = tmp_path / "m.tex"
+    main.write_text(
+        "\\bibitem{a} X.\n\\bibitem{b} Y.\n", encoding="utf-8")
+    ed = EditorWidget()
+    ed._file_path = str(main)
+    ed.setText(main.read_text(encoding="utf-8"))
+
+    stub = _StubMain(editors=[ed])
+    with patch("gui.mixins.edit_ops.QInputDialog.getText", return_value=("b", True)), \
+         patch("gui.mixins.edit_ops.QMessageBox.warning") as warn:
+        MainWindow._on_rename_bibitem(stub, "a")
+
+    warn.assert_called_once()
+    assert ed.text() == main.read_text(encoding="utf-8")

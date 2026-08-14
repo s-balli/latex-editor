@@ -46,6 +46,7 @@ class FileOpsMixin:
         editor.image_paste_requested.connect(self._paste_image)
         editor.rename_label_requested.connect(self._on_rename_label)
         editor.rename_cite_requested.connect(self._on_rename_cite)
+        editor.rename_bibitem_requested.connect(self._on_rename_bibitem)
         idx = self._editor_tabs.addTab(editor, editor.display_name)
         self._editor_tabs.setCurrentIndex(idx)
         self._add_tab_close_button(idx)
@@ -82,6 +83,7 @@ class FileOpsMixin:
             editor.goto_definition_requested.connect(self._on_goto_definition)
             editor.rename_label_requested.connect(self._on_rename_label)
             editor.rename_cite_requested.connect(self._on_rename_cite)
+            editor.rename_bibitem_requested.connect(self._on_rename_bibitem)
             idx = self._editor_tabs.addTab(editor, editor.display_name)
             self._editor_tabs.setCurrentIndex(idx)
             self._add_tab_close_button(idx)
@@ -207,3 +209,14 @@ class FileOpsMixin:
         else:
             self._status.showMessage(_("Dışa aktarma başarısız") + ": " + str(err))
             _logger.warning("Export başarısız: %s → %s — %s", editor.file_path, dest, err)
+
+    def _quick_open(self):
+        """Ctrl+P: bulanık filtreyle proje dosyası aç (dosya ağacı kökünde)."""
+        from gui.quick_open import QuickOpenDialog
+        root = self._file_tree._root
+        if not root or not os.path.isdir(root):
+            self._status.showMessage(_("Önce bir klasör açın"))
+            return
+        path = QuickOpenDialog.pick(root, self)
+        if path:
+            self._open_file_in_editor(path)

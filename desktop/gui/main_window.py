@@ -400,6 +400,10 @@ class MainWindow(
         save_shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
         save_shortcut.activated.connect(self._on_save_and_compile)
 
+        quick_open = QShortcut(QKeySequence("Ctrl+P"), self)
+        quick_open.setContext(Qt.ShortcutContext.ApplicationShortcut)
+        quick_open.activated.connect(self._quick_open)
+
         stop_shortcut = QShortcut(QKeySequence("Esc"), self)
         stop_shortcut.setContext(Qt.ShortcutContext.WidgetShortcut)
         stop_shortcut.activated.connect(self._on_esc)
@@ -523,6 +527,7 @@ class MainWindow(
         html += "Ctrl+O — " + _("Klasör Aç") + "<br>"
         html += "Ctrl+Shift+O — " + _("Dosya Aç") + "<br>"
         html += "Ctrl+Shift+S — " + _("Farklı Kaydet") + "<br>"
+        html += "Ctrl+P — " + _("Hızlı Dosya Aç") + "<br>"
         html += "Ctrl+Q — " + _("Çıkış") + "<br><br>"
         html += "<b>Düzenle</b><br>"
         html += "Ctrl+Z — " + _("Geri Al") + "<br>"
@@ -531,7 +536,7 @@ class MainWindow(
         html += "Ctrl+H — " + _("Bul ve Değiştir") + "<br>"
         html += "Ctrl+/ — " + _("Yorum Toggle") + "<br>"
         html += "Ctrl+G — " + _("Satıra Git") + "<br>"
-        html += "F2 — " + _("Etiketi/Kaynakça Anahtarını Yeniden Adlandır (imleç \\label/\\ref/\\cite veya .bib girdisi üzerinde)") + "<br>"
+        html += "F2 — " + _("Etiketi/Kaynakça Anahtarını Yeniden Adlandır (imleç \\label/\\ref/\\cite/\\bibitem veya .bib girdisi üzerinde)") + "<br>"
         html += "F4 — " + _("Sonraki Hata") + "<br>"
         html += "Shift+F4 — " + _("Önceki Hata") + "<br><br>"
         html += "<b>" + _("Diğer") + "</b><br>"
@@ -570,6 +575,9 @@ class MainWindow(
         left += "<b>" + _("Bul / Değiştir") + " (Ctrl+F / Ctrl+H)</b><br>"
         left += "<span style='color:" + dim + "'>" + _("VS Code tarzı inline panel, büyük/küçük harf duyarlı.") + "</span>"
         left += "<br><br>"
+        left += "<b>" + _("Hızlı Dosya Aç") + " (Ctrl+P)</b><br>"
+        left += "<span style='color:" + dim + "'>" + _("Dosya adını yaz, bulanık filtreyle bul, Enter ile aç. Klasör ağacındaki .tex/.bib/.cls/.sty dosyaları.") + "</span>"
+        left += "<br><br>"
         left += "<b>" + _("Yorum Toggle") + " (Ctrl+/)</b><br>"
         left += "<span style='color:" + dim + "'>" + _("Seçili satırları % ile yorum yapar/kaldırır.") + "</span>"
         left += "<br><br>"
@@ -592,7 +600,7 @@ class MainWindow(
         left += "<span style='color:" + dim + "'>" + _("\\ref/\\cite üzerine Alt basılı tıkla → \\label, .bib veya \\bibitem girişine atlar. .bib girdisine tıklayınca makaledeki \\cite yerine gider. Çok dosyalı (\\input) ve çok anahtarlı \\cite destekli.") + "</span>"
         left += "<br><br>"
         left += "<b>" + _("Yeniden Adlandır") + " (F2)</b><br>"
-        left += "<span style='color:" + dim + "'>" + _("\\label/\\ref/\\cite veya .bib girdisi üzerinde F2 → anahtar doküman, \\input zinciri ve .bib'te toplu değişir. Açık sekmeler tek undo adımı alır; çift isim engellenir.") + "</span>"
+        left += "<span style='color:" + dim + "'>" + _("\\label/\\ref/\\cite/\\bibitem veya .bib girdisi üzerinde F2 → anahtar doküman, \\input zinciri ve .bib'te toplu değişir. Açık sekmeler tek undo adımı alır; çift isim engellenir.") + "</span>"
         left += "<br><br>"
         left += "<b>" + _("Referans Denetimi") + " (Düzenle menüsü)</b><br>"
         left += "<span style='color:" + dim + "'>" + _("Tanımsız \\ref/\\cite, kullanılmayan .bib girdisi ve label'ları derlemeden bulur; bulguya tıkla, yerine atla. Derle menüsünden her derleme sonrası otomatik çalışacak şekilde açılabilir.") + "</span>"

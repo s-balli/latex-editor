@@ -473,3 +473,16 @@ def bib_key_rename_spans(text: str, old: str) -> list[tuple[int, int]]:
         if m.group(1) == old:
             spans.append(m.span(1))
     return spans
+
+
+def bibitem_rename_spans(text: str, old: str) -> list[tuple[int, int]]:
+    """Metinde ``old`` anahtarlı \\bibitem[label]{old} girdisinin aralıkları.
+
+    El ile kaynakça (thebibliography) kullanan belgelerde F2 cite rename
+    için; segment birebir karşılaştırılır.
+    """
+    spans: list[tuple[int, int]] = []
+    for m in _RE_BIBITEM.finditer(text):
+        if m.group(1).strip() == old:
+            spans.append(m.span(1))
+    return spans

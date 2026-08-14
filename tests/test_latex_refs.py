@@ -450,3 +450,15 @@ def test_bib_key_rename_spans():
 
 def test_bib_key_rename_spans_no_match():
     assert latex_refs.bib_key_rename_spans("@book{baska,}", "yok") == []
+
+
+# --- bibitem_rename_spans (F2, el ile kaynakça) ---
+
+def test_bibitem_rename_spans_with_label():
+    text = "\\bibitem[Yazar(2020)]{hedef} Açıklama.\n\\bibitem{baska} X.\n"
+    spans = latex_refs.bibitem_rename_spans(text, "hedef")
+    assert len(spans) == 1 and text[spans[0][0]:spans[0][1]] == "hedef"
+
+
+def test_bibitem_rename_spans_no_match():
+    assert latex_refs.bibitem_rename_spans("\\bibitem{baska}\n", "yok") == []

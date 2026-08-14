@@ -352,3 +352,53 @@ class EditOpsMixin:
             )
         else:
             self._status.showMessage(_("Değişiklik yok: {k}").format(k=key))
+
+    def _on_rename_bibitem(self, key: str):
+        r"""F2 (bibitem): thebibliography anahtarını tüm \cite kullanımlarıyla değiştir.
+
+        El ile kaynakça (.bib'siz) belgeler için; zincirdeki \bibitem girdisi
+        ve tüm \cite kullanımları birlikte değişir. Çift anahtar engellenir.
+        """
+        from core.latex_refs import (
+            bibitem_rename_spans, cite_rename_spans,
+            find_bibitem_location, input_chain_paths,
+        )
+        from gui.editor import EditorWidget
+
+        ed = self.sender()
+        if not isinstance(ed, EditorWidget):
+            ed = self._current_editor()
+        if not ed or not ed.file_path or not key:
+            return
+
+        title = _("Kaynakça Anahtarını Yeniden Adlandır")
+        new_key, ok = QInputDialog.getText(self, title, f"{key} → " + _("yeni ad:"))
+        if not ok:
+            return
+        new_key = new_key.strip()
+        if not new_key or new_key == key:
+            return
+        if not re.fullmatch(r'[A-Za-z0-9_:.-]+', new_key):
+            self._status.showMessage(_("Geçersiz anahtar adı (harf, rakam, : . _ - kullanın)"))
+            return
+        content = ed.text()
+        if find_bibitem_location(content, ed.file_path, new_key) is not None:
+            QMessageBox.warning(
+                self, title,
+                _("'{k}' adlı etiket projede zaten var.").format(k=new_key),
+            )
+            return
+
+        paths = [ed.file_path] + input_chain_paths(content, ed.file_path)
+        changed = self._apply_renamings(
+            paths,
+            lambda t: cite_rename_spans(t, key) + bibitem_rename_spans(t, key),
+            new_key)
+
+        if changed:
+            self._status.showMessage(
+                _("Kaynakça anahtarı yeniden adlandırıldı: {o} → {n} ({c} dosya)").format(
+                    o=key, n=new_key, c=changed)
+            )
+        else:
+            self._status.showMessage(_("Değişiklik yok: {k}").format(k=key))

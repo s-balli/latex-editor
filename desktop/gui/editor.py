@@ -76,6 +76,7 @@ class EditorWidget(QsciScintilla):
     goto_definition_requested = pyqtSignal(str, str)  # key, kind("label"|"cite") — Alt+tık
     rename_label_requested = pyqtSignal(str)  # key — F2
     rename_cite_requested = pyqtSignal(str)   # bib anahtarı — F2 (\cite veya .bib girdisi)
+    rename_bibitem_requested = pyqtSignal(str)  # thebibliography anahtarı — F2 (\bibitem)
 
     def __init__(self, parent=None, *, theme: dict = None):
         super().__init__(parent)
@@ -387,17 +388,29 @@ class EditorWidget(QsciScintilla):
             if a <= col <= b:
                 self.rename_label_requested.emit(m.group(1).strip())
                 return
+        for m in _RE_BIBITEMARG.finditer(line_text):
+            a, b = m.span(1)
+            if a <= col <= b:
+                self.rename_bibitem_requested.emit(m.group(1).strip())
+                return
         hit = self._ref_cite_key_at(line_text, col) or self._nearest_family_hit(line_text, col)
         if not hit:
             return
         if hit[1] == "label":
             self.rename_label_requested.emit(hit[0])
+        elif hit[1] == "bibitem":
+            self.rename_bibitem_requested.emit(hit[0])
         else:
             self.rename_cite_requested.emit(hit[0])
 
     def _nearest_family_hit(self, line_text: str, col: int) -> tuple[str, str] | None:
-        """İmleç argüman dışındaysa satırdaki ilk \\label/\\ref/\\cite kullanımının
-        imlece en yakın segmentini döndür: (anahtar, 'label'|'cite')."""
+        """İmleç argüman dışındaysa satırdaki ilk \\bibitem/\\label/\\ref/\\cite
+        kullanımının imlece en yakın segmentini döndür.
+
+        Dönüş: (anahtar, 'label' | 'cite' | 'bibitem').
+        """
+        for m in _RE_BIBITEMARG.finditer(line_text):
+            return (m.group(1).strip(), "bibitem")
         for m in _RE_LABELARG.finditer(line_text):
             return (self._nearest_key(m.group(1), max(0, col - m.start(1))), "label")
         for m in _RE_REFARG.finditer(line_text):
