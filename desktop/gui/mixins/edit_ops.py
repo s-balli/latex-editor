@@ -92,3 +92,43 @@ class EditOpsMixin:
             editor.setCursorPosition(num - 1, 0)
             editor.ensureLineVisible(num - 1)
             editor.setFocus()
+
+    # --- Referans denetimi (tanımsız \ref/\cite, kullanılmayan .bib girdileri) ---
+
+    @staticmethod
+    def _audit_lines(r) -> list[str]:
+        """RefAudit raporunu OutputPanel'e yazılacak satırlara çevir."""
+        lines = []
+        if r.undefined_refs:
+            lines.append(_("Tanımsız \\ref (etiketi yok): {n}").format(n=len(r.undefined_refs)))
+            lines.extend(f"    {k}" for k in r.undefined_refs)
+        if r.undefined_cites:
+            lines.append(_("Tanımsız \\cite (.bib/\\bibitem'te yok): {n}").format(n=len(r.undefined_cites)))
+            lines.extend(f"    {k}" for k in r.undefined_cites)
+        if r.unused_bib_keys:
+            lines.append(_("Kullanılmayan .bib girdisi: {n}").format(n=len(r.unused_bib_keys)))
+            lines.extend(f"    {k}" for k in r.unused_bib_keys)
+        if not lines:
+            lines.append(_("Sorun bulunamadı — tüm \\ref/\\cite anahtarları tanımlı."))
+        return lines
+
+    def _audit_references(self):
+        """Düzenle > Referansları Denetle — derlemeden bağımsız lokal analiz."""
+        from core.latex_refs import audit_references
+        editor = self._current_editor()
+        if not editor or not editor.file_path:
+            self._status.showMessage(_("Önce bir .tex dosyası açın"))
+            return
+        report = audit_references(editor.text(), editor.file_path)
+        self._output_panel.show_report(_("== Referans Denetimi =="), self._audit_lines(report))
+        total = len(report.undefined_refs) + len(report.undefined_cites) + len(report.unused_bib_keys)
+        if total == 0:
+            self._status.showMessage(_("Referans denetimi: sorun yok"))
+        else:
+            self._status.showMessage(
+                _("Referans denetimi: {r} tanımsız ref, {c} tanımsız cite, {b} kullanılmayan .bib girdisi").format(
+                    r=len(report.undefined_refs),
+                    c=len(report.undefined_cites),
+                    b=len(report.unused_bib_keys),
+                )
+            )

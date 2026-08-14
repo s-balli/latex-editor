@@ -259,3 +259,82 @@ def test_find_bibitem_location_not_found(tmp_path):
     main = tmp_path / "m.tex"
     main.write_text("\\bibitem{baska}\n", encoding="utf-8")
     assert latex_refs.find_bibitem_location(main.read_text(encoding="utf-8"), str(main), "yok") is None
+
+
+# --- audit_references (referans denetimi) ---
+
+def test_audit_clean(tmp_path):
+    bib = tmp_path / "refs.bib"
+    bib.write_text("@article{k,}\n", encoding="utf-8")
+    main = tmp_path / "m.tex"
+    main.write_text("\\label{fig:a}\n\\ref{fig:a}\n\\cite{k}\n\\bibliography{refs}\n", encoding="utf-8")
+    r = latex_refs.audit_references(main.read_text(encoding="utf-8"), str(main))
+    assert r.undefined_refs == []
+    assert r.undefined_cites == []
+    assert r.unused_bib_keys == []
+
+
+def test_audit_undefined_ref_and_cite(tmp_path):
+    main = tmp_path / "m.tex"
+    main.write_text("\\ref{fig:yok}\n\\cite{yok2024}\n", encoding="utf-8")
+    r = latex_refs.audit_references(main.read_text(encoding="utf-8"), str(main))
+    assert r.undefined_refs == ["fig:yok"]
+    assert r.undefined_cites == ["yok2024"]
+
+
+def test_audit_unused_bib_keys(tmp_path):
+    bib = tmp_path / "refs.bib"
+    bib.write_text("@article{a,}\n@book{b,}\n", encoding="utf-8")
+    main = tmp_path / "m.tex"
+    main.write_text("\\cite{a}\n\\bibliography{refs}\n", encoding="utf-8")
+    r = latex_refs.audit_references(main.read_text(encoding="utf-8"), str(main))
+    assert r.unused_bib_keys == ["b"]
+
+
+def test_audit_input_chain(tmp_path):
+    # label ve \cite çocuk dosyada, ref ana dosyada — zincir iki yönde de sayılır
+    bib = tmp_path / "refs.bib"
+    bib.write_text("@article{a,}\n@book{b,}\n", encoding="utf-8")
+    child = tmp_path / "ch.tex"
+    child.write_text("\\label{fig:x}\n\\cite{a}\n", encoding="utf-8")
+    main = tmp_path / "m.tex"
+    main.write_text("\\input{ch}\n\\ref{fig:x}\n\\bibliography{refs}\n", encoding="utf-8")
+    r = latex_refs.audit_references(main.read_text(encoding="utf-8"), str(main))
+    assert r.undefined_refs == []
+    assert r.undefined_cites == []
+    assert r.unused_bib_keys == ["b"]
+
+
+def test_audit_nocite_all_disables_unused(tmp_path):
+    bib = tmp_path / "refs.bib"
+    bib.write_text("@article{a,}\n@book{b,}\n", encoding="utf-8")
+    main = tmp_path / "m.tex"
+    main.write_text("\\nocite{*}\n\\bibliography{refs}\n", encoding="utf-8")
+    r = latex_refs.audit_references(main.read_text(encoding="utf-8"), str(main))
+    assert r.unused_bib_keys == []
+
+
+def test_audit_ignores_commented_usage(tmp_path):
+    # yorumdaki \ref tanımsız sayılmaz; yorumdaki \cite kullanıldı sayılmaz
+    bib = tmp_path / "refs.bib"
+    bib.write_text("@article{a,}\n", encoding="utf-8")
+    main = tmp_path / "m.tex"
+    main.write_text("% \\ref{fig:yok}\n% \\cite{a}\n\\bibliography{refs}\n", encoding="utf-8")
+    r = latex_refs.audit_references(main.read_text(encoding="utf-8"), str(main))
+    assert r.undefined_refs == []
+    assert r.unused_bib_keys == ["a"]
+
+
+def test_audit_bibitem_fallback(tmp_path):
+    # .bib yok, thebibliography + \bibitem var → cite tanımlı sayılır
+    main = tmp_path / "m.tex"
+    main.write_text("\\cite{k}\n\\begin{thebibliography}{}\n\\bibitem{k} Yazar.\n\\end{thebibliography}\n", encoding="utf-8")
+    r = latex_refs.audit_references(main.read_text(encoding="utf-8"), str(main))
+    assert r.undefined_cites == []
+
+
+def test_audit_cref_multi_key(tmp_path):
+    main = tmp_path / "m.tex"
+    main.write_text("\\cref{a,b}\n\\label{a}\n", encoding="utf-8")
+    r = latex_refs.audit_references(main.read_text(encoding="utf-8"), str(main))
+    assert r.undefined_refs == ["b"]

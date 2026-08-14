@@ -74,7 +74,7 @@ class OutputPanel(QWidget):
         self._log_text.setStyleSheet(
             f"QPlainTextEdit {{ background: {t['bg_primary']}; color: {t['fg_primary']}; font-family: Consolas, 'DejaVu Sans Mono', Menlo, monospace; font-size: 11px; border: none; }}"
         )
-        self._tabs.addTab(self._log_text, "Log")
+        self._log_tab_index = self._tabs.addTab(self._log_text, "Log")
 
         layout.addWidget(self._tabs)
         self.setMaximumHeight(200)
@@ -132,6 +132,16 @@ class OutputPanel(QWidget):
             self._tabs.setCurrentIndex(self._error_tab_index)
         elif result.warnings:
             self._tabs.setCurrentIndex(self._warn_tab_index)
+
+    def show_report(self, title: str, lines: list[str]):
+        """Serbest metin raporunu (referans denetimi vb.) Log sekmesinde göster.
+
+        Derleme sonucu değil; panelden bağımsız üretilmiş bir analiz çıktısı.
+        Panel temizlenir ve Log sekmesi öne getirilir.
+        """
+        self.clear()
+        self._log_text.setPlainText(title + "\n" + "\n".join(lines))
+        self._tabs.setCurrentIndex(self._log_tab_index)
 
     def show_engine_hint(self, current: str, other: str):
         """Başarısız derlemede motor değiştirme önerisini ekle ve tab'ı aç."""

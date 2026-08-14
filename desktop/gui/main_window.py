@@ -223,6 +223,8 @@ class MainWindow(
         self._add_action(edit_menu, _("Yorum &Toggle"), self._toggle_comment)
         self._add_action(edit_menu, _("Satıra &Git..."), self._goto_line_dialog, "Ctrl+G")
         edit_menu.addSeparator()
+        self._add_action(edit_menu, _("&Referansları Denetle"), self._audit_references)
+        edit_menu.addSeparator()
         self._add_action(edit_menu, _("&Sonraki Hata"), self._goto_next_error, "F4", app_shortcut=True)
         self._add_action(edit_menu, _("Ö&nceki Hata"), self._goto_prev_error, "Shift+F4", app_shortcut=True)
 

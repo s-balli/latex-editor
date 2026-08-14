@@ -7,6 +7,7 @@ Qt bağımlılığı yok (tıpkı input_parser gibi).
 import logging
 import os
 import re
+from dataclasses import dataclass, field
 
 from core.input_parser import parse_inputs
 from core.latex_utils import strip_comments
@@ -297,3 +298,73 @@ def find_cite_usage(bib_path: str, key: str) -> tuple[str, int] | None:
                     if key in keys:
                         return (path, i)
     return None
+
+
+# --- Referans denetimi: tanımsız \ref / \cite, kullanılmayan .bib girdileri ---
+
+_RE_REFUSE = re.compile(
+    r'\\(?:ref|eqref|pageref|autoref|nameref|vref|cref|Cref)\s*\{([^}]*)\}'
+)
+_RE_BIBITEM = re.compile(r'\\bibitem\s*(?:\[[^\]]*\])?\s*\{([^}]+)\}')
+_RE_NOCITE_ALL = re.compile(r'\\nocite\s*\{\*\}')
+
+
+@dataclass
+class RefAudit:
+    """Referans denetimi sonucu — tüm listeler sıralı ve tekil.
+
+    undefined_refs:  kullanılan ama \\label'i (doküman + \\input zinciri) olmayan
+                     \\ref ailesi anahtarları
+    undefined_cites: kullanılan ama .bib girdisi de \\bibitem'i de olmayan
+                     \\cite anahtarları
+    unused_bib_keys: .bib'te olup hiç \\cite edilmemiş girdi anahtarları
+                     (\\nocite{*} varsa boş — her şey kullanılmış sayılır)
+    """
+    undefined_refs: list[str] = field(default_factory=list)
+    undefined_cites: list[str] = field(default_factory=list)
+    unused_bib_keys: list[str] = field(default_factory=list)
+
+
+def _audit_texts(content: str, base_path: str) -> list[str]:
+    """Denetim metinleri: mevcut içerik + \\input zinciri (yorumlar soyulmuş)."""
+    texts = [strip_comments(content)]
+    bdir = _base_dir(base_path)
+    for path in _flatten_input_paths(content, bdir):
+        try:
+            with open(path, 'r', encoding='utf-8', errors='replace') as f:
+                texts.append(strip_comments(f.read()))
+        except OSError:
+            continue
+    return texts
+
+
+def audit_references(content: str, base_path: str) -> RefAudit:
+    """Dokümanı (ve \\input zincirini) referans açısından denetle.
+
+    Derlemeden bağımsız hızlı lokal analiz: kırık çapraz referanslar ve
+    kullanılmayan kaynakça girdileri. ``content`` canlı editör içeriğidir;
+    zincirdeki çocuk dosyalar diskten okunur.
+    """
+    texts = _audit_texts(content, base_path)
+    used_refs: set[str] = set()
+    used_cites: set[str] = set()
+    nocite_all = False
+    for t in texts:
+        for m in _RE_REFUSE.finditer(t):
+            used_refs.update(k.strip() for k in m.group(1).split(',') if k.strip())
+        for m in _RE_CITEUSE.finditer(t):
+            used_cites.update(k.strip() for k in m.group(1).split(',') if k.strip())
+        if _RE_NOCITE_ALL.search(t):
+            nocite_all = True
+
+    defined_labels = set(collect_labels(content, base_path))
+    bibitem_keys = {
+        m.group(1).strip() for t in texts for m in _RE_BIBITEM.finditer(t)
+    }
+    bib_keys = set(collect_cite_keys(content, base_path))
+
+    return RefAudit(
+        undefined_refs=sorted(used_refs - defined_labels),
+        undefined_cites=sorted(used_cites - bib_keys - bibitem_keys),
+        unused_bib_keys=[] if nocite_all else sorted(bib_keys - used_cites),
+    )
