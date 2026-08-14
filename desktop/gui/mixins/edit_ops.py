@@ -1,8 +1,9 @@
-"""Düzenleme işlemleri mixin — geri al, yinele, bul, değiştir, yorum, satıra git."""
+"""Düzenleme işlemleri mixin — geri al, yinele, bul, değiştir, yorum, satıra git, F2 etiket rename."""
 
 import os
+import re
 
-from PyQt6.QtWidgets import QInputDialog, QApplication
+from PyQt6.QtWidgets import QInputDialog, QApplication, QMessageBox
 from PyQt6.QtCore import QCoreApplication
 
 _ = lambda s: QCoreApplication.translate("EditOpsMixin", s)
@@ -154,3 +155,100 @@ class EditOpsMixin:
                     l=len(report.unused_labels),
                 )
             )
+
+    # --- F2: \label yeniden adlandırma (doküman + \input zinciri) ---
+
+    def _on_rename_label(self, key: str):
+        """Editörden gelen F2: \\label anahtarını zincirde toplu yeniden adlandır.
+
+        Açık sekmelerde aralık bazlı seç-değiştir yapılır (undo geçmişi korunur,
+        tek undo adımı); zincirdeki diskteki dosyalar atomik yeniden yazılır
+        (kodlama round-trip güvenli). Yeni ad projede zaten varsa engellenir.
+        """
+        from gui.editor import EditorWidget, _decode_bytes
+        from core.latex_refs import (
+            collect_labels, input_chain_paths, label_rename_spans,
+        )
+
+        ed = self.sender()
+        if not isinstance(ed, EditorWidget):
+            ed = self._current_editor()
+        if not ed or not ed.file_path or not key:
+            return
+
+        new_key, ok = QInputDialog.getText(
+            self, _("Etiketi Yeniden Adlandır"),
+            f"\\label{{{key}}} → " + _("yeni ad:"),
+        )
+        if not ok:
+            return
+        new_key = new_key.strip()
+        if not new_key or new_key == key:
+            return
+        if not re.fullmatch(r'[A-Za-z0-9_:.\-]+', new_key):
+            self._status.showMessage(_("Geçersiz etiket adı (harf, rakam, : . _ - kullanın)"))
+            return
+        content = ed.text()
+        if new_key in collect_labels(content, ed.file_path):
+            QMessageBox.warning(
+                self, _("Etiketi Yeniden Adlandır"),
+                _("'{k}' adlı etiket projede zaten var.").format(k=new_key),
+            )
+            return
+
+        def _tab_editor(path):
+            for i in range(self._editor_tabs.count()):
+                w = self._editor_tabs.widget(i)
+                if isinstance(w, EditorWidget) and w.file_path == os.path.normpath(path):
+                    return w
+            return None
+
+        def _replace_in_editor(target, new_text_spans):
+            """Aralıkları alttan üste seç-değiştir: undo korunur, tek adım."""
+            full = target.text()
+            first_line, first_col = 0, 0
+            target.beginUndoAction()
+            try:
+                for s, e in sorted(new_text_spans, reverse=True):
+                    line = full.count('\n', 0, s)
+                    line_start = full.rfind('\n', 0, s) + 1
+                    col_s, col_e = s - line_start, e - line_start
+                    first_line, first_col = line, col_s
+                    target.setSelection(line, col_s, line, col_e)
+                    target.replaceSelectedText(new_key)
+            finally:
+                target.endUndoAction()
+            target.setCursorPosition(first_line, first_col + len(new_key))
+
+        changed = 0
+        for path in [ed.file_path] + input_chain_paths(content, ed.file_path):
+            target = _tab_editor(path)
+            if target is not None:
+                spans = label_rename_spans(target.text(), key)
+                if spans:
+                    _replace_in_editor(target, spans)
+                    changed += 1
+            else:
+                try:
+                    with open(path, "rb") as f:
+                        raw = f.read()
+                except OSError:
+                    continue
+                t, enc = _decode_bytes(raw)
+                spans = label_rename_spans(t, key)
+                if spans:
+                    for s, e in sorted(spans, reverse=True):
+                        t = t[:s] + new_key + t[e:]
+                    try:
+                        EditorWidget._write_atomic(path, t, enc)
+                        changed += 1
+                    except (OSError, UnicodeError):
+                        pass
+
+        if changed:
+            self._status.showMessage(
+                _("Etiket yeniden adlandırıldı: {o} → {n} ({c} dosya)").format(
+                    o=key, n=new_key, c=changed)
+            )
+        else:
+            self._status.showMessage(_("Değişiklik yok: {k}").format(k=key))

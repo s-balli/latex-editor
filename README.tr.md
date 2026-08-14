@@ -44,6 +44,7 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 - **Motor**: XeLaTeX desteği: araç çubuğunda üçüncü motor, `derle.sh`'de `--xelatex` bayrağı, magic comment ve paket bazlı algılama (`mathspec`, `xeCJK`, `xltxtra`, `requires XeLaTeX`), motor eksikse `sudo apt-get install texlive-xetex` önerisi
 - **Editör**: `\input{` / `\include{` tamamlaması: projedeki `.tex` dosyalarını önerir (göreli yol, uzantısız), alt dizinler dahil
 - **Editör**: `\includegraphics{` tamamlaması: projedeki resim dosyalarını (`png/jpg/jpeg/pdf/eps`) önerir; resim yapıştırma/sürükle-bırak ile aynı yol kuralı (ana dosyaya göre, uzantılı); `[width=...]` argümanlı kullanımı da tanır
+- **Editör**: `\label`/`\ref` üzerinde F2 ile anahtarı doküman ve `\input` zincirinde toplu yeniden adlandır (çoklu `\cref{a,b}` segmentleri destekli; açık sekmeler tek undo adımı alır, disk dosyaları atomik yazılır; çift isim engellenir)
 - **Editör**: referans denetimi (Düzenle > Referansları Denetle): tanımsız `\ref`/`\cite` anahtarları, kullanılmayan `.bib` girdileri ve kullanılmayan `\label`lar, derlemeden bağımsız lokal analiz; çok dosyalı (`\input`) farkında, yorumları ve `\nocite{*}` gözeten; bulgular tıklanabilir (kullanım satırına, `.bib` girdisine ya da label'a atlar)
 
 ### v1.0.5 — Tanıma Git, Hata İşaretleri ve Editör İyileştirmeleri

@@ -44,6 +44,7 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 - **Engine**: XeLaTeX support: third engine in the toolbar/combos, `--xelatex` flag in `derle.sh`, magic-comment & package-based detection (`mathspec`, `xeCJK`, `xltxtra`, `requires XeLaTeX`), and a missing-engine hint suggesting `sudo apt-get install texlive-xetex`
 - **Editor**: `\input{` / `\include{` completion: suggests `.tex` files from the project (relative paths, extension-free), subdirectories included
 - **Editor**: `\includegraphics{` completion: suggests image files (`png/jpg/jpeg/pdf/eps`) from the project, same path convention as image paste/drag-drop (relative to the main file, extension kept); optional `[width=...]` argument aware
+- **Editor**: F2 on a `\label`/`\ref` renames the key across the document and the `\input` chain (multi-key `\cref{a,b}` segments handled; open tabs get a single undo step, disk files are rewritten atomically; duplicate names blocked)
 - **Editor**: reference audit (Edit > Check References): undefined `\ref`/`\cite` keys, unused `.bib` entries and unused `\label`s, computed locally without compiling; multi-file (`\input`) aware, respects comments and `\nocite{*}`; findings are clickable (jump to the usage line, the `.bib` entry or the label)
 
 ### v1.0.5 — Goto-Definition, Error Markers & Editor Improvements

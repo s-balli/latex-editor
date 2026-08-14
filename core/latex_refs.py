@@ -398,3 +398,48 @@ def find_key_usage(content: str, base_path: str, key: str, family: str) -> tuple
                 if key in keys:
                     return (path, i)
     return None
+
+
+# --- \label yeniden adlandırma (F2): doküman + \input zinciri ---
+
+def input_chain_paths(content: str, base_path: str) -> list[str]:
+    """\\input zincirindeki çocuk dosya yolları (flat, ana dosya hariç)."""
+    return _flatten_input_paths(content, _base_dir(base_path))
+
+
+def label_rename_spans(text: str, old: str) -> list[tuple[int, int]]:
+    """``text`` içinde ``old``'a eşit \\label argümanı / \\ref segmentinin karakter
+    aralıkları.
+
+    Aralıklar tek satır içinde kalır (anahtarlar satır kırılmaz); GUI bu
+    aralıkları seçip değiştirerek undo geçmişini korur. \\label{oldx},
+    ``old='old'`` ile eşleşmez (segment birebir karşılaştırılır).
+    """
+    spans: list[tuple[int, int]] = []
+    for m in re.finditer(r'\\label\s*\{([^}]*)\}', text):
+        a, b = m.span(1)
+        if text[a:b].strip() == old:
+            spans.append((a, b))
+    for m in _RE_REFUSE.finditer(text):
+        arg_a, _ = m.span(1)
+        arg = m.group(1)
+        off = 0
+        for part in arg.split(','):
+            if part.strip() == old:
+                s = arg_a + off + (len(part) - len(part.lstrip()))
+                spans.append((s, s + len(old)))
+            off += len(part) + 1  # virgülü atla
+    return spans
+
+
+def rename_label_in_text(text: str, old: str, new: str) -> str:
+    """``old`` anahtarının tüm \\label ve \\ref ailesi kullanımlarını ``new`` yap.
+
+    Değişiklik yoksa aynı metni döndürür. Diskteki dosyalar için toplu metin
+    dönüşümü; açık editör arabellekleri için GUI aralık bazlı değiştirme yapar
+    (bkz. label_rename_spans).
+    """
+    out = text
+    for s, e in sorted(label_rename_spans(text, old), reverse=True):
+        out = out[:s] + new + out[e:]
+    return out

@@ -41,6 +41,8 @@ _RE_CITEARG = re.compile(
 _RE_BIBENTRY = re.compile(r'@\w+\s*\{\s*([^,\s}]+)\s*,')
 # \bibitem{key} (thebibliography) — Alt+tık ile ters yön: makaledeki \cite yerine
 _RE_BIBITEMARG = re.compile(r'\\bibitem\s*(?:\[[^\]]*\])?\s*\{([^}]+)\}')
+# \label{key} — F2 yeniden adlandırma için imleç altındaki anahtar
+_RE_LABELARG = re.compile(r'\\label\s*\{([^}]*)\}')
 
 
 def _decode_bytes(raw: bytes) -> tuple[str, str]:
@@ -72,6 +74,7 @@ class EditorWidget(QsciScintilla):
     forward_search_requested = pyqtSignal(str, int, int)  # file_path, line(1-based), col(1-based)
     image_paste_requested = pyqtSignal()  # Ctrl+V + panoda resim → resim yapıştırma
     goto_definition_requested = pyqtSignal(str, str)  # key, kind("label"|"cite") — Alt+tık
+    rename_label_requested = pyqtSignal(str)  # key — F2
 
     def __init__(self, parent=None, *, theme: dict = None):
         super().__init__(parent)
@@ -286,6 +289,10 @@ class EditorWidget(QsciScintilla):
         return None
 
     def keyPressEvent(self, event):
+        # F2 -> imleç altındaki \label / \ref anahtarını yeniden adlandır
+        if event.key() == Qt.Key.Key_F2 and not event.modifiers():
+            self._request_rename_label()
+            return
         # Ctrl+V + panoda resim varsa resim yapıştırma (metin yapıştırmayı bırak).
         if (event.modifiers() & Qt.KeyboardModifier.ControlModifier and
                 event.key() == Qt.Key.Key_V):
@@ -342,6 +349,22 @@ class EditorWidget(QsciScintilla):
             return True
 
         return False
+
+    def _request_rename_label(self):
+        """F2: imleç bir \\label{key} veya \\ref ailesi argümanındaysa sinyal ver.
+
+        Anahtar F2 ile zincirde toplu yeniden adlandırılır (MainWindow).
+        """
+        line, col = self.getCursorPosition()
+        line_text = self.text(line)
+        for m in _RE_LABELARG.finditer(line_text):
+            a, b = m.span(1)
+            if a <= col <= b:
+                self.rename_label_requested.emit(m.group(1).strip())
+                return
+        hit = self._ref_cite_key_at(line_text, col)
+        if hit and hit[1] == "label":
+            self.rename_label_requested.emit(hit[0])
 
     def _text_before_cursor(self) -> str:
         line, index = self.getCursorPosition()
@@ -713,7 +736,8 @@ class EditorWidget(QsciScintilla):
             QMessageBox.critical(self, _("Dosya Açma Hatası"), _("Dosya açılamadı:\n{path}\n\n{e}").format(path=path, e=e))
             return False
 
-    def _write_atomic(self, path: str, content: str, encoding: str = "utf-8") -> None:
+    @staticmethod
+    def _write_atomic(path: str, content: str, encoding: str = "utf-8") -> None:
         """Aynı dizinde geçici dosyaya yaz, fsync et, atomik rename ile yerine koy.
 
         Orijinal dosyaya truncate-on-open ile değil, tamamlanmış geçici dosyanın

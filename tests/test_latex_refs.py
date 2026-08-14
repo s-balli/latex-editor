@@ -395,3 +395,31 @@ def test_audit_unused_labels_chain_usage(tmp_path):
     main.write_text("\\label{fig:x}\n\\input{ch}\n", encoding="utf-8")
     r = latex_refs.audit_references(main.read_text(encoding="utf-8"), str(main))
     assert r.unused_labels == []
+
+
+# --- label_rename_spans / rename_label_in_text (F2 yeniden adlandırma) ---
+
+def test_label_rename_spans_label_and_refs():
+    text = "\\label{fig:a}\nbkz \\cref{fig:a, tab:b} ve \\ref{fig:a}\n\\label{fig:ax}"
+    spans = latex_refs.label_rename_spans(text, "fig:a")
+    assert len(spans) == 3
+    for s, e in spans:
+        assert text[s:e] == "fig:a"          # fig:ax yakalanmaz
+
+
+def test_label_rename_spans_segment_with_space():
+    text = "\\cref{a, tab:b}"
+    spans = latex_refs.label_rename_spans(text, "tab:b")
+    assert len(spans) == 1
+    assert text[spans[0][0]:spans[0][1]] == "tab:b"
+
+
+def test_rename_label_in_text_multi_segment():
+    t = "\\label{fig:a} x\n\\cref{fig:a, tab:b} y\n"
+    r = latex_refs.rename_label_in_text(t, "fig:a", "fig:yeni")
+    assert r == "\\label{fig:yeni} x\n\\cref{fig:yeni, tab:b} y\n"
+
+
+def test_rename_label_no_match_unchanged():
+    t = "\\label{baska}\n"
+    assert latex_refs.rename_label_in_text(t, "fig:a", "x") == t
