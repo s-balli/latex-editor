@@ -13,7 +13,7 @@ _ = lambda s: QCoreApplication.translate("MainWindow", s)
 
 import sys
 
-from PyQt6.QtCore import Qt, QEvent, QSettings, QSize, QTimer, QThread, pyqtSignal
+from PyQt6.QtCore import Qt, QEvent, QObject, QSettings, QSize, QTimer, QThread, pyqtSignal
 from PyQt6.QtGui import QAction, QIcon, QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QMainWindow, QSplitter, QTabWidget, QComboBox, QToolBar, QLabel, QMessageBox, QStatusBar,
@@ -35,6 +35,11 @@ from gui.mixins.edit_ops import EditOpsMixin
 from gui.mixins.compile_ops import CompileOpsMixin
 from gui.mixins.image_ops import ImageOpsMixin
 from gui.mixins.synctex_ops import SyncTexMixin
+
+
+class _PandocCheckSignal(QObject):
+    """Arka plan pandoc kontrolünden UI'ya sonuç taşıyan sinyal köprüsü."""
+    ready = pyqtSignal(bool)
 
 
 class UpdateCheckThread(QThread):
@@ -204,10 +209,27 @@ class MainWindow(
 
         export_menu = file_menu.addMenu(_("Dışa Akta&r"))
         from core.exporter import FORMATS, pandoc_available
-        self._pandoc_available = pandoc_available()
+        # pandoc_available() Windows'ta WSL'e 'which pandoc' sorar — soğuk
+        # başlangıçta 1-3 sn sürebilir ve pencere çizilmeden önce bloklar.
+        # Kontrol arka planda yapılır, bayrak gelince tooltip'ler güncellenir.
+        # Linux/macOS'ta shutil.which anlıktır, orada doğrudan çağrılır.
+        self._export_actions = []
+        self._pandoc_available = True
+        if sys.platform == "win32":
+            self._pandoc_sig = _PandocCheckSignal()
+            self._pandoc_sig.ready.connect(self._on_pandoc_checked)
+
+            def _bg_check(sig=self._pandoc_sig):
+                sig.ready.emit(pandoc_available())
+
+            import threading
+            threading.Thread(target=_bg_check, name="pandoc-check", daemon=True).start()
+        else:
+            self._pandoc_available = pandoc_available()
         for fmt_name, ext in FORMATS.items():
             act = export_menu.addAction(f"{fmt_name} ({ext})")
             act.triggered.connect(lambda checked, f=fmt_name, e=ext: self._export_file(f, e))
+            self._export_actions.append(act)
             if not self._pandoc_available:
                 act.setToolTip(_("pandoc gerekli: apt install pandoc"))
         self._add_action(file_menu, _("Çı&kış"), self.close, "Ctrl+Q")
@@ -263,6 +285,13 @@ class MainWindow(
         self._add_action(help_menu, _("&Log Klasörünü Aç"), self._open_log_dir)
         help_menu.addSeparator()
         self._add_action(help_menu, _("&Hakkında"), self._show_about)
+
+    def _on_pandoc_checked(self, available: bool):
+        """Arka plan pandoc kontrolü bitti — bayrak ve dışa aktarma tooltip'leri."""
+        self._pandoc_available = available
+        tip = "" if available else _("pandoc gerekli: apt install pandoc")
+        for act in getattr(self, "_export_actions", []):
+            act.setToolTip(tip)
 
     def _add_action(self, menu, text, callback, shortcut=None, app_shortcut=False):
         action = QAction(text, self)
@@ -573,7 +602,7 @@ class MainWindow(
         left += "<span style='color:" + dim + "'>" + _("\\section, \\chapter gibi bölümleri ağaç yapısında gösterir.") + "</span>"
         left += "<br><br>"
         left += "<b>" + _("Bul / Değiştir") + " (Ctrl+F / Ctrl+H)</b><br>"
-        left += "<span style='color:" + dim + "'>" + _("VS Code tarzı inline panel, büyük/küçük harf duyarlı.") + "</span>"
+        left += "<span style='color:" + dim + "'>" + _("VS Code tarzı inline panel, büyük/küçük harf duyarsız.") + "</span>"
         left += "<br><br>"
         left += "<b>" + _("Hızlı Dosya Aç") + " (Ctrl+P)</b><br>"
         left += "<span style='color:" + dim + "'>" + _("Dosya adını yaz, bulanık filtreyle bul, Enter ile aç. Klasör ağacındaki .tex/.bib/.cls/.sty dosyaları.") + "</span>"

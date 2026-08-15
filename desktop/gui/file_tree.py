@@ -59,6 +59,15 @@ class FileTree(QWidget):
         self._theme = theme or {}
         self._setup_ui()
         self._setup_autorefresh()
+        # Derlenebilirlik denetimi (her .tex için tam dosya okuma +
+        # strip_comments) tarama sırasında senkron yapılırsa büyük klasörlerde
+        # arayüz saniyelerce kilitlenir (WSL /mnt_c'de dosya açma başına
+        # ~5-15 ms). Denetimler event loop'a küçük gruplar halinde iade
+        # edilir; yeşil renkler kademeli dolar.
+        self._pending_checks: list[tuple[QTreeWidgetItem, str]] = []
+        self._check_timer = QTimer(self)
+        self._check_timer.setInterval(30)
+        self._check_timer.timeout.connect(self._process_pending_checks)
 
     def _setup_ui(self):
         layout = QVBoxLayout(self)
@@ -199,13 +208,34 @@ class FileTree(QWidget):
     def refresh(self):
         if not self._root:
             return
+        # Bekleyen kademeli denetimler eski (silinecek) öğelere bağlı — temizle
+        self._pending_checks.clear()
+        self._check_timer.stop()
         self._update_watcher()
         self._tree.clear()
         self._input_tree.clear()
         self._input_header.hide()
         self._input_tree.hide()
         self._scan_dir()
+        if self._pending_checks:
+            self._check_timer.start()
         self._save_snapshot()
+
+    def _process_pending_checks(self):
+        """Bir grup .tex dosyasının derlenebilirliğini denetle (UI thread)."""
+        batch = self._pending_checks[:5]
+        del self._pending_checks[:5]
+        for item, path in batch:
+            try:
+                ok, _ = _can_compile(path)
+            except Exception:
+                ok = False
+            if ok:
+                item.setForeground(0, QColor(self._theme["sem_compilable"]))
+        if self._pending_checks:
+            self._check_timer.start()
+        else:
+            self._check_timer.stop()
 
     def _update_watcher(self):
         """Watcher'ı root ve alt klasörleri izleyecek şekilde güncelle."""
@@ -280,16 +310,16 @@ class FileTree(QWidget):
                 ext = os.path.splitext(name)[1].lower()
                 if ext in _HIDDEN_EXT:
                     continue
-                ok, _ = _can_compile(full)
                 editable = ext in _EDITABLE
                 icon = "📄" if ext == ".tex" else "⚙" if ext in _EDITABLE else "🖼"
                 item = QTreeWidgetItem(parent_item, [f"{icon} {name}"])
                 item.setData(0, Qt.ItemDataRole.UserRole, full)
                 item.setData(0, Qt.ItemDataRole.UserRole + 1, editable)
-                if ok:
-                    item.setForeground(0, QColor(self._theme["sem_compilable"]))
-                elif editable:
+                if editable:
                     item.setForeground(0, QColor(self._theme["fg_muted"]))
+                    if ext == ".tex":
+                        # Derlenebilirlik rengi kademeli denetimle sonradan gelir
+                        self._pending_checks.append((item, full))
                 else:
                     item.setForeground(0, QColor(self._theme["fg_dim"]))
 

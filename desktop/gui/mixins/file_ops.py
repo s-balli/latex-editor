@@ -1,6 +1,7 @@
 """Dosya işlemleri mixin — açma, kaydetme, yeni dosya, son açılanlar, motor algılama, dışa aktarma."""
 
 import os
+import threading
 
 from PyQt6.QtWidgets import QFileDialog
 
@@ -8,10 +9,28 @@ from gui.editor import EditorWidget
 from core.engine_detector import detect_engine as _detect_engine_auto
 from core.exporter import export as _export
 from core.log import get_logger
-from PyQt6.QtCore import QCoreApplication
+from PyQt6.QtCore import QCoreApplication, QObject, pyqtSignal
 
 _ = lambda s: QCoreApplication.translate("FileOpsMixin", s)
 _logger = get_logger("file_ops")
+
+
+class _ExportRunner(QObject):
+    """pandoc dışa aktarmayı arka plan thread'inde çalıştırır.
+
+    export() senkron subprocess.run zinciridir (pandoc çağrı başına timeout
+    40 sn; .md için birden çok çağrı). UI thread'inden çağrıldığında arayüzü
+    tamamen dondurur; daemon thread + sinyalle sonucu UI'ya taşır.
+    """
+
+    done = pyqtSignal(bool, str)  # ok, hata mesajı
+
+    def start(self, tex_path: str, dest_path: str):
+        def work():
+            ok, err = _export(tex_path, dest_path)
+            self.done.emit(ok, err)
+
+        threading.Thread(target=work, name="pandoc-export", daemon=True).start()
 
 
 class FileOpsMixin:
@@ -47,6 +66,7 @@ class FileOpsMixin:
         editor.rename_label_requested.connect(self._on_rename_label)
         editor.rename_cite_requested.connect(self._on_rename_cite)
         editor.rename_bibitem_requested.connect(self._on_rename_bibitem)
+        editor.goto_definition_requested.connect(self._on_goto_definition)
         idx = self._editor_tabs.addTab(editor, editor.display_name)
         self._editor_tabs.setCurrentIndex(idx)
         self._add_tab_close_button(idx)
@@ -201,14 +221,29 @@ class FileOpsMixin:
         if not dest:
             return
 
+        if getattr(self, "_export_busy", False):
+            self._status.showMessage(_("Dışa aktarma zaten sürüyor — bitmesini bekleyin"))
+            return
+
+        # pandoc zinciri arka planda çalışır; süreç bitince durum çubuğu güncellenir
+        if getattr(self, "_export_runner", None) is None:
+            self._export_runner = _ExportRunner()
+            self._export_runner.done.connect(self._on_export_done)
+        self._export_busy = True
+        self._export_dest = dest
         self._status.showMessage(_("Dışa aktarılıyor") + f" ({fmt_name})...")
-        ok, err = _export(editor.file_path, dest)
+        self._export_runner.start(editor.file_path, dest)
+
+    def _on_export_done(self, ok: bool, err: str):
+        """Arka plan pandoc dışa aktarması bitti — durumu bildir."""
+        self._export_busy = False
+        dest = getattr(self, "_export_dest", "")
         if ok:
             self._status.showMessage(_("Dışa aktarıldı") + ": " + os.path.basename(dest))
-            _logger.info("Export başarılı: %s → %s", editor.file_path, dest)
+            _logger.info("Export başarılı → %s", dest)
         else:
             self._status.showMessage(_("Dışa aktarma başarısız") + ": " + str(err))
-            _logger.warning("Export başarısız: %s → %s — %s", editor.file_path, dest, err)
+            _logger.warning("Export başarısız → %s — %s", dest, err)
 
     def _quick_open(self):
         """Ctrl+P: bulanık filtreyle proje dosyası aç (dosya ağacı kökünde)."""
