@@ -22,6 +22,17 @@ def escape_cell(text: str) -> str:
     return _ESCAPE_RE.sub(r"\\\1", text.strip())
 
 
+_UNESCAPE_RE = re.compile(r"\\([%&_#$])")
+
+
+def unescape_cell(text: str) -> str:
+    """escape_cell'in tersi: \\% → % vb. (grid'e yüklerken kullanılır).
+
+    \\alpha gibi komutlar dokunulmaz; yalnız kaçırılmış özel karakterler açılır.
+    """
+    return _UNESCAPE_RE.sub(r"\1", text.strip())
+
+
 # --- Kolon belirtimi ---
 
 
@@ -205,6 +216,29 @@ def parse_tabular_at(text: str, pos: int) -> dict | None:
             rows.append(cells)
     return {"start": start, "end": end, "env": env, "col_spec": col_spec,
             "rows": rows}
+
+
+def parse_first_tabular(text: str) -> dict | None:
+    """Metindeki (yapıştırılan koddaki) ilk tabular bloğunu bul.
+
+    Sihirbazın 'Koddan Yükle' akışı için: parse_tabular_at pozisyon ister;
+    burada ilk \\begin{tabular...} konumu kullanılır.
+    """
+    m = _RE_BEGIN.search(text)
+    if not m:
+        return None
+    return parse_tabular_at(text, m.start() + 1)
+
+
+def extract_caption_label(text: str) -> tuple[str, str]:
+    """Metindeki \\caption{...} ve \\label{tab:...} değerlerini döndür (yoksa boş).
+
+    Kaption kaçışları açılır (unescape_cell); label oldugu gibi alınır.
+    """
+    cap = re.search(r"\\caption\{([^{}]*)\}", text)
+    lab = re.search(r"\\label\{(tab:[^{}]*)\}", text)
+    return (unescape_cell(cap.group(1)) if cap else "",
+            lab.group(1) if lab else "")
 
 
 def format_tabular(text: str, pos: int) -> str | None:

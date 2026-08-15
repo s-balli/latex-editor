@@ -83,6 +83,20 @@ def test_dialog_empty_preview_hint(qapp):
     assert dlg.result_text() == ""
 
 
+def test_dialog_load_block_escape_roundtrip(qapp):
+    """Kaçış içeren hücre grid'e AÇILARAK yüklenir; üretimde yeniden kaçar.
+
+    Regression: ham hücre yüklenseydi \\% çift kaçışa (\\\\%) dönüşürdü.
+    """
+    text = ("\\begin{tabular}{l}\nDoğruluk \\% & x_1 \\\\\n\\end{tabular}\n")
+    block = parse_tabular_at(text, 2)
+    dlg = TableWizardDialog()
+    dlg.load_block(block)
+
+    assert dlg.cells() == [["Doğruluk %", "x_1"]]     # kaçış açıldı
+    assert "Doğruluk \\% & x\\_1 \\\\" in dlg.result_text()  # yeniden kaçtı
+
+
 # =====================================================================
 # Mixin: ekle / hizala (stub MainWindow)
 # =====================================================================

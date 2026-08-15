@@ -16,7 +16,8 @@ from PyQt6.QtWidgets import (
 )
 
 from core.latex_tables import (
-    TableOptions, build_tabular, csv_to_rows, suggest_label,
+    TableOptions, build_tabular, csv_to_rows, extract_caption_label,
+    parse_first_tabular, suggest_label, unescape_cell,
 )
 
 _ = lambda s: QCoreApplication.translate("TableWizardDialog", s)
@@ -70,6 +71,8 @@ class TableWizardDialog(QDialog):
         top.addStretch()
         self._btn_csv = QPushButton(_("CSV Yükle..."))
         top.addWidget(self._btn_csv)
+        self._btn_code = QPushButton(_("Koddan Yükle..."))
+        top.addWidget(self._btn_code)
         root.addLayout(top)
 
         # Hücre grid'i
@@ -127,6 +130,7 @@ class TableWizardDialog(QDialog):
         self._cols.valueChanged.connect(self._on_cols_changed)
         self._env.currentTextChanged.connect(self._on_env_changed)
         self._btn_csv.clicked.connect(self._load_csv)
+        self._btn_code.clicked.connect(self._load_from_code)
         self._caption.textChanged.connect(self._on_caption_changed)
         self._label.textEdited.connect(lambda _t: setattr(self, "_label_manual", True))
         self._grid.itemChanged.connect(self._on_grid_changed)
@@ -229,6 +233,47 @@ class TableWizardDialog(QDialog):
         self._on_cols_changed()
         self._update_preview()
 
+    def _load_from_code(self):
+        """Yapıştırılan LaTeX tablo kodunu çözümle ve grid'e yükle.
+
+        Daha önce üretilen/başka yerden kopyalanan tabloyu sihirbazla yeniden
+        düzenlemeyi sağlar. İlk tabular ortamı alınır; table kılıfındaki
+        caption/label varsa alanlara doldurulur.
+        """
+        from PyQt6.QtWidgets import QMessageBox
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle(_("Koddan Yükle"))
+        dlg.setMinimumSize(560, 380)
+        v = QVBoxLayout(dlg)
+        edit = QPlainTextEdit()
+        edit.setPlaceholderText(
+            _("LaTeX tablo kodunu yapıştırın (\\begin{tabular} ... \\end{tabular})"))
+        v.addWidget(edit)
+        btns = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
+        btns.button(QDialogButtonBox.StandardButton.Ok).setText(_("Yükle"))
+        btns.accepted.connect(dlg.accept)
+        btns.rejected.connect(dlg.reject)
+        v.addWidget(btns)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return
+        code = edit.toPlainText()
+        block = parse_first_tabular(code)
+        if block is None:
+            QMessageBox.warning(
+                self, _("Koddan Yükle"),
+                _("Yapıştırdığınız kodda tabular ortamı bulunamadı"))
+            return
+        self.load_block(block)
+        caption, label = extract_caption_label(code)
+        if caption:
+            self._caption.setText(caption)
+        if label:
+            self._label.setText(label)
+            self._label_manual = True
+        self._update_preview()
+
     def cells(self) -> list[list[str]]:
         """Grid'den hücre satırlarını oku (tamamen boş satırlar atılır)."""
         rows = []
@@ -281,9 +326,11 @@ class TableWizardDialog(QDialog):
             self._cols.setValue(ncols)
             self._grid.setColumnCount(ncols)
             self._grid.clearContents()
+            # Kaçışlar AÇILARAK yüklenir: \% → %. Üretimde escape_cell yeniden
+            # kaçırır; ham hücreyi koysaydık çift kaçış (\\%) oluşurdu.
             for i, row in enumerate(rows):
                 for j, cell in enumerate(row):
-                    self._grid.setItem(i, j, QTableWidgetItem(cell))
+                    self._grid.setItem(i, j, QTableWidgetItem(unescape_cell(cell)))
         finally:
             self._updating = False
         # kolon spec → hizalama kutuları (p{2cm} ve X gibi belirteçler 'p'ye iner)

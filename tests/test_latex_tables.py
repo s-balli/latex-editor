@@ -4,7 +4,8 @@ import pytest
 
 from core.latex_tables import (
     TableOptions, build_col_spec, build_tabular, csv_to_rows, escape_cell,
-    format_tabular, parse_tabular_at, slugify, suggest_label,
+    extract_caption_label, format_tabular, parse_first_tabular,
+    parse_tabular_at, slugify, suggest_label, unescape_cell,
 )
 
 
@@ -27,6 +28,45 @@ class TestEscapeCell:
 
     def test_plain_untouched(self):
         assert escape_cell("CNN 91.2") == "CNN 91.2"
+
+
+class TestUnescapeCell:
+    def test_roundtrip(self):
+        for raw in ["Doğruluk %", "a & b", "x_1", "$x$", "a#b"]:
+            assert unescape_cell(escape_cell(raw)) == raw
+
+    def test_commands_preserved(self):
+        assert unescape_cell(r"\alpha + \beta") == r"\alpha + \beta"
+
+    def test_opens_escapes(self):
+        assert unescape_cell(r"Doğruluk \%") == "Doğruluk %"
+
+
+# --- yapıştırılan koddan yükleme ---
+
+
+class TestParseFirstTabular:
+    CODE = ("\\begin{table}[htbp]\n    \\centering\n"
+            "    \\caption{Karşılaştırma \\%100}\n    \\label{tab:onceki}\n"
+            "    \\begin{tabular}{lr}\n        \\toprule\n"
+            "        Ad & Deger \\\\\n        x & 1 \\\\\n        \\bottomrule\n"
+            "    \\end{tabular}\n\\end{table}\n")
+
+    def test_finds_first_block(self):
+        b = parse_first_tabular(self.CODE)
+        assert b is not None and b["col_spec"] == "lr"
+        assert b["rows"] == [["Ad", "Deger"], ["x", "1"]]
+
+    def test_no_tabular(self):
+        assert parse_first_tabular("kod yok") is None
+
+    def test_caption_label(self):
+        cap, lab = extract_caption_label(self.CODE)
+        assert cap == "Karşılaştırma %100"   # kaçış açılır
+        assert lab == "tab:onceki"
+
+    def test_caption_label_missing(self):
+        assert extract_caption_label("plain") == ("", "")
 
 
 # --- kolon belirtimi ---
