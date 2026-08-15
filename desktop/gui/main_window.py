@@ -909,6 +909,40 @@ class MainWindow(
 
     # --- Event filter + sürükle-bırak ---
 
+    def _handle_app_key_shortcut(self, event) -> bool:
+        """Uygulama düzeyi tuş kısayolları — tüketilirse True döner.
+
+        Bu kısayollar editör (QScintilla) odaktayken çalışmalı; Scintilla bazı
+        tuşları (Ctrl+T: satır transpoze) gömülü komut olarak yuttuğundan Qt
+        kısayol sistemine ulaşmazlar. Uygulama filtresi (eventFilter) hedef
+        widget'tan önce görür; mantık burada saf tutulur ki Qt kurulmadan
+        test edilebilsin.
+        """
+        if event.key() == Qt.Key.Key_Escape and not event.modifiers():
+            if self._pdf_viewer.in_presentation:
+                self._pdf_viewer.exit_presentation()
+                return True
+            self._on_esc()
+            return True
+
+        mods = event.modifiers()
+        # Ctrl+/ — klavye düzeninden bağımsız (text "/" olan her tuşu yakala)
+        if (mods & Qt.KeyboardModifier.ControlModifier and
+                not (mods & Qt.KeyboardModifier.ShiftModifier) and
+                event.text() == "/"):
+            if self._current_editor():
+                self._toggle_comment()
+                return True
+            return False
+
+        # Ctrl+T — tablo sihirbazı (Scintilla'nın gömülü komodu yutuyor)
+        if (event.key() == Qt.Key.Key_T and
+                mods == Qt.KeyboardModifier.ControlModifier):
+            if self._current_editor():
+                self._table_wizard()
+                return True
+        return False
+
     def eventFilter(self, obj, event):
         # QScintilla viewport drag/drop yakala
         parent = obj.parent() if isinstance(obj, QWidget) else None
@@ -932,23 +966,8 @@ class MainWindow(
                     return True
 
         if event.type() == QEvent.Type.KeyPress:
-            # Esc — sunum modu çıkışı
-            if event.key() == Qt.Key.Key_Escape and not event.modifiers():
-                if self._pdf_viewer.in_presentation:
-                    self._pdf_viewer.exit_presentation()
-                    return True
-                self._on_esc()
+            if self._handle_app_key_shortcut(event):
                 return True
-
-            # Ctrl+/ — klavye düzeninden bağımsız (text "/" olan her tuşu yakala)
-            mods = event.modifiers()
-            if (mods & Qt.KeyboardModifier.ControlModifier and
-                    not (mods & Qt.KeyboardModifier.ShiftModifier) and
-                    event.text() == "/"):
-                editor = self._current_editor()
-                if editor:
-                    self._toggle_comment()
-                    return True
 
         # Orta tık ile sekme kapatma
         if obj == self._editor_tabs.tabBar() and event.type() == QEvent.Type.MouseButtonPress:

@@ -203,3 +203,60 @@ def test_cursor_char_offset_unicode(qapp):
     ed.setCursorPosition(1, 3)  # 'ğüş' → +3 char = ' ti...' başı
     stub = _Stub([ed])
     assert stub._cursor_char_offset(ed) == len(" ascii\nğüş")
+
+
+# ======================================================================
+# Ctrl+T: uygulama düzeyi tuş kısayolu (Scintilla tuşu yuttuğu için)
+# ======================================================================
+
+
+def _key_event(key, mods, text):
+    from PyQt6.QtGui import QKeyEvent
+    from PyQt6.QtCore import QEvent
+    return QKeyEvent(QEvent.Type.KeyPress, key, mods, text)
+
+
+def _fake_mainwindow(editor):
+    """_handle_app_key_shortcut'u Qt kurulumu olmadan çalıştıran sahne."""
+    from types import SimpleNamespace
+    from gui.main_window import MainWindow
+
+    calls = []
+    mw = SimpleNamespace(
+        _table_wizard=lambda: calls.append("wizard"),
+        _toggle_comment=lambda: calls.append("comment"),
+        _on_esc=lambda: calls.append("esc"),
+        _pdf_viewer=SimpleNamespace(in_presentation=False),
+        _current_editor=lambda: editor,
+    )
+    return mw, calls, MainWindow
+
+
+def test_ctrl_t_consumed_by_app_key_handler(qapp):
+    from PyQt6.QtCore import Qt
+
+    ed = EditorWidget()
+    mw, calls, MW = _fake_mainwindow(ed)
+
+    ev = _key_event(Qt.Key.Key_T, Qt.KeyboardModifier.ControlModifier, "t")
+    assert MW._handle_app_key_shortcut(mw, ev) is True
+    assert calls == ["wizard"]
+
+    # Ctrl+Shift+T / yalnız T tüketilmemeli
+    calls.clear()
+    ev = _key_event(Qt.Key.Key_T,
+                    Qt.KeyboardModifier.ControlModifier | Qt.KeyboardModifier.ShiftModifier, "T")
+    assert MW._handle_app_key_shortcut(mw, ev) is False
+    ev = _key_event(Qt.Key.Key_T, Qt.KeyboardModifier.NoModifier, "t")
+    assert MW._handle_app_key_shortcut(mw, ev) is False
+    assert calls == []
+
+
+def test_ctrl_t_without_editor_not_consumed(qapp):
+    """Sekme yokken filtre tüketmez → menü kısayolu 'dosya açın' yoluna girer."""
+    from PyQt6.QtCore import Qt
+
+    mw, calls, MW = _fake_mainwindow(None)
+    ev = _key_event(Qt.Key.Key_T, Qt.KeyboardModifier.ControlModifier, "t")
+    assert MW._handle_app_key_shortcut(mw, ev) is False
+    assert calls == []
