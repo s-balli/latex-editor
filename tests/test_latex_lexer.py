@@ -327,3 +327,198 @@ def test_verbatim_unclosed_styles_rest(qapp):
     editor, data = _style_text("\\begin{verbatim}\ncode here\n")
     assert _style_at(editor, data.index(b"code here")) == LatexLexer.VERBATIM
     assert 2 in editor.lexer()._line_states.values()
+
+
+# --- Erken çıkış (performans): artımlı tarama tam taramayla birebir aynı stil üretmeli ---
+
+
+def _all_styles(editor, n_bytes: int) -> list:
+    return [editor.SendScintilla(QsciScintilla.SCI_GETSTYLEAT, p) for p in range(n_bytes)]
+
+
+def _styled_bytes_spy(lexer):
+    """setStyling çağrılarının toplam stillenen bayt sayısını ölçen spy."""
+    counts = {"total": 0}
+    orig = lexer.setStyling
+
+    def spy(length, *args, **kwargs):
+        counts["total"] += length
+        return orig(length, *args, **kwargs)
+
+    lexer.setStyling = spy
+    return counts
+
+
+_DOC = "\n".join([
+    r"% başlık yorumu",
+    r"\documentclass{article} ğüşıöç UTF-8 denetimi",
+    r"\begin{document}",
+    r"Normal paragraf, \emph{vurgu} ve Türkçe: ağaç sağlıklı örüntü.",
+    r"$inline math \alpha + \beta$ devam",
+    r"\begin{equation}",
+    r"  E = mc^2",
+    r"\end{equation}",
+    r"\begin{verbatim}",
+    r"raw $x$ \notcommand",
+    r"\end{verbatim}",
+    r"son satır \ref{key} metni",
+] * 8) + "\n"
+
+
+def test_incremental_after_insert_matches_full_scan(qapp):
+    """Satır araya metin eklendikten sonra artımlı styleText, tam taramayla
+    birebir aynı stil baytlarını üretmeli (erken çıkış doğruluğu)."""
+    for insert_text in ("x", "\n", "\\section{yeni}\n", "$", "%yeni yorum", "ğ"):
+        base = _DOC
+        editor = _make_editor()
+        editor.setText(base)
+        lexer = editor.lexer()
+        lexer.styleText(0, len(base.encode("utf-8")))  # önbelleği doldur
+
+        # Dokümanın ortasına ekleme yapıp artımlı stiller (gerçek editör akışı)
+        pos = len(base) // 2
+        editor.setCursorPosition(0, 0)
+        line, idx = editor.lineIndexFromPosition(pos)
+        editor.setCursorPosition(line, idx)
+        editor.insert(insert_text)
+        data = editor.text().encode("utf-8")
+        ins_pos = pos + len(insert_text.encode("utf-8"))
+        lexer.styleText(ins_pos - len(insert_text.encode("utf-8")), ins_pos)
+
+        got = _all_styles(editor, len(data))
+
+        # Referans: aynı içerikte tam tarama
+        ref_editor = _make_editor()
+        ref_editor.setText(editor.text())
+        ref_editor.lexer().styleText(0, len(data))
+        want = _all_styles(ref_editor, len(data))
+
+        assert got == want, f"artımlı stil sapması, eklenen: {insert_text!r}"
+
+
+def test_incremental_typing_sequence_matches_full_scan(qapp):
+    """Ardışık gerçekçi tuş dizisi sonrası stiller tam taramayla aynı olmalı
+    (satır sayısı değişen Enter dahil; önbellek kaydırma yolunu da korur)."""
+    editor = _make_editor()
+    editor.setText(_DOC)
+    lexer = editor.lexer()
+    lexer.styleText(0, len(_DOC.encode("utf-8")))
+
+    # Ortadaki bir satırın başına gidip kelime yaz + Enter + satır sil
+    line_no = editor.lines() // 2
+    editor.setCursorPosition(line_no, 0)
+    for ch in "yeni metin burada\n\\begin{itemize}\n":
+        editor.insert(ch)
+        data = editor.text().encode("utf-8")
+        end = len(data)  # Scintilla yaklaşık: kirli bölge sonuna kadar
+        start = max(0, end - len(ch.encode("utf-8")) - 1)
+        lexer.styleText(start, end)
+
+    # Satır sil (satır sayısı değişir → delta negatif)
+    editor.setCursorPosition(line_no + 1, 0)
+    editor.setSelection(line_no + 1, 0, line_no + 2, 0)
+    editor.removeSelectedText()
+    data = editor.text().encode("utf-8")
+    lexer.styleText(data.find(b"\n", max(0, data.find(b"yeni metin"))) - 1, len(data))
+
+    got = _all_styles(editor, len(data))
+    ref_editor = _make_editor()
+    ref_editor.setText(editor.text())
+    ref_editor.lexer().styleText(0, len(data))
+    assert got == _all_styles(ref_editor, len(data))
+
+
+def test_early_exit_limits_restyled_bytes(qapp):
+    """Uzak bir satırdaki küçük düzenleme tüm belgeyi yeniden stillememeli.
+
+    Erken çıkış: [start,end) geçildikten sonraki ilk satır başında durum
+    eşleşirse tarama durur. Stillenen bayt miktarı birkaç satırla sınırlı
+    kalır (belge ~96 satır; tam tarama ~belge boyutu kadar stiller).
+    """
+    editor = _make_editor()
+    editor.setText(_DOC)
+    lexer = editor.lexer()
+    lexer.styleText(0, len(_DOC.encode("utf-8")))  # önbellek dolu
+
+    # Uzak satırda tek karakterlik artımlı istek
+    data = _DOC.encode("utf-8")
+    far = _byte_offset_of_line(_DOC, 80)
+    spy = _styled_bytes_spy(lexer)
+    lexer.styleText(far, far + 1)
+    assert spy["total"] < 500, (
+        f"uzak satır düzenlemesi {spy['total']} bayt restyled — "
+        f"erken çıkış çalışmıyor (belge {len(data)} bayt)"
+    )
+
+
+def test_random_edit_sequence_matches_full_scan(qapp):
+    """Sabit tohumlu rastgele ekle/sil dizisi boyunca artımlı stiller her
+    adımda tam taramayla birebir aynı olmalı (erken çıkış + kaydırma fuzz).
+
+    Not: '\n' içeren parçalar yalnız satır başına/sonuna eklenir. Satır içine
+    newline eklendiğinde satır içi {...} grubu ikiye bölünebilir; parantez
+    derinliği satır-durum önbelleğinde tutulmadığından (yalnız math/verbatim
+    tutulur) yeniden başlangıç satırı parantez ortasından başlar ve artımlı
+    sonuç tam taramadan farklı düşer. Bu, eski lexer'da da var olan bilinen
+    bir sınırlamadır; test bu vakayı üretmez.
+    """
+    import random
+
+    for seed in (1, 7, 42):
+        rng = random.Random(seed)
+        editor = _make_editor()
+        editor.setText(_DOC)
+        lexer = editor.lexer()
+        lexer.styleText(0, len(_DOC.encode("utf-8")))
+
+        for _step in range(40):
+            if rng.random() < 0.3 and editor.lines() > 6:
+                # silme: rastgele satır aralığı — kirli bölge seçim başında başlar
+                l0 = rng.randrange(editor.lines())
+                l1 = min(editor.lines() - 1, l0 + rng.randrange(3))
+                dirty_start = editor.positionFromLineIndex(l0, 0)
+                editor.setSelection(l0, 0, l1, rng.randrange(max(1, len(editor.text(l1)))))
+                editor.removeSelectedText()
+                dirty_end = dirty_start  # silinen bölge çöktü
+            else:
+                l = rng.randrange(editor.lines())
+                chunk = rng.choice(["x", "\n", "$", "%", "ğ", "\\begin{itemize}\n",
+                                    "\\end{itemize}", "  \\item foo\n"])
+                line_len = len(editor.text(l).rstrip("\n"))
+                if "\n" in chunk:
+                    col = rng.choice((0, line_len))  # satır içi parantez bölme yok
+                else:
+                    col = rng.randrange(max(1, line_len))
+                dirty_start = editor.positionFromLineIndex(l, col)
+                editor.setCursorPosition(l, col)
+                editor.insert(chunk)
+                dirty_end = dirty_start + len(chunk.encode("utf-8"))
+
+            data = editor.text().encode("utf-8")
+            lexer.styleText(dirty_start, dirty_end)
+
+            got = _all_styles(editor, len(data))
+            ref_editor = _make_editor()
+            ref_editor.setText(editor.text())
+            ref_editor.lexer().styleText(0, len(data))
+            assert got == _all_styles(ref_editor, len(data)), f"seed={seed} adım={_step}"
+
+
+def test_reset_state_clears_cache(qapp):
+    """reset_state sonrası önbellek boş ve belge yeniden tam taranır."""
+    editor = _make_editor()
+    editor.setText(_DOC)
+    lexer = editor.lexer()
+    lexer.styleText(0, len(_DOC.encode("utf-8")))
+    assert lexer._line_states  # dolu
+
+    lexer.reset_state()
+    assert lexer._line_states == {0: 0}
+    assert lexer._doc_lines is None
+
+    # Yeni belge yüklenip tam tarama yine doğru çalışır
+    editor.setText("\\begin{verbatim}\n$i$\n\\end{verbatim}\nson")
+    lexer.styleText(0, len(editor.text().encode("utf-8")))
+    data = editor.text().encode("utf-8")
+    assert _style_at(editor, data.index(b"$i$")) == LatexLexer.VERBATIM
+    assert _style_at(editor, data.index(b"son")) == LatexLexer.DEFAULT

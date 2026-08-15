@@ -9,6 +9,12 @@ def strip_comments(text: str) -> str:
     """
     result = []
     for line in text.split('\n'):
+        # Hız yolu: '%' içermeyen satır değişmez (aşağıdaki döngü bu satırı
+        # birebir kopyalayarak aynı sonucu verir). C-hızlı 'in' denetimi,
+        # karakter-karakter Python döngüsünü yorumlu azınlık satırlara indirger.
+        if '%' not in line:
+            result.append(line)
+            continue
         clean = []
         i = 0
         while i < len(line):

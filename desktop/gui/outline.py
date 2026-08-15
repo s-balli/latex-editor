@@ -103,6 +103,11 @@ class OutlinePanel(QWidget):
         self._items = []
 
         stack = []
+        # Satır numaraları artımlı sayılır: her eşleşme için metnin başından
+        # yeniden saymak (text[:m.start()].count) bölüm sayısıyla çarpılan
+        # kare maliyet üretiyordu; burada imleç konumundan devam edilir.
+        line = 0
+        line_pos = 0  # `line` numaralı satırın başlangıç offseti
         for match in _RE_SECTION.finditer(text):
             # Yorum içinde mi kontrol et
             line_start = text.rfind('\n', 0, match.start()) + 1
@@ -110,10 +115,12 @@ class OutlinePanel(QWidget):
             if '%' in line_text:
                 continue
 
+            line += text.count('\n', line_pos, match.start())
+            line_pos = match.start()
+
             cmd = match.group(1)
             title = match.group(2).strip()
             level = _LEVEL[cmd]
-            line = text[:match.start()].count('\n')
 
             prefix = _PREFIX.get(cmd, '')
             label = f"{prefix}: {title}" if prefix else title

@@ -179,6 +179,12 @@ class PdfRenderMixin:
 
             visible = label_bottom >= -200 and label_top <= viewport_height + 200
 
+            # Etiketler dikey sıralı: viewport altına düşen ilk etiketten
+            # sonrakiler de görünmez — büyük PDF'lerde döngü başına yüzlerce
+            # mapTo çağrısından kurtulur.
+            if label_top > viewport_height + 200:
+                break
+
             if visible and (label.pixmap() is None or label.pixmap().isNull()):
                 pixmap = self._render_page(i)
                 if not pixmap.isNull():

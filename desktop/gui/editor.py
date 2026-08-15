@@ -771,6 +771,11 @@ class EditorWidget(QsciScintilla):
             if b"\x00" in raw[:8192]:
                 raise ValueError(_("İkili (binary) dosya; metin editöründe açılamaz."))
             text, encoding = _decode_bytes(raw)
+            # Belge bütünüyle değişiyor: lexer'ın satır-durum önbelleği eski
+            # belgeye ait; erken çıkış yanlış eşleşme yapmasın diye sıfırla.
+            lexer = self.lexer()
+            if lexer is not None:
+                lexer.reset_state()
             self.setText(text)
             self._file_path = os.path.normpath(path)
             self._encoding = encoding
