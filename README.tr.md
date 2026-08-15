@@ -40,6 +40,17 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 
 ## Sürüm Geçmişi
 
+### v1.0.9 — Sürümleme, Tablo Sihirbazı ve Büyük Hızlanma
+- **Sürümleme (Ctrl+K)**: tüm değişiklikleri adlandırılmış anlık görüntüye kaydet; Geçmiş sekmesinden renkli farkları gör, dosyayı eski sürümden geri yükle (kodlama ve imleç korunur), eski içeriği panoya kopyala, son sürümü veya tüm geçmişi sil (çöp kutusuna). Git bilgisine gerek yok; gömülü dulwich kullanır, klasörde standart `.git` oluşur (gerçek git/GitHub ile uyumlu, hiçbir şey kurulmaz)
+- **Tablo sihirbazı (Ctrl+T)**: hücrelere yazarak, CSV yükleyerek veya mevcut LaTeX tablo kodunu yapıştırarak tabular/tabularx/longtable üret (booktabs, hizalama, caption + çakışmasız otomatik label); imleç tablonun içindeyse düzenler; Düzenle > Tabloyu Hizala kolonları hizalar
+- **Hata mesajlarına insan dili**: yaygın ~16 hata/uyarı kalıbına kısa açıklama + çözüm eki (tanımsız komut, matematik modu, Word akıllı tırnakları, çift label, "tekrar derleyin" uyarıları...)
+- **`% !TEX root`**: çok dosyalı projelerde alt dosyadan (bölüm) derle; kök belge otomatik bulunur, motor kökün içeriğinden algılanır, açık kök sekmesi kaydedilir
+- **Derleme sonrası otomatik atlama**: başarılı derleme bitince PDF, imlecin olduğu yere SyncTeX ile kaydırılır
+- **19x daha hızlı yazma**: artımlı sözdizimi renklendirme (kanıtlı erken çıkış + bytes-uzayı tarama); 300KB belgede tuş başına ~58ms → ~3ms, 1MB'de ~210ms → ~11ms
+- **Arayüz donmaları giderildi**: pandoc dışa aktarma ve açılıştaki WSL kontrolü arka planda; klasör açılışı artık her .tex dosyasını okumuyor
+- **Kritik düzeltme (Windows)**: kaydetme, satır sonlarını bozuyordu (`\r\r\n`; derlemeyi 32 hatalık kaskatlarla kırıyordu). Açılışta stil algılanır, kayıtta birebir korunur; ayrıca dışa aktarma sıfır bozulma garantisiyle bayt-düzeyinde geri yükleme
+- **799 birim testi**
+
 ### v1.0.8 — AppImage XeLaTeX Düzeltmesi
 - **Hata düzeltme (Linux/AppImage)**: AppImage içinde XeLaTeX `GLIBCXX_3.4.32 not found` hatasıyla düşüyordu — gömülü (eski) `libstdc++`, `LD_LIBRARY_PATH` üzerinden sistem ikililerine sızıyordu. Derleme zinciri (`derle.sh`), pandoc dışa aktarma ve SyncTeX artık sistem araçlarını başlatmadan önce gömülü kütüphane yollarını temizliyor
 - **659 birim testi**

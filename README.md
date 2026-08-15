@@ -40,6 +40,17 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 
 ## Version History
 
+### v1.0.9 — Versioning, Table Wizard & Major Speedups
+- **Versioning (Ctrl+K)**: save all changes into a named snapshot; view colored diffs in the History tab, restore a file from an older snapshot (encoding and cursor preserved), copy old content to the clipboard, delete the latest snapshot or the whole history (sent to trash). No git knowledge needed; powered by embedded dulwich, creates a standard `.git` (compatible with real git/GitHub, nothing to install)
+- **Table wizard (Ctrl+T)**: build tabular/tabularx/longtable by typing cells, loading CSV or pasting existing LaTeX table code (booktabs, per-column alignment, caption + collision-free auto label); edits the table under the cursor; Edit > Align Table realigns columns
+- **Human-friendly error messages**: short explanations + fixes appended to ~16 common LaTeX errors/warnings (unknown command, math mode, Word smart quotes, duplicate labels, "rerun" warnings...)
+- **`% !TEX root`**: compile from a child (chapter) file in multi-file projects; the root document is found automatically, the engine is detected from the root, and an open root tab is saved first
+- **Auto-jump after compile**: on a successful compile the PDF scrolls to the cursor position via SyncTeX
+- **19x faster typing**: incremental syntax highlighting (proven early-exit + bytes-space scanning); ~58ms → ~3ms per keystroke on a 300KB document, ~210ms → ~11ms on 1MB
+- **UI freezes eliminated**: pandoc export and the startup WSL check now run in the background; opening a folder no longer reads every .tex file up front
+- **Critical fix (Windows)**: saving corrupted line endings (`\r\r\n`, breaking compiles with 32-error cascades). The style is now detected on open and preserved byte-for-byte on save; version restore is byte-exact
+- **799 unit tests**
+
 ### v1.0.8 — AppImage XeLaTeX Fix
 - **Bugfix (Linux/AppImage)**: XeLaTeX failed inside the AppImage with `GLIBCXX_3.4.32 not found` — the bundled (older) `libstdc++` leaked into system binaries via `LD_LIBRARY_PATH`. The compile chain (`derle.sh`), pandoc export and SyncTeX now strip the bundled library paths before spawning system tools
 - **659 unit tests**
