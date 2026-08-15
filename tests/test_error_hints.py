@@ -183,3 +183,35 @@ def test_panel_unknown_error_no_hint(qapp):
     panel.show_result(result)
 
     assert "→" not in panel._error_list.item(0).text()
+
+
+# =====================================================================
+# Yerelleştirme: ipuçları ÇAĞRI anında çevrilir (import-zamanı donması yok)
+# =====================================================================
+
+
+def test_hint_localized_to_english(qapp):
+    """İngilizce çevirici yüklüyken ipucu İngilizce dönmeli.
+
+    Regression: _HINTS sözlüğü modül import'u sırasında değerlendiriliyordu;
+    çevirici yüklenmeden donduğu için İngilizce arayüzde bile Türkçe
+    görünüyordu. Şablonlar artık _hint_templates() çağrısında üretiliyor.
+    """
+    from PyQt6.QtCore import QTranslator
+
+    tr_text = OutputPanel._hint_text(("undefined_control", {}))
+    assert "Tanımsız komut" in tr_text  # kaynak dil (çevirici yoksa)
+
+    t = QTranslator()
+    qm = str(__import__("pathlib").Path(__file__).resolve().parents[1]
+             / "desktop" / "translations" / "latexeditor_en.qm")
+    if not t.load(qm):  # pragma: no cover — .qm derili olmalı
+        pytest.skip("latexeditor_en.qm bulunamadı")
+    app = QApplication.instance()
+    app.installTranslator(t)
+    try:
+        en_text = OutputPanel._hint_text(("undefined_control", {}))
+        assert "Unknown command" in en_text, en_text
+        assert "Tanımsız komut" not in en_text
+    finally:
+        app.removeTranslator(t)

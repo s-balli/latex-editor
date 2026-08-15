@@ -14,16 +14,21 @@ _ = lambda s: QCoreApplication.translate("ImageOpsMixin", s)
 
 class ImageOpsMixin:
 
-    _FIGURE_TEMPLATES = {
-        "standard": _("Standart (\\begin{figure})"),
-        "two_column": _("İki sütun (\\begin{figure*})"),
-        "ieee_access": _("IEEE Access (\\Figure)"),
-        "mnras": _("MNRAS (\\columnwidth)"),
-        "elsevier": _("Elsevier CAS"),
-        "frontiers": _("Frontiers"),
-        "subfigure": _("Alt şekil (subfloat)"),
-        "minimal": _("Sadece \\includegraphics"),
-    }
+    @staticmethod
+    def _figure_templates() -> dict:
+        # Çeviri ÇAĞRI anında yapılmalı: sınıf gövdesinde/Python import'u
+        # sırasında değerlenen sözlük, çevirici yüklenmeden donup kalırdı
+        # (İngilizce arayüzde bile Türkçe görünürdü).
+        return {
+            "standard": _("Standart (\\begin{figure})"),
+            "two_column": _("İki sütun (\\begin{figure*})"),
+            "ieee_access": _("IEEE Access (\\Figure)"),
+            "mnras": _("MNRAS (\\columnwidth)"),
+            "elsevier": _("Elsevier CAS"),
+            "frontiers": _("Frontiers"),
+            "subfigure": _("Alt şekil (subfloat)"),
+            "minimal": _("Sadece \\includegraphics"),
+        }
 
     @staticmethod
     def _detect_figure_template(content: str) -> str:
@@ -171,7 +176,7 @@ class ImageOpsMixin:
         form.setContentsMargins(16, 16, 16, 12)
 
         cb_template = QComboWidget()
-        for key, label in self._FIGURE_TEMPLATES.items():
+        for key, label in self._figure_templates().items():
             cb_template.addItem(label, key)
         idx = cb_template.findData(auto_template)
         if idx >= 0:

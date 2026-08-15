@@ -16,22 +16,26 @@ _ = lambda s: QCoreApplication.translate("OutputPanel", s)
 
 # İpucu kimliği → kullanıcıya gösterilecek açıklama (error_hints'teki
 # kalıpların sunum katmanı; .ts'e girebilmesi için literal _() dizgeleri).
-_HINTS = {
-    "undefined_control": _("Tanımsız komut{cmd}: yazım hatası olabilir ya da komutu sağlayan paket yüklenmemiş (\\usepackage gerekebilir)"),
-    "missing_math": _("Matematik modu dışında _ ^ veya özel karakter kullanılmış; $...$ veya \\[...\\] içine alın"),
-    "invalid_character": _("Geçersiz karakter — genelde Word'den kopyalanan akıllı tırnak/tire; düz \" ve - kullanın"),
-    "brace_mismatch": _("Eksik/fazla süslü parantez; bu satırdan geriye doğru { } eşleşmesini kontrol edin"),
-    "double_subscript": _("Aynı terimde iki alt/üst simge; a_{bc} gibi gruplayın"),
-    "env_undefined": _("Tanımsız ortam {env}: \\newenvironment ile tanımlanmamış ya da paketi yüklenmemiş"),
-    "file_ended_scanning": _("Bir komut/ortam kapanmamış (eksik } veya \\end{...}); dosyanın sonuna doğru kontrol edin"),
-    "emergency_stop": _("Derleyici beklenmedik durdu; genelde eksik dosya veya kapanmamış blok. Log sekmesindeki son satırlara bakın"),
-    "counter_too_large": _("Sayaç sınırı aşıldı (çok sayıda dipnot/liste öğesi); enumitem paketini kullanın"),
-    "misplaced_noalign": _("tabular komutu yanlış yerde; \\toprule/\\midrule yalnız tabular içinde satır başında kullanılır"),
-    "citation_undefined": _("Kaynakça anahtarı çözülmedi: tekrar derleyin (iki geçe gerekir) veya Düzenle > Referansları Denetle ile anahtarı kontrol edin"),
-    "reference_undefined": _("Çapraz referans çözülmedi: tekrar derleyin; \\label tanımlı mı diye Referansları Denetle'ye bakın"),
-    "rerun_needed": _("Tekrar derleyin: çapraz referanslar ve kaynakça iki derleme geçesinde çözülür"),
-    "duplicate_label": _("Aynı \\label iki kez kullanılmış; F2 ile birini yeniden adlandırın"),
-}
+# FONKSİYON: çeviri ÇAĞRI anında yapılmalı — modül import'u sırasında
+# değerlenen sözlük, çevirici yüklenmeden donardı (İngilizce arayüzde
+# bile Türkçe kalırdı).
+def _hint_templates() -> dict:
+    return {
+        "undefined_control": _("Tanımsız komut{cmd}: yazım hatası olabilir ya da komutu sağlayan paket yüklenmemiş (\\usepackage gerekebilir)"),
+        "missing_math": _("Matematik modu dışında _ ^ veya özel karakter kullanılmış; $...$ veya \\[...\\] içine alın"),
+        "invalid_character": _("Geçersiz karakter — genelde Word'den kopyalanan akıllı tırnak/tire; düz \" ve - kullanın"),
+        "brace_mismatch": _("Eksik/fazla süslü parantez; bu satırdan geriye doğru { } eşleşmesini kontrol edin"),
+        "double_subscript": _("Aynı terimde iki alt/üst simge; a_{bc} gibi gruplayın"),
+        "env_undefined": _("Tanımsız ortam {env}: \\newenvironment ile tanımlanmamış ya da paketi yüklenmemiş"),
+        "file_ended_scanning": _("Bir komut/ortam kapanmamış (eksik } veya \\end{...}); dosyanın sonuna doğru kontrol edin"),
+        "emergency_stop": _("Derleyici beklenmedik durdu; genelde eksik dosya veya kapanmamış blok. Log sekmesindeki son satırlara bakın"),
+        "counter_too_large": _("Sayaç sınırı aşıldı (çok sayıda dipnot/liste öğesi); enumitem paketini kullanın"),
+        "misplaced_noalign": _("tabular komutu yanlış yerde; \\toprule/\\midrule yalnız tabular içinde satır başında kullanılır"),
+        "citation_undefined": _("Kaynakça anahtarı çözülmedi: tekrar derleyin (iki geçe gerekir) veya Düzenle > Referansları Denetle ile anahtarı kontrol edin"),
+        "reference_undefined": _("Çapraz referans çözülmedi: tekrar derleyin; \\label tanımlı mı diye Referansları Denetle'ye bakın"),
+        "rerun_needed": _("Tekrar derleyin: çapraz referanslar ve kaynakça iki derleme geçesinde çözülür"),
+        "duplicate_label": _("Aynı \\label iki kez kullanılmış; F2 ile birini yeniden adlandırın"),
+    }
 
 
 class OutputPanel(QWidget):
@@ -116,7 +120,7 @@ class OutputPanel(QWidget):
         if not hint:
             return ""
         hint_id, params = hint
-        tmpl = _HINTS.get(hint_id)
+        tmpl = _hint_templates().get(hint_id)
         if not tmpl:
             return ""
         cmd = params.get("cmd", "")
