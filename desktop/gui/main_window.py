@@ -35,6 +35,7 @@ from gui.mixins.edit_ops import EditOpsMixin
 from gui.mixins.compile_ops import CompileOpsMixin
 from gui.mixins.image_ops import ImageOpsMixin
 from gui.mixins.table_ops import TableOpsMixin
+from gui.mixins.version_ops import VersionOpsMixin
 from gui.mixins.synctex_ops import SyncTexMixin
 
 
@@ -72,6 +73,7 @@ class MainWindow(
     CompileOpsMixin,
     ImageOpsMixin,
     TableOpsMixin,
+    VersionOpsMixin,
     SyncTexMixin,
     QMainWindow,
 ):
@@ -108,6 +110,9 @@ class MainWindow(
             if ext in ('.tex', '.cls', '.sty', '.bib'):
                 self._open_file_in_editor(open_file)
                 self._file_tree.set_root(os.path.dirname(open_file))
+
+        # Klasör sürümleniyorsa geçmiş sekmesini doldur
+        self._refresh_history()
 
         # Ctrl+/ için application event filter (klavye düzeninden bağımsız)
         QApplication.instance().installEventFilter(self)
@@ -202,6 +207,9 @@ class MainWindow(
         file_menu.addSeparator()
         self._add_action(file_menu, _("&Kaydet"), self._save_file)
         self._add_action(file_menu, _("Farklı &Kaydet..."), self._save_file_as, "Ctrl+Shift+S")
+        file_menu.addSeparator()
+        self._add_action(file_menu, _("Sürümle"), self._snapshot, "Ctrl+K", app_shortcut=True)
+        self._add_action(file_menu, _("Sürüm &Geçmişi"), self._show_history)
         file_menu.addSeparator()
 
         self._recent_menu = file_menu.addMenu(_("Son Açılanlar"))
@@ -321,6 +329,7 @@ class MainWindow(
         toolbar.addAction(_("📄 Dosya Aç"), self._open_file)
         toolbar.addSeparator()
         toolbar.addAction(_("💾 Kaydet"), self._save_file)
+        toolbar.addAction(_("✔ Sürümle"), self._snapshot)
         toolbar.addAction(_("▶ Derle"), self._compile)
         toolbar.addSeparator()
 
@@ -418,6 +427,7 @@ class MainWindow(
         self._file_tree.file_open_requested.connect(self._open_file_in_editor)
         self._file_tree.compile_requested.connect(self._compile_file)
         self._output_panel.error_clicked.connect(self._goto_line)
+        self._output_panel.version_action.connect(self._on_version_action)
 
         self._pdf_viewer.reverse_search_requested.connect(self._on_reverse_search)
 
@@ -561,6 +571,7 @@ class MainWindow(
         html += "Ctrl+O — " + _("Klasör Aç") + "<br>"
         html += "Ctrl+Shift+O — " + _("Dosya Aç") + "<br>"
         html += "Ctrl+Shift+S — " + _("Farklı Kaydet") + "<br>"
+        html += "Ctrl+K — " + _("Sürümle (tüm değişiklikleri tek kayda al)") + "<br>"
         html += "Ctrl+P — " + _("Hızlı Dosya Aç") + "<br>"
         html += "Ctrl+Q — " + _("Çıkış") + "<br><br>"
         html += "<b>Düzenle</b><br>"
@@ -715,6 +726,9 @@ class MainWindow(
         right += "<br><br>"
         right += "<b>" + _("Geri Al / Yinele") + " (Ctrl+Z / Ctrl+Y)</b><br>"
         right += "<span style='color:" + dim + "'>" + _("Sınırsız geri al ve yinele.") + "</span>"
+        right += "<br><br>"
+        right += "<b>" + _("Sürümleme") + " (Ctrl+K)</b><br>"
+        right += "<span style='color:" + dim + "'>" + _("Ctrl+K ile tüm değişiklikleri adlandırılmış bir sürüme kaydedin; Geçmiş sekmesinden farkları görün veya dosyayı eski sürümden geri yükleyin. Git bilgisine gerek yok; klasörde standart .git oluşur.") + "</span>"
         right += "<br><br>"
         right += "<b>" + _("Satıra Git") + " (Ctrl+G)</b><br>"
         right += "<span style='color:" + dim + "'>" + _("Belirli bir satır numarasına hızlıca gidin.") + "</span>"
@@ -941,6 +955,11 @@ class MainWindow(
             if self._current_editor():
                 self._table_wizard()
                 return True
+        # Ctrl+K — sürümle (aynı gerekçe: filtreye alınmış tuş)
+        if (event.key() == Qt.Key.Key_K and
+                mods == Qt.KeyboardModifier.ControlModifier):
+            self._snapshot()
+            return True
         return False
 
     def eventFilter(self, obj, event):

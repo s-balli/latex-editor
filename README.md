@@ -107,6 +107,7 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 - **Auto-compile** — Ctrl+S to save and compile; after compiling, the PDF auto-scrolls to the cursor position (SyncTeX)
 - **`% !TEX root` support** — in multi-file projects, compile from a child (chapter) file; the root document is found and compiled automatically
 - **Table wizard (Ctrl+T)** — build tabular tables by typing cells or loading CSV (booktabs, alignment, caption/label); edits existing tables and aligns columns
+- **Versioning (Ctrl+K)** — save all changes into a named snapshot; view diffs or restore a file from the History tab. No git knowledge needed (embedded dulwich; standard .git, compatible with external tools)
 - **Triple engine support** — lualatex (default), pdflatex and xelatex
 - **Project management** — folder open, file tree, multi-file tabs
 - **Error display** — compile errors and warnings in separate tabs

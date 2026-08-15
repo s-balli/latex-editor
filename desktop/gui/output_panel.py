@@ -40,6 +40,8 @@ def _hint_templates() -> dict:
 
 class OutputPanel(QWidget):
     error_clicked = pyqtSignal(str, int)  # file_path, line_number
+    # Sürüm geçmişi eylemleri: (aksiyon, sha) — "restore" | "diff"
+    version_action = pyqtSignal(str, str)
 
     def __init__(self, parent=None, *, theme: dict = None):
         super().__init__(parent)
@@ -101,6 +103,15 @@ class OutputPanel(QWidget):
             f"QPlainTextEdit {{ background: {t['bg_primary']}; color: {t['fg_primary']}; font-family: Consolas, 'DejaVu Sans Mono', Menlo, monospace; font-size: 11px; border: none; }}"
         )
         self._log_tab_index = self._tabs.addTab(self._log_text, "Log")
+
+        # Sürüm geçmişi sekmesi (Sürümle/Ctrl+K; derleme çıktısı değildir,
+        # clear() temizlemez — yalnız show_history yeniler)
+        self._history_list = QListWidget()
+        self._history_list.setStyleSheet(
+            f"{list_base} color: {t['fg_primary']};")
+        self._history_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self._history_list.customContextMenuRequested.connect(self._on_history_menu)
+        self._history_tab_index = self._tabs.addTab(self._history_list, _("Geçmiş"))
 
         layout.addWidget(self._tabs)
         self.setMaximumHeight(200)
@@ -226,6 +237,40 @@ class OutputPanel(QWidget):
             self._suggest_list.addItem(item)
         self._tabs.setTabText(self._warn_tab_index, _("Uyarılar ({n})").format(n=self._warn_list.count()))
         self._tabs.setTabText(self._suggest_tab_index, _("Öneriler ({n})").format(n=self._suggest_list.count()))
+
+    def show_history(self, entries):
+        """Sürüm geçmişi sekmesini doldur (core.versioning.VersionEntry listesi).
+
+        Öğe metni: 'gg.aa hh:mm · mesaj · N dosya'; sha UserRole'de taşınır.
+        Sağ tık menüsünden version_action(aksiyon, sha) sinyali çıkar.
+        """
+        import time as _time
+
+        self._history_list.clear()
+        for e in entries:
+            when = _time.strftime("%d.%m.%Y %H:%M", _time.localtime(e.timestamp))
+            item = QListWidgetItem(f"{when} · {e.message} · {e.nfiles} {_('dosya')}")
+            item.setData(Qt.ItemDataRole.UserRole, e.sha)
+            item.setToolTip(f"{e.short} · {e.message}")
+            self._history_list.addItem(item)
+
+    def _on_history_menu(self, pos):
+        item = self._history_list.itemAt(pos)
+        if item is None:
+            return
+        sha = item.data(Qt.ItemDataRole.UserRole)
+        menu = QMenu(self)
+        act_restore = menu.addAction(_("Açık dosyayı bu sürümden geri yükle"))
+        act_diff = menu.addAction(_("Açık dosyanın farklarını göster"))
+        menu.addSeparator()
+        act_copy = menu.addAction(_("Kopyala"))
+        action = menu.exec(self._history_list.mapToGlobal(pos))
+        if action == act_restore:
+            self.version_action.emit("restore", sha)
+        elif action == act_diff:
+            self.version_action.emit("diff", sha)
+        elif action == act_copy:
+            QApplication.clipboard().setText(item.text())
 
     def show_engine_hint(self, current: str, others: list[str]):
         """Başarısız derlemede motor değiştirme önerisini ekle ve tab'ı aç."""
