@@ -148,8 +148,6 @@ def test_wizard_replaces_existing_block(qapp, monkeypatch):
     original = ("öncesi\n\\begin{tabular}{ll}\na & b\\\\\n\\end{tabular}\nsonrası\n")
     ed = EditorWidget()
     ed.setText(original)
-    ln = ed.text().index("a & b")
-    line, col = stub_offset = (2, 0)
     ed.setCursorPosition(2, 0)
     stub = _Stub([ed])
 

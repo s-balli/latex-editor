@@ -1,6 +1,5 @@
 """latex_tables çekirdek testleri — üretim, kaçış, parse, hizalama, CSV, label."""
 
-import pytest
 
 from core.latex_tables import (
     TableOptions, build_col_spec, build_tabular, csv_to_rows, escape_cell,

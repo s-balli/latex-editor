@@ -7,7 +7,6 @@ import pytest
 
 dulwich = pytest.importorskip("dulwich")
 
-import os  # noqa: E402
 
 from core import versioning as V
 

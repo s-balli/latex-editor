@@ -3,7 +3,6 @@
 dulwich yoksa atlar; MainWindow kurulumu yerine StubMain + VersionOpsMixin.
 """
 
-import os
 from types import SimpleNamespace
 
 import pytest
