@@ -11,8 +11,21 @@ import os
 import time
 from dataclasses import dataclass
 
-from dulwich import porcelain
-from dulwich.repo import Repo
+try:
+    from dulwich import porcelain
+    from dulwich.repo import Repo
+    DULWICH_AVAILABLE = True
+except ImportError:  # pragma: no cover — uygulama dulwich'süz de AÇILMALI
+    porcelain = None
+    Repo = None
+    DULWICH_AVAILABLE = False
+
+
+def _require():
+    """dulwich yoksa anlaşılır hata ver (uygulama başlarken değil, kullanırken)."""
+    if not DULWICH_AVAILABLE:
+        raise RuntimeError(
+            "Sürümleme için 'dulwich' paketi gerekli (pip install dulwich)")
 
 # Kayıt kimliği: kullanıcı git yapılandırmadıysa da kayıt atılabilsin.
 # Git kullanan biri kendi kimliğiyle dışarıdan kayıt atmaya devam edebilir.
@@ -67,6 +80,7 @@ def is_repo(root: str) -> bool:
 
 def init_repo(root: str) -> Repo:
     """Depoyu kur (yoksa) ve .gitignore yaz (yoksa). Varsa olanı döndürür."""
+    _require()
     repo = Repo(root) if is_repo(root) else porcelain.init(root)
     gi = os.path.join(root, ".gitignore")
     if not os.path.exists(gi):
@@ -87,7 +101,7 @@ def _status_paths(status) -> set[str]:
 
 def changed_files(root: str) -> set[str]:
     """Son kayıttan beri değişen/eklenen/silinen dosyalar (boş küme = temiz)."""
-    if not is_repo(root):
+    if not DULWICH_AVAILABLE or not is_repo(root):
         return set()
     return _status_paths(porcelain.status(Repo(root)))
 
@@ -98,6 +112,7 @@ def snapshot(root: str, message: str) -> VersionEntry | None:
     Dosya ağacı taramaları .git ve nokta-klasörleri atladığı için depoya
     yalnız görünür proje dosyaları girer; .gitignore derleme artıklarını eler.
     """
+    _require()
     repo = Repo(root)
     changed = _status_paths(porcelain.status(repo))
     if not changed:
@@ -111,7 +126,7 @@ def snapshot(root: str, message: str) -> VersionEntry | None:
 
 def history(root: str, limit: int = 100) -> list[VersionEntry]:
     """Kayıtları yeniden eskiye doğru listeleye (yoksa boş liste)."""
-    if not is_repo(root):
+    if not DULWICH_AVAILABLE or not is_repo(root):
         return []
     repo = Repo(root)
     entries = []
@@ -139,6 +154,7 @@ def file_content(root: str, sha_hex: str, rel_path: str) -> str | None:
     """Kayıttaki bir dosyanın içeriği (yoksa None; ikili dosya garanti edilmez)."""
     from dulwich.objects import Tree
 
+    _require()
     repo = Repo(root)
     commit = repo.object_store[sha_hex.encode()]
     obj = repo.object_store[commit.tree]
@@ -157,6 +173,7 @@ def file_content(root: str, sha_hex: str, rel_path: str) -> str | None:
 
 def file_diff(root: str, sha_hex: str, rel_path: str) -> str:
     """Kayıttaki hâli ile diskteki hâlin birleşik farkı ('eski → yeni')."""
+    _require()
     old = file_content(root, sha_hex, rel_path) or ""
     path = os.path.join(root, rel_path.replace("/", os.sep))
     try:

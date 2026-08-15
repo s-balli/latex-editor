@@ -136,3 +136,27 @@ def test_real_git_reads_dulwich_repo(tmp_path):
     r = subprocess.run(["git", "log", "--oneline"], cwd=str(tmp_path),
                        capture_output=True, text=True)
     assert r.returncode == 0 and "dulwich kaydı" in r.stdout
+
+
+def test_module_importable_without_dulwich():
+    """dulwich yoksa uygulama çökmemeli: import başarılı, özellik kapalı.
+
+    Regression: dulwich kurulu olmayan makinede (ör. kullanıcının Windows
+    Python'u) main.py import zinciri ModuleNotFoundError ile düşüyordu.
+    """
+    import importlib
+    import sys
+
+    saved = {k: sys.modules.pop(k) for k in list(sys.modules)
+             if k == "dulwich" or k.startswith("dulwich.")}
+    sys.modules["dulwich"] = None  # 'import dulwich' → ImportError
+    try:
+        mod = importlib.reload(V)
+        assert mod.DULWICH_AVAILABLE is False
+        assert mod.history("/tmp") == []
+        assert mod.changed_files("/tmp") == set()
+    finally:
+        del sys.modules["dulwich"]
+        sys.modules.update(saved)
+        importlib.reload(V)
+    assert V.DULWICH_AVAILABLE is True

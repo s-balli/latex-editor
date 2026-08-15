@@ -41,6 +41,10 @@ class VersionOpsMixin:
         if not root or not os.path.isdir(root):
             self._status.showMessage(_("Önce bir klasör açın"))
             return
+        if not versioning.DULWICH_AVAILABLE:
+            self._status.showMessage(
+                _("Sürümleme için 'dulwich' paketi gerekli") + " (pip install dulwich)")
+            return
         if not self._save_all_open():
             self._status.showMessage(_("Kayıt başarısız — sürümleme iptal"))
             return
