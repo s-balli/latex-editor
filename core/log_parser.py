@@ -52,6 +52,9 @@ _RE_WARN_LINE = re.compile(r'(?:on|at) (?:input )?lines? (\d+)')
 _RE_LATEX_WARN = re.compile(r'^\s*LaTeX Warning: (.+)')
 # Paket uyarısı
 _RE_PKG_WARN = re.compile(r'^\s*Package (\S+) Warning: (.+)')
+# Motor uyarısı: "pdfTeX warning (ext4): destination ... duplicate ignored" vb.
+# Çift \label tespiti (error_hints duplicate_label ipucu) bu satırdan gelir.
+_RE_ENGINE_WARN = re.compile(r'^\s*(pdfTeX|LuaTeX|XeTeX) warning[^:]*: (.+)', re.IGNORECASE)
 # Overfull/Underfull
 _RE_BOX_WARN = re.compile(r'^\s*(Overfull|Underfull) \\\w+ .+')
 # Font uyarısı
@@ -121,6 +124,16 @@ def parse_output(raw: str, source_file: str = "") -> CompileResult:
                 warning_type="LaTeX",
                 file_path=current_file,
                 line_number=warn_line,
+            ))
+            continue
+
+        # Motor uyarısı (pdfTeX/LuaTeX): çift \label buradan gelir
+        m = _RE_ENGINE_WARN.match(line)
+        if m:
+            result.warnings.append(LatexWarning(
+                message=m.group(2),
+                warning_type=m.group(1),
+                file_path=current_file,
             ))
             continue
 

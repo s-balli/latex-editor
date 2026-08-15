@@ -88,6 +88,38 @@ def test_unknown_returns_none():
     assert get_hint("") is None
 
 
+def test_inputenc_unicode_smart_quotes():
+    msg = ("Unicode character ” (U+201D) not set up for use with LaTeX")
+    assert get_hint(msg)[0] == "invalid_character"
+
+
+def test_pdftex_duplicate_destination():
+    msg = ("destination with the same identifier (name{fig:sonuc}) "
+           "has been already used, duplicate ignored")
+    assert get_hint(msg)[0] == "duplicate_label"
+
+
+def test_latex_multiply_defined_label():
+    assert get_hint("Label `ciftEtiket' multiply defined.")[0] == "duplicate_label"
+    assert get_hint("There were multiply-defined labels.")[0] == "duplicate_label"
+
+
+# =====================================================================
+# log_parser: pdfTeX/LuaTeX motor uyarıları artık yakalanır
+# =====================================================================
+
+
+def test_log_parser_captures_engine_warning():
+    from core.log_parser import parse_output
+
+    raw = ("pdfTeX warning (ext4): destination with the same identifier "
+           "(name{ciftEtiket}) has been already used, duplicate ignored\n")
+    result = parse_output(raw)
+    assert len(result.warnings) == 1
+    assert result.warnings[0].warning_type == "pdfTeX"
+    assert "destination" in result.warnings[0].message
+
+
 # =====================================================================
 # OutputPanel sunumu
 # =====================================================================

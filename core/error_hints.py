@@ -21,6 +21,9 @@ _PATTERNS: list[tuple[re.Pattern, str]] = [
     (re.compile(r"Missing \$ inserted"), "missing_math"),
     (re.compile(r"Display math should end with"), "missing_math"),
     (re.compile(r"Text line contains an invalid character"), "invalid_character"),
+    # pdflatex + inputenc'te akıllı tırnak/tire bu mesajla gelir:
+    # "[inputenc] Unicode character ... (U+201C) not set up for use with LaTeX."
+    (re.compile(r"Unicode character .+ not set up"), "invalid_character"),
     (re.compile(r"Missing \} inserted|Too many \}'s|Extra \}"), "brace_mismatch"),
     (re.compile(r"Double subscripts?|Double superscripts?"), "double_subscript"),
     (re.compile(r"File ended while scanning"), "file_ended_scanning"),
@@ -31,6 +34,10 @@ _PATTERNS: list[tuple[re.Pattern, str]] = [
     (re.compile(r"Reference `[^']*' .*undefined|Reference .* undefined"), "reference_undefined"),
     (re.compile(r"There were undefined references|Rerun to get cross"), "rerun_needed"),
     (re.compile(r"destination with the same identifier"), "duplicate_label"),
+    # LaTeX'in kendi çift-etiket uyarısı (ikinci derleme geçesinde):
+    # "Label `x' multiply defined." / "There were multiply-defined labels."
+    (re.compile(r"multiply.defined labels?|Label `[^']*' multiply defined"),
+     "duplicate_label"),
 ]
 
 _RE_ENV_UNDEFINED = re.compile(r"Environment (\S+) undefined")
