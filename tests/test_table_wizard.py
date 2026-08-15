@@ -83,6 +83,35 @@ def test_dialog_empty_preview_hint(qapp):
     assert dlg.result_text() == ""
 
 
+def test_csv_load_beyond_old_limits(qapp, tmp_path, monkeypatch):
+    """120 satır × 18 kolon CSV: spinbox eski sınırlara (100/15) takılmamalı.
+
+    Regression: değer spinbox'ta kırpılıp grid gerçek boyutu alınca, kullanıcı
+    sonra spinbox'a dokunduğunda fazlası sessizce siliniyordu; 15+ kolonda
+    hizalama kutuları da eksik kalıyordu.
+    """
+    import gui.table_wizard as tw
+
+    rows = 120
+    cols = 18
+    lines = [";".join(f"h{j}" for j in range(cols))]
+    lines += [";".join(f"{i}.{j}" for j in range(cols)) for i in range(rows - 1)]
+    p = tmp_path / "buyuk.csv"
+    p.write_text("\n".join(lines), encoding="utf-8")
+
+    monkeypatch.setattr(
+        tw.QFileDialog, "getOpenFileName",
+        staticmethod(lambda *a, **k: (str(p), "")))
+    dlg = TableWizardDialog()
+    dlg._load_csv()
+
+    assert dlg._rows.value() == rows and dlg._grid.rowCount() == rows
+    assert dlg._cols.value() == cols and dlg._grid.columnCount() == cols
+    assert dlg._align_box.count() == cols, "hizalama kutuları kolon sayısına eksik"
+    code = dlg.result_text()
+    assert code.count(" \\\\\n") == rows  # tüm satırlar üretime girdi
+
+
 def test_dialog_load_block_escape_roundtrip(qapp):
     """Kaçış içeren hücre grid'e AÇILARAK yüklenir; üretimde yeniden kaçar.
 

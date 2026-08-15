@@ -55,12 +55,16 @@ class TableWizardDialog(QDialog):
         top = QHBoxLayout()
         top.addWidget(QLabel(_("Satır")))
         self._rows = QSpinBox()
-        self._rows.setRange(1, 100)
+        # Sınırlar geniş: CSV yüklemesi spinbox üst sınırına takılırsa değer
+        # kırpılır ama grid gerçek boyutu alır; kullanıcı sonra spinbox'a
+        # dokununca satırlar sessizce KAYBEDİLİRDİ (100 satır sınırı bunu
+        # yapıyordu). 1000 satır / 30 kolon pratik üst sınırdır.
+        self._rows.setRange(1, 1000)
         self._rows.setValue(3)
         top.addWidget(self._rows)
         top.addWidget(QLabel(_("Sütun")))
         self._cols = QSpinBox()
-        self._cols.setRange(1, 15)
+        self._cols.setRange(1, 30)
         self._cols.setValue(3)
         top.addWidget(self._cols)
         top.addSpacing(12)
