@@ -247,7 +247,7 @@ class MainWindow(
         self._add_action(edit_menu, _("Yorum &Toggle"), self._toggle_comment)
         self._add_action(edit_menu, _("Satıra &Git..."), self._goto_line_dialog, "Ctrl+G")
         edit_menu.addSeparator()
-        self._add_action(edit_menu, _("Tablo &Sihirbazı..."), self._table_wizard, "Ctrl+T")
+        self._add_action(edit_menu, _("Tablo &Sihirbazı..."), self._table_wizard, "Ctrl+T", app_shortcut=True)
         self._add_action(edit_menu, _("Tabloyu &Hizala"), self._align_table)
         edit_menu.addSeparator()
         self._add_action(edit_menu, _("&Referansları Denetle"), self._audit_references)
