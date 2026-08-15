@@ -40,6 +40,13 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 
 ## Version History
 
+### v1.0.10 — Bugfixes
+- **Table wizard**: editing a table inside a `\begin{table}` wrapper no longer produces a nested (invalid) `\begin{table}` — the whole wrapper is replaced and its caption/label carried over. Loading a wide table into the wizard no longer loses per-column alignment beyond 3 columns, and large CSVs are no longer silently truncated when touching the row spinner (limits raised to 1000 rows / 30 columns)
+- **Dialogs & shortcuts**: Esc closes dialogs again; Ctrl+K / Ctrl+T no longer re-trigger while a dialog is open (the app-level key filter now leaves modal dialogs alone)
+- **Versioning**: restoring a file no longer pops a spurious "file changed on disk" warning right afterwards; "delete version" / "delete all history" work with no file open; friendlier message when no folder is open
+- **Localization**: the Suggestions tab title is translated in the English UI
+- **806 unit tests**
+
 ### v1.0.9 — Versioning, Table Wizard & Major Speedups
 - **Versioning (Ctrl+K)**: save all changes into a named snapshot; view colored diffs in the History tab, restore a file from an older snapshot (encoding and cursor preserved), copy old content to the clipboard, delete the latest snapshot or the whole history (sent to trash). No git knowledge needed; powered by embedded dulwich, creates a standard `.git` (compatible with real git/GitHub, nothing to install)
 - **Table wizard (Ctrl+T)**: build tabular/tabularx/longtable by typing cells, loading CSV or pasting existing LaTeX table code (booktabs, per-column alignment, caption + collision-free auto label); edits the table under the cursor; Edit > Align Table realigns columns

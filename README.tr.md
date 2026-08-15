@@ -40,6 +40,13 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 
 ## Sürüm Geçmişi
 
+### v1.0.10 — Hata Düzeltmeleri
+- **Tablo sihirbazı**: `\begin{table}` kılıfı içindeki tabloyu düzenlemek artık iç içe (geçersiz) `\begin{table}` üretmiyor; kılıf bütünüyle değiştiriliyor, caption/label taşınıyor. Geniş tablo yüklerken 3 kolon ötesi hizalama kayboluyordu, artık korunuyor; büyük CSV'ler satır kutusuna dokununca sessizce kırpılmıyor (sınırlar 1000 satır / 30 kolona çıkarıldı)
+- **Diyaloglar ve kısayollar**: Esc dialog'ları yeniden kapatıyor; dialog açıkken Ctrl+K / Ctrl+T yeniden tetiklenmiyor (uygulama düzeyi tuş filtresi modal dialog'lara karışmıyor artık)
+- **Sürümleme**: dosyayı sürümden geri yükledikten hemen sonra sahte "dosya diskte değişti" uyarısı çıkmıyor; "sürümü sil" / "tüm geçmişi sil" açık dosya olmadan da çalışıyor; klasör yokken mesaj daha anlaşılır
+- **Çeviri**: İngilizce arayüzde Öneriler sekme başlığı çevriliyor
+- **806 birim testi**
+
 ### v1.0.9 — Sürümleme, Tablo Sihirbazı ve Büyük Hızlanma
 - **Sürümleme (Ctrl+K)**: tüm değişiklikleri adlandırılmış anlık görüntüye kaydet; Geçmiş sekmesinden renkli farkları gör, dosyayı eski sürümden geri yükle (kodlama ve imleç korunur), eski içeriği panoya kopyala, son sürümü veya tüm geçmişi sil (çöp kutusuna). Git bilgisine gerek yok; gömülü dulwich kullanır, klasörde standart `.git` oluşur (gerçek git/GitHub ile uyumlu, hiçbir şey kurulmaz)
 - **Tablo sihirbazı (Ctrl+T)**: hücrelere yazarak, CSV yükleyerek veya mevcut LaTeX tablo kodunu yapıştırarak tabular/tabularx/longtable üret (booktabs, hizalama, caption + çakışmasız otomatik label); imleç tablonun içindeyse düzenler; Düzenle > Tabloyu Hizala kolonları hizalar
