@@ -278,6 +278,11 @@ class VersionOpsMixin:
         # Türkçe dosyada karakterler bozulur, PDF yanlış derlenirdi)
         line, col = editor.getCursorPosition()
         EditorWidget._write_atomic(editor.file_path, data)
+        # Yazım doğrudan diske yapıldı: watcher hash'ini güncelle. Güncellenmezse
+        # 500ms sonra 'dosya diskte değişti' yeniden yükleme dialogu çıkardı —
+        # geri yüklemenin kendisi yaptığı değişiklik için.
+        if hasattr(self, "_file_watch_record_save"):
+            self._file_watch_record_save(editor.file_path)
         editor.open_file(editor.file_path)
         # open_file (setText) imleci dosya sonuna atıyor; konumu koru,
         # eski sürüm daha kısaysa geçerli aralığa kelepçele

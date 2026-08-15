@@ -290,7 +290,8 @@ class OutputPanel(QWidget):
         hint.setForeground(QColor(self._theme["sem_hint"]))
         self._suggest_list.insertItem(0, hint)
         suggest_count = self._suggest_list.count()
-        self._tabs.setTabText(self._suggest_tab_index, f"Öneriler ({suggest_count})")
+        self._tabs.setTabText(
+            self._suggest_tab_index, _("Öneriler ({n})").format(n=suggest_count))
         self._tabs.setCurrentIndex(self._suggest_tab_index)
 
     def show_cannot_compile(self, msg: str):

@@ -39,9 +39,29 @@ class TableOpsMixin:
         editor.replaceSelectedText(replacement)
         editor.endUndoAction()
 
+    @staticmethod
+    def _table_wrapper_range(text: str, block: dict) -> tuple[int, int] | None:
+        """Tabular bloğu bir \\begin{table}...\\end{table} kılıfının içindeyse
+        kılıfın (start, end) aralığını, yoksa None döndür.
+
+        Düzenlemede kılıf DAHİL değiştirilir: yalnız tabular aralığını yenisiyle
+        değiştirsek sihirbazın ürettiği kılıflı kod, mevcut kılıfın İÇİNE ikinci
+        bir \\begin{table} yerleştirirdi (iç içe yüzen ortam = geçersiz LaTeX).
+        """
+        import re as _re
+        for m in _re.finditer(r"\\begin\{(table\*?)\}", text):
+            end_m = _re.search(r"\\end\{" + m.group(1) + r"\}", text[m.end():])
+            if not end_m:
+                continue
+            w_start, w_end = m.start(), m.end() + end_m.end()
+            if w_start <= block["start"] and block["end"] <= w_end:
+                return w_start, w_end
+        return None
+
     def _table_wizard(self):
         """Tablo sihirbazı: yeni tablo üret veya imleçteki tabloyu düzenle."""
         from gui.table_wizard import TableWizardDialog
+        from core.latex_tables import extract_caption_label
 
         editor = self._current_editor()
         if not editor:
@@ -50,6 +70,7 @@ class TableOpsMixin:
         text = editor.text()
         pos = self._cursor_char_offset(editor)
         block = parse_tabular_at(text, pos)
+        wrapper = self._table_wrapper_range(text, block) if block else None
 
         existing = []
         if editor.file_path:
@@ -62,12 +83,16 @@ class TableOpsMixin:
         dlg.apply_theme(self._theme_mgr.theme)
         if block:
             dlg.load_block(block)
+            if wrapper:
+                # Kılıftaki caption/label'ı da al: yeniden üretimde korunur
+                dlg.set_meta(*extract_caption_label(text[wrapper[0]:wrapper[1]]))
             self._status.showMessage(_("Mevcut tablo düzenleniyor — Ekle ile değiştirilir"))
 
         if dlg.exec() and dlg.result_text():
             code = dlg.result_text()
             if block:
-                self._replace_char_range(editor, block["start"], block["end"], code)
+                start, end = wrapper if wrapper else (block["start"], block["end"])
+                self._replace_char_range(editor, start, end, code)
             else:
                 editor.insert(code)
             editor.setFocus()

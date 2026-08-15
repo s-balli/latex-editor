@@ -274,6 +274,14 @@ class TableWizardDialog(QDialog):
             self._label_manual = True
         self._update_preview()
 
+    def set_meta(self, caption: str, label: str):
+        """Düzenlenen kılıfın caption/label'ını alanlara taşı (table_ops için)."""
+        if caption:
+            self._caption.setText(caption)
+        if label:
+            self._label.setText(label)
+            self._label_manual = True
+
     def cells(self) -> list[list[str]]:
         """Grid'den hücre satırlarını oku (tamamen boş satırlar atılır)."""
         rows = []
@@ -333,6 +341,11 @@ class TableWizardDialog(QDialog):
                     self._grid.setItem(i, j, QTableWidgetItem(unescape_cell(cell)))
         finally:
             self._updating = False
+        # Kolon sayısı değiştiyse hizalama kutularını YENİDEN KUR. Yukarıdaki
+        # _updating kilidi _on_cols_changed'i erkenden döndürdü (valueChanged
+        # sinyali kilit içindeyken geldi); kurulum yapılmazsa kutu sayısı eski
+        # kalır ve 3 kolonlu dialog'a yüklenen 5 kolonlu tablo 'lllcc' üretirdi.
+        self._on_cols_changed()
         # kolon spec → hizalama kutuları (p{2cm} ve X gibi belirteçler 'p'ye iner)
         spec = (block.get("col_spec") or "").lower()
         aligns = []

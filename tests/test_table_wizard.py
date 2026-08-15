@@ -97,6 +97,23 @@ def test_dialog_load_block_escape_roundtrip(qapp):
     assert "Doğruluk \\% & x\\_1 \\\\" in dlg.result_text()  # yeniden kaçtı
 
 
+def test_dialog_load_block_rebuilds_align_combos(qapp):
+    """Dialog'dan geniş tablo yükleme: hizalama kutuları kolon sayısına büyür.
+
+    Regression: load_block _updating kilidi yüzünden _on_cols_changed'i
+    erkenden döndürüyordu; 5 kolonlu tablo 3 kutulu dialog'a 'lllcc'
+    belirtimiyle üretiliyordu.
+    """
+    text = "\\begin{tabular}{lllll}\na & b & c & d & e \\\\\n\\end{tabular}\n"
+    block = parse_tabular_at(text, 2)
+    dlg = TableWizardDialog()          # varsayılan 3 kolon
+    dlg.load_block(block)
+
+    assert dlg._grid.columnCount() == 5
+    assert dlg._align_box.count() == 5, "hizalama kutuları yeni kolon sayısına büyümedi"
+    assert "\\begin{tabular}{lllll}" in dlg.result_text()
+
+
 # =====================================================================
 # Mixin: ekle / hizala (stub MainWindow)
 # =====================================================================
@@ -140,6 +157,60 @@ def test_wizard_inserts_at_cursor(qapp, monkeypatch):
     assert code in ed.text()
     assert "öncesi\n" in ed.text() and "sonrası" in ed.text()
     assert "Tablo eklendi" in stub._status.msg
+
+
+def test_wizard_replaces_wrapped_table_whole(qapp, monkeypatch):
+    """Sarmalı tabloda (\\begin{table} içinde) kılıf DAHİL değiştirilir.
+
+    Regression: yalnız tabular aralığı değiştiriliyordu; sihirbazın ürettiği
+    kılıflı kod mevcut kılıfın içine İKİNCİ bir \\begin{table} yerleştiriyordu
+    (iç içe yüzen ortam = geçersiz LaTeX). Caption/label kılıftan taşınır.
+    """
+    import gui.table_wizard as tw
+
+    original = ("öncesi\n\\begin{table}[htbp]\n    \\caption{Eski başlık}\n"
+                "    \\label{tab:eski}\n    \\begin{tabular}{ll}\n"
+                "    a & b\\\\\n    \\end{tabular}\n\\end{table}\nsonrası\n")
+    ed = EditorWidget()
+    ed.setText(original)
+    ed.setCursorPosition(5, 5)  # tabular gövdesi içinde
+    stub = _Stub([ed])
+
+    new_code = ("\\begin{table}[htbp]\n    \\centering\n"
+                "    \\caption{Eski başlık}\n    \\label{tab:eski}\n"
+                "    \\begin{tabular}{ll}\n    YENİ & TABLO\\\\\n"
+                "    \\end{tabular}\n\\end{table}")
+
+    captured = {}
+
+    class FakeDlg:
+        def __init__(self, *a, **k):
+            pass
+
+        def apply_theme(self, t):
+            pass
+
+        def load_block(self, b):
+            captured["block"] = b
+
+        def set_meta(self, caption, label):
+            captured["meta"] = (caption, label)
+
+        def exec(self):
+            return True
+
+        def result_text(self):
+            return new_code
+
+    monkeypatch.setattr(tw, "TableWizardDialog", FakeDlg)
+    stub._table_wizard()
+
+    t = ed.text()
+    assert t.count("\\begin{table}") == 1, "iç içe table kılıfı üretildi"
+    assert "YENİ & TABLO" in t and "a & b" not in t
+    assert t.startswith("öncesi\n") and t.rstrip().endswith("sonrası")
+    # kılıftaki caption/label dialoga taşındı
+    assert captured["meta"] == ("Eski başlık", "tab:eski")
 
 
 def test_wizard_replaces_existing_block(qapp, monkeypatch):
@@ -272,3 +343,28 @@ def test_ctrl_t_without_editor_not_consumed(qapp):
     ev = _key_event(Qt.Key.Key_T, Qt.KeyboardModifier.ControlModifier, "t")
     assert MW._handle_app_key_shortcut(mw, ev) is False
     assert calls == []
+
+
+def test_shortcuts_not_consumed_while_modal_dialog_open(qapp):
+    """Modal dialog açıkken uygulama kısayolları tüketilmez.
+
+    Regression: filtre QApplication'a kuruludur; dialog'a giden tuşları da
+    görüyordu. Esc dialog'u kapatamıyor, Ctrl+K sürüm-adı dialogu açıkken
+    ikinci bir Sürümle penceresi açıyordu.
+    """
+    from PyQt6.QtCore import Qt
+    from PyQt6.QtWidgets import QDialog
+
+    mw, calls, MW = _fake_mainwindow(EditorWidget())
+    dlg = QDialog()
+    dlg.setModal(True)
+    dlg.show()
+    try:
+        assert QApplication.activeModalWidget() is dlg
+        esc = _key_event(Qt.Key.Key_Escape, Qt.KeyboardModifier.NoModifier, "\x1b")
+        assert MW._handle_app_key_shortcut(mw, esc) is False
+        k = _key_event(Qt.Key.Key_K, Qt.KeyboardModifier.ControlModifier, "k")
+        assert MW._handle_app_key_shortcut(mw, k) is False
+        assert calls == []
+    finally:
+        dlg.close()

@@ -34,6 +34,10 @@ class _Stub(VersionOpsMixin, StubMain):
             _root=root,
             set_root=lambda p: setattr(self._file_tree, "_root", p),
         )
+        self.watch_saves = []
+
+    def _file_watch_record_save(self, path):
+        self.watch_saves.append(path)
 
 
 def _project(tmp_path):
@@ -143,6 +147,22 @@ def test_restore_from_version(qapp, tmp_path, monkeypatch):
     assert "BOZUK" not in open(tex, encoding="utf-8").read()
     assert "merhaba" in ed.text()
     assert "Geri yüklendi" in stub._status.msg
+
+
+def test_restore_records_watch_save(qapp, tmp_path, monkeypatch):
+    """Geri yükleme watcher hash'ini günceller: sahte 'diskte değişti' diyaloğu
+    önlenir (yazım doğrudan diske yapılıyor, watcher görür)."""
+    stub, ed, tex = _stub_with_editor(tmp_path, monkeypatch)
+    stub._snapshot()
+    sha = V.history(str(tmp_path))[0].sha
+
+    monkeypatch.setattr(
+        "gui.mixins.version_ops.QMessageBox.question",
+        staticmethod(lambda *a, **k: 16384))  # Yes
+    stub._on_version_action("restore", sha)
+
+    assert stub.watch_saves == [tex], \
+        "geri yükleme sonrası _file_watch_record_save çağrılmalı"
 
 
 def test_restore_preserves_cursor(qapp, tmp_path, monkeypatch):

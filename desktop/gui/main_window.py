@@ -931,7 +931,14 @@ class MainWindow(
         kısayol sistemine ulaşmazlar. Uygulama filtresi (eventFilter) hedef
         widget'tan önce görür; mantık burada saf tutulur ki Qt kurulmadan
         test edilebilsin.
+
+        Modal dialog açıkken HİÇBİR tuş tüketilmez: filtre QApplication'a
+        kuruludur ve dialog'a giden tuşları da görür. Tüketseydik Esc dialog'u
+        kapatamaz, Ctrl+K/Ctrl+T sürüm-adı dialogu açıkken ikinci bir
+        Sürümle/Sihirbaz penceresi açardı.
         """
+        if QApplication.activeModalWidget() is not None:
+            return False
         if event.key() == Qt.Key.Key_Escape and not event.modifiers():
             if self._pdf_viewer.in_presentation:
                 self._pdf_viewer.exit_presentation()
