@@ -154,6 +154,89 @@ def test_version_action_without_editor(qapp, tmp_path, monkeypatch):
     assert "Açık dosya yok" in empty._status.msg
 
 
+def test_restore_cp1254_file_not_corrupted(qapp, tmp_path, monkeypatch):
+    """cp1254 Türkçe dosya geri yüklemede BİREBİR korunmalı (ham bayt)."""
+    # cp1254 dosya açılırken kodlama uyarı dialogu çıkar; headless'ta bloklar
+    monkeypatch.setattr("gui.editor.QMessageBox.warning",
+                        staticmethod(lambda *a, **k: None))
+    raw = "% Türkçe açıklama\nğüş ti\n".encode("cp1254")
+    f = tmp_path / "eski.tex"
+    f.write_bytes(raw)
+    ed = EditorWidget()
+    ed.open_file(str(f))  # editör cp1254 algılar
+    assert ed._encoding == "cp1254"
+    stub = _Stub([ed], str(tmp_path))
+    import gui.mixins.version_ops as vo
+    monkeypatch.setattr(vo.QInputDialog, "getText",
+                        staticmethod(lambda *a, **k: ("kayıt", True)))
+    stub._snapshot()
+    sha = V.history(str(tmp_path))[0].sha
+
+    f.write_bytes("% BOZUK".encode("cp1254"))
+    monkeypatch.setattr(
+        "gui.mixins.version_ops.QMessageBox.question",
+        staticmethod(lambda *a, **k: 16384))  # Yes
+    stub._on_version_action("restore", sha)
+
+    assert f.read_bytes() == raw, "geri yükleme baytları değiştirdi"
+    assert ed._encoding == "cp1254"  # yeniden açınca da doğru kodlama
+
+
+def test_drop_version_from_history(qapp, tmp_path, monkeypatch):
+    stub, ed, tex = _stub_with_editor(tmp_path, monkeypatch)
+    stub._snapshot()
+    (tmp_path / "ana.tex").write_text("yeni hâl\n", encoding="utf-8")
+    stub._snapshot()
+    assert stub._output_panel._history_list.count() == 2
+
+    monkeypatch.setattr(
+        "gui.mixins.version_ops.QMessageBox.question",
+        staticmethod(lambda *a, **k: 16384))  # Yes
+    stub._on_version_action("drop", "herhangi")
+
+    assert stub._output_panel._history_list.count() == 1
+    assert "En yeni sürüm silindi" in stub._status.msg
+    assert (tmp_path / "ana.tex").read_text(encoding="utf-8") == "yeni hâl\n"
+
+
+# --- Fark görünümü renklendirme ---
+
+
+def test_classify_diff_line():
+    from gui.mixins.version_ops import classify_diff_line as cls
+    assert cls("--- a/x.tex") == "hunk"
+    assert cls("+++ b/x.tex") == "hunk"
+    assert cls("@@ -1,2 +1,3 @@") == "hunk"
+    assert cls("+eklenen") == "add"
+    assert cls("-silinen") == "del"
+    assert cls(" bağlam") == "ctx"
+
+
+def test_build_diff_view_colors(qapp):
+    from PyQt6.QtGui import QColor, QTextCursor
+    from gui.theme import THEMES
+    from gui.mixins.version_ops import build_diff_view
+
+    diff = "--- a/x.tex\n+++ b/x.tex\n@@ -1 +1 @@\n-eski\n+yeni\n bağlam\n"
+    view = build_diff_view(diff, THEMES["dark"])
+    doc = view.document()
+
+    def line_color(i):
+        b = doc.findBlockByNumber(i)
+        cur = QTextCursor(b)
+        cur.movePosition(QTextCursor.MoveOperation.Right,
+                         QTextCursor.MoveMode.KeepAnchor, 1)
+        return cur.charFormat().foreground().color().name().lower()
+
+    t = THEMES["dark"]
+    assert line_color(0) == QColor(t["fg_muted"]).name().lower()        # --- hunk
+    assert line_color(2) == QColor(t["fg_muted"]).name().lower()        # @@ hunk
+    assert line_color(3) == QColor(t["sem_error"]).name().lower()       # - silinen
+    assert line_color(4) == QColor(t["sem_compilable"]).name().lower()  # + eklenen
+    assert line_color(5) == QColor(t["fg_primary"]).name().lower()      # bağlam
+    assert doc.findBlockByNumber(3).text() == "-eski"
+
+
 # --- Panel: clear() geçmişi korur ---
 
 

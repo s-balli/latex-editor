@@ -7,9 +7,12 @@ anlık görüntüye kaydet, "Geçmiş" = kayıt listesi.
 """
 
 import difflib
+import logging
 import os
 import time
 from dataclasses import dataclass
+
+_logger = logging.getLogger("latex_editor.versioning")
 
 try:
     from dulwich import porcelain
@@ -150,8 +153,31 @@ def history(root: str, limit: int = 100) -> list[VersionEntry]:
     return entries
 
 
-def file_content(root: str, sha_hex: str, rel_path: str) -> str | None:
-    """Kayıttaki bir dosyanın içeriği (yoksa None; ikili dosya garanti edilmez)."""
+def drop_all(root: str) -> bool:
+    """TÜM sürüm geçmişini sil (.git klasörünü geri dönüşüm kutusuna atar).
+
+    Proje dosyalarına dokunmaz. Geri dönüşüm kutusu kullanıldığı için yanlış
+    silmede klasör geri getirilebilir. Depo yoksa False.
+    """
+    git_dir = os.path.join(root, ".git")
+    if not os.path.isdir(git_dir):
+        return False
+    import send2trash
+    try:
+        send2trash.send2trash(git_dir)
+    except Exception:
+        _logger.error("Geçmiş silinemedi: %s", root, exc_info=True)
+        return False
+    return True
+
+
+def file_bytes(root: str, sha_hex: str, rel_path: str) -> bytes | None:
+    """Kayıttaki bir dosyanın HAM baytları (yoksa None).
+
+    Geri yükleme bunu kullanır: decode/encode döngüsü kodlama bozar (cp1254
+    Türkçe dosyada her karakter değiştirme karakterine dönüşürdü). İkili
+    dosyalar (resim vb.) da ancak bu yolla bozulmadan geri gelir.
+    """
     from dulwich.objects import Tree
 
     _require()
@@ -168,7 +194,39 @@ def file_content(root: str, sha_hex: str, rel_path: str) -> str | None:
         except KeyError:
             return None
         obj = repo.object_store[hexsha]
-    return obj.data.decode("utf-8", "replace") if hasattr(obj, "data") else None
+    return obj.data if hasattr(obj, "data") else None
+
+
+def file_content(root: str, sha_hex: str, rel_path: str) -> str | None:
+    """Kayıttaki dosyanın metin hâli (yalnız GÖSTERİM için: fark ekranı).
+
+    Kodlama kabulü utf-8'dir; bozuk baytlar değiştirme karakteri olur.
+    Diske yazım için file_bytes kullanın.
+    """
+    data = file_bytes(root, sha_hex, rel_path)
+    return data.decode("utf-8", "replace") if data is not None else None
+
+
+def drop_last(root: str) -> bool:
+    """En yeni kaydı geçmişten düşür; dosyalara DOKUNMAZ. İlk kayıtta False.
+
+    'Yanlışlıkla sürüm attım' düzeltmesi için: son kayıt geçmişten silinir,
+    çalışma klasörü ve değişiklikler yerinde kalır (bir sonraki Sürümle yeniden
+    kayda girer). Ara kayıtları silmek bilinçli olarak YOK: ara kaydı koparmak
+    tüm sonraki kayıtların yeniden yazılmasını (rebase) gerektirir ve
+    karışıklıktan başka şey katmaz.
+    """
+    _require()
+    repo = Repo(root)
+    symrefs = dict(repo.refs.get_symrefs())
+    head_ref = symrefs.get(b"HEAD")
+    if head_ref is None:
+        return False
+    commit = repo.object_store[repo.refs[head_ref]]
+    if not commit.parents:
+        return False  # ilk kayıt geçmişin köküdür; silinmez
+    repo.refs[head_ref] = commit.parents[0]
+    return True
 
 
 def file_diff(root: str, sha_hex: str, rel_path: str) -> str:

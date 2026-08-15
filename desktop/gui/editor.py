@@ -795,7 +795,7 @@ class EditorWidget(QsciScintilla):
             return False
 
     @staticmethod
-    def _write_atomic(path: str, content: str, encoding: str = "utf-8") -> None:
+    def _write_atomic(path: str, content: "str | bytes", encoding: str = "utf-8") -> None:
         """Aynı dizinde geçici dosyaya yaz, fsync et, atomik rename ile yerine koy.
 
         Orijinal dosyaya truncate-on-open ile değil, tamamlanmış geçici dosyanın
@@ -804,13 +804,21 @@ class EditorWidget(QsciScintilla):
         tutulur ki os.replace gerçekten atomik olsun (çapraz-mount rename değil).
         encoding verilirse o kodlamayla yazılır (UTF-8 dışı dosyalar round-trip
         için); bu durumda UnicodeEncodeError da temizlik için yakalanır.
+        content bytes ise olduğu gibi yazılır (kodlama dönüşümü YOK — sürümden
+        geri yüklemede ham blob'u değiştirmeden yazmanın tek güvenli yolu).
         """
         tmp = path + ".tmp"
         try:
-            with open(tmp, "w", encoding=encoding) as f:
-                f.write(content)
-                f.flush()
-                os.fsync(f.fileno())
+            if isinstance(content, bytes):
+                with open(tmp, "wb") as f:
+                    f.write(content)
+                    f.flush()
+                    os.fsync(f.fileno())
+            else:
+                with open(tmp, "w", encoding=encoding) as f:
+                    f.write(content)
+                    f.flush()
+                    os.fsync(f.fileno())
             os.replace(tmp, path)
         except (OSError, UnicodeError):
             # Geçici dosya kalmasın; orijinal dokunulmadı (truncate edilmedi).

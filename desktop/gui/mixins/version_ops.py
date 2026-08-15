@@ -16,6 +16,57 @@ _ = lambda s: QCoreApplication.translate("VersionOpsMixin", s)
 _logger = get_logger("version_ops")
 
 
+def classify_diff_line(line: str) -> str:
+    """Birleşik fark satrının türü: 'add' | 'del' | 'hunk' | 'ctx'."""
+    if line.startswith(("+++", "---")):
+        return "hunk"
+    if line.startswith("@@"):
+        return "hunk"
+    if line.startswith("+"):
+        return "add"
+    if line.startswith("-"):
+        return "del"
+    return "ctx"
+
+
+def build_diff_view(diff: str, theme: dict):
+    """Fark metnini satır renkli (ekle yeşil / sil kırmızı / hunk soluk)
+    salt-okunur QPlainTextEdit olarak döndürür.
+
+    Metin önce düz olarak yüklenir, sonra her satır bloğu seçilip karakter
+    formatıyla renklenir: metin düz kalır, seçip kopyalama bozulmaz. (Boş
+    dokümana imleçle formatlı ekleme formatları bir blok kaydırıyordu.)
+    """
+    from PyQt6.QtGui import QColor, QTextCharFormat, QTextCursor
+    from PyQt6.QtWidgets import QPlainTextEdit
+
+    colors = {
+        "add": QColor(theme.get("sem_compilable", "#4caf50")),
+        "del": QColor(theme.get("sem_error", "#c62828")),
+        "hunk": QColor(theme.get("fg_muted", "#888888")),
+        "ctx": QColor(theme.get("fg_primary", "#dddddd")),
+    }
+    view = QPlainTextEdit()
+    view.setReadOnly(True)
+    view.setStyleSheet(
+        f"background: {theme.get('bg_primary', '#1e1e1e')};"
+        f" color: {theme.get('fg_primary', '#dddddd')};"
+        " font-family: Consolas, 'DejaVu Sans Mono', monospace; font-size: 12px;")
+    view.setPlainText(diff)
+
+    doc = view.document()
+    cur = QTextCursor(doc)
+    for i in range(doc.blockCount()):
+        block = doc.findBlockByNumber(i)
+        fmt = QTextCharFormat()
+        fmt.setForeground(colors[classify_diff_line(block.text())])
+        cur.setPosition(block.position())
+        cur.setPosition(block.position() + len(block.text()),
+                        QTextCursor.MoveMode.KeepAnchor)
+        cur.setCharFormat(fmt)
+    return view
+
+
 class VersionOpsMixin:
 
     def _version_root(self) -> str:
@@ -108,6 +159,10 @@ class VersionOpsMixin:
             self._show_version_diff(root, sha, rel)
         elif action == "restore":
             self._restore_version(root, sha, rel, editor)
+        elif action == "drop":
+            self._drop_version(root)
+        elif action == "drop_all":
+            self._drop_all_history(root)
 
     def _show_version_diff(self, root: str, sha: str, rel: str):
         try:
@@ -120,23 +175,60 @@ class VersionOpsMixin:
             self._status.showMessage(_("Bu sürümle arasında fark yok"))
             return
 
-        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QPlainTextEdit, \
-            QDialogButtonBox
+        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QDialogButtonBox
         dlg = QDialog(self)
         dlg.setWindowTitle(_("Fark") + f": {rel} @ {sha[:7]}")
         dlg.resize(720, 480)
         v = QVBoxLayout(dlg)
-        view = QPlainTextEdit()
-        view.setReadOnly(True)
-        view.setPlainText(diff)
-        view.setStyleSheet(
-            "font-family: Consolas, 'DejaVu Sans Mono', monospace; font-size: 12px;")
+        theme = getattr(getattr(self, "_theme_mgr", None), "theme", None) or {}
+        view = build_diff_view(diff, theme)
         v.addWidget(view)
         btns = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
         btns.rejected.connect(dlg.reject)
         btns.accepted.connect(dlg.accept)
         v.addWidget(btns)
         dlg.exec()
+
+    def _drop_version(self, root: str):
+        """En yeni sürümü geçmişten sil (dosyalara dokunmaz)."""
+        answer = QMessageBox.question(
+            self, _("Sürümü Sil"),
+            _("En yeni sürüm geçmişten silinir; dosyalarınız değişmez. Devam?"),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            dropped = versioning.drop_last(root)
+        except Exception:
+            dropped = False
+            _logger.error("Sürüm silinemedi: %s", root, exc_info=True)
+        if not dropped:
+            self._status.showMessage(
+                _("Silinemedi — tek sürüm kaldı ya da sürümleme kapalı"))
+            return
+        self._status.showMessage(_("En yeni sürüm silindi"))
+        _logger.info("En yeni sürüm geçmişten silindi: %s", root)
+        self._refresh_history(select_tab=True)
+
+    def _drop_all_history(self, root: str):
+        """Tüm sürüm geçmişini sil (.git geri dönüşüm kutusuna gider).
+
+        Proje dosyalarına dokunmaz; yanlış silmede klasör geri getirilebilir.
+        """
+        answer = QMessageBox.question(
+            self, _("Tüm Geçmişi Sil"),
+            _("TÜM sürüm geçmişi silinecek (dosyalarınız silinmez). "
+              "Devam etmek istediğinize emin misiniz?"),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        if not versioning.drop_all(root):
+            self._status.showMessage(_("Silinecek geçmiş yok"))
+            return
+        self._status.showMessage(
+            _("Tüm geçmiş silindi — yeni sürümlemede yeniden başlar"))
+        _logger.info("Tüm sürüm geçmişi silindi: %s", root)
+        self._refresh_history(select_tab=True)
 
     def _restore_version(self, root: str, sha: str, rel: str, editor):
         from gui.editor import EditorWidget
@@ -149,14 +241,16 @@ class VersionOpsMixin:
         if answer != QMessageBox.StandardButton.Yes:
             return
         try:
-            content = versioning.file_content(root, sha, rel)
+            data = versioning.file_bytes(root, sha, rel)
         except Exception:
-            content = None
+            data = None
             _logger.error("Sürümden okunamadı: %s@%s", rel, sha, exc_info=True)
-        if content is None:
+        if data is None:
             self._status.showMessage(_("Dosya bu sürümde bulunamadı"))
             return
-        EditorWidget._write_atomic(editor.file_path, content, editor._encoding)
+        # HAM bayt yazımı: decode/encode döngüsü kodlamayı bozar (cp1254
+        # Türkçe dosyada karakterler bozulur, PDF yanlış derlenirdi)
+        EditorWidget._write_atomic(editor.file_path, data)
         editor.open_file(editor.file_path)
         self._status.showMessage(
             _("Geri yüklendi") + f": {rel} @ {sha[:7]}")

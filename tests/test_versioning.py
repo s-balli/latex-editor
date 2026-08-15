@@ -126,6 +126,40 @@ def test_history_without_repo(tmp_path):
     assert V.changed_files(str(tmp_path)) == set()
 
 
+def test_drop_all_history(tmp_path):
+    """Tüm geçmiş silinir (.git gider), dosyalar kalır."""
+    _mk(tmp_path)
+    V.init_repo(str(tmp_path))
+    V.snapshot(str(tmp_path), "1")
+    assert V.is_repo(str(tmp_path))
+
+    assert V.drop_all(str(tmp_path)) is True
+    assert not V.is_repo(str(tmp_path))
+    assert (tmp_path / "ana.tex").exists()
+    assert V.history(str(tmp_path)) == []
+
+    assert V.drop_all(str(tmp_path)) is False  # zaten yok
+
+
+def test_drop_last_version(tmp_path):
+    """Son kayıt geçmişten düşer; dosyalar ve ilk kayıt kalır."""
+    _mk(tmp_path)
+    V.init_repo(str(tmp_path))
+    V.snapshot(str(tmp_path), "1")
+    (tmp_path / "ana.tex").write_text("değişti\n", encoding="utf-8")
+    V.snapshot(str(tmp_path), "2")
+    assert len(V.history(str(tmp_path))) == 2
+
+    assert V.drop_last(str(tmp_path)) is True
+    assert len(V.history(str(tmp_path))) == 1
+    assert V.history(str(tmp_path))[0].message == "1"
+    # çalışma klasörüne dokunulmaz: değişiklik hâlâ dosyada
+    assert (tmp_path / "ana.tex").read_text(encoding="utf-8") == "değişti\n"
+
+    # son (tek) kayıt silinmez — kök
+    assert V.drop_last(str(tmp_path)) is False
+
+
 def test_real_git_reads_dulwich_repo(tmp_path):
     """dulwich deposunu gerçek git okuyabilmeli (dış araç uyumu)."""
     import subprocess
@@ -136,6 +170,23 @@ def test_real_git_reads_dulwich_repo(tmp_path):
     r = subprocess.run(["git", "log", "--oneline"], cwd=str(tmp_path),
                        capture_output=True, text=True)
     assert r.returncode == 0 and "dulwich kaydı" in r.stdout
+
+
+def test_restore_preserves_cp1254_bytes(tmp_path):
+    """Geri yükleme HAM bayt yazmalı: cp1254 dosyada bozulma olmamalı.
+
+    Regression: içerik utf-8 replace ile metne çevrilip yazılıyordu; Türkçe
+    karakterler değiştirme karakterine dönüşüyor, derleme bozuk çıkıyordu.
+    """
+    raw = "% Türkçe açıklama\nğüş ti\n".encode("cp1254")
+    (tmp_path / "eski.tex").write_bytes(raw)
+    V.init_repo(str(tmp_path))
+    V.snapshot(str(tmp_path), "v1")
+    sha = V.history(str(tmp_path))[0].sha
+
+    assert V.file_bytes(str(tmp_path), sha, "eski.tex") == raw
+    # gösterim fonksiyonu metin döner (fark ekranı; bozuk bayt → değiştirme)
+    assert "a" in (V.file_content(str(tmp_path), sha, "eski.tex") or "")
 
 
 def test_module_importable_without_dulwich():
