@@ -4,6 +4,15 @@ echo.
 
 set PYTHON="%LOCALAPPDATA%\Programs\Python\Python312\python.exe"
 
+:: Derleme ortamı bağımlılıkları güncel olsun (PyInstaller bunları exe'ye gömer;
+:: eksik paket sessizce eksik özellik demek olur — örn. dulwich = sürümleme)
+%PYTHON% -m pip install -q -r requirements.txt
+if errorlevel 1 (
+    echo Bagimlilik kurulumu basarisiz!
+    pause
+    exit /b 1
+)
+
 :: Versiyonu version.py'den çek
 for /f "tokens=2 delims== " %%v in ('findstr "VERSION" ..\core\version.py') do set "VER=%%~v"
 
