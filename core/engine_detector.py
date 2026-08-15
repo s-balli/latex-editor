@@ -55,6 +55,40 @@ def detect_engine_from_magic_comment(tex_path: str) -> str | None:
     return _magic_engine_from_content(head)
 
 
+# "% !TEX root = main.tex" — TeXstudio/TeXShop/VS Code LaTeX Workshop uzlaşımı.
+# Alt dosyalardan ana belgeyi gösterir; yol alt dosyanın dizinine göredir.
+_MAGIC_TEX_ROOT = re.compile(r"%\s*!\s*TEX\s+root\s*=\s*(.+?)\s*$", re.IGNORECASE)
+
+
+def detect_root(tex_path: str) -> str:
+    """'% !TEX root = ...' magic comment'ından kök belgenin mutlak yolunu çözümle.
+
+    Yol bu dosyanın dizinine göredir ('../main.tex' gibi üst dizin çıkışları
+    desteklenir). Magic comment yoksa veya kök dosya diskte yoksa boş string.
+    Alt dosyadan (\\input ile bölünmüş bölüm dosyaları) ana belgeyi derlemek
+    için kullanılır; TeXstudio'daki aynı uzlaşımın karşılığı.
+    """
+    try:
+        with open(tex_path, "r", encoding="utf-8", errors="replace") as f:
+            head = "".join(line for _, line in zip(range(_MAGIC_SCAN_LINES), f))
+    except OSError:
+        return ""
+    for line in head.splitlines():
+        m = _MAGIC_TEX_ROOT.match(line.strip())
+        if not m:
+            continue
+        rel = m.group(1).strip().strip('"').strip("'")
+        if not rel:
+            continue
+        root = os.path.normpath(os.path.join(
+            os.path.dirname(os.path.abspath(tex_path)), rel))
+        if os.path.isfile(root):
+            return root
+        _logger.debug("%% !TEX root hedefi bulunamadı: %s → %s", tex_path, rel)
+        return ""
+    return ""
+
+
 _LUALATEX_TEX_SIGNALS = (
     "\\usepackage{fontspec}",
     "\\usepackage{unicode-math}",

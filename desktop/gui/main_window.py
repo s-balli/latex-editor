@@ -640,6 +640,9 @@ class MainWindow(
         left += "<b>" + _("Otomatik Derleme") + "</b><br>"
         left += "<span style='color:" + dim + "'>" + _("Ctrl+S ile kaydederken otomatik derler. Toolbar'dan kapatıp Manuel mod'a geçebilirsiniz — büyük belgelerde her kayıtta derleme yapmak yavaşlatır, o durumda Ctrl+B ile derleyin.") + "</span>"
         left += "<br><br>"
+        left += "<b>% !TEX root</b><br>"
+        left += "<span style='color:" + dim + "'>" + _("Çok dosyalı projelerde alt dosyanın başına '% !TEX root = ana.tex' yazın; derleme otomatik olarak kök belgeye yönlendirilir, motor kökün içeriğinden algılanır.") + "</span>"
+        left += "<br><br>"
         left += "<b>" + _("Sekme Yönetimi") + "</b><br>"
         left += "<span style='color:" + dim + "'>" + _("Sağ tık → kapat, diğerlerini kapat, yol kopyala. Orta tık ile kapat.") + "</span>"
         left += "<br><br>"
@@ -648,6 +651,9 @@ class MainWindow(
 
         # Orta sütun — PDF özellikleri
         middle = ""
+        middle += "<b>" + _("Derleme Sonrası Otomatik Atlama") + "</b><br>"
+        middle += "<span style='color:" + dim + "'>" + _("Başarılı derleme bitince PDF, imlecin olduğu yere SyncTeX ile otomatik kaydırılır.") + "</span>"
+        middle += "<br><br>"
         middle += "<b>" + _("PDF Yer İmleri") + "</b><br>"
         middle += "<span style='color:" + dim + "'>" + _("PDF bölüm/başlık yapısına erişin, tıklayarak sayfaya gidin.") + "</span>"
         middle += "<br><br>"

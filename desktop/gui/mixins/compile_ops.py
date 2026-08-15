@@ -6,7 +6,7 @@ import shutil
 from PyQt6.QtCore import Qt
 
 from gui.editor import EditorWidget
-from core.engine_detector import can_compile as _can_compile
+from core.engine_detector import can_compile as _can_compile, detect_engine as _detect_engine, detect_root as _detect_root
 from core.log_parser import resolve_error_path
 from core.log import get_logger
 from PyQt6.QtCore import QCoreApplication
@@ -17,50 +17,99 @@ _logger = get_logger("compile")
 
 class CompileOpsMixin:
 
+    def _open_editor_for(self, path: str) -> EditorWidget | None:
+        """``path`` açık sekmedeyse editörünü döndür."""
+        path = os.path.normpath(path)
+        for i in range(self._editor_tabs.count()):
+            editor = self._editor_tabs.widget(i)
+            if isinstance(editor, EditorWidget) and editor.file_path == path:
+                return editor
+        return None
+
+    def _save_if_open(self, path: str) -> bool:
+        """``path`` açık sekmedeyse ve değiştiyse kaydet (kök belge kaydı dahil).
+
+        Dosya açık değilse True (kayılacak bir şey yok). Kayıt başarısız olursa
+        False döner; çağıran derlemeyi iptal eder.
+        """
+        editor = self._open_editor_for(path)
+        if editor is None:
+            return True
+        if editor.isModified():
+            if not editor.save_file():
+                return False
+            if hasattr(self, "_file_watch_record_save"):
+                self._file_watch_record_save(editor.file_path)
+        return True
+
+    def _resolve_compile_target(self, path: str) -> tuple[str, str]:
+        """Derlenecek hedefi çözümle: (hedef_yolu, hata_mesajı).
+
+        Dosya doğrudan derlenemiyorsa (% \\begin{document} yok) '% !TEX root'
+        magic comment'ından kök belge aranır (TeXstudio uzlaşımı). Bulunursa
+        hedef köktür; o da yoksa hata mesajı dolu döner.
+        """
+        ok, msg = _can_compile(path)
+        if ok:
+            return path, ""
+        root = _detect_root(path)
+        if root:
+            _logger.info("Alt dosya → kök belge: %s → %s", os.path.basename(path), os.path.basename(root))
+            return root, ""
+        return "", msg
+
     def _compile(self):
+        self._compile_cursor_ctx = None  # önceki derlemenin imleç bağlamı bayat
         editor = self._current_editor()
         if not editor or not editor.file_path:
             self._status.showMessage(_("Derlenecek dosya yok"))
             return
-        ok, msg = _can_compile(editor.file_path)
-        if not ok:
+        target, msg = self._resolve_compile_target(editor.file_path)
+        if not target:
             self._output_panel.clear()
             self._output_panel.show_cannot_compile(msg)
             self._status.showMessage(msg)
             return
-        if editor.isModified():
-            if not editor.save_file():
-                self._status.showMessage(_("Kayıt başarısız — derleme iptal"))
-                return
-            self._file_watch_record_save(editor.file_path)
+        if not self._save_if_open(editor.file_path) or not self._save_if_open(target):
+            self._status.showMessage(_("Kayıt başarısız — derleme iptal"))
+            return
+        # Alt dosyadan kök derlendiyse motoru kökün içeriği belirler
         engine = self._engine_combo.currentText()
+        if target != editor.file_path:
+            engine = _detect_engine(target) or engine
+        # Derleme sonrası otomatik ileri-arama için imleç konumunu hatırla;
+        # SyncTeX girdi-dosyası bazlı olduğu için alt dosya konumu da geçerlidir
+        line, col = editor.getCursorPosition()
+        self._compile_cursor_ctx = (editor.file_path, line + 1, col + 1)
         self._output_panel.clear()
-        _logger.info("Derleme başladı: %s (%s)", os.path.basename(editor.file_path), engine)
-        self._compile_target = editor.file_path
-        self._compiler.compile(editor.file_path, engine)
+        _logger.info("Derleme başladı: %s (%s)", os.path.basename(target), engine)
+        self._compile_target = target
+        self._compiler.compile(target, engine)
 
     def _compile_file(self, path: str):
-        """Dosya ağacından sağ tıkla derle."""
+        """Dosya ağacından sağ tıkla derle; alt dosyaysa % !TEX root köküne yönlendir."""
+        self._compile_cursor_ctx = None
         path = os.path.normpath(path)
-        ok, msg = _can_compile(path)
-        if not ok:
+        target, msg = self._resolve_compile_target(path)
+        if not target:
             self._output_panel.clear()
             self._output_panel.show_cannot_compile(msg)
             self._status.showMessage(msg)
             return
-        for i in range(self._editor_tabs.count()):
-            editor = self._editor_tabs.widget(i)
-            if isinstance(editor, EditorWidget) and editor.file_path == path:
-                if editor.isModified():
-                    if not editor.save_file():
-                        self._status.showMessage(_("Kayıt başarısız — derleme iptal"))
-                        return
-                    self._file_watch_record_save(path)
-                break
+        if not self._save_if_open(path) or not self._save_if_open(target):
+            self._status.showMessage(_("Kayıt başarısız — derleme iptal"))
+            return
         engine = self._engine_combo.currentText()
+        if target != path:
+            engine = _detect_engine(target) or engine
+        editor = self._open_editor_for(path)
+        if editor is not None:
+            line, col = editor.getCursorPosition()
+            self._compile_cursor_ctx = (path, line + 1, col + 1)
         self._output_panel.clear()
-        self._compile_target = path
-        self._compiler.compile(path, engine)
+        _logger.info("Derleme başladı: %s (%s)", os.path.basename(target), engine)
+        self._compile_target = target
+        self._compiler.compile(target, engine)
 
     def _stop_compile(self):
         self._compiler.stop()
@@ -147,6 +196,14 @@ class CompileOpsMixin:
                 if warn_count:
                     status_msg += f" | {warn_count} " + _("uyari")
         self._status.showMessage(status_msg)
+
+        # Derleme sonrası otomatik ileri-arama (TeXstudio alışkanlığı): imlecin
+        # olduğu yere PDF kaydırılır, kullanıcı çıktısını olduğu yerda doğrular.
+        # Yalnız başarılı derlemede; hatalı derlemede odak hatalardadır. quiet
+        # mod: "Başarılı" durum mesajı SyncTeX mesajıyla ezilmez.
+        ctx = getattr(self, "_compile_cursor_ctx", None)
+        if ctx and not failed and pdf_shown:
+            self._on_forward_search(ctx[0], ctx[1], ctx[2], quiet=True)
 
         # Hata satırlarını çözümle ve sakla (panel + gutter işareti + F4 ortak
         # liste). Çözümleme show_result'tan ÖNCE: panel tıklayınca da çok

@@ -104,7 +104,8 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 
 - **LaTeX syntax highlighting** — commands, comments, math, environments
 - **PDF preview** — live PDF view in side panel, zoom
-- **Auto-compile** — Ctrl+S to save and compile
+- **Auto-compile** — Ctrl+S to save and compile; after compiling, the PDF auto-scrolls to the cursor position (SyncTeX)
+- **`% !TEX root` support** — in multi-file projects, compile from a child (chapter) file; the root document is found and compiled automatically
 - **Triple engine support** — lualatex (default), pdflatex and xelatex
 - **Project management** — folder open, file tree, multi-file tabs
 - **Error display** — compile errors and warnings in separate tabs

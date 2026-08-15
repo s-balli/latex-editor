@@ -104,7 +104,8 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 
 - **LaTeX sözdizimi renklendirme** — komutlar, yorumlar, matematik, ortamlar
 - **PDF önizleme** — yan panelde anlık PDF görüntüleme, yakınlaştırma
-- **Otomatik derleme** — Ctrl+S ile kaydet ve derle
+- **Otomatik derleme** — Ctrl+S ile kaydet ve derle; derleme bitince PDF imlecin olduğu yere otomatik kaydırılır (SyncTeX)
+- **`% !TEX root` desteği** — çok dosyalı projelerde alt dosyadan (bölüm dosyası) derleyin; kök belge otomatik bulunur ve derlenir
 - **Üçlü motor desteği** — lualatex (varsayılan), pdflatex ve xelatex
 - **Proje yönetimi** — klasör açma, dosya ağacı, çoklu dosya sekmeleri
 - **Hata görüntüleme** — derleme hataları ve uyarıları ayrı sekmelerde

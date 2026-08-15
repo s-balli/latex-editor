@@ -53,3 +53,6 @@ squashfs-root/
 
 # UPX (kullanıcı kendisi indirmeli; README'ye bakın. Binary ve dökümanlar repoda tutulmaz.)
 desktop/upx/
+
+# İç planlama notları (gitignore)
+docs/kullanici-arastirmasi.md

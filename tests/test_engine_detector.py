@@ -4,6 +4,7 @@ from core.engine_detector import (
     detect_engine,
     detect_engine_from_content,
     detect_engine_from_magic_comment,
+    detect_root,
     can_compile,
     can_compile_from_content,
     _extract_documentclass,
@@ -12,6 +13,56 @@ from core.engine_detector import (
     _magic_engine_from_content,
 )
 from core.latex_utils import strip_comments as _strip_comments
+
+
+# --- detect_root: % !TEX root magic comment ---
+
+
+class TestDetectRoot:
+    def test_same_dir_root(self, tmp_path):
+        (tmp_path / "main.tex").write_text("\\begin{document}\\end{document}")
+        child = tmp_path / "bolum1.tex"
+        child.write_text("% !TEX root = main.tex\nbölüm içeriği\n")
+        assert detect_root(str(child)) == str(tmp_path / "main.tex")
+
+    def test_parent_dir_root(self, tmp_path):
+        (tmp_path / "tez.tex").write_text("\\begin{document}\\end{document}")
+        sub = tmp_path / "bolumler"
+        sub.mkdir()
+        child = sub / "giris.tex"
+        child.write_text("% !TEX root = ../tez.tex\niçerik\n")
+        assert detect_root(str(child)) == str(tmp_path / "tez.tex")
+
+    def test_missing_target_returns_empty(self, tmp_path):
+        child = tmp_path / "a.tex"
+        child.write_text("% !TEX root = yok.tex\niçerik\n")
+        assert detect_root(str(child)) == ""
+
+    def test_no_comment_returns_empty(self, tmp_path):
+        child = tmp_path / "a.tex"
+        child.write_text("içerik\n")
+        assert detect_root(str(child)) == ""
+
+    def test_missing_file_returns_empty(self, tmp_path):
+        assert detect_root(str(tmp_path / "yok.tex")) == ""
+
+    def test_quoted_path(self, tmp_path):
+        (tmp_path / "ana dosya.tex").write_text("\\begin{document}\\end{document}")
+        child = tmp_path / "b.tex"
+        child.write_text('% !TEX root = "ana dosya.tex"\n')
+        assert detect_root(str(child)) == str(tmp_path / "ana dosya.tex")
+
+    def test_case_insensitive_directive(self, tmp_path):
+        (tmp_path / "main.tex").write_text("\\begin{document}\\end{document}")
+        child = tmp_path / "c.tex"
+        child.write_text("% !tex Root = main.tex\n")
+        assert detect_root(str(child)) == str(tmp_path / "main.tex")
+
+    def test_comment_below_scan_window_ignored(self, tmp_path):
+        (tmp_path / "main.tex").write_text("x")
+        child = tmp_path / "d.tex"
+        child.write_text("\n" * 40 + "% !TEX root = main.tex\n")
+        assert detect_root(str(child)) == ""
 
 
 # --- strip_comments ---

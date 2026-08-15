@@ -20,7 +20,7 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import QFileSystemWatcher, QMimeData
 
 from core.input_parser import parse_inputs, group_by_directory
-from core.engine_detector import can_compile as _can_compile
+from core.engine_detector import can_compile as _can_compile, detect_root as _detect_root
 from core.log import get_logger
 from PyQt6.QtCore import QCoreApplication
 
@@ -195,7 +195,7 @@ class FileTree(QWidget):
                 item.setData(0, Qt.ItemDataRole.UserRole, None)
                 item.setForeground(0, QColor(self._theme["sem_folder"]))
             else:
-                ok, _ = _can_compile(ref['path'])
+                ok = _can_compile(ref['path'])[0] or _detect_root(ref['path']) != ""
                 item = QTreeWidgetItem(parent, [f"📎 {ref['name']}"])
                 item.setData(0, Qt.ItemDataRole.UserRole, ref['path'])
                 if ok:
@@ -222,12 +222,16 @@ class FileTree(QWidget):
         self._save_snapshot()
 
     def _process_pending_checks(self):
-        """Bir grup .tex dosyasının derlenebilirliğini denetle (UI thread)."""
+        """Bir grup .tex dosyasının derlenebilirliğini denetle (UI thread).
+
+        '% !TEX root' magic comment'ı olan alt dosyalar da derlenebilir sayılır
+        (derleme köke yönlendirilir); renkleri yeşil olur.
+        """
         batch = self._pending_checks[:5]
         del self._pending_checks[:5]
         for item, path in batch:
             try:
-                ok, _ = _can_compile(path)
+                ok = _can_compile(path)[0] or _detect_root(path) != ""
             except Exception:
                 ok = False
             if ok:
@@ -376,11 +380,10 @@ class FileTree(QWidget):
         ext = os.path.splitext(path)[1].lower()
         editable = ext in _EDITABLE
 
-        # Derle — sadece derlenebilir .tex için
+        # Derle — derlenebilir .tex için (alt dosyaysa % !TEX root kökü derlenir)
         act_compile = None
         if ext == ".tex" and editable:
-            ok, _ = _can_compile(path)
-            if ok:
+            if _can_compile(path)[0] or _detect_root(path) != "":
                 act_compile = menu.addAction(_("▶ Derle"))
 
         act_open = None
