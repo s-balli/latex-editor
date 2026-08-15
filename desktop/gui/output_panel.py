@@ -7,10 +7,31 @@ from PyQt6.QtWidgets import (
     QListWidget, QListWidgetItem, QPlainTextEdit, QMenu,
 )
 
+from core.error_hints import get_hint
 from core.log_parser import CompileResult
 from PyQt6.QtCore import QCoreApplication
 
 _ = lambda s: QCoreApplication.translate("OutputPanel", s)
+
+
+# İpucu kimliği → kullanıcıya gösterilecek açıklama (error_hints'teki
+# kalıpların sunum katmanı; .ts'e girebilmesi için literal _() dizgeleri).
+_HINTS = {
+    "undefined_control": _("Tanımsız komut{cmd}: yazım hatası olabilir ya da komutu sağlayan paket yüklenmemiş (\\usepackage gerekebilir)"),
+    "missing_math": _("Matematik modu dışında _ ^ veya özel karakter kullanılmış; $...$ veya \\[...\\] içine alın"),
+    "invalid_character": _("Geçersiz karakter — genelde Word'den kopyalanan akıllı tırnak/tire; düz \" ve - kullanın"),
+    "brace_mismatch": _("Eksik/fazla süslü parantez; bu satırdan geriye doğru { } eşleşmesini kontrol edin"),
+    "double_subscript": _("Aynı terimde iki alt/üst simge; a_{bc} gibi gruplayın"),
+    "env_undefined": _("Tanımsız ortam {env}: \\newenvironment ile tanımlanmamış ya da paketi yüklenmemiş"),
+    "file_ended_scanning": _("Bir komut/ortam kapanmamış (eksik } veya \\end{...}); dosyanın sonuna doğru kontrol edin"),
+    "emergency_stop": _("Derleyici beklenmedik durdu; genelde eksik dosya veya kapanmamış blok. Log sekmesindeki son satırlara bakın"),
+    "counter_too_large": _("Sayaç sınırı aşıldı (çok sayıda dipnot/liste öğesi); enumitem paketini kullanın"),
+    "misplaced_noalign": _("tabular komutu yanlış yerde; \\toprule/\\midrule yalnız tabular içinde satır başında kullanılır"),
+    "citation_undefined": _("Kaynakça anahtarı çözülmedi: tekrar derleyin (iki geçe gerekir) veya Düzenle > Referansları Denetle ile anahtarı kontrol edin"),
+    "reference_undefined": _("Çapraz referans çözülmedi: tekrar derleyin; \\label tanımlı mı diye Referansları Denetle'ye bakın"),
+    "rerun_needed": _("Tekrar derleyin: çapraz referanslar ve kaynakça iki derleme geçesinde çözülür"),
+    "duplicate_label": _("Aynı \\label iki kez kullanılmış; F2 ile birini yeniden adlandırın"),
+}
 
 
 class OutputPanel(QWidget):
@@ -89,13 +110,33 @@ class OutputPanel(QWidget):
         self._tabs.setTabText(self._warn_tab_index, _("Uyarılar"))
         self._tabs.setTabText(self._suggest_tab_index, _("Öneriler"))
 
+    @classmethod
+    def _hint_text(cls, hint) -> str:
+        """error_hints.get_hint sonucunu gösterilecek metne çevir (yoksa '')."""
+        if not hint:
+            return ""
+        hint_id, params = hint
+        tmpl = _HINTS.get(hint_id)
+        if not tmpl:
+            return ""
+        cmd = params.get("cmd", "")
+        return tmpl.format(
+            cmd=f" ({cmd})" if cmd else "",
+            env=params.get("env", ""),
+        )
+
     def show_result(self, result: CompileResult):
         self.clear()
 
         # Hatalar
         for err in result.errors:
             text = _("Satır {n}: {msg}").format(n=err.line_number, msg=err.message) if err.line_number else err.message
+            hint = self._hint_text(get_hint(err.message, err.context))
+            if hint:
+                text += "\n    → " + hint
             item = QListWidgetItem(text)
+            if hint:
+                item.setToolTip(hint)
             item.setData(Qt.ItemDataRole.UserRole, (err.file_path, err.line_number))
             self._error_list.addItem(item)
         self._tabs.setTabText(self._error_tab_index, _("Hatalar ({n})").format(n=len(result.errors)))
@@ -104,7 +145,12 @@ class OutputPanel(QWidget):
         for w in result.warnings:
             line_info = _("Satır {n}: ").format(n=w.line_number) if w.line_number else ""
             text = f"{line_info}[{w.warning_type}] {w.message}" if w.warning_type else f"{line_info}{w.message}"
+            hint = self._hint_text(get_hint(w.message))
+            if hint:
+                text += "\n    → " + hint
             item = QListWidgetItem(text)
+            if hint:
+                item.setToolTip(hint)
             item.setData(Qt.ItemDataRole.UserRole, (w.file_path, w.line_number))
             self._warn_list.addItem(item)
         self._tabs.setTabText(self._warn_tab_index, _("Uyarılar ({n})").format(n=len(result.warnings)))
