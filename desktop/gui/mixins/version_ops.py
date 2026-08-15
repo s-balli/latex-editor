@@ -159,6 +159,8 @@ class VersionOpsMixin:
             self._show_version_diff(root, sha, rel)
         elif action == "restore":
             self._restore_version(root, sha, rel, editor)
+        elif action == "copy":
+            self._copy_version_content(root, sha, rel, editor)
         elif action == "drop":
             self._drop_version(root)
         elif action == "drop_all":
@@ -188,6 +190,30 @@ class VersionOpsMixin:
         btns.accepted.connect(dlg.accept)
         v.addWidget(btns)
         dlg.exec()
+
+    def _copy_version_content(self, root: str, sha: str, rel: str, editor):
+        """Sürümdeki dosya içeriğini panoya kopyala (dosyaya dokunmadan).
+
+        Tam geri yükleme istemeden eski bir paragrafı alıp yapıştırmak için.
+        """
+        from PyQt6.QtWidgets import QApplication
+
+        try:
+            data = versioning.file_bytes(root, sha, rel)
+        except Exception:
+            data = None
+            _logger.error("Sürümden okunamadı: %s@%s", rel, sha, exc_info=True)
+        if data is None:
+            self._status.showMessage(_("Dosya bu sürümde bulunamadı"))
+            return
+        # panoya metin gerekir; dosyanın kendi kodlamasıyla çöz
+        try:
+            text = data.decode(editor._encoding or "utf-8")
+        except (UnicodeDecodeError, LookupError):
+            text = data.decode("utf-8", "replace")
+        QApplication.clipboard().setText(text)
+        self._status.showMessage(
+            _("Bu sürümdeki içerik panoya kopyalandı") + f": {rel} @ {sha[:7]}")
 
     def _drop_version(self, root: str):
         """En yeni sürümü geçmişten sil (dosyalara dokunmaz)."""

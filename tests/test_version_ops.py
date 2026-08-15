@@ -182,6 +182,25 @@ def test_restore_cp1254_file_not_corrupted(qapp, tmp_path, monkeypatch):
     assert ed._encoding == "cp1254"  # yeniden açınca da doğru kodlama
 
 
+def test_copy_version_content_to_clipboard(qapp, tmp_path, monkeypatch):
+    """'Kopyala': sürümdeki içerik panoya gider, dosya değişmez."""
+    from PyQt6.QtWidgets import QApplication
+
+    stub, ed, tex = _stub_with_editor(tmp_path, monkeypatch)
+    stub._snapshot()
+    sha = V.history(str(tmp_path))[0].sha
+    before = open(tex, encoding="utf-8").read()
+
+    ed.setText("değişti\n")
+    ed.save_file()
+
+    stub._on_version_action("copy", sha)
+    assert "merhaba" in QApplication.clipboard().text()
+    assert "panoya kopyalandı" in stub._status.msg
+    # dosyaya dokunulmadı
+    assert open(tex, encoding="utf-8").read() == "değişti\n" and before != "değişti\n"
+
+
 def test_drop_version_from_history(qapp, tmp_path, monkeypatch):
     stub, ed, tex = _stub_with_editor(tmp_path, monkeypatch)
     stub._snapshot()

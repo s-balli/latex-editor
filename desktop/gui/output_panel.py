@@ -262,24 +262,24 @@ class OutputPanel(QWidget):
         menu = QMenu(self)
         act_restore = menu.addAction(_("Açık dosyayı bu sürümden geri yükle"))
         act_diff = menu.addAction(_("Açık dosyanın farklarını göster"))
+        act_copy = menu.addAction(_("Açık dosyanın bu sürümdeki hâlini kopyala"))
         act_drop = None
         if self._history_list.row(item) == 0:
             menu.addSeparator()
             act_drop = menu.addAction(_("Bu sürümü sil (en yeni)"))
         menu.addSeparator()
         act_drop_all = menu.addAction(_("Tüm geçmişi sil"))
-        act_copy = menu.addAction(_("Kopyala"))
         action = menu.exec(self._history_list.mapToGlobal(pos))
         if action == act_restore:
             self.version_action.emit("restore", sha)
         elif action == act_diff:
             self.version_action.emit("diff", sha)
+        elif action == act_copy:
+            self.version_action.emit("copy", sha)
         elif act_drop is not None and action == act_drop:
             self.version_action.emit("drop", sha)
         elif action == act_drop_all:
             self.version_action.emit("drop_all", sha)
-        elif action == act_copy:
-            QApplication.clipboard().setText(item.text())
 
     def show_engine_hint(self, current: str, others: list[str]):
         """Başarısız derlemede motor değiştirme önerisini ekle ve tab'ı aç."""
