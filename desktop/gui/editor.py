@@ -84,6 +84,7 @@ class EditorWidget(QsciScintilla):
         self._detected_engine = ""
         self._initial_theme = theme
         self._encoding = "utf-8"
+        self._newline = "lf"      # dosyanın satır sonu stili ('lf' | 'crlf'); kayıtta korunur
         self._font_size = 11      # ayarlardan (apply_editor_settings) değişir
         self._theme = None        # son uygulanan tema (font boyutu korunarak yeniden uygulanır)
         self._setup_editor()
@@ -771,6 +772,10 @@ class EditorWidget(QsciScintilla):
             if b"\x00" in raw[:8192]:
                 raise ValueError(_("İkili (binary) dosya; metin editöründe açılamaz."))
             text, encoding = _decode_bytes(raw)
+            # Satır sonu stilini hatırla: kayıtta aynen korunur (Windows text-
+            # mode yazımı \n'i \r\n'e çevirip \r\r\n üretmesin diye — bu dosyayı
+            # derlemez hale getiriyordu)
+            self._newline = "crlf" if b"\r\n" in raw[:8192] else "lf"
             # Belge bütünüyle değişiyor: lexer'ın satır-durum önbelleği eski
             # belgeye ait; erken çıkış yanlış eşleşme yapmasın diye sıfırla.
             lexer = self.lexer()
@@ -815,7 +820,9 @@ class EditorWidget(QsciScintilla):
                     f.flush()
                     os.fsync(f.fileno())
             else:
-                with open(tmp, "w", encoding=encoding) as f:
+                # newline='' : örtük satır sonu ÇEVRİMİ yok (Windows text-mode
+                # \n→\r\n çevirir; içerikte \r\n varsa \r\r\n bozulması üretirdi)
+                with open(tmp, "w", encoding=encoding, newline="") as f:
                     f.write(content)
                     f.flush()
                     os.fsync(f.fileno())
@@ -832,7 +839,17 @@ class EditorWidget(QsciScintilla):
         if not self._file_path:
             return False
         try:
-            self._write_atomic(self._file_path, self.text(), self._encoding)
+            # Arabellek metnini dosyanın satır sonu stiline indir: QScintilla
+            # Windows'ta CRLF üretebilir; çift çevirim (\r\r\n) derlemeyi bozar.
+            # Sıra önemli: \r\r\n önce TEK \n'e inmelidir; yoksa iki aşamalı
+            # replace onu \n\n yapar (dosyayı çift satıra boğar).
+            content = (self.text()
+                       .replace("\r\r\n", "\n")
+                       .replace("\r\n", "\n")
+                       .replace("\r", "\n"))
+            if self._newline == "crlf":
+                content = content.replace("\n", "\r\n")
+            self._write_atomic(self._file_path, content, self._encoding)
             self.setModified(False)
             return True
         except Exception as e:
@@ -843,6 +860,7 @@ class EditorWidget(QsciScintilla):
     def save_file_as(self, path: str) -> bool:
         self._file_path = os.path.normpath(path)
         self._encoding = "utf-8"  # yeni dosya -> modern varsayılan
+        self._newline = "lf"      # LaTeX dünyası tercihi; platform bağımsız
         return self.save_file()
 
     @property
