@@ -194,6 +194,33 @@ def test_version_action_without_editor(qapp, tmp_path, monkeypatch):
     assert "Açık dosya yok" in empty._status.msg
 
 
+def test_drop_all_without_open_editor(qapp, tmp_path, monkeypatch):
+    """Silme eylemleri açık dosya istemez: dosya kapalıyken de çalışmalı.
+
+    Regression: tüm eylemler tek 'Açık dosya yok' guard'ından geçiyordu;
+    drop/drop_all dosya olmadan da kullanılabilir olmalı.
+    """
+    _project(tmp_path)
+    V.init_repo(str(tmp_path))
+    V.snapshot(str(tmp_path), "kayıt")
+
+    empty = _Stub([], str(tmp_path))
+    monkeypatch.setattr(
+        "gui.mixins.version_ops.QMessageBox.question",
+        staticmethod(lambda *a, **k: 16384))  # Yes
+    empty._on_version_action("drop_all", "x")
+
+    assert "Açık dosya yok" not in empty._status.msg
+    assert "Tüm geçmiş silindi" in empty._status.msg
+    assert not V.is_repo(str(tmp_path))
+
+
+def test_version_action_without_root(qapp):
+    empty = _Stub([], "")
+    empty._on_version_action("drop_all", "x")
+    assert "klasör açın" in empty._status.msg
+
+
 def test_restore_cp1254_file_not_corrupted(qapp, tmp_path, monkeypatch):
     """cp1254 Türkçe dosya geri yüklemede BİREBİR korunmalı (ham bayt)."""
     # cp1254 dosya açılırken kodlama uyarı dialogu çıkar; headless'ta bloklar

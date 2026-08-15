@@ -149,18 +149,24 @@ class VersionOpsMixin:
 
     def _on_version_action(self, action: str, sha: str):
         root = self._version_root()
-        editor = self._current_editor()
-        if not root or not editor or not editor.file_path:
-            self._status.showMessage(_("Açık dosya yok"))
+        if not root:
+            self._status.showMessage(_("Önce bir klasör açın"))
             return
-        rel = os.path.relpath(editor.file_path, root).replace(os.sep, "/")
 
-        if action == "diff":
-            self._show_version_diff(root, sha, rel)
-        elif action == "restore":
-            self._restore_version(root, sha, rel, editor)
-        elif action == "copy":
-            self._copy_version_content(root, sha, rel, editor)
+        # Silme eylemleri açık dosya istemez (klasör bazlıdır); geri yükleme,
+        # fark ve kopyala hangi dosyaya uygulanacağını bilmek için dosya ister.
+        if action in ("restore", "diff", "copy"):
+            editor = self._current_editor()
+            if not editor or not editor.file_path:
+                self._status.showMessage(_("Açık dosya yok"))
+                return
+            rel = os.path.relpath(editor.file_path, root).replace(os.sep, "/")
+            if action == "diff":
+                self._show_version_diff(root, sha, rel)
+            elif action == "restore":
+                self._restore_version(root, sha, rel, editor)
+            else:
+                self._copy_version_content(root, sha, rel, editor)
         elif action == "drop":
             self._drop_version(root)
         elif action == "drop_all":
