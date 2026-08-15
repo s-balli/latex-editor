@@ -45,6 +45,8 @@ class FileOpsMixin:
             self._pdf_viewer.clear()
             self._current_pdf = ""
             self._file_tree.set_root(path)
+            # Kök değişti: önceki klasörün sürüm geçmişi ekranda kalmasın
+            self._refresh_history()
 
     def _new_file(self):
         path, _sel_filter = QFileDialog.getSaveFileName(

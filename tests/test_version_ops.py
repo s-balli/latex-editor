@@ -31,7 +31,10 @@ def qapp():
 class _Stub(VersionOpsMixin, StubMain):
     def __init__(self, editors, root):
         StubMain.__init__(self, editors=editors)
-        self._file_tree = SimpleNamespace(_root=root)
+        self._file_tree = SimpleNamespace(
+            _root=root,
+            set_root=lambda p: setattr(self._file_tree, "_root", p),
+        )
 
 
 def _project(tmp_path):
@@ -66,6 +69,34 @@ def test_first_snapshot_inits_repo_and_fills_history(qapp, tmp_path, monkeypatch
     item = stub._output_panel._history_list.item(0)
     assert "deneme sürümü" in item.text()
     assert item.data(0x0100)  # UserRole: sha  (0x0100 = Qt.ItemDataRole.UserRole)
+
+
+def test_open_folder_refreshes_history(qapp, tmp_path, monkeypatch):
+    """Klasör değişince ÖNCEKİ klasörün geçmişi ekranda kalmamalı."""
+    from gui.mixins.file_ops import FileOpsMixin
+
+    class _FolderStub(FileOpsMixin, _Stub):
+        def _close_tab_safe(self, index):
+            return True  # sekmeleri kapatma; kök/geçmiş davranışını sınıyoruz
+
+    # 1. klasörde sürüm at
+    stub, ed, tex = _stub_with_editor(tmp_path, monkeypatch)
+    folder_stub = _FolderStub([ed], str(tmp_path))
+    folder_stub._snapshot()
+    assert folder_stub._output_panel._history_list.count() == 1
+
+    # 2. başka klasör aç (boş, sürümsüz)
+    other = tmp_path / "diger"
+    other.mkdir()
+    monkeypatch.setattr(
+        "gui.mixins.file_ops.QFileDialog.getExistingDirectory",
+        staticmethod(lambda *a, **k: str(other)))
+    folder_stub._pdf_viewer = SimpleNamespace(clear=lambda: None)
+    folder_stub._open_folder()
+
+    assert folder_stub._file_tree._root == str(other)
+    assert folder_stub._output_panel._history_list.count() == 0, \
+        "eski klasörün geçmişi yeni klasörde duruyor"
 
 
 def test_second_snapshot_without_changes_skipped(qapp, tmp_path, monkeypatch):
