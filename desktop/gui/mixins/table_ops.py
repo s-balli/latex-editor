@@ -1,0 +1,96 @@
+"""Tablo işlemleri mixin — sihirbaz (Ctrl+T) ve mevcut tabloyu hizalama."""
+
+from PyQt6.QtCore import QCoreApplication
+
+from core.latex_refs import collect_labels
+from core.latex_tables import format_tabular, parse_tabular_at
+from core.log import get_logger
+
+_ = lambda s: QCoreApplication.translate("TableOpsMixin", s)
+_logger = get_logger("table_ops")
+
+
+class TableOpsMixin:
+
+    @staticmethod
+    def _cursor_char_offset(editor) -> int:
+        """İmlecin doküman karakter offseti (QScintilla satır/kolon → offset)."""
+        line, col = editor.getCursorPosition()
+        text = editor.text()
+        offset = 0
+        lines = text.split("\n")
+        for i in range(line):
+            offset += len(lines[i]) + 1
+        return offset + col
+
+    @staticmethod
+    def _char_offset_to_linecol(text: str, pos: int) -> tuple[int, int]:
+        line = text.count("\n", 0, pos)
+        line_start = text.rfind("\n", 0, pos) + 1
+        return line, pos - line_start
+
+    def _replace_char_range(self, editor, start: int, end: int, replacement: str):
+        """[start, end) karakter aralığını seç-değiştir ile değiştir (tek undo)."""
+        text = editor.text()
+        l1, c1 = self._char_offset_to_linecol(text, start)
+        l2, c2 = self._char_offset_to_linecol(text, min(end, len(text)))
+        editor.beginUndoAction()
+        editor.setSelection(l1, c1, l2, c2)
+        editor.replaceSelectedText(replacement)
+        editor.endUndoAction()
+
+    def _table_wizard(self):
+        """Tablo sihirbazı: yeni tablo üret veya imleçteki tabloyu düzenle."""
+        from gui.table_wizard import TableWizardDialog
+
+        editor = self._current_editor()
+        if not editor:
+            self._status.showMessage(_("Önce bir dosya açın"))
+            return
+        text = editor.text()
+        pos = self._cursor_char_offset(editor)
+        block = parse_tabular_at(text, pos)
+
+        existing = []
+        if editor.file_path:
+            try:
+                existing = collect_labels(text, editor.file_path)
+            except Exception:
+                existing = []
+
+        dlg = TableWizardDialog(self, existing_labels=existing)
+        dlg.apply_theme(self._theme_mgr.theme)
+        if block:
+            dlg.load_block(block)
+            self._status.showMessage(_("Mevcut tablo düzenleniyor — Ekle ile değiştirilir"))
+
+        if dlg.exec() and dlg.result_text():
+            code = dlg.result_text()
+            if block:
+                self._replace_char_range(editor, block["start"], block["end"], code)
+            else:
+                editor.insert(code)
+            editor.setFocus()
+            self._status.showMessage(_("Tablo eklendi"))
+            _logger.info("Tablo sihirbazı: %s", "mevcut tablo değiştirildi" if block else "yeni tablo eklendi")
+
+    def _align_table(self):
+        """İmlecin içindeki tabular bloğunun hücrelerini hizala."""
+        editor = self._current_editor()
+        if not editor:
+            return
+        text = editor.text()
+        pos = self._cursor_char_offset(editor)
+        block = parse_tabular_at(text, pos)
+        if block is None:
+            self._status.showMessage(_("İmleç bir tablo içinde değil"))
+            return
+        new_text = format_tabular(text, pos)
+        if new_text is None:
+            self._status.showMessage(_("Tabloda hizalanacak satır yok"))
+            return
+        new_block = parse_tabular_at(new_text, pos)
+        self._replace_char_range(editor, block["start"], block["end"],
+                                 new_text[new_block["start"]:new_block["end"]])
+        editor.setFocus()
+        self._status.showMessage(_("Tablo hizalandı"))

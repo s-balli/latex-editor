@@ -34,6 +34,7 @@ from gui.mixins.tab_ops import TabOpsMixin
 from gui.mixins.edit_ops import EditOpsMixin
 from gui.mixins.compile_ops import CompileOpsMixin
 from gui.mixins.image_ops import ImageOpsMixin
+from gui.mixins.table_ops import TableOpsMixin
 from gui.mixins.synctex_ops import SyncTexMixin
 
 
@@ -70,6 +71,7 @@ class MainWindow(
     EditOpsMixin,
     CompileOpsMixin,
     ImageOpsMixin,
+    TableOpsMixin,
     SyncTexMixin,
     QMainWindow,
 ):
@@ -244,6 +246,9 @@ class MainWindow(
         edit_menu.addSeparator()
         self._add_action(edit_menu, _("Yorum &Toggle"), self._toggle_comment)
         self._add_action(edit_menu, _("Satıra &Git..."), self._goto_line_dialog, "Ctrl+G")
+        edit_menu.addSeparator()
+        self._add_action(edit_menu, _("Tablo &Sihirbazı..."), self._table_wizard, "Ctrl+T")
+        self._add_action(edit_menu, _("Tabloyu &Hizala"), self._align_table)
         edit_menu.addSeparator()
         self._add_action(edit_menu, _("&Referansları Denetle"), self._audit_references)
         edit_menu.addSeparator()
@@ -565,6 +570,7 @@ class MainWindow(
         html += "Ctrl+H — " + _("Bul ve Değiştir") + "<br>"
         html += "Ctrl+/ — " + _("Yorum Toggle") + "<br>"
         html += "Ctrl+G — " + _("Satıra Git") + "<br>"
+        html += "Ctrl+T — " + _("Tablo Sihirbazı") + "<br>"
         html += "F2 — " + _("Etiketi/Kaynakça Anahtarını Yeniden Adlandır (imleç \\label/\\ref/\\cite/\\bibitem veya .bib girdisi üzerinde)") + "<br>"
         html += "F4 — " + _("Sonraki Hata") + "<br>"
         html += "Shift+F4 — " + _("Önceki Hata") + "<br><br>"
@@ -609,6 +615,9 @@ class MainWindow(
         left += "<br><br>"
         left += "<b>" + _("Yorum Toggle") + " (Ctrl+/)</b><br>"
         left += "<span style='color:" + dim + "'>" + _("Seçili satırları % ile yorum yapar/kaldırır.") + "</span>"
+        left += "<br><br>"
+        left += "<b>" + _("Tablo Sihirbazı") + " (Ctrl+T)</b><br>"
+        left += "<span style='color:" + dim + "'>" + _("Hücrelere yazarak veya CSV yükleyerek tabular tablosu üret; booktabs, hizalama, caption/label dahil. İmleç tablonun içindeyse mevcut tabloyu düzenler; Tabloyu Hizala ile kolonları hizalar.") + "</span>"
         left += "<br><br>"
         left += "<b>" + _("Görsel Sürükle-Bırak") + "</b><br>"
         left += "<span style='color:" + dim + "'>" + _("PNG, JPG, PDF, EPS → otomatik \\begin{figure} bloğu.") + "</span>"
