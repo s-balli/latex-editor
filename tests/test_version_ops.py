@@ -146,6 +146,27 @@ def test_restore_from_version(qapp, tmp_path, monkeypatch):
     assert "Geri yüklendi" in stub._status.msg
 
 
+def test_restore_preserves_cursor(qapp, tmp_path, monkeypatch):
+    """Geri yükleme sonrası imleç dosya sonuna ATILMAMALI; konum korunmalı.
+
+    open_file (setText) imleci sona atıyordu; artık satır/sütun korunur,
+    eski sürüm kısaysa geçerli aralığa kelepçelenir.
+    """
+    stub, ed, tex = _stub_with_editor(tmp_path, monkeypatch)
+    ed.setText("\\begin{document}\nsatır1\nsatır2\nsatır3\n\\end{document}\n")
+    ed.save_file()
+    stub._snapshot()  # uzun sürüm
+    sha = V.history(str(tmp_path))[0].sha
+
+    ed.setCursorPosition(3, 2)  # 'satır2' ortası
+    monkeypatch.setattr(
+        "gui.mixins.version_ops.QMessageBox.question",
+        staticmethod(lambda *a, **k: 16384))  # Yes
+    stub._on_version_action("restore", sha)
+
+    assert ed.getCursorPosition() == (3, 2), "imleç konumu korunmalı"
+
+
 def test_version_action_without_editor(qapp, tmp_path, monkeypatch):
     stub, ed, tex = _stub_with_editor(tmp_path, monkeypatch)
     stub._snapshot()

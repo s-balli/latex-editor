@@ -276,8 +276,15 @@ class VersionOpsMixin:
             return
         # HAM bayt yazımı: decode/encode döngüsü kodlamayı bozar (cp1254
         # Türkçe dosyada karakterler bozulur, PDF yanlış derlenirdi)
+        line, col = editor.getCursorPosition()
         EditorWidget._write_atomic(editor.file_path, data)
         editor.open_file(editor.file_path)
+        # open_file (setText) imleci dosya sonuna atıyor; konumu koru,
+        # eski sürüm daha kısaysa geçerli aralığa kelepçele
+        line = min(line, editor.lines() - 1)
+        line_text = editor.text(line).rstrip("\n")
+        editor.setCursorPosition(line, min(col, len(line_text)))
+        editor.ensureLineVisible(line)
         self._status.showMessage(
             _("Geri yüklendi") + f": {rel} @ {sha[:7]}")
         _logger.info("Sürümden geri yüklendi: %s @ %s", rel, sha[:7])
