@@ -107,6 +107,7 @@ To add a new language:
 - Follow existing patterns (mixin architecture, `_` prefix for private methods)
 - No comments unless explaining non-obvious logic
 - Add tests for new functionality
+- Verify test sensitivity: once, deliberately break the code a new test guards and watch the test fail (mutation spot-check). A validation that has never been seen failing is unproven.
 
 ## Reporting Issues
 

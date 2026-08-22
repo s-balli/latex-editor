@@ -17,6 +17,8 @@ Bu testler iki regression'ı korur (ikisi de düzeltildi):
 
 # Headless (ekransız) çalıştır — CI / WSL ortamı için
 
+import os
+
 import pytest
 
 # pytest.importorskip("PyQt6.Qsci") noktalı-ad formu bazı bağlamlarda atlayabiliyor;
@@ -451,9 +453,25 @@ def test_early_exit_limits_restyled_bytes(qapp):
     )
 
 
+def _runtime_seed() -> int:
+    """Koşum-anı tohum: TEST_SEED > GITHUB_RUN_ID > urandom.
+
+    Sabit tohumlar (1/7/42) aynı derlemi her koşuda tarar (tekrarlanabilirlik);
+    dördüncü tohum her koşuda yeni derlem üretir (koşum-anı entropi — ezber/
+    tesadüfi geçiş ölmez, fark edilir). Başarısız koşum tohumu assert mesajında
+    yazar; TEST_SEED (yerel) veya GITHUB_RUN_ID (CI) ile yeniden üretilir.
+    """
+    if os.environ.get("TEST_SEED"):
+        return int(os.environ["TEST_SEED"])
+    if os.environ.get("GITHUB_RUN_ID"):
+        return int(os.environ["GITHUB_RUN_ID"])
+    return int.from_bytes(os.urandom(8), "big")
+
+
 def test_random_edit_sequence_matches_full_scan(qapp):
-    """Sabit tohumlu rastgele ekle/sil dizisi boyunca artımlı stiller her
-    adımda tam taramayla birebir aynı olmalı (erken çıkış + kaydırma fuzz).
+    """Sabit + koşum-anı tohumlu rastgele ekle/sil dizisi boyunca artımlı
+    stiller her adımda tam taramayla birebir aynı olmalı (erken çıkış +
+    kaydırma fuzz). Dördüncü tohum _runtime_seed()'den gelir.
 
     Not: '\n' içeren parçalar yalnız satır başına/sonuna eklenir. Satır içine
     newline eklendiğinde satır içi {...} grubu ikiye bölünebilir; parantez
@@ -464,7 +482,7 @@ def test_random_edit_sequence_matches_full_scan(qapp):
     """
     import random
 
-    for seed in (1, 7, 42):
+    for seed in (1, 7, 42, _runtime_seed()):
         rng = random.Random(seed)
         editor = _make_editor()
         editor.setText(_DOC)

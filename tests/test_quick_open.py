@@ -53,6 +53,19 @@ def test_fuzzy_subsequence_and_basename_bonus():
     assert fuzzy_score("mt", "main.tex") < fuzzy_score("mt", "bolum/diğer-m-t.tex")
 
 
+def test_fuzzy_tight_path_match_beats_wide_basename_match():
+    """Bonus küçük bir ödüldür; yayılım (spread) farkını ezemez.
+
+    'mt' dar biçimde yol (dizin) kısmında eşleşirken (yayılım 1), geniş
+    biçimde dosya adında eşleşen adaydan (yayılım ~12) ÖNDE sıralanmalı.
+    Bonus büyütülürse (örn. -5 yerine -50) sıralama tersine döner; bu test
+    büyüklüğü pinler (mutasyonla doğrulandı: -50 kırmızı görür).
+    """
+    tight_path = fuzzy_score("mt", "mt/xx.tex")             # yayılım 1, bonus yok
+    wide_name = fuzzy_score("mt", "src/m___________t.tex")  # yayılım ~12, bonuslu
+    assert tight_path < wide_name
+
+
 def test_fuzzy_case_insensitive():
     assert fuzzy_score("MT", "main.tex") is not None
 
