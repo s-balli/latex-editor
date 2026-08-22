@@ -43,7 +43,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r desktop/requirements.txt pytest python-docx
 
-      - name: Kayit: bagimlilik surumleri (ODR B3)
+      - name: Bagimlilik surumleri kaydi (ODR B3)
         run: pip freeze | grep -iE "pyqt6|qscintilla|pypdfium|pillow|send2trash|dulwich|pytest|docx"
 
       - name: Lint (ruff)
