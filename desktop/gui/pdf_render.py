@@ -1,21 +1,31 @@
-"""PDF sayfa render — pypdfium2 bitmap'ten QPixmap pipeline."""
+"""PDF sayfa render — pypdfium2 bitmap'ten QImage/QPixmap pipeline."""
 
 from PyQt6.QtGui import QImage, QPixmap
 
 
-def render_page_to_pixmap(page, scale: float, invert: bool = False) -> QPixmap:
-    """Tek bir PDF sayfasını QPixmap olarak render et.
+def render_page_to_qimage(page, scale: float, invert: bool = False) -> QImage:
+    """Tek bir PDF sayfasını QImage olarak render et.
 
-    Saf fonksiyon — widget state yok, cache yok.
-    Cache ve LRU eviction çağıranın sorumluluğunda.
+    Saf fonksiyon — widget state yok, cache yok. QImage (QPixmap değil)
+    döner: QPixmap oluşturmak GUI thread'inde yapılmalıdır; arka plan
+    işçisi (pdf_render_worker) bu fonksiyonu kullanır, UI tarafı sonucu
+    QPixmap'e sarar. .copy() buffer'ı ayrıştırır; QImage iş parçacıkları
+    arası sinyalle taşınabilir.
     """
     bitmap = page.render(scale=scale)
     pil_img = bitmap.to_pil()
     raw = pil_img.tobytes()
     w, h = pil_img.size
-    stride = w * 3
-    img = QImage(raw, w, h, stride, QImage.Format.Format_RGB888)
-    img = img.copy()
+    img = QImage(raw, w, h, w * 3, QImage.Format.Format_RGB888).copy()
     if invert:
         img.invertPixels()
-    return QPixmap.fromImage(img)
+    return img
+
+
+def render_page_to_pixmap(page, scale: float, invert: bool = False) -> QPixmap:
+    """Eşzamanlı gereken tek kullanımlık yerler için (sunum modu).
+
+    Normal görüntüleme yolu arka plan işçisindedir (pdf_render_worker);
+    cache/eviction çağıranın sorumluluğunda.
+    """
+    return QPixmap.fromImage(render_page_to_qimage(page, scale, invert))

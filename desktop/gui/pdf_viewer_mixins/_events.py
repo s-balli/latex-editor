@@ -121,10 +121,7 @@ class PdfEventsMixin:
         label = self._page_labels[idx]
 
         if label.pixmap() is None or label.pixmap().isNull():
-            pixmap = self._render_page(idx)
-            if not pixmap.isNull():
-                label.setPixmap(pixmap)
-                label.setStyleSheet("")
+            self._request_render(idx)
 
         scale = 1.5 * self._zoom
         scroll_y = resolve_dest_scroll_y(self._pdf.raw, dest, self._pdf[idx].get_height(), scale)

@@ -53,6 +53,8 @@ class PdfViewer(
         self._zoom = 0.75
         self._page_labels: list[QLabel] = []
         self._cache: dict[int, QPixmap] = {}
+        self._cache_bytes = 0
+        self._render_gen = 0
         self._pres_cache: dict[tuple, QPixmap] = {}
         self._invert_colors = False
         self._dual_page = False
@@ -62,6 +64,7 @@ class PdfViewer(
         self._theme = theme or {}
         self._setup_ui()
         self._init_selection_state()
+        self._init_render_worker()
 
     def keyPressEvent(self, event):
         if event.matches(QKeySequence.StandardKey.Copy):

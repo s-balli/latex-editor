@@ -1067,6 +1067,7 @@ class MainWindow(
                     return
                 # Discard → devam et
         self._cleanup_synctex_worker()
+        self._pdf_viewer.shutdown()
         shutil.rmtree(self._synctex_dir, ignore_errors=True)
         self._save_state()
         super().closeEvent(event)

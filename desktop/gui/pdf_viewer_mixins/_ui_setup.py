@@ -400,7 +400,7 @@ class PdfUISetupMixin:
 
     def _toggle_invert(self, checked: bool):
         self._invert_colors = checked
-        self._cache.clear()
+        self._cache_reset()
         self._pres_cache.clear()
         bg = "#000000" if checked else self._theme['bg_pdf_scroll']
         self._scroll.setStyleSheet(f"QScrollArea {{ background: {bg}; }}")

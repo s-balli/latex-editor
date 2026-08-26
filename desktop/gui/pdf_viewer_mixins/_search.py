@@ -51,12 +51,10 @@ class PdfSearchMixin:
         if not label:
             return
 
-        # Sayfayı render et (eğer henüz render edilmediyse)
+        # Sayfayı render et (eğer henüz render edilmediyse) — arka planda;
+        # eşleşme vurgusu ve kaydırma pixmapi beklemez
         if label.pixmap() is None or label.pixmap().isNull():
-            pixmap = self._render_page(page_idx)
-            if not pixmap.isNull():
-                label.setPixmap(pixmap)
-                label.setStyleSheet("")
+            self._request_render(page_idx)
 
         # Eşleşmenin ilk karakterinin Y pozisyonunu hesapla
         scale = 1.5 * self._zoom

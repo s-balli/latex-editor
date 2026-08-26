@@ -33,10 +33,9 @@ class PdfSyncTexMixin:
         w_pixel = int(width * scale) if width else 0
 
         if label.pixmap() is None or label.pixmap().isNull():
-            pixmap = self._render_page(idx)
-            if not pixmap.isNull():
-                label.setPixmap(pixmap)
-                label.setStyleSheet("")
+            # Label yüklemede doğru boyutla kurulmuş; pixmap arka planda
+            # gelir, vurgu/konum hesabı onu beklemez
+            self._request_render(idx)
 
         h_pixel = int(height * scale) if height else 20
         self._show_highlight(label, int(x_pixel), int(y_pixel), h_pixel, w_pixel)
