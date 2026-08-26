@@ -218,3 +218,26 @@ class TestDerlemeZamanAsimi:
         c._timeout_timer.start(60000)
         c._on_error(QProcess.ProcessError.FailedToStart)
         assert c._timeout_timer.isActive() is False
+
+class TestWslKurulumOnerisi:
+    def test_failed_to_start_win32_wsl_onerisi_tasir(self, monkeypatch):
+        """Windows'ta süreç başlayamadıysa (WSL yok) sonuç kurulum önerisi
+        taşır; OutputPanel buna bakarak Ortam Denetimi satırı açar."""
+        monkeypatch.setattr(compiler_mod, "PLATFORM", "win32")
+        c = LatexCompiler()
+        results = []
+        c.compilation_finished.connect(lambda r: results.append(r))
+        c._on_error(QProcess.ProcessError.FailedToStart)
+        assert len(results) == 1
+        sugs = results[0].suggestions
+        assert sugs and "wsl --install" in sugs[0].install_command
+
+    def test_failed_to_start_native_oneri_tasimaz(self):
+        """Linux'ta aynı hata WSL önerisi üretmez (WSL konusu yok)."""
+        if compiler_mod.PLATFORM == "win32":
+            pytest.skip("Windows'ta WSL önerisi beklenir")
+        c = LatexCompiler()
+        results = []
+        c.compilation_finished.connect(lambda r: results.append(r))
+        c._on_error(QProcess.ProcessError.FailedToStart)
+        assert results and results[0].suggestions == []

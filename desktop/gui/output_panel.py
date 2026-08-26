@@ -42,6 +42,11 @@ class OutputPanel(QWidget):
     error_clicked = pyqtSignal(str, int)  # file_path, line_number
     # Sürüm geçmişi eylemleri: (aksiyon, sha) — "restore" | "diff"
     version_action = pyqtSignal(str, str)
+    # Ortam Denetimi satırına tıklandı (bağlamsal tetik)
+    env_check_requested = pyqtSignal()
+
+    # Doktor satırının UserRole işareti: (dosya, satır) demetiyle karışmasın
+    _ENV_DOCTOR_TAG = "__env_doctor__"
 
     def __init__(self, parent=None, *, theme: dict = None):
         super().__init__(parent)
@@ -177,6 +182,13 @@ class OutputPanel(QWidget):
                 text += f"\n    {s.install_command}"
             item = QListWidgetItem(text)
             self._suggest_list.addItem(item)
+        # Bağlamsal tetik: kurulum komutu taşıyan öneri varsa (eksik paket,
+        # motor, WSL, Pygments...) tek tıkla Ortam Denetimi'ne götüren satır.
+        # Motor değiştirme önerisi ortam sorunu değildir; satır çıkmaz.
+        if any(s.install_command for s in result.suggestions):
+            doctor = QListWidgetItem("⚙ " + _("Ortam Denetimi'ni Aç..."))
+            doctor.setData(Qt.ItemDataRole.UserRole, self._ENV_DOCTOR_TAG)
+            self._suggest_list.addItem(doctor)
         suggest_count = self._suggest_list.count()
         self._tabs.setTabText(self._suggest_tab_index, _("Öneriler ({n})").format(n=suggest_count))
 
@@ -337,6 +349,9 @@ class OutputPanel(QWidget):
     def _on_result_click(self, item: QListWidget):
         """Uyarı/Öneri öğesine tıkla → (dosya, satır)'a atla (satır > 0 ise)."""
         data = item.data(Qt.ItemDataRole.UserRole)
+        if data == self._ENV_DOCTOR_TAG:
+            self.env_check_requested.emit()
+            return
         if data:
             file_path, line = data
             if line and line > 0:

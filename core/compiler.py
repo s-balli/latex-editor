@@ -8,7 +8,7 @@ from pathlib import Path
 
 from PyQt6.QtCore import QObject, QProcess, QTimer, pyqtSignal
 
-from core.log_parser import CompileResult, LatexError, parse_output
+from core.log_parser import CompileResult, LatexError, LatexSuggestion, parse_output
 from core.paths import windows_to_wsl
 
 PLATFORM = sys.platform  # win32, linux, darwin
@@ -161,6 +161,14 @@ class LatexCompiler(QObject):
         result = CompileResult(success=False)
         result.errors = [LatexError(message=msg)]
         result.duration = time.time() - self._start_time
+        if error == QProcess.ProcessError.FailedToStart and PLATFORM == "win32":
+            # WSL tamamen eksik: kurulum önerisi olarak girsin. Öneriler
+            # sekmesi hem komutu gösterir hem (kurulum önerisi taşıyan
+            # sonuçlarda) Ortam Denetimi satırını açar.
+            result.suggestions.append(LatexSuggestion(
+                message="WSL bulunamadı",
+                install_command="wsl --install  (yönetici PowerShell, ardından yeniden başlat)",
+            ))
         if not self._finished_emitted:
             self._finished_emitted = True
             self.compilation_finished.emit(result)
