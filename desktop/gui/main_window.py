@@ -1042,7 +1042,11 @@ class MainWindow(
                 self._editor_tabs.setCurrentIndex(i)
                 reply = self._save_dialog(editor.display_name)
                 if reply == "save":
-                    editor.save_file()
+                    # Kayıt başarısızsa çıkışı iptal et: dirty içerik kaybolmasın.
+                    # (Hata dialogunu save_file kendi gösterir.)
+                    if not editor.save_file():
+                        event.ignore()
+                        return
                 elif reply == "cancel":
                     event.ignore()
                     return

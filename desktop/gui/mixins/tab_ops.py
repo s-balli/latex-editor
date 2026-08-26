@@ -79,7 +79,10 @@ class TabOpsMixin:
         if isinstance(editor, EditorWidget) and editor.isModified():
             reply = self._save_dialog(editor.display_name)
             if reply == "save":
-                editor.save_file()
+                # Kayıt başarısızsa sekmeyi KAPATMA: dirty içerik kaybolur.
+                # (Hata dialogunu save_file kendi gösterir.)
+                if not editor.save_file():
+                    return False
             elif reply == "cancel":
                 return False
         # Dosya izlemeyi kaldır
