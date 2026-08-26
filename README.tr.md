@@ -40,6 +40,16 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 
 ## Sürüm Geçmişi
 
+### v1.0.12: Ortam Denetimi ve Güvenilirlik Düzeltmeleri
+- **Ortam Denetimi (Yardım menüsü)**: WSL, lualatex/pdflatex/xelatex, biber, pandoc, synctex ve pygmentize durumunu tek ekranda gösterir; eksik araca kurulum komutunu önerir, "Raporu Kopyala" düğmesi destek taleplerine eklenebilir rapor üretir. Kontroller arka planda koşar (WSL tek sorguyla denenir), arayüz bekletilmez. Hiç TeX motoru yoksa README'nin tek komutluk tam kurulumu önerilir
+- **Derleme hatasından tek tık**: derleme eksik paket/motor/Pygments/WSL yüzünden düştüğünde Öneriler sekmesine "⚙ Ortam Denetimi'ni Aç..." satırı düşer; Windows'ta WSL hiç yokken artık `wsl --install` önerisi de gelir
+- **minted kurulum zinciri tamamlandı**: `pygmentize`'ı sağlayan `python3-pygments`, `texlive-latex-extra`'nın yalnız önerdiği (Suggests) bir paket olduğundan apt ile hiç kurulmuyordu; README kurulum listelerine eklendi, "Missing Pygments output" hatasında derleyici artık `python3-pygments` kurulumunu öneriyor
+- **Veri kaybı düzeltmesi**: kayıt başarısız olduğunda (disk dolu, izin hatası...) değiştirilmiş sekme yine de kapanıp içeriği kayboluyordu; artık sekme açık kalıyor, çıkış iptal ediliyor
+- **--watch düzeltmesi**: `derle.sh --watch` ilk başarısız derlemede tümüyle sonlanıyordu; artık hatalardan sonra da dinlemeye devam ediyor
+- **Derleme yarışı düzeltmesi**: derleme sürerken yeniden derleme tetiklenirse (otomatik modda Ctrl+S) süren derlemenin hataları yanlış dizine çözülüyordu; meşgulken yeni derleme artık temiz biçimde reddediliyor
+- **Daha hızlı dosya taraması**: değişiklik izleme yürüyüşü ve Ctrl+P listesi artık node_modules, venv, `__pycache__` gibi dizinlere inmiyor (dosya ağacıyla aynı kurallar); WSL /mnt/c klasörlerinde belirgin hızlanma
+- **835 birim testi**
+
 ### v1.0.11 — minted Desteği Düzeltildi
 - **minted'li belgeler yeniden derleniyor**: otomatik `-shell-escape` tespiti yalnız `\usepackage{minted}` arıyordu; özel `.sty`/`.cls` içinden `\RequirePackage{minted}` ile yüklenen (veya yalnız `\begin{minted}` ortamı kullanılan) paketler kaçırılıyor, "You must invoke LaTeX with the -shell-escape flag" hatasıyla derleme düşüyordu. İki desen de artık algılanıyor
 - **minted + izole çıktı dizini**: minted 2.x kod parçasını çıktı dizinine yazıp pygmentize'a çalışma dizininden okutuyor; bu yüzden shell-escape açık olsa bile "Missing Pygments output" ile derleme başarısız oluyordu. Her motor geçişinde geçici bir sembolik bağ iki tarafı köprülüyor ve kaynak klasörde hiçbir geçici dosya kalmıyor (pdflatex, xelatex ve lualatex ile doğrulandı)

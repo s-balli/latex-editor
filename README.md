@@ -40,6 +40,16 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 
 ## Version History
 
+### v1.0.12: Environment Check and Reliability Fixes
+- **Environment Check (Help menu)**: shows the status of WSL, lualatex/pdflatex/xelatex, biber, pandoc, synctex and pygmentize in one dialog; suggests install commands for missing tools, and produces a copyable report for support requests. Checks run in the background (WSL is probed with a single query). When no TeX engine is installed at all, the README's one-command full setup is suggested
+- **One click from a failed compile**: when a compile fails due to a missing package/engine/Pygments/WSL, the Suggestions tab gains an "Open Environment Check..." row; when WSL itself is missing on Windows, a `wsl --install` suggestion is now included
+- **minted install chain completed**: python3-pygments (which provides pygmentize) is only a Suggests of texlive-latex-extra, so apt never installed it; it was added to the README install lists, and the compiler now suggests it on the "Missing Pygments output" error
+- **Data loss fix**: when saving failed (disk full, permissions...), a modified tab was still closed and its unsaved content lost; the tab now stays open and app exit is cancelled
+- **--watch fix**: `derle.sh --watch` used to exit entirely on the first failed compile; it now keeps watching
+- **Compile race fix**: triggering a new compile while one was running (Ctrl+S in auto mode) made the running compile resolve its errors against the wrong directory; a busy compile now cleanly rejects new ones
+- **Faster file scanning**: the change-detection walk and the Ctrl+P file list now skip node_modules, venv, `__pycache__` etc. (same rules as the tree); noticeably faster on WSL /mnt/c folders
+- **835 unit tests**
+
 ### v1.0.11 — minted Support Fixed
 - **minted documents compile again**: the automatic `-shell-escape` detection only looked for `\usepackage{minted}`; packages loaded from a custom `.sty`/`.cls` via `\RequirePackage{minted}` (or plain `\begin{minted}` usage) were missed and failed with "You must invoke LaTeX with the -shell-escape flag". Both patterns are now detected
 - **minted + isolated output directory**: minted 2.x writes the code snippet into the output directory but has pygmentize read it from the working directory, so compiles failed with "Missing Pygments output" even with shell escape enabled. A temporary symlink now bridges the two on every engine pass, and no temp files are left in your source folder (verified with pdflatex, xelatex and lualatex)
