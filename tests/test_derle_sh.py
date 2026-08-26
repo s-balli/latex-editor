@@ -528,6 +528,11 @@ class TestWatchModu:
             assert proc.poll() is None, \
                 "watch modu ilk hatada öldü: " + "".join(out)
 
+            # SON_MOD istatistiği derle_dosya DÖNDÜKTEN sonra alınır; işareti
+            # gördüğümüz anda betik henüz orada olabileceğinden önce bekliyoruz
+            # (beklemeden yazarsak stat düzelttiğimiz mtime'ı okur, değişim
+            # hiç görülmez, yeniden derleme tetiklenmez).
+            time.sleep(2.2)
             # Dosyayı düzelt → döngü mtime değişimini görüp yeniden derlemeli.
             # stat %Y saniye çözünürlüklü olduğundan ileri tarihli mtime
             # veriyoruz: düzeltme SON_MOD ile aynı saniyeye düşerse kaçmasın.
