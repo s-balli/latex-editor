@@ -2,7 +2,10 @@
 
 import os
 import shutil
+import signal
 import subprocess
+import threading
+import time
 import pytest
 
 SCRIPT = os.path.join(os.path.dirname(__file__), "..", "core", "derle.sh")
@@ -482,3 +485,62 @@ class TestXelatexModu:
         assert r.returncode != 0
         assert "Eksik paket" in r.stdout
         assert "texlive-xetex" in r.stdout
+
+
+class TestWatchModu:
+    """Watch modunun hatalı derlemeden sonra da yaşamaya devam etmesi."""
+
+    @staticmethod
+    def _pump(proc, sink):
+        for line in iter(proc.stdout.readline, ""):
+            sink.append(line)
+
+    @staticmethod
+    def _wait_marker(lines, markers, timeout=40):
+        """Çıktıda işaretleyicilerden biri geçene kadar bekle; bulursa True."""
+        if isinstance(markers, str):
+            markers = (markers,)
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if any(m in ln for ln in lines for m in markers):
+                return True
+            time.sleep(0.2)
+        return False
+
+    def test_ilk_derleme_hatasi_watchu_oldurmez(self, tmp_path):
+        """Regression: derle_dosya hata durumunda 1 döner; koşulsuz çağrı
+        set -e altında betiği ilk hatada öldürüyordu. Hata sonrası dosya
+        düzeltilirse watch modu yeniden derleyip PDF üretmeli."""
+        tex = tmp_path / "w.tex"
+        tex.write_text(MINIMAL_TEX_ERROR, encoding="utf-8")
+        proc = subprocess.Popen(
+            ["bash", SCRIPT, str(tex), "--watch"],
+            cwd=str(tmp_path), text=True,
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+        )
+        out = []
+        reader = threading.Thread(target=self._pump, args=(proc, out), daemon=True)
+        reader.start()
+        try:
+            # İlk derleme hata verir: PDF kısmen üretildiyse [uyari], üretil-
+            # mediyse [hata] gelir; hangisi olursa olsun derle_dosya 1 döner.
+            assert self._wait_marker(out, ("[hata]", "[uyari]")), "".join(out)
+            assert proc.poll() is None, \
+                "watch modu ilk hatada öldü: " + "".join(out)
+
+            # Dosyayı düzelt → döngü mtime değişimini görüp yeniden derlemeli.
+            # stat %Y saniye çözünürlüklü olduğundan ileri tarihli mtime
+            # veriyoruz: düzeltme SON_MOD ile aynı saniyeye düşerse kaçmasın.
+            tex.write_text(MINIMAL_TEX, encoding="utf-8")
+            future = time.time() + 5
+            os.utime(tex, (future, future))
+            assert self._wait_marker(out, "[basarili]"), "".join(out)
+            assert (tmp_path / "w.pdf").exists()
+        finally:
+            proc.send_signal(signal.SIGINT)
+            try:
+                proc.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait()
+        assert proc.returncode == 0  # INT trap'ı temiz çıkış yapar

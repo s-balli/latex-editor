@@ -583,8 +583,10 @@ echo ""
 # Ctrl+C ile çıkış — geçici dizini temizle
 trap 'rm -rf "$WATCH_TMPDIR" 2>/dev/null; echo -e "\n${MAVI}[durduruldu] Watch mode sonlandirildi${SIFIRLA}"; exit 0' INT
 
-# İlk derleme
-derle_dosya "$DOSYA_YOLU"
+# İlk derleme. derle_dosya hata durumunda 1 döner; koşulsuz çağrı set -e
+# altında betiği öldürürdü. Watch modunun varlık sebebi hatalardan sonra da
+# dinlemeye devam etmek olduğundan hatayı yutup döngüde kalıyoruz.
+derle_dosya "$DOSYA_YOLU" || true
 
 # mtime takibi
 SON_MOD=$(stat -c %Y "$DOSYA_YOLU" 2>/dev/null || echo "0")
@@ -596,6 +598,7 @@ while true; do
     if [ "$YENI_MOD" != "$SON_MOD" ]; then
         SON_MOD="$YENI_MOD"
         echo -e "${SARI}[derleniyor] $(date +%H:%M:%S) — $DOSYA_ADI degisti${SIFIRLA}"
-        derle_dosya "$DOSYA_YOLU"
+        # Aynı gerekçe: hatalı derleme watch döngüsünü öldürmemeli.
+        derle_dosya "$DOSYA_YOLU" || true
     fi
 done
