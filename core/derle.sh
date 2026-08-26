@@ -182,7 +182,23 @@ fi
 # minted paketi kullanılıyor mu kontrol et
 minted_kontrol() {
     local KLASOR="$1"
-    grep -rl 'usepackage.*{minted}' "$KLASOR" --include='*.tex' --include='*.cls' --include='*.sty' 2>/dev/null | head -1 | grep -q .
+    # İki sinyal: (1) \usepackage{minted} / \RequirePackage{minted} ile yükleme
+    # (paket bir .sty içinde RequirePackage ile yüklenebilir; webdiller.sty örneği),
+    # (2) \begin{minted} ortamının doğrudan kullanımı. Eskiden yalnızca küçük harfli
+    # 'usepackage' deseni aranıyordu; RequirePackage kullanan stiller kaçırılıyordu.
+    grep -rlEq '(usepackage|RequirePackage).*\{minted\}|\\begin\{minted' \
+        "$KLASOR" --include='*.tex' --include='*.cls' --include='*.sty' 2>/dev/null
+}
+
+# minted + -output-directory uyumsuzluğu (minted 2.x): minted vurgulanacak kodu
+# \openout ile TMPDIR'e (ISIM.pyg) yazar ama pygmentize'a cwd'den okutur;
+# shell-escape açılsa bile "Missing Pygments output" ile düşer. Kaynak klasörde
+# kurulan geçici sembolik bağ iki tarafı aynı dosyada buluşturur. minted kod
+# dosyasını geçiş içinde sildiğinden her derleme geçişinden önce yenilenir.
+minted_pyg_bagla() {
+    local KLASOR="$1" GECICI="$2" ISIM="$3"
+    rm -f "$KLASOR/${ISIM}.pyg"
+    ln -s "$GECICI/${ISIM}.pyg" "$KLASOR/${ISIM}.pyg" 2>/dev/null || true
 }
 
 # Tek dosya derleme fonksiyonu
@@ -226,7 +242,11 @@ derle_dosya() {
 
     # -shell-escape: yalnızca minted tespit edildiğinde veya zorlandığında
     local SHELL_ESCAPE_FLAG=""
-    if [ "$FORCE_SHELL_ESCAPE" = true ] || minted_kontrol "$KLASOR"; then
+    local MINTED_VAR=false
+    if minted_kontrol "$KLASOR"; then
+        MINTED_VAR=true
+    fi
+    if [ "$FORCE_SHELL_ESCAPE" = true ] || [ "$MINTED_VAR" = true ]; then
         SHELL_ESCAPE_FLAG="-shell-escape"
     fi
 
@@ -252,6 +272,12 @@ derle_dosya() {
         cd "$KLASOR" && find . -mindepth 1 -type d 2>/dev/null | while read -r SUBDIR; do
             mkdir -p "$TMPDIR/$SUBDIR"
         done
+    fi
+
+    # minted: kod dosyası köprüsü (bkz. minted_pyg_bagla) — TMPDIR hazır olduktan
+    # sonra, ilk derleme geçişinden önce
+    if [ "$MINTED_VAR" = true ]; then
+        minted_pyg_bagla "$KLASOR" "$TMPDIR" "$ISIM"
     fi
 
     # Derleme
@@ -367,6 +393,7 @@ derle_dosya() {
     if [ "$YARDIMCI_DOSYA" = true ] || echo "$SON_CIKTI" | grep -q "Rerun to get\|Label(s) may have changed"; then
         # Sonraki geçişler yalnızca "rerun" mesajı kalırsa; toplam MAX_GECIS geçişle sınırlı.
         while [ "$GECIS" -lt "$MAX_GECIS" ]; do
+            [ "$MINTED_VAR" = true ] && minted_pyg_bagla "$KLASOR" "$TMPDIR" "$ISIM"
             local EK_CIKTI
             EK_CIKTI=$(cd "$KLASOR" && "$MOTOR" -interaction=nonstopmode $SHELL_ESCAPE_FLAG $SYNCTEX_FLAG -output-directory="$TMPDIR" -- "$DOSYA_ADI" 2>&1) || true
             SON_CIKTI="$EK_CIKTI"
@@ -426,6 +453,7 @@ derle_dosya() {
         fi
         eksik_paket_goster "$DERLEME_CIKTI"
         cp "$TMPDIR/${ISIM}.log" "$KLASOR/" 2>/dev/null || true
+        [ "$MINTED_VAR" = true ] && rm -f "$KLASOR/${ISIM}.pyg" "$KLASOR/${ISIM}.w18"
         if [ -z "${WATCH_TMPDIR:-}" ]; then rm -rf "$TMPDIR"; fi
         return 1
     fi
@@ -460,6 +488,7 @@ derle_dosya() {
     fi
 
     # Temizlik (watch modunda kalıcı TMPDIR silinmez)
+    [ "$MINTED_VAR" = true ] && rm -f "$KLASOR/${ISIM}.pyg" "$KLASOR/${ISIM}.w18"
     if [ -z "${WATCH_TMPDIR:-}" ]; then rm -rf "$TMPDIR"; fi
 
     # Hata varsa başarısız sinyalle (PDF kopyalanmış olsa bile).

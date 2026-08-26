@@ -27,6 +27,15 @@ _biber_skip = pytest.mark.skipif(
     reason="biber + biblatex kurulu değil",
 )
 
+# minted testleri için pygmentize + minted.sty (texlive-latex-extra)
+try:
+    _has_minted = subprocess.run(
+        ["kpsewhich", "minted.sty"], capture_output=True, text=True
+    ).stdout.strip()
+except Exception:
+    _has_minted = ""
+HAS_MINTED = bool(shutil.which("pygmentize")) and bool(_has_minted)
+
 MINIMAL_TEX = r"""\documentclass{article}
 \begin{document}
 Merhaba Dünya!
@@ -362,6 +371,28 @@ class TestShellEscape:
         r = _run_derle([str(tex), "--shell-escape"], cwd=str(tmp_path), timeout=60)
         # shell-escape ile derlemeli, başarılı olmalı
         assert r.returncode == 0
+
+    @pytest.mark.skipif(not HAS_MINTED, reason="minted + pygmentize kurulu değil")
+    def test_minted_sty_icinden_requirepackage_otomatik(self, tmp_path):
+        r"""minted bir .sty içinde \RequirePackage ile yüklüyse shell-escape otomatik açılmalı.
+
+        webdiller.sty senaryosu: \usepackage{minted} hiçbir .tex'te geçmiyor,
+        eski tespit deseni bunu kaçırıyordu.
+        """
+        (tmp_path / "paket.sty").write_text("\\RequirePackage{minted}\n")
+        tex = tmp_path / "test.tex"
+        tex.write_text(
+            "\\documentclass{article}\n"
+            "\\usepackage{paket}\n"
+            "\\begin{document}\n"
+            "\\begin{minted}{python}\nprint('merhaba')\n\\end{minted}\n"
+            "\\end{document}\n"
+        )
+        r = _run_derle([str(tex)], cwd=str(tmp_path), timeout=120)
+        # Eski desen: '\usepackage{minted}' geçmediğinden shell-escape açılmıyor,
+        # minted "shell-escape flag" hatasıyla düşüyordu.
+        assert r.returncode == 0
+        assert (tmp_path / "test.pdf").exists()
 
 
 class TestGlob:
