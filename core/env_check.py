@@ -40,6 +40,23 @@ _WSL_PROBE = (
     'p=$(command -v "$t" 2>/dev/null) && echo "$t=$p" || echo "$t=YOK"; done'
 )
 
+# Derleme motorları: üçünün birden eksik olması "TeX Live hiç kurulu değil"
+# anlamına gelir (tek motoru eksik olana tam kurulum önerilmez).
+ENGINES = ("lualatex", "pdflatex", "xelatex")
+
+# README'deki tek komutluk tam kurulum ile aynı liste. Motor başına minimal
+# paketler derlemeyi başlatır ama ilk gerçek belgede texlive-latex-extra /
+# texlive-lang-european (Türkçe heceleme) eksikliğiyle tekrar takılır; sıfır
+# kurulumlu makinede doğrudan tam kurulum doğru öneri.
+_FULL_INSTALL = (
+    "sudo apt-get install texlive-base texlive-binaries texlive-latex-base "
+    "texlive-latex-extra texlive-latex-recommended texlive-lang-european "
+    "texlive-luatex texlive-xetex texlive-fonts-extra texlive-science "
+    "texlive-bibtex-extra texlive-font-utils texlive-extra-utils biber "
+    "texlive-publishers texlive-humanities texlive-pstricks "
+    "python3-pygments pandoc"
+)
+
 
 @dataclass
 class CheckResult:
@@ -86,6 +103,24 @@ def _tool_row(name: str, path: str) -> CheckResult:
         detail += f" ({_TOOL_NOTES[name]})"
     return CheckResult(name, "missing", detail,
                        f"sudo apt-get install {APT_HINTS[name]}")
+
+
+def _maybe_add_full_install_hint(results: list[CheckResult]) -> None:
+    """Üç motorun hepsi eksikse sona tek komutluk tam kurulum önerisi ekle.
+
+    Motor başına üç ayrı minimal komut yerine README'nin tam kurulumu
+    önerilir; tek bir motoru eksik kullanıcıya dokunulmaz (minimal öneri
+    doğrusu). WSL tamamen yok/çalışmıyorsa bu fonksiyon çağrılmaz: önce WSL
+    kurulmalı, araç durumu henüz bilinmiyor.
+    """
+    by = {r.name: r for r in results}
+    if all(by.get(e) is not None and by[e].status == "missing" for e in ENGINES):
+        results.append(CheckResult(
+            "TeX Live kurulumu", "info",
+            "hiç motor kurulu değil; eksik paketleri tek tek kurmak yerine "
+            "README'nin tam kurulumu önerilir",
+            _FULL_INSTALL,
+        ))
 
 
 def run_checks(runner=None) -> list[CheckResult]:
@@ -135,6 +170,7 @@ def run_checks(runner=None) -> list[CheckResult]:
         paths = {t: (shutil.which(t) or "") for t in TOOLS}
         results.extend(_tool_row(t, paths[t]) for t in TOOLS)
 
+    _maybe_add_full_install_hint(results)
     return results
 
 

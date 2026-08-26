@@ -122,6 +122,34 @@ def test_report_text_yoksun_arac_ipucu_tasir(monkeypatch):
     assert "texlive-xetex" in text
 
 
+def test_tum_motorlar_eksikse_tam_kurulum_onerisi(monkeypatch):
+    """Üç motorun hepsi yoksa sonda tek komutluk tam kurulum önerilmeli."""
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setattr(env_check.shutil, "which",
+                        lambda t: "" if t in env_check.ENGINES else f"/usr/bin/{t}")
+
+    results = run_checks()
+    tail = [r for r in results if r.name == "TeX Live kurulumu"]
+    assert tail, "tam kurulum önerisi satırı yok: " + repr([r.name for r in results])
+    row = tail[0]
+    assert row is results[-1]                     # en sonda, satırları ezmeden
+    for paket in ("texlive-latex-extra", "texlive-lang-european",
+                  "python3-pygments", "pandoc"):
+        assert paket in row.fix_hint
+
+
+def test_tek_motor_eksikse_tam_kurulum_onerisi_yok(monkeypatch):
+    """Tek motoru eksik kullanıcıya minimal öneri yeter; tam kurulum gürültü."""
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setattr(env_check.shutil, "which",
+                        lambda t: "" if t == "xelatex" else f"/usr/bin/{t}")
+
+    results = run_checks()
+    assert not [r for r in results if r.name == "TeX Live kurulumu"]
+    by = {r.name: r for r in results}
+    assert "texlive-xetex" in by["xelatex"].fix_hint   # minimal öneri duruyor
+
+
 # --- Dialog (GUI duman testi) ---
 
 
