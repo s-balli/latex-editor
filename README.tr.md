@@ -40,6 +40,11 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 
 ## Sürüm Geçmişi
 
+### v1.0.11 — minted Desteği Düzeltildi
+- **minted'li belgeler yeniden derleniyor**: otomatik `-shell-escape` tespiti yalnız `\usepackage{minted}` arıyordu; özel `.sty`/`.cls` içinden `\RequirePackage{minted}` ile yüklenen (veya yalnız `\begin{minted}` ortamı kullanılan) paketler kaçırılıyor, "You must invoke LaTeX with the -shell-escape flag" hatasıyla derleme düşüyordu. İki desen de artık algılanıyor
+- **minted + izole çıktı dizini**: minted 2.x kod parçasını çıktı dizinine yazıp pygmentize'a çalışma dizininden okutuyor; bu yüzden shell-escape açık olsa bile "Missing Pygments output" ile derleme başarısız oluyordu. Her motor geçişinde geçici bir sembolik bağ iki tarafı köprülüyor ve kaynak klasörde hiçbir geçici dosya kalmıyor (pdflatex, xelatex ve lualatex ile doğrulandı)
+- **808 birim testi**
+
 ### v1.0.10 — Hata Düzeltmeleri
 - **Tablo sihirbazı**: `\begin{table}` kılıfı içindeki tabloyu düzenlemek artık iç içe (geçersiz) `\begin{table}` üretmiyor; kılıf bütünüyle değiştiriliyor, caption/label taşınıyor. Geniş tablo yüklerken 3 kolon ötesi hizalama kayboluyordu, artık korunuyor; büyük CSV'ler satır kutusuna dokununca sessizce kırpılmıyor (sınırlar 1000 satır / 30 kolona çıkarıldı)
 - **Diyaloglar ve kısayollar**: Esc dialog'ları yeniden kapatıyor; dialog açıkken Ctrl+K / Ctrl+T yeniden tetiklenmiyor (uygulama düzeyi tuş filtresi modal dialog'lara karışmıyor artık)

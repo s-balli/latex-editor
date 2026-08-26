@@ -40,6 +40,11 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 
 ## Version History
 
+### v1.0.11 — minted Support Fixed
+- **minted documents compile again**: the automatic `-shell-escape` detection only looked for `\usepackage{minted}`; packages loaded from a custom `.sty`/`.cls` via `\RequirePackage{minted}` (or plain `\begin{minted}` usage) were missed and failed with "You must invoke LaTeX with the -shell-escape flag". Both patterns are now detected
+- **minted + isolated output directory**: minted 2.x writes the code snippet into the output directory but has pygmentize read it from the working directory, so compiles failed with "Missing Pygments output" even with shell escape enabled. A temporary symlink now bridges the two on every engine pass, and no temp files are left in your source folder (verified with pdflatex, xelatex and lualatex)
+- **808 unit tests**
+
 ### v1.0.10 — Bugfixes
 - **Table wizard**: editing a table inside a `\begin{table}` wrapper no longer produces a nested (invalid) `\begin{table}` — the whole wrapper is replaced and its caption/label carried over. Loading a wide table into the wizard no longer loses per-column alignment beyond 3 columns, and large CSVs are no longer silently truncated when touching the row spinner (limits raised to 1000 rows / 30 columns)
 - **Dialogs & shortcuts**: Esc closes dialogs again; Ctrl+K / Ctrl+T no longer re-trigger while a dialog is open (the app-level key filter now leaves modal dialogs alone)
