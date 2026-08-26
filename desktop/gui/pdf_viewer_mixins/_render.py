@@ -129,7 +129,7 @@ class PdfRenderMixin:
         if w is not None:
             w.stop()
             if w.isRunning():
-                w.wait(4000)
+                w.wait(6000)   # uç zoomda tek sayfa ~3sn; stop iş başına denetlenir
 
     def _get_page_size(self, index: int):
         if not self._pdf or index >= self._page_count:

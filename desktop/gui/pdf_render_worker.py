@@ -36,7 +36,9 @@ def _stop_all_at_exit():
     for w in list(_alive_workers):
         try:
             w.stop()
-            w.wait(2000)
+            # Uç zoomda tek sayfa render'ı ~3sn sürebilir; stop iş başına
+            # denetlendiğinden en kötü durum bir işin bitmesidir
+            w.wait(6000)
         except Exception:
             pass
 
@@ -111,6 +113,12 @@ class PdfRenderWorker(QThread):
                 continue
 
             for idx in sorted(jobs):
+                # stop'u İŞ BAŞINA denetle: uzun partilerde (offscreen'de tüm
+                # sayfalar tek partide gelebilir) stop yalnız parti sonunda
+                # görülüyor, kapanış beklemesi doluyor, thread interpreter
+                # çıkışında çalışır kalıp süreci çökertiyordu
+                if self._stop:
+                    break
                 gen, scale, invert = jobs[idx]
                 try:
                     page = self._doc[idx]
