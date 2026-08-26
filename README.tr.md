@@ -311,7 +311,7 @@ Python ve TeX Live kur:
 sudo apt-get install python3 python3-pip texlive-base texlive-binaries texlive-latex-base \
   texlive-latex-extra texlive-latex-recommended texlive-lang-european texlive-luatex texlive-xetex \
   texlive-fonts-extra texlive-science texlive-bibtex-extra texlive-font-utils \
-  texlive-extra-utils biber texlive-publishers texlive-humanities texlive-pstricks libxcb-cursor0 pandoc
+  texlive-extra-utils biber texlive-publishers texlive-humanities texlive-pstricks libxcb-cursor0 python3-pygments pandoc
 
 pip install PyQt6 PyQt6-QScintilla pypdfium2 send2trash
 ```
