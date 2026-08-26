@@ -165,8 +165,8 @@ def run_checks(runner=None) -> list[CheckResult]:
         paths = _parse_tool_lines(out)
         results.extend(_tool_row(t, paths.get(t, "")) for t in TOOLS)
     else:
-        results.append(CheckResult("WSL", "info", "gerekmiyor (yerel Linux)"))
-        # Yerel platformda subprocess'a gerek yok: which PATH taraması yapar
+        # Yerel platformda WSL satırı yok (bilgi taşımaz); subprocess'a da
+        # gerek yok: which PATH taraması yapar.
         paths = {t: (shutil.which(t) or "") for t in TOOLS}
         results.extend(_tool_row(t, paths[t]) for t in TOOLS)
 

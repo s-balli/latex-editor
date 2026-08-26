@@ -81,7 +81,7 @@ def test_native_which_kullanir(monkeypatch):
 
     results = run_checks()
     by = {r.name: r for r in results}
-    assert by["WSL"].status == "info"
+    assert "WSL" not in by            # yerel Linux'ta WSL satırı olmamalı
     assert by["biber"].status == "missing"
     assert "sudo apt-get install biber" in by["biber"].fix_hint
     assert by["synctex"].status == "ok"
