@@ -40,6 +40,13 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 
 ## Version History
 
+### v1.0.14: Smooth Viewer on Large PDFs
+- **Background page rendering**: visible pages used to render on the UI thread, freezing the interface on every scroll/zoom step; a background worker now renders them and pages fill in progressively. Rapid scrolling never blocks (measured on a 181-page document: 0 ms blocking per step)
+- **Memory cap**: the page image cache is now bounded at 256MB; at high zoom (~40MB/page) it could previously grow to ~800MB
+- **Background, cancellable PDF search**: searching used to sweep the whole document on the UI thread, freezing it; it now runs in the background, typing a new query cancels the in-flight one page by page, and the counter shows 'Searching...'
+- **Cleaner shutdown**: the render and search workers are stopped properly on app exit
+- **861 unit tests**
+
 ### v1.0.13: Reliability Fixes
 - **Lost compile suggestions**: output chunks split at arbitrary byte boundaries could drop the "missing package" suggestion (a split ANSI color sequence) or show replacement characters in Turkish output; a carry buffer now joins them
 - **Two-page (dual) view**: link clicks and search results scrolled to the wrong position; positions are now computed the same way SyncTeX does

@@ -40,6 +40,13 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 
 ## Sürüm Geçmişi
 
+### v1.0.14: Büyük PDF'lerde Akıcı Görüntüleyici
+- **Sayfa render'ı arka planda**: eskiden her scroll/zoom adımında görünür sayfalar UI'yi bloke ederek render ediliyordu; artık arka plan işçisi render ediyor, sayfalar placeholder'dan dolduğu gibi görünür. Hızlı kaydırmada arayüz hiç durmaz (181 sayfalık belgede ölçüldü: adım başına 0 ms bloklama)
+- **Bellek üst sınırı**: sayfa görseli önbelleği artık 256MB ile sınırlı; yüksek zoomda (~40MB/sayfa) eskiden ~800MB'a çıkabiliyordu
+- **PDF araması arka planda ve iptal edilebilir**: arama tüm dokümanı UI'yi dondurarak tarıyordu; artık arka planda koşar, yeni sorgu girilince süren arama sayfa sayfa iptal edilir, sayaç 'Aranıyor...' gösterir
+- **Daha temiz kapanış**: render/arama işçileri uygulama kapanışında düzgün durdurulur
+- **861 birim testi**
+
 ### v1.0.13: Güvenilirlik Düzeltmeleri
 - **Derleme çıktısında kaybolan öneriler**: çıktı chunk sınırlarında bölünen ANSI renk dizisi "eksik paket" önerisinin kaybolmasına, bölünen UTF-8 de Türkçe çıktıda bozuk karaktere yol açıyordu; artık taşımalı tamponla birleştiriliyor
 - **Çift sayfa görünümü**: link tıklaması ve arama sonuçları yanlış konuma kaydırıyordu; konumlar SyncTeX ile aynı yoldan hesaplanıyor
