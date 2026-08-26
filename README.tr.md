@@ -40,6 +40,16 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 
 ## Sürüm Geçmişi
 
+### v1.0.13: Güvenilirlik Düzeltmeleri
+- **Derleme çıktısında kaybolan öneriler**: çıktı chunk sınırlarında bölünen ANSI renk dizisi "eksik paket" önerisinin kaybolmasına, bölünen UTF-8 de Türkçe çıktıda bozuk karaktere yol açıyordu; artık taşımalı tamponla birleştiriliyor
+- **Çift sayfa görünümü**: link tıklaması ve arama sonuçları yanlış konuma kaydırıyordu; konumlar SyncTeX ile aynı yoldan hesaplanıyor
+- **Windows'ta farklı sürücüler**: resim sürükle-bırak/yapıştırma artık göçmüyor (göreli yol kurulamayınca mutlak yol kullanılıyor)
+- **Son Açılanlar**: açılışta geri yüklenen oturum sekmeleri listeyi yeniden sıralamıyor; liste kullanıcının gerçek açışlarını taşıyor
+- **Klasör açma**: kayıt soruları HİÇBİR sekme kapanmadan önce soruluyor; iptal ya da başarısız kayıt yarım kapanmış sekmeler bırakmıyor
+- **Küçük düzeltmeler**: yeni dosyada başarısız kayıt sahte yollu sekme açmıyor; dışa aktarmada meşgul kontrolü hedef penceresinden önce; kapanışta güncelleme kontrolü ve SyncTeX işçisi bekleniyor (nadir çıkış çökmesi); PDF çift tıklamada zamanlayıcı sızıntısı
+- **CI**: derle.sh entegrasyon testleri artık gerçek TeX Live ile koşuyor; release test kapısına ve tag/sürüm eşleşme denetimine bağlandı
+- **850 birim testi**
+
 ### v1.0.12: Ortam Denetimi ve Güvenilirlik Düzeltmeleri
 - **Ortam Denetimi (Yardım menüsü)**: WSL, lualatex/pdflatex/xelatex, biber, pandoc, synctex ve pygmentize durumunu tek ekranda gösterir; eksik araca kurulum komutunu önerir, "Raporu Kopyala" düğmesi destek taleplerine eklenebilir rapor üretir. Kontroller arka planda koşar (WSL tek sorguyla denenir), arayüz bekletilmez. Hiç TeX motoru yoksa README'nin tek komutluk tam kurulumu önerilir
 - **Derleme hatasından tek tık**: derleme eksik paket/motor/Pygments/WSL yüzünden düştüğünde Öneriler sekmesine "⚙ Ortam Denetimi'ni Aç..." satırı düşer; Windows'ta WSL hiç yokken artık `wsl --install` önerisi de gelir

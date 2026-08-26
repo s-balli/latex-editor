@@ -40,6 +40,16 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 
 ## Version History
 
+### v1.0.13: Reliability Fixes
+- **Lost compile suggestions**: output chunks split at arbitrary byte boundaries could drop the "missing package" suggestion (a split ANSI color sequence) or show replacement characters in Turkish output; a carry buffer now joins them
+- **Two-page (dual) view**: link clicks and search results scrolled to the wrong position; positions are now computed the same way SyncTeX does
+- **Different drives on Windows**: dropping or pasting an image no longer fails (absolute path is used when no relative path exists)
+- **Recent Files**: tabs restored at startup no longer reorder the list
+- **Opening a folder**: all save questions are asked BEFORE any tab closes; cancelling or a failed save no longer leaves a half-closed state
+- **Smaller fixes**: a failed save in New File no longer opens a phantom tab; the export busy check now happens before the destination dialog; shutdown waits for the update check and the SyncTeX worker (rare exit crash); PDF double click timer leak
+- **CI**: derle.sh integration tests now run with a real TeX Live install; releases are gated on the test suite and a tag/version consistency check
+- **850 unit tests**
+
 ### v1.0.12: Environment Check and Reliability Fixes
 - **Environment Check (Help menu)**: shows the status of WSL, lualatex/pdflatex/xelatex, biber, pandoc, synctex and pygmentize in one dialog; suggests install commands for missing tools, and produces a copyable report for support requests. Checks run in the background (WSL is probed with a single query). When no TeX engine is installed at all, the README's one-command full setup is suggested
 - **One click from a failed compile**: when a compile fails due to a missing package/engine/Pygments/WSL, the Suggestions tab gains an "Open Environment Check..." row; when WSL itself is missing on Windows, a `wsl --install` suggestion is now included
