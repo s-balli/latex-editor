@@ -37,16 +37,33 @@ class FileOpsMixin:
 
     def _open_folder(self):
         path = QFileDialog.getExistingDirectory(self, _("Klasör Aç"))
-        if path:
-            _logger.info("Klasör açıldı: %s", path)
-            for i in range(self._editor_tabs.count() - 1, -1, -1):
-                if not self._close_tab_safe(i):
+        if not path:
+            return
+        # Kayıt kararlarını HİÇBİR sekme kapanmadan önce sor: döngü içinde iptal
+        # edilirse bazı sekmeler çoktan kapanmış ama klasör değişmemiş yarım
+        # durum kalıyordu. Kayıt başarısızsa da hiçbir şey kapanmaz.
+        for i in range(self._editor_tabs.count()):
+            editor = self._editor_tabs.widget(i)
+            if isinstance(editor, EditorWidget) and editor.isModified():
+                self._editor_tabs.setCurrentIndex(i)
+                reply = self._save_dialog(editor.display_name)
+                if reply == "cancel":
                     return
-            self._pdf_viewer.clear()
-            self._current_pdf = ""
-            self._file_tree.set_root(path)
-            # Kök değişti: önceki klasörün sürüm geçmişi ekranda kalmasın
-            self._refresh_history()
+                if reply == "save":
+                    if not editor.save_file():
+                        return
+                    if hasattr(self, "_file_watch_record_save"):
+                        self._file_watch_record_save(editor.file_path)
+                else:  # discard
+                    editor.setModified(False)
+        _logger.info("Klasör açıldı: %s", path)
+        for i in range(self._editor_tabs.count() - 1, -1, -1):
+            self._close_tab_safe(i)  # dirty kalmadı; iptal edilemez
+        self._pdf_viewer.clear()
+        self._current_pdf = ""
+        self._file_tree.set_root(path)
+        # Kök değişti: önceki klasörün sürüm geçmişi ekranda kalmasın
+        self._refresh_history()
 
     def _new_file(self):
         path, _sel_filter = QFileDialog.getSaveFileName(
@@ -57,7 +74,11 @@ class FileOpsMixin:
         editor = EditorWidget(theme=self._theme_mgr.theme)
         self._apply_editor_settings(editor)
         editor.setText("\\documentclass{article}\n\\begin{document}\n\n\\end{document}\n")
-        editor.save_file_as(path)
+        if not editor.save_file_as(path):
+            # Kayıt başarısız (hata dialogu save_file içinde gösterilir): sahte
+            # yollu sekme açma, izleme/recent kaydı da yapma
+            editor.deleteLater()
+            return
         editor.setCursorPosition(3, 0)
         editor.modificationChanged.connect(lambda m, e=editor: self._update_tab_title(e))
         editor.cursorPositionChanged.connect(self._update_cursor_pos)
@@ -85,7 +106,7 @@ class FileOpsMixin:
         for p in paths:
             self._open_file_in_editor(p)
 
-    def _open_file_in_editor(self, path: str):
+    def _open_file_in_editor(self, path: str, add_recent: bool = True):
         for i in range(self._editor_tabs.count()):
             editor = self._editor_tabs.widget(i)
             if isinstance(editor, EditorWidget) and editor.file_path == os.path.normpath(path):
@@ -109,7 +130,10 @@ class FileOpsMixin:
             idx = self._editor_tabs.addTab(editor, editor.display_name)
             self._editor_tabs.setCurrentIndex(idx)
             self._add_tab_close_button(idx)
-            self._add_recent(path)
+            if add_recent:
+                # Oturum geri yüklemede add_recent=False: her açılış listeyi
+                # yeniden sıralayıp kullanıcının gerçek 'Son Açılanlar'ını ezerdi
+                self._add_recent(path)
             self._detect_engine(path)
             self._file_watch_add(path)
 
@@ -215,16 +239,18 @@ class FileOpsMixin:
             self._status.showMessage(_("Dışa aktarılacak dosya yok"))
             return
 
+        # Meşgul kontrolü hedef dialogundan ÖNCE: kullanıcı varış yerini seçip
+        # sonra 'zaten sürüyor' uyarısı almasın
+        if getattr(self, "_export_busy", False):
+            self._status.showMessage(_("Dışa aktarma zaten sürüyor — bitmesini bekleyin"))
+            return
+
         default_name = os.path.splitext(os.path.basename(editor.file_path))[0] + ext
         dest, _sel_filter = QFileDialog.getSaveFileName(
             self, _("Dışa Aktar") + " — " + fmt_name, default_name,
             fmt_name + f" (*{ext});;" + _("Tüm Dosyalar (*)")
         )
         if not dest:
-            return
-
-        if getattr(self, "_export_busy", False):
-            self._status.showMessage(_("Dışa aktarma zaten sürüyor — bitmesini bekleyin"))
             return
 
         # pandoc zinciri arka planda çalışır; süreç bitince durum çubuğu güncellenir

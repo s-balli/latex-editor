@@ -1043,10 +1043,13 @@ class MainWindow(
     # --- Durum kaydetme ---
 
     def closeEvent(self, event):
-        # Güncelleme kontrolü thread'i çalışıyorsa bekle
+        # Güncelleme kontrolü thread'i çalışıyorsa bekle. quit() işe yaramaz
+        # (run() override event loop çalıştırmaz); tek güvence wait. check_for_update
+        # 5 sn ağ timeout'u kullandığından 6 sn bekle: thread pencere yok edilirken
+        # çalışır durumda kalmasın ("QThread destroyed while running" çökmesi).
         if self._update_thread and self._update_thread.isRunning():
             self._update_thread.quit()
-            self._update_thread.wait(3000)
+            self._update_thread.wait(6000)
         # Kaydedilmemiş sekmeleri kontrol et
         for i in range(self._editor_tabs.count()):
             editor = self._editor_tabs.widget(i)
@@ -1120,7 +1123,9 @@ class MainWindow(
             open_tabs = [open_tabs]
         for path in open_tabs:
             if os.path.isfile(path):
-                self._open_file_in_editor(path)
+                # add_recent=False: oturum sekmeleri 'Son Açılanlar'ı ezmesin;
+                # liste kullanıcının gerçekte en son açtığı dosyaları taşısın
+                self._open_file_in_editor(path, add_recent=False)
         # Aktif sekmeyi dosya yolundan bul (index kayma riski yok)
         active_path = self._settings.value("active_tab_path", "")
         if active_path:

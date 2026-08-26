@@ -127,7 +127,11 @@ class ImageOpsMixin:
             return
 
         tex_dir = os.path.dirname(editor.file_path)
-        rel_path = os.path.relpath(path, tex_dir).replace('\\', '/')
+        try:
+            rel_path = os.path.relpath(path, tex_dir).replace('\\', '/')
+        except ValueError:
+            # Windows'ta farklı sürücüler arasında göreli yol kurulamaz → mutlak yol
+            rel_path = path.replace('\\', '/')
         name = os.path.splitext(os.path.basename(path))[0]
 
         auto_template = self._detect_figure_template(editor.text())

@@ -1,0 +1,206 @@
+"""FileOpsMixin — klasör açma/yeni dosya/dışa aktarma/recent davranışları.
+
+Regression odağı: _open_folder iptalinde yarım durum, kayıt başarısızlığında
+sahte yollu sekme, meşgul kontrolünün dialog'dan sonra gelmesi, oturum geri
+yüklemede Son Açılanlar'ın ezilmesi.
+"""
+
+from types import SimpleNamespace
+
+import pytest
+
+try:
+    from PyQt6.QtWidgets import QApplication
+    from gui.editor import EditorWidget
+    from gui.mixins.file_ops import FileOpsMixin
+    from gui.mixins.tab_ops import TabOpsMixin
+    from gui.theme import THEMES
+    from tests.stub_main import StubMain
+except ImportError:  # pragma: no cover
+    pytest.skip("PyQt6 / gui modülleri gerekli", allow_module_level=True)
+
+
+@pytest.fixture(scope="session")
+def qapp():
+    app = QApplication.instance() or QApplication([])
+    yield app
+
+
+class _Stub(FileOpsMixin, TabOpsMixin, StubMain):
+    def __init__(self, editors):
+        StubMain.__init__(self, editors=editors)
+        self._theme_mgr = SimpleNamespace(theme=THEMES["dark"])
+        self._pdf_viewer = SimpleNamespace(clear=lambda: None)
+        roots = []
+        self._file_tree = SimpleNamespace(
+            _root="", set_root=lambda p: roots.append(p))
+        self._file_tree.roots = roots
+        self.recent_calls = []
+        self.watch_added = []
+        self.save_reply = "cancel"
+        # TabOpsMixin._close_tab_safe'in dokunduğu durumlar
+        self._wordcount_editor = None
+        self._outline_editor = None
+        self._find_bar = None
+
+    def _add_tab_close_button(self, index):
+        pass  # QWidget değiliz; kapat düğmesi bu testlerin konusu değil
+
+    # --- test no-op/recorder katmanı ---
+    def _save_dialog(self, name):
+        return self.save_reply
+
+    def _add_recent(self, path):
+        self.recent_calls.append(path)
+
+    def _file_watch_add(self, path):
+        self.watch_added.append(path)
+
+    def _file_watch_remove(self, path):
+        pass
+
+    def _detect_engine(self, path):
+        pass
+
+    def _apply_editor_settings(self, editor):
+        pass
+
+    def _refresh_history(self):
+        pass
+
+    def _on_forward_search(self, *a):
+        pass
+
+    def _paste_image(self):
+        pass
+
+    def _on_rename_label(self, key):
+        pass
+
+    def _on_rename_cite(self, key):
+        pass
+
+    def _on_rename_bibitem(self, key):
+        pass
+
+    def _on_goto_definition(self, key, kind):
+        pass
+
+
+def _tex(tmp_path, name="ana.tex"):
+    p = tmp_path / name
+    p.write_text("\\begin{document}\nmerhaba\n\\end{document}\n", encoding="utf-8")
+    return str(p)
+
+
+def _editor(tex):
+    ed = EditorWidget()
+    assert ed.open_file(tex)
+    return ed
+
+
+# --- _open_folder: kayıt kararları kapanmadan önce ---
+
+
+def test_open_folder_iptal_hicbir_sekme_kapanmaz(qapp, tmp_path, monkeypatch):
+    """İptal: yarım kapanmış sekme + değişmemiş klasör durumu kalmasın."""
+    ed1 = _editor(_tex(tmp_path, "a.tex"))
+    ed2 = _editor(_tex(tmp_path, "b.tex"))
+    ed1.insert("x")                      # dirty
+    stub = _Stub([ed1, ed2])
+    stub.save_reply = "cancel"
+    other = tmp_path / "diger"
+    other.mkdir()
+    monkeypatch.setattr(
+        "gui.mixins.file_ops.QFileDialog.getExistingDirectory",
+        staticmethod(lambda *a, **k: str(other)))
+
+    stub._open_folder()
+
+    assert stub._editor_tabs.count() == 2        # hiçbir sekme kapanmadı
+    assert stub._file_tree.roots == []           # klasör değişmedi
+
+
+def test_open_folder_kayit_basarisisiz_durur(qapp, tmp_path, monkeypatch):
+    ed = _editor(_tex(tmp_path))
+    ed.insert("x")
+    stub = _Stub([ed])
+    stub.save_reply = "save"
+    monkeypatch.setattr(EditorWidget, "save_file", lambda self: False)
+    other = tmp_path / "diger"
+    other.mkdir()
+    monkeypatch.setattr(
+        "gui.mixins.file_ops.QFileDialog.getExistingDirectory",
+        staticmethod(lambda *a, **k: str(other)))
+
+    stub._open_folder()
+
+    assert stub._editor_tabs.count() == 1
+    assert stub._file_tree.roots == []
+
+
+def test_open_folder_discard_sekmeler_kapanir_kok_degisir(qapp, tmp_path, monkeypatch):
+    ed = _editor(_tex(tmp_path))
+    ed.insert("x")
+    stub = _Stub([ed])
+    stub.save_reply = "discard"
+    other = tmp_path / "diger"
+    other.mkdir()
+    monkeypatch.setattr(
+        "gui.mixins.file_ops.QFileDialog.getExistingDirectory",
+        staticmethod(lambda *a, **k: str(other)))
+
+    stub._open_folder()
+
+    assert stub._editor_tabs.count() == 0
+    assert stub._file_tree.roots == [str(other)]
+
+
+# --- _new_file: kayıt başarısızsa sekme açılmasın ---
+
+
+def test_new_file_kayit_basarisiz_tab_eklenmez(qapp, tmp_path, monkeypatch):
+    stub = _Stub([])
+    monkeypatch.setattr(
+        "gui.mixins.file_ops.QFileDialog.getSaveFileName",
+        staticmethod(lambda *a, **k: (str(tmp_path / "yeni.tex"), "")))
+    monkeypatch.setattr(EditorWidget, "save_file_as", lambda self, p: False)
+
+    stub._new_file()
+
+    assert stub._editor_tabs.count() == 0
+    assert stub.recent_calls == [] and stub.watch_added == []
+
+
+# --- _export_file: meşgul kontrolü hedef dialogundan önce ---
+
+
+def test_export_busy_dialog_oncesi_reddedilir(qapp, tmp_path, monkeypatch):
+    ed = _editor(_tex(tmp_path))
+    stub = _Stub([ed])
+    stub._export_busy = True
+    dialogs = []
+    monkeypatch.setattr(
+        "gui.mixins.file_ops.QFileDialog.getSaveFileName",
+        staticmethod(lambda *a, **k: dialogs.append(a) or ("", "")))
+
+    stub._export_file("HTML", ".html")
+
+    assert dialogs == []                          # dialog hiç açılmadı
+    assert "sürüyor" in stub._status.msg
+
+
+# --- _open_file_in_editor: oturum geri yükleme recent'e dokunmasın ---
+
+
+def test_open_file_add_recent_false(qapp, tmp_path):
+    stub = _Stub([])
+    tex = _tex(tmp_path, "r1.tex")
+
+    stub._open_file_in_editor(tex, add_recent=False)
+    assert stub._editor_tabs.count() == 1
+    assert stub.recent_calls == []                 # oturum restore yolu
+
+    tex2 = _tex(tmp_path, "r2.tex")
+    stub._open_file_in_editor(tex2)               # normal açış varsayılanı
+    assert stub.recent_calls == [tex2]

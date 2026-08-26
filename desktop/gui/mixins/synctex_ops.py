@@ -96,4 +96,6 @@ class SyncTexMixin:
             return
         w.stop()
         if w.isRunning():
-            w.wait(3000)
+            # Uçtaki synctex subprocess'u 3 sn timeout'la koşar; wait en az
+            # onu kapsasın ki thread nesne yok edilirken çalışıyor kalmasın
+            w.wait(4000)

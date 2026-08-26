@@ -1,5 +1,6 @@
 """LaTeX derleme motoru — Windows (WSL), Linux, macOS desteği."""
 
+import codecs
 import os
 import re
 import sys
@@ -15,6 +16,9 @@ PLATFORM = sys.platform  # win32, linux, darwin
 
 # Derleme watchdog sınırı: bu sürede bitmeyen derleme iptal edilir.
 DEFAULT_TIMEOUT_MS = 120_000
+
+# ANSI renk dizisi (bayt uzayında): chunk sınırında bölünen dizi metne ham kaçmasın
+_RE_ANSI = re.compile(rb'\x1b\[[0-9;]*m')
 
 
 def _find_derle_sh() -> str:
@@ -43,6 +47,8 @@ class LatexCompiler(QObject):
         super().__init__(parent)
         self.process: QProcess | None = None
         self._output = ""
+        self._ansi_tail = b""
+        self._utf8_dec = codecs.getincrementaldecoder("utf-8")("replace")
         self._start_time = 0.0
         self._tex_dir = ""
         self._tex_name = ""
@@ -76,6 +82,8 @@ class LatexCompiler(QObject):
         self._tex_path = tex_path
         self._engine = engine
         self._output = ""
+        self._ansi_tail = b""
+        self._utf8_dec = codecs.getincrementaldecoder("utf-8")("replace")
         self._start_time = time.time()
         self._finished_emitted = False
 
@@ -133,14 +141,33 @@ class LatexCompiler(QObject):
     def _on_output(self):
         if not self.process:
             return
-        data = self.process.readAllStandardOutput().data()
-        text = data.decode("utf-8", errors="replace")
-        text = re.sub(r'\x1b\[[0-9;]*m', '', text)
+        data = self._ansi_tail + self.process.readAllStandardOutput().data()
+        # Chunk sınırı yarım ANSI dizisiyle biterse (ESC yazıldı, dizinin
+        # 'm'si sonraki chunk'ta) regex eşleşmez, ham kaçardı. Son ESC'den
+        # itibaren dizi tamamlanmamışsa o kısmı sonraki tura taşı.
+        i = data.rfind(b"\x1b")
+        if i >= 0 and not _RE_ANSI.match(data, i):
+            self._ansi_tail, data = data[i:], data[:i]
+        else:
+            self._ansi_tail = b""
+        data = _RE_ANSI.sub(b"", data)
+        # Artımlı UTF-8 çözücü çok baytlı karakteri chunk sınırında bölünse
+        # bile tamamlanını bekler; errors="replace" ancak gerçek bozuklukta devreye girer
+        text = self._utf8_dec.decode(data, final=False)
         self._output += text
         self.output_line.emit(text)
 
+    def _flush_output(self):
+        """Süreç kapandı: yarım kalan ANSI/UTF-8 parçalarını son kez boşalt."""
+        text = self._utf8_dec.decode(_RE_ANSI.sub(b"", self._ansi_tail), final=True)
+        self._ansi_tail = b""
+        if text:
+            self._output += text
+            self.output_line.emit(text)
+
     def _on_finished(self, exit_code, exit_status):
         self._timeout_timer.stop()
+        self._flush_output()
         result = parse_output(self._output, self._tex_path)
         result.duration = time.time() - self._start_time
 
@@ -159,6 +186,7 @@ class LatexCompiler(QObject):
 
     def _on_error(self, error: QProcess.ProcessError):
         self._timeout_timer.stop()
+        self._flush_output()
         msg = "Derleme hatası"
         if error == QProcess.ProcessError.FailedToStart:
             msg = "Süreç başlatılamadı"
@@ -188,6 +216,7 @@ class LatexCompiler(QObject):
         if not self.process or self.process.state() == QProcess.ProcessState.NotRunning:
             return
         self._timeout_timer.stop()
+        self._flush_output()
         # kill sonrası gelen _on_finished tekrar emit etmesin
         self._finished_emitted = True
         self.process.kill()

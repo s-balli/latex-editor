@@ -2,7 +2,7 @@
 
 import webbrowser
 
-from PyQt6.QtCore import Qt, QEvent, QTimer
+from PyQt6.QtCore import QEvent, QPoint, Qt, QTimer
 
 from gui.pdf_links import (
     get_link_at_point, resolve_link_action, resolve_dest_scroll_y, get_dest_page_index,
@@ -129,7 +129,9 @@ class PdfEventsMixin:
         scale = 1.5 * self._zoom
         scroll_y = resolve_dest_scroll_y(self._pdf.raw, dest, self._pdf[idx].get_height(), scale)
 
-        abs_y = label.pos().y() + scroll_y
+        # Dual modda label satır widget'ının çocuğudur: pos() satıra göre olur.
+        # _synctex.py'deki gibi pages_widget'e göre hesapla.
+        abs_y = label.mapTo(self._pages_widget, QPoint(0, 0)).y() + scroll_y
         self._scroll.verticalScrollBar().setValue(max(0, abs_y - 20))
         self._current_page = idx
         self._update_nav()

@@ -73,15 +73,25 @@ class PdfSelectionMixin:
             self._pending_click_timer.deleteLater()
         self._pending_click_timer = QTimer(self)
         self._pending_click_timer.setSingleShot(True)
-        self._pending_click_timer.timeout.connect(
-            lambda: self._handle_link_click(pos, obj)
-        )
+
+        def _deferred_click(pos=pos, obj=obj):
+            try:
+                self._handle_link_click(pos, obj)
+            except RuntimeError:
+                # 150 ms içinde derleme refresh'i placeholder'ı sildi: label'ın
+                # C++ tarafı çoktan yok, tıklamayı sessizce düşür
+                pass
+
+        self._pending_click_timer.timeout.connect(_deferred_click)
         self._pending_click_timer.start(150)
         return False
 
     def _selection_dblclick(self, pos, obj):
         if self._pending_click_timer:
             self._pending_click_timer.stop()
+            # deleteLater şart: sadece = None bırakılırsa viewer'a parent'lı
+            # QTimer her çift tıklamada öksüz kalır (birikir)
+            self._pending_click_timer.deleteLater()
             self._pending_click_timer = None
 
         self._clear_selection()

@@ -5,6 +5,7 @@ QProcess gerçek derleme yapmaz (mock).
 """
 
 import sys
+from types import SimpleNamespace
 import pytest
 from unittest.mock import patch, MagicMock
 
@@ -241,3 +242,43 @@ class TestWslKurulumOnerisi:
         c.compilation_finished.connect(lambda r: results.append(r))
         c._on_error(QProcess.ProcessError.FailedToStart)
         assert results and results[0].suggestions == []
+
+class TestChunkCarryOver:
+    """readyRead chunk sınırları: yarım ANSI dizisi / çok baytlı UTF-8 bölünmesi.
+
+    Regression: readAllStandardOutput rastgele baytta keser; bölünen ANSI
+    dizisi regex'ten kaçar ('\x1b[3' + '6m'), bölünen UTF-8 ise U+FFFD üretirdi.
+    """
+
+    @staticmethod
+    def _feed(c, chunk: bytes):
+        from PyQt6.QtCore import QByteArray
+        c.process = SimpleNamespace(
+            readAllStandardOutput=lambda d=chunk: QByteArray(d))
+        c._on_output()
+
+    def test_yarim_ansi_dizisi_sonraki_chunkta_tamamlanir(self):
+        c = LatexCompiler()
+        self._feed(c, b"\x1b[3")
+        self._feed(c, b"6mDeneme\n")
+        assert c._output == "Deneme\n"
+
+    def test_yarim_ansi_ayni_chunkteki_tam_dizileri_bozmaz(self):
+        c = LatexCompiler()
+        self._feed(c, b"\x1b[1mA\x1b[3")     # tam dizi + yarım dizi
+        self._feed(c, b"6mB\n")
+        assert c._output == "AB\n"
+
+    def test_cok_baytli_utf8_bolunmez(self):
+        c = LatexCompiler()
+        u = "ü".encode("utf-8")
+        self._feed(c, "Merhaba ".encode("utf-8") + u[:1])
+        self._feed(c, u[1:] + "!\n".encode("utf-8"))
+        assert c._output == "Merhaba ü!\n"
+        assert "�" not in c._output
+
+    def test_flush_yarim_utf8yi_degistirerek_bosaltir(self):
+        c = LatexCompiler()
+        self._feed(c, b"\xc3")               # yarım karakter + süreç kapandı
+        c._flush_output()
+        assert c._output == "�"

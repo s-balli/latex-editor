@@ -2,7 +2,7 @@
 
 from PyQt6.QtWidgets import QLabel
 
-from PyQt6.QtCore import QCoreApplication
+from PyQt6.QtCore import QCoreApplication, QPoint
 _ = lambda s: QCoreApplication.translate("PdfViewer", s)
 
 
@@ -67,7 +67,8 @@ class PdfSearchMixin:
             match_y = 0
 
         # Eşleşme konumuna scroll
-        abs_y = label.pos().y() + int(match_y)
+        # Dual modda pos() satıra göredir; _events/_synctex ile aynı mapTo yolu
+        abs_y = label.mapTo(self._pages_widget, QPoint(0, 0)).y() + int(match_y)
         viewport_height = self._scroll.viewport().height()
         self._scroll.verticalScrollBar().setValue(max(0, abs_y - viewport_height // 3))
         self._current_page = page_idx
