@@ -71,7 +71,7 @@ jobs:
             echo "     texlive-latex-extra texlive-latex-recommended texlive-lang-european \\"
             echo "     texlive-luatex texlive-xetex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
             echo "     texlive-font-utils texlive-extra-utils biber texlive-publishers \\"
-            echo "     texlive-humanities texlive-pstricks pandoc"
+            echo "     texlive-humanities texlive-pstricks python3-pygments pandoc"
             echo '   ```'
             echo "3. Download \`LaTeX_Editor_v${V}_Windows.exe\` and run."
             echo ""
@@ -83,7 +83,7 @@ jobs:
             echo "     texlive-latex-extra texlive-latex-recommended texlive-lang-european \\"
             echo "     texlive-luatex texlive-xetex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
             echo "     texlive-font-utils texlive-extra-utils biber texlive-publishers \\"
-            echo "     texlive-humanities texlive-pstricks libxcb-cursor0 pandoc"
+            echo "     texlive-humanities texlive-pstricks libxcb-cursor0 python3-pygments pandoc"
             echo '   ```'
             echo "Download \`LaTeX_Editor_v${V}_Linux_x86_64.AppImage\`, \`chmod +x\` and run."
             echo ""
@@ -112,7 +112,7 @@ jobs:
             echo "     texlive-latex-extra texlive-latex-recommended texlive-lang-european \\"
             echo "     texlive-luatex texlive-xetex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
             echo "     texlive-font-utils texlive-extra-utils biber texlive-publishers \\"
-            echo "     texlive-humanities texlive-pstricks pandoc"
+            echo "     texlive-humanities texlive-pstricks python3-pygments pandoc"
             echo '   ```'
             echo "3. \`LaTeX_Editor_v${V}_Windows.exe\`'yi indir ve çalıştır."
             echo ""
@@ -124,7 +124,7 @@ jobs:
             echo "     texlive-latex-extra texlive-latex-recommended texlive-lang-european \\"
             echo "     texlive-luatex texlive-xetex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
             echo "     texlive-font-utils texlive-extra-utils biber texlive-publishers \\"
-            echo "     texlive-humanities texlive-pstricks libxcb-cursor0 pandoc"
+            echo "     texlive-humanities texlive-pstricks libxcb-cursor0 python3-pygments pandoc"
             echo '   ```'
             echo "\`LaTeX_Editor_v${V}_Linux_x86_64.AppImage\`'i indir, \`chmod +x\` yapip calistir."
             echo ""
@@ -204,7 +204,7 @@ jobs:
             echo "     texlive-latex-extra texlive-latex-recommended texlive-lang-european \\"
             echo "     texlive-luatex texlive-xetex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
             echo "     texlive-font-utils texlive-extra-utils biber texlive-publishers \\"
-            echo "     texlive-humanities texlive-pstricks pandoc"
+            echo "     texlive-humanities texlive-pstricks python3-pygments pandoc"
             echo '   ```'
             echo "3. Download \`LaTeX_Editor_v${V}_Windows.exe\` and run."
             echo ""
@@ -216,7 +216,7 @@ jobs:
             echo "     texlive-latex-extra texlive-latex-recommended texlive-lang-european \\"
             echo "     texlive-luatex texlive-xetex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
             echo "     texlive-font-utils texlive-extra-utils biber texlive-publishers \\"
-            echo "     texlive-humanities texlive-pstricks libxcb-cursor0 pandoc"
+            echo "     texlive-humanities texlive-pstricks libxcb-cursor0 python3-pygments pandoc"
             echo '   ```'
             echo "Download \`LaTeX_Editor_v${V}_Linux_x86_64.AppImage\`, \`chmod +x\` and run."
             echo ""
@@ -245,7 +245,7 @@ jobs:
             echo "     texlive-latex-extra texlive-latex-recommended texlive-lang-european \\"
             echo "     texlive-luatex texlive-xetex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
             echo "     texlive-font-utils texlive-extra-utils biber texlive-publishers \\"
-            echo "     texlive-humanities texlive-pstricks pandoc"
+            echo "     texlive-humanities texlive-pstricks python3-pygments pandoc"
             echo '   ```'
             echo "3. \`LaTeX_Editor_v${V}_Windows.exe\`'yi indir ve çalıştır."
             echo ""
@@ -257,7 +257,7 @@ jobs:
             echo "     texlive-latex-extra texlive-latex-recommended texlive-lang-european \\"
             echo "     texlive-luatex texlive-xetex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
             echo "     texlive-font-utils texlive-extra-utils biber texlive-publishers \\"
-            echo "     texlive-humanities texlive-pstricks libxcb-cursor0 pandoc"
+            echo "     texlive-humanities texlive-pstricks libxcb-cursor0 python3-pygments pandoc"
             echo '   ```'
             echo "\`LaTeX_Editor_v${V}_Linux_x86_64.AppImage\`'i indir, \`chmod +x\` yapip calistir."
             echo ""
