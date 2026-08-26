@@ -295,6 +295,7 @@ class MainWindow(
         help_menu.addSeparator()
         self._add_action(help_menu, _("&Güncellemeleri Kontrol Et"), self._check_for_update_manual)
         help_menu.addSeparator()
+        self._add_action(help_menu, _("Ortam &Denetimi..."), self._open_env_doctor)
         self._add_action(help_menu, _("&Log Klasörünü Aç"), self._open_log_dir)
         help_menu.addSeparator()
         self._add_action(help_menu, _("&Hakkında"), self._show_about)
@@ -824,6 +825,16 @@ class MainWindow(
             self._status.showMessage(_("Tanım") + f": {os.path.basename(path)}:{line}")
         else:
             self._status.showMessage(_("Tanım bulunamadı") + f": {key}")
+
+    def _open_env_doctor(self):
+        """Ortam denetimi: WSL/TeX Live/pandoc/synctex kontrolü (Yardım menüsü).
+
+        Kontroller dialog içinde arka planda koşar (WSL soğuk başlangıçta
+        saniyeler sürebilir); pencere hemen açılır.
+        """
+        from gui.env_doctor import EnvDoctorDialog
+        dlg = EnvDoctorDialog(self, theme=self._theme_mgr.theme)
+        dlg.exec()
 
     def _open_log_dir(self):
         from PyQt6.QtGui import QDesktopServices
