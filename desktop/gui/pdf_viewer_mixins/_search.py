@@ -1,9 +1,18 @@
-"""PdfViewer arama mixin — PDF içinde metin arama ve vurgulama."""
+"""PdfViewer arama mixin — PDF içinde metin arama ve vurgulama.
+
+Arama arka plan işçisinde koşar (pdf_search_worker): eskiden tüm doküman
+UI thread'inde senkron taranıyordu; 500 sayfalık PDF'te arayüz saniyelerce
+kilitleniyordu. Sonuçlar yalnız koordinat taşır (page_idx, start, count);
+vurgu ve zıplama anında UI tarafı KENDİ dokümanından textpage yaratır —
+işçinin handle'ları iş parçacıkları arasında paylaşılmaz.
+"""
 
 from PyQt6.QtWidgets import QLabel
 
 from PyQt6.QtCore import QCoreApplication, QPoint
 _ = lambda s: QCoreApplication.translate("PdfViewer", s)
+
+from gui.pdf_search_worker import PdfSearchWorker
 
 
 class PdfSearchMixin:
@@ -12,41 +21,37 @@ class PdfSearchMixin:
         self._search_results = []
         self._search_index = 0
         self._search_highlights = []
+        self._search_id = 0
+        self._search_worker = PdfSearchWorker()
+        self._search_worker.found.connect(self._on_search_done)
+        self._search_worker.start()
 
     def _do_search(self, query: str):
         self._clear_search_highlights()
+        self._search_results = []
+        self._search_id += 1          # uçuştaki arama da geçersizleşir
         if not query or not self._pdf:
             self._update_search_nav(0, 0)
             return
+        if hasattr(self, '_search_count_label'):
+            self._search_count_label.setText(_("Aranıyor..."))
+        self._search_worker.search(self._search_id, query)
 
-        results = []
-        for i in range(self._page_count):
-            try:
-                page = self._pdf[i]
-                textpage = page.get_textpage()
-                searcher = textpage.search(query)
-                while True:
-                    match = searcher.get_next()
-                    if match is None:
-                        break
-                    start, count = match
-                    results.append((i, start, count, textpage))
-            except Exception:
-                continue
-
+    def _on_search_done(self, search_id: int, results: list):
+        if search_id != self._search_id:
+            return                      # bayat sonuç: yeni sorgu/nesil geldi
         self._search_results = results
         self._search_index = 0
-
         if results:
             self._show_search_result(0)
-        self._update_search_nav(self._search_index + 1 if results else 0, len(results))
+        self._update_search_nav(1 if results else 0, len(results))
 
     def _show_search_result(self, idx):
         self._clear_search_highlights()
         if idx >= len(self._search_results):
             return
 
-        page_idx, start, count, textpage = self._search_results[idx]
+        page_idx, start, count = self._search_results[idx]
         label = self._page_labels[page_idx] if page_idx < len(self._page_labels) else None
         if not label:
             return
@@ -56,9 +61,11 @@ class PdfSearchMixin:
         if label.pixmap() is None or label.pixmap().isNull():
             self._request_render(page_idx)
 
-        # Eşleşmenin ilk karakterinin Y pozisyonunu hesapla
+        # textpage'i UI tarafında, ihtiyaç anında yarat (işçi sonuçları
+        # yalnız koordinat taşır; iş parçacıkları arası handle yok)
         scale = 1.5 * self._zoom
         try:
+            textpage = self._pdf[page_idx].get_textpage()
             left, bottom, right, top = textpage.get_charbox(start, loose=True)
             match_y = (self._pdf[page_idx].get_height() - top) * scale
         except Exception:
@@ -79,9 +86,14 @@ class PdfSearchMixin:
         if idx >= len(self._search_results):
             return
 
-        page_idx, start, count, textpage = self._search_results[idx]
+        page_idx, start, count = self._search_results[idx]
         label = self._page_labels[page_idx] if page_idx < len(self._page_labels) else None
         if not label or label.pixmap() is None or label.pixmap().isNull():
+            return
+
+        try:
+            textpage = self._pdf[page_idx].get_textpage()
+        except Exception:
             return
 
         scale = 1.5 * self._zoom

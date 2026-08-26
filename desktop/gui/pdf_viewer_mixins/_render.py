@@ -56,6 +56,7 @@ class PdfRenderMixin:
             self._cache_reset()
             self._pres_cache.clear()
             self._render_worker.open_document(path, self._render_gen)
+            self._search_worker.open_document(path, self._render_gen)
             self._create_placeholders()
             self.update_bookmarks()
             self._clear_search()
@@ -69,6 +70,7 @@ class PdfRenderMixin:
             self._pdf = None
             self._render_gen += 1
             self._render_worker.open_document("", self._render_gen)
+            self._search_worker.open_document("", self._render_gen)
             self._clear_pages()
             self._show_message(_("PDF açılamadı — derleme başarısız olmuş veya dosya bozuk olabilir."))
             return False
@@ -98,6 +100,7 @@ class PdfRenderMixin:
         self._current_page = 0
         self._render_gen += 1
         self._render_worker.open_document("", self._render_gen)
+        self._search_worker.open_document("", self._render_gen)
         self._cache_reset()
         self._pres_cache.clear()
         self._page_labels.clear()
@@ -116,6 +119,7 @@ class PdfRenderMixin:
         self._clear_pages()
         self._render_gen += 1
         self._render_worker.open_document("", self._render_gen)
+        self._search_worker.open_document("", self._render_gen)
         self._cache_reset()
         self._pres_cache.clear()
         self._page_count = 0
@@ -130,6 +134,11 @@ class PdfRenderMixin:
             w.stop()
             if w.isRunning():
                 w.wait(6000)   # uç zoomda tek sayfa ~3sn; stop iş başına denetlenir
+        sw = getattr(self, "_search_worker", None)
+        if sw is not None:
+            sw.stop()
+            if sw.isRunning():
+                sw.wait(6000)
 
     def _get_page_size(self, index: int):
         if not self._pdf or index >= self._page_count:
