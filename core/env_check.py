@@ -14,7 +14,7 @@ import sys
 from dataclasses import dataclass
 
 # Denetlenen harici araçlar (derleme zincirinin tamamı)
-TOOLS = ("lualatex", "pdflatex", "xelatex", "biber", "pandoc", "synctex")
+TOOLS = ("lualatex", "pdflatex", "xelatex", "biber", "pandoc", "synctex", "pygmentize")
 
 # Yoksun araca karşılık gelen Ubuntu/Debian paketi. xelatex önerisi
 # engine_detector/derle.sh'tekiyle aynı (texlive-xetex).
@@ -25,6 +25,13 @@ APT_HINTS = {
     "biber": "biber",
     "pandoc": "pandoc",
     "synctex": "texlive-binaries",
+    "pygmentize": "python3-pygments",
+}
+
+# Eksikken satırda bağlam verilecek araçlar: minted kullanmayan kullanıcıya
+# satırın listede neden durduğu anlaşılsın.
+_TOOL_NOTES = {
+    "pygmentize": "minted belgeleri için gerekli",
 }
 
 # WSL içinde tek seferde tüm araçların yolu: "ad=/yol" veya "ad=YOK" satırları
@@ -74,7 +81,10 @@ def _parse_tool_lines(out: str) -> dict[str, str]:
 def _tool_row(name: str, path: str) -> CheckResult:
     if path:
         return CheckResult(name, "ok", path)
-    return CheckResult(name, "missing", "kurulu değil",
+    detail = "kurulu değil"
+    if name in _TOOL_NOTES:
+        detail += f" ({_TOOL_NOTES[name]})"
+    return CheckResult(name, "missing", detail,
                        f"sudo apt-get install {APT_HINTS[name]}")
 
 

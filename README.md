@@ -160,7 +160,7 @@ sudo apt-get update
 sudo apt-get install texlive-base texlive-binaries texlive-latex-base \
   texlive-latex-extra texlive-latex-recommended texlive-lang-european texlive-luatex texlive-xetex \
   texlive-fonts-extra texlive-science texlive-bibtex-extra texlive-font-utils \
-  texlive-extra-utils biber texlive-publishers texlive-humanities texlive-pstricks pandoc
+  texlive-extra-utils biber texlive-publishers texlive-humanities texlive-pstricks python3-pygments pandoc
 ```
 
 ### Installation
@@ -225,7 +225,7 @@ To run on another computer:
 |----------|-------------|
 | `LaTeX Editor.exe` | Single file, no Python needed |
 | **WSL** | WSL must be enabled on Windows 10/11 |
-| **TeX Live** | Inside WSL: `sudo apt-get update && sudo apt-get install texlive-base texlive-binaries texlive-latex-base texlive-latex-extra texlive-latex-recommended texlive-lang-european texlive-luatex texlive-xetex texlive-fonts-extra texlive-science texlive-bibtex-extra texlive-font-utils texlive-extra-utils biber texlive-publishers texlive-humanities texlive-pstricks pandoc` |
+| **TeX Live** | Inside WSL: `sudo apt-get update && sudo apt-get install texlive-base texlive-binaries texlive-latex-base texlive-latex-extra texlive-latex-recommended texlive-lang-european texlive-luatex texlive-xetex texlive-fonts-extra texlive-science texlive-bibtex-extra texlive-font-utils texlive-extra-utils biber texlive-publishers texlive-humanities texlive-pstricks python3-pygments pandoc` |
 | **pandoc** | For export: `sudo apt-get install pandoc` inside WSL |
 
 Installation steps:
@@ -253,7 +253,7 @@ sudo apt-get install texlive-base texlive-binaries texlive-latex-base \
   texlive-latex-extra texlive-latex-recommended texlive-lang-european \
   texlive-luatex texlive-xetex texlive-fonts-extra texlive-science texlive-bibtex-extra \
   texlive-font-utils texlive-extra-utils biber texlive-publishers \
-  texlive-humanities texlive-pstricks libxcb-cursor0 pandoc
+  texlive-humanities texlive-pstricks libxcb-cursor0 python3-pygments pandoc
 ```
 
 > **Note:** Instead of `texlive-full` (~7 GB), only required packages are installed (~1.5 GB). Remove packages you don't need:
@@ -276,6 +276,7 @@ sudo apt-get install texlive-base texlive-binaries texlive-latex-base \
 | `texlive-lang-european` | ~20 MB | European languages incl. Turkish |
 | `texlive-font-utils` | ~5 MB | Font conversion tools |
 | `texlive-extra-utils` | ~5 MB | Extra tools |
+| `python3-pygments` | ~2 MB | minted code highlighting (pygmentize) |
 | `libxcb-cursor0` | ~1 MB | PyQt6 mouse cursor support |
 
 **Minimum installation** (basic compilation only):
@@ -300,7 +301,7 @@ Install Python and TeX Live:
 sudo apt-get install python3 python3-pip texlive-base texlive-binaries texlive-latex-base \
   texlive-latex-extra texlive-latex-recommended texlive-lang-european texlive-luatex texlive-xetex \
   texlive-fonts-extra texlive-science texlive-bibtex-extra texlive-font-utils \
-  texlive-extra-utils biber texlive-publishers texlive-humanities texlive-pstricks libxcb-cursor0 pandoc
+  texlive-extra-utils biber texlive-publishers texlive-humanities texlive-pstricks libxcb-cursor0 python3-pygments pandoc
 
 pip install PyQt6 PyQt6-QScintilla pypdfium2 send2trash
 ```

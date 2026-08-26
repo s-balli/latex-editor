@@ -87,6 +87,19 @@ def test_native_which_kullanir(monkeypatch):
     assert by["synctex"].status == "ok"
 
 
+def test_pygmentize_satiri_minted_baglami_tasir(monkeypatch):
+    """pygmentize eksikse satır minted bağlamını ve python3-pygments
+    önerisini taşımeli (minted kullanmayan kullanıcıya satır açıklaması)."""
+    monkeypatch.setattr(sys, "platform", "linux")
+    monkeypatch.setattr(env_check.shutil, "which",
+                        lambda t: f"/usr/bin/{t}" if t != "pygmentize" else None)
+
+    by = {r.name: r for r in run_checks()}
+    assert by["pygmentize"].status == "missing"
+    assert "minted belgeleri için gerekli" in by["pygmentize"].detail
+    assert "python3-pygments" in by["pygmentize"].fix_hint
+
+
 # --- Rapor ---
 
 

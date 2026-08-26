@@ -160,7 +160,7 @@ sudo apt-get update
 sudo apt-get install texlive-base texlive-binaries texlive-latex-base \
   texlive-latex-extra texlive-latex-recommended texlive-lang-european texlive-luatex texlive-xetex \
   texlive-fonts-extra texlive-science texlive-bibtex-extra texlive-font-utils \
-  texlive-extra-utils biber texlive-publishers texlive-humanities texlive-pstricks pandoc
+  texlive-extra-utils biber texlive-publishers texlive-humanities texlive-pstricks python3-pygments pandoc
 ```
 
 ### Kurulum
@@ -225,7 +225,7 @@ Başka bir bilgisayarda çalıştırmak için:
 |---------|----------|
 | `LaTeX Editor.exe` | Tek dosya, Python gerektirmez |
 | **WSL** | Windows 10/11'de WSL aktif olmalı |
-| **TeX Live** | WSL içinde: `sudo apt-get update && sudo apt-get install texlive-base texlive-binaries texlive-latex-base texlive-latex-extra texlive-latex-recommended texlive-lang-european texlive-luatex texlive-xetex texlive-fonts-extra texlive-science texlive-bibtex-extra texlive-font-utils texlive-extra-utils biber texlive-publishers texlive-humanities texlive-pstricks pandoc` |
+| **TeX Live** | WSL içinde: `sudo apt-get update && sudo apt-get install texlive-base texlive-binaries texlive-latex-base texlive-latex-extra texlive-latex-recommended texlive-lang-european texlive-luatex texlive-xetex texlive-fonts-extra texlive-science texlive-bibtex-extra texlive-font-utils texlive-extra-utils biber texlive-publishers texlive-humanities texlive-pstricks python3-pygments pandoc` |
 | **pandoc** | Dışa aktarma için: WSL içinde `sudo apt-get install pandoc` |
 
 Kurulum adımları:
@@ -253,7 +253,7 @@ sudo apt-get install texlive-base texlive-binaries texlive-latex-base \
   texlive-latex-extra texlive-latex-recommended texlive-lang-european \
   texlive-luatex texlive-xetex texlive-fonts-extra texlive-science texlive-bibtex-extra \
   texlive-font-utils texlive-extra-utils biber texlive-publishers \
-  texlive-humanities texlive-pstricks libxcb-cursor0 pandoc
+  texlive-humanities texlive-pstricks libxcb-cursor0 python3-pygments pandoc
 ```
 
 > **Not:** `texlive-full` (~7 GB) yerine sadece gerekli paketler kurulur (~1.5 GB). Daha az paket kurmak isterseniz ihtiyacınıza göre kaldırabilirsiniz:
@@ -276,6 +276,7 @@ sudo apt-get install texlive-base texlive-binaries texlive-latex-base \
 | `texlive-lang-european` | ~20 MB | Türkçe dahil Avrupa dilleri |
 | `texlive-font-utils` | ~5 MB | Font dönüştürme araçları |
 | `texlive-extra-utils` | ~5 MB | Ek araçlar |
+| `python3-pygments` | ~2 MB | minted kod renklendirme (pygmentize) |
 | `libxcb-cursor0` | ~1 MB | PyQt6 fare imleci desteği |
 
 **Minimum kurulum** (sadece temel derleme):

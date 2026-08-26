@@ -123,6 +123,14 @@ eksik_paket_goster() {
             printf "${MAVI2}    sudo apt-get install %s${SIFIRLA}\n" "$paket"
         done
     fi
+
+    # 3) Pygments eksik: minted.sty kurulu ama pygmentize yok. minted'in bu
+    #    durumdaki kesin hata işareti "Missing Pygments output"tur; minted.sty
+    #    kendisi eksikse 1. kol yakalar (haritada python3-pygments geçiyor).
+    if echo "$CIKTI" | grep -q "Missing Pygments"; then
+        printf "${MAVI2}==> Eksik paket: python3-pygments \(%s\)${SIFIRLA}\n" "pygmentize"
+        printf "${MAVI2}    sudo apt-get install python3-pygments${SIFIRLA}\n"
+    fi
 }
 
 # Argüman kontrolü
