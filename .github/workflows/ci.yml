@@ -64,3 +64,39 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: python -m pytest tests/ -q
+
+  derle:
+    # derle.sh zinciri GERÇEK TeX ile: matrix job'da TeX kurulmadığından
+    # test_derle_sh.py orada hep skip oluyordu; derleme betiği yalnız
+    # geliştirici makinesinde deneniyordu. Paket seti test belgelerinin
+    # gerçek bağımlılıkları: article (latex-base), fontspec
+    # (latex-recommended), biblatex+biber (bibtex-extra), minted+Pygments
+    # (latex-extra + python3-pygments); üç motor da motor testlerinde gerekli.
+    # PyQt6/pandoc gerekmez: dosya yalnız bash + pytest kullanır.
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: TeX Live kur
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            texlive-latex-base texlive-latex-recommended texlive-latex-extra \
+            texlive-luatex texlive-xetex texlive-bibtex-extra \
+            biber python3-pygments
+          lualatex --version | head -1
+          kpsewhich minted.sty && command -v biber pygmentize
+
+      - name: Install pytest
+        run: pip install pytest
+
+      - name: derle.sh entegrasyon testleri (gerçek TeX)
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -m pytest tests/test_derle_sh.py -v
