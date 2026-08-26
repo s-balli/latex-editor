@@ -330,15 +330,20 @@ class FileTree(QWidget):
     def _save_snapshot(self):
         self._last_snapshot = self._collect_files(self._root)
 
-    def _collect_files(self, dir_path):
+    def _collect_files(self, dir_path, depth=0):
+        # Ağaç çizimiyle aynı kurallar: _SKIP_DIRS'e inilmez, _MAX_DEPTH'i
+        # aşan derinlik taranmaz. (Snapshot/refresh yürüyüşü her FS olayında
+        # çalıştığından node_modules/venv'e inmek WSL'de arayüzü kilitlerdi.)
         files = set()
+        if depth > _MAX_DEPTH:
+            return files
         try:
             for entry in os.listdir(dir_path):
-                if entry.startswith('.'):
+                if entry.startswith('.') or entry in _SKIP_DIRS:
                     continue
                 full = os.path.join(dir_path, entry)
                 if os.path.isdir(full):
-                    files |= self._collect_files(full)
+                    files |= self._collect_files(full, depth + 1)
                 elif os.path.isfile(full):
                     ext = os.path.splitext(entry)[1].lower()
                     if ext not in _HIDDEN_EXT:

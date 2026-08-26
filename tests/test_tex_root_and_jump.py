@@ -32,6 +32,9 @@ class _RecCompiler:
     def __init__(self):
         self.calls = []
 
+    def is_busy(self):
+        return False  # LatexCompiler dublörü: gerçek sınıfın meşgul guard API'si
+
     def compile(self, path, engine):
         self.calls.append((os.path.normpath(path), engine))
         return True

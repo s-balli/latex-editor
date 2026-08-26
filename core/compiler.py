@@ -54,8 +54,18 @@ class LatexCompiler(QObject):
         self._timeout_timer.setSingleShot(True)
         self._timeout_timer.timeout.connect(self._on_timeout)
 
+    def is_busy(self) -> bool:
+        """Bir derleme sürüyorsa True: yeni derleme başlatılmamalı.
+
+        GUI katmanı durum değişikliklerini (hedef yolu, panel temizliği,
+        imleç bağlamı) compile() ÇAĞIRMADAN önce bu guard'a bakar; çağrıyı
+        yapıp False dönüşüne bırakırsa bayat durum yazmış olur.
+        """
+        return bool(self.process and
+                    self.process.state() != QProcess.ProcessState.NotRunning)
+
     def compile(self, tex_path: str, engine: str = "lualatex", timeout_ms: int | None = None) -> bool:
-        if self.process and self.process.state() != QProcess.ProcessState.NotRunning:
+        if self.is_busy():
             return False
 
         if timeout_ms is not None:

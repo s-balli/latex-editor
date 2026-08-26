@@ -37,6 +37,9 @@ def test_collect_filters_and_sorts(tmp_path):
     hid = tmp_path / ".git"
     hid.mkdir()
     (hid / "gizli.tex").write_text("x")            # gizli dizin → yok
+    nm = tmp_path / "node_modules"
+    nm.mkdir()
+    (nm / "paket.sty").write_text("x")             # skip dizini → yok (dosya ağacıyla aynı kural)
     rels = collect_project_files(str(tmp_path))
     assert rels == ["bolum/giris.tex", "main.tex", "refs.bib"]
 

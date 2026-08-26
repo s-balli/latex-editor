@@ -59,6 +59,13 @@ class CompileOpsMixin:
         return "", msg
 
     def _compile(self):
+        # Meşgul guard'I durum değişikliklerinden ÖNCE: sürmekte olan derleme
+        # varken paneli temizleyip hedefi/imleç bağlamını yenisiyle ezsek,
+        # biten derlemenin hataları yanlış dizine çözülürdü (compile() False
+        # döner ama çağrıdan önceki atamalar çoktan yapılmış olurdu).
+        if self._compiler.is_busy():
+            self._status.showMessage(_("Derleme sürüyor; bitmesini bekleyin veya Esc ile durdurun"))
+            return
         self._compile_cursor_ctx = None  # önceki derlemenin imleç bağlamı bayat
         editor = self._current_editor()
         if not editor or not editor.file_path:
@@ -88,6 +95,9 @@ class CompileOpsMixin:
 
     def _compile_file(self, path: str):
         """Dosya ağacından sağ tıkla derle; alt dosyaysa % !TEX root köküne yönlendir."""
+        if self._compiler.is_busy():
+            self._status.showMessage(_("Derleme sürüyor; bitmesini bekleyin veya Esc ile durdurun"))
+            return
         self._compile_cursor_ctx = None
         path = os.path.normpath(path)
         target, msg = self._resolve_compile_target(path)

@@ -11,6 +11,8 @@ from PyQt6.QtWidgets import (
     QApplication, QDialog, QLineEdit, QListWidget, QListWidgetItem, QVBoxLayout,
 )
 
+from gui.file_tree import _SKIP_DIRS
+
 _ = lambda s: QCoreApplication.translate("QuickOpenDialog", s)
 
 # Editörün açabildiği dosya türleri (sürükle-bırak/_open_file_in_editor ile aynı küme)
@@ -26,7 +28,9 @@ def collect_project_files(root: str) -> list[str]:
     """
     rels = []
     for dirpath, dirs, files in os.walk(root):
-        dirs[:] = [d for d in dirs if not d.startswith('.')]
+        # Dosya ağacıyla aynı atlama kuralları: node_modules/venv gibi büyük
+        # ilgisiz dizinlere inilmesin (WSL'de yürüyüş maliyeti yüksek).
+        dirs[:] = [d for d in dirs if not d.startswith('.') and d not in _SKIP_DIRS]
         for fn in files:
             if fn.lower().endswith(_EXT_FILES):
                 rel = os.path.relpath(os.path.join(dirpath, fn), root)
