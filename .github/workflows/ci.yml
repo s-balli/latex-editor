@@ -54,10 +54,10 @@ jobs:
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r desktop/requirements.txt pytest python-docx
+          pip install -r desktop/requirements.txt pytest
 
       - name: Bagimlilik surumleri kaydi (ODR B3)
-        run: pip freeze | grep -iE "pyqt6|qscintilla|pypdfium|pillow|send2trash|dulwich|pytest|docx"
+        run: pip freeze | grep -iE "pyqt6|qscintilla|pypdfium|pillow|send2trash|dulwich|pytest"
 
       - name: Lint (ruff)
         run: |

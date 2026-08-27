@@ -95,7 +95,10 @@ if [ -d "$APPIMAGETOOL_EXTRACTED" ]; then
 else
     if [ ! -f "./appimagetool" ] && [ ! -f "./appimagetool-${ARCH}.AppImage" ]; then
         echo "  appimagetool indiriliyor..."
-        wget -q "https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-${ARCH}.AppImage" -O appimagetool
+        # continuous yerine sabit surum: tekrar uretilebilir build ve supply-chain
+# yuzeyi kuculur. Not: appimagetool AppImageKit deposundan ayri repoya tasinmis ve
+# eski etiketler obsolete- oneki ile yeniden adlandirilmis; yeni adres sabit 1.9.1
+        wget -q "https://github.com/AppImage/appimagetool/releases/download/1.9.1/appimagetool-${ARCH}.AppImage" -O appimagetool
     fi
     TOOL_FILE=$(ls "$SCRIPT_DIR"/appimagetool* 2>/dev/null | head -1)
     chmod +x "$TOOL_FILE"
