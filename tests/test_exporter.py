@@ -621,3 +621,75 @@ class TestFixDocxBrokenAnchors:
         doc2 = zipfile.ZipFile(str(docx_path)).read('word/document.xml').decode('utf-8')
         assert "FigureTable" not in doc2          # tanımsız stil kaldırıldı
         assert '<w:tblStyle w:val="Table"' in doc2  # tanımlı Table stiline yönlendirildi
+
+
+# =====================================================================
+# Sağlamlık: export() asla istisna fırlatmamalı; regex daraltması
+# =====================================================================
+
+
+class TestExporterSaglamlik:
+    def test_export_beklenmedik_istisna_yutulur(self, tmp_path, monkeypatch):
+        """_export_native patlarsa export() (False, mesaj) dönmeli; istisna
+        arka plan thread'ine sızarsa done sinyali düşmez, _export_busy
+        sonsuza dek True kalırdı."""
+        import core.exporter as ex
+
+        tex = tmp_path / "a.tex"
+        tex.write_text("\\begin{document}x\\end{document}\n")
+
+        def patlat(*a, **k):
+            raise RuntimeError("boom")
+
+        monkeypatch.setattr(ex, "_export_native", patlat)
+        ok, err = ex.export(str(tex), str(tmp_path / "a.md"))
+        assert ok is False
+        assert "beklenmedik hata" in err and "boom" in err
+
+    def test_md_width_regex_yalniz_gorsel_niteligini_duser(self, tmp_path):
+        """Eski desen belge genelinde 'width' geçen her {...} bloğunu
+        siliyordu; metin içi örnekler korunmalı."""
+        from core.exporter import _fix_md_image_paths
+
+        tex = tmp_path / "a.tex"
+        tex.write_text("\\begin{document}x\\end{document}\n", encoding="utf-8")
+        md = tmp_path / "a.md"
+        md.write_text(
+            "![ şekil ](media/fig1.png){width=70%}\n\n"
+            "Metinde ölçü örneği: {image width: 5cm} şeklinde yazılır.\n\n"
+            "![ diğeri ](media/fig2.png) {width=.8\\\\linewidth height=4cm}\n",
+            encoding="utf-8")
+
+        _fix_md_image_paths(str(tex), str(md))
+        out = md.read_text(encoding="utf-8")
+
+        assert "{width=70%}" not in out            # görsel niteliği düştü
+        assert "fig1.png)" in out and "fig2.png)" in out
+        assert "{image width: 5cm}" in out         # metin içi örnek duruyor
+
+    def test_wsl_tmp_dest_pid_icerir(self, monkeypatch):
+        """WSL ara çıktısı pid ile benzersizleşmeli (çakışma/ezilme)."""
+        import core.exporter as ex
+
+        tex = r"C:\proj\belge.tex"
+        dest = r"C:\proj\belge.docx"
+        pandoc_cmds = []
+
+        def fake_run(cmd, **kw):
+            if "pandoc" in " ".join(cmd):
+                pandoc_cmds.append(" ".join(cmd))
+            class R:  # basit sonuc
+                returncode = 0
+                stdout = ""
+                stderr = ""
+            return R()
+
+        monkeypatch.setattr(ex, "PLATFORM", "win32")
+        monkeypatch.setattr(ex.subprocess, "run", fake_run)
+        ex._export_wsl(tex, dest)
+
+        assert pandoc_cmds, "pandoc cagrisi yakalanamadi"
+        import os
+        import ntpath  # win32 yolunu bu test Linux'ta dogru ayirsin
+        beklenen = f"/tmp/export_{os.getpid()}_{ntpath.basename(dest)}"
+        assert beklenen in pandoc_cmds[0]

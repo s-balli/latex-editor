@@ -52,6 +52,7 @@ def export(tex_path: str, dest_path: str) -> tuple[bool, str]:
     # Bibliography (.bib) tespit et ki referanslar çözülsün.
     bib = _find_bibliography(tex_path)
     tmp_tex = _preprocess_tex(tex_path)
+    ok, err = False, ""
     try:
         if PLATFORM == "win32":
             ok, err = _export_wsl(tmp_tex, dest_path, bib)
@@ -64,6 +65,13 @@ def export(tex_path: str, dest_path: str) -> tuple[bool, str]:
                 _resolve_md_citations(dest_path, tmp_tex, bib)
         elif ok and dest_path.endswith(".docx"):
             _fix_docx_compat(dest_path)
+    except Exception as e:
+        # export() asla istisna fırlatmamalı: çağıran arka plan thread'i
+        # (file_ops._ExportRunner) sonucu sinyalle bekliyor; istisna sinyali
+        # düşürür, _export_busy sonsuza dek True kalırdı.
+        _logger.error("Dışa aktarma beklenmedik hata: %s → %s",
+                      tex_path, dest_path, exc_info=True)
+        ok, err = False, f"Dışa aktarma sırasında beklenmedik hata: {e}"
     finally:
         if tmp_tex != tex_path:
             try:
@@ -93,11 +101,15 @@ def _pandoc_run(args, input_text=None, timeout=40):
             encoding="utf-8", errors="replace", timeout=timeout, **kw,
         )
         if r.returncode != 0:
-            _logger.warning("pandoc başarısız (rc=%s): %s", r.returncode, (r.stderr or "")[:120])
+            # error seviyesi + tam stderr: eskiden 120 karakterlik uyarı
+            # loglanıp "" dönülüyordu; kullanıcı 'başarılı ama boş sonuç'
+            # alırdı ve teşhis için logda bir şey kalmazdı
+            _logger.error("pandoc başarısız (rc=%s): %s", r.returncode,
+                          (r.stderr or "").strip()[:300])
             return ""
         return r.stdout
     except Exception as e:
-        _logger.warning("pandoc çağrısı başarısız: %s", e)
+        _logger.error("pandoc çağrısı başarısız: %s", e, exc_info=True)
         return ""
 
 
@@ -245,6 +257,8 @@ def _fix_docx_compat(docx_path: str):
             doc = z.read('word/document.xml').decode('utf-8')
             styles = z.read('word/styles.xml').decode('utf-8') if 'word/styles.xml' in names else ''
     except Exception:
+        _logger.warning("docx uyumluluk düzeltmesi atlandı (zip okunamadı): %s",
+                        docx_path, exc_info=True)
         return
 
     defined = set(re.findall(r'<w:style[^>]*w:styleId="([^"]+)"', styles))
@@ -373,8 +387,11 @@ def _fix_md_image_paths(tex_path: str, md_path: str):
             abs_path = os.path.normpath(os.path.join(tex_dir, rel)).replace(os.sep, '/')
             return f"![{alt}]({abs_path})"
 
-        # {width="70%"} gibi pandoc niteliklerini kaldır
-        content = re.sub(r'\{[^}]*width[^}]*\}', '', content)
+        # pandoc'un görsel niteliğini yalnız GÖRSEL sözdizimine bağlıyken
+        # kaldır. Eski desen belge genelinde 'width' geçen her küme parantezli
+        # bloğu siliyordu (metin içindeki {image width: 5cm} gibi örnekler dahil).
+        content = re.sub(
+            r'(!\[[^\]]*\]\([^)]+\))\s*\{[^}]*width[^}]*\}', r'\1', content)
         content = re.sub(r'!\[([^\]]*)\]\(([^)]+)\)', _replace, content)
 
         with open(md_path, "w", encoding="utf-8") as f:
@@ -395,6 +412,7 @@ def _extract_graphics_paths(tex_path: str) -> list[str]:
                 paths.append(inner.group(1))
         return paths
     except Exception:
+        _logger.warning("graphicspath okunamadı: %s", tex_path, exc_info=True)
         return []
 
 
@@ -440,7 +458,11 @@ def _export_wsl(tex_path: str, dest_path: str, bib: str = "") -> tuple[bool, str
 
     wsl_tex = windows_to_wsl(tex_path)
     wsl_dir = os.path.dirname(wsl_tex)
-    tmp_dest = f"/tmp/export_{os.path.basename(dest_path)}"
+    # pid eki: aynı hedef adına art arda/çakışan çağrılar WSL'de birbirinin
+    # ara çıktısını ezmesin. ntpath: dest_path Windows yoludur; posix basename
+    # ters bölüleri ayırmaz.
+    import ntpath
+    tmp_dest = f"/tmp/export_{os.getpid()}_{ntpath.basename(dest_path)}"
 
     # pandoc argümanlarını oluştur
     pandoc_cmd = ["pandoc", wsl_tex, "-o", tmp_dest, f"--resource-path={wsl_dir}"]
