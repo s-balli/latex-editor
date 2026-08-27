@@ -99,6 +99,14 @@ class OutlinePanel(QWidget):
         self.setMaximumWidth(350)
 
     def update_outline(self, text: str):
+        # Genişletme tercihleri yeniden kurulumda korunur: ağaç her düzenlemede
+        # (500ms debounce) sıfırdan kuruluyordu; elle daraltılan/genişletilen
+        # düğümler kayboluyordu. Anahtar: başlık zinciri yolu.
+        if self._items:
+            old_expanded, old_all = self._collect_expansion_state()
+        else:
+            old_expanded, old_all = None, None
+
         self._tree.clear()
         self._items = []
 
@@ -153,9 +161,47 @@ class OutlinePanel(QWidget):
             stack.append((level, item))
             self._items.append(item)
 
-        # İlk seviyeyi genişlet
+        # Genişletme durumunu geri uygula. Eski ağaç yoksa (ilk kurulum)
+        # varsayılan: en üst seviye açık. Eski ağaç varsa: bilinen düğümler
+        # eski durumlarına döner, yeni düğümler varsayılanı alır.
+        if old_expanded is None:
+            for i in range(self._tree.topLevelItemCount()):
+                self._tree.expandItem(self._tree.topLevelItem(i))
+        else:
+            for item in self._items:
+                key = self._item_path(item)
+                top = item.parent() is None
+                if key in old_all:
+                    item.setExpanded(key in old_expanded)
+                else:
+                    item.setExpanded(top)
+
+    @staticmethod
+    def _item_path(item) -> tuple:
+        """Düğümün başlık-zinciri yolu ('Giriş' > 'Alt' gibi); yeniden kurulan
+        ağaçta aynı düğümü eşlemek için anahtar."""
+        parts = []
+        cur = item
+        while cur is not None:
+            parts.append(cur.text(0))
+            cur = cur.parent()
+        return tuple(reversed(parts))
+
+    def _collect_expansion_state(self) -> tuple[set, set]:
+        """(genişletilmiş yollar, tüm yollar) — genişletme tercihleri."""
+        expanded, all_keys = set(), set()
+
+        def walk(item):
+            key = self._item_path(item)
+            all_keys.add(key)
+            if item.isExpanded():
+                expanded.add(key)
+            for i in range(item.childCount()):
+                walk(item.child(i))
+
         for i in range(self._tree.topLevelItemCount()):
-            self._tree.expandItem(self._tree.topLevelItem(i))
+            walk(self._tree.topLevelItem(i))
+        return expanded, all_keys
 
     def _on_item_clicked(self, item, _column):
         line = item.data(0, Qt.ItemDataRole.UserRole)

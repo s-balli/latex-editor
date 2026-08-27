@@ -23,6 +23,10 @@ class FileWatchMixin:
 
         self._pending_reloads: set[str] = set()
         self._save_hashes: dict[str, str] = {}
+        # Modal "dosya değişti" dialog'u açıkken yeniden tur koşmasın:
+        # dialog exec() event loop'u döndürür, debounce timer tekrar tetiklenip
+        # farklı dosyalar için ikinci/üçüncü promptu üst üste yığardı
+        self._reload_prompt_active = False
 
         self._debounce_timer = QTimer(self)
         self._debounce_timer.setSingleShot(True)
@@ -89,6 +93,11 @@ class FileWatchMixin:
 
     def _file_watch_process_queue(self):
         """Debounce süresi dolunca bekleyen tüm değişiklikleri işle."""
+        if self._reload_prompt_active:
+            # Dialog açık: promptlar üst üste birikmesin; kuyruk duruyor,
+            # dialog kapanınca sonraki tur (aşağıdaki restart ile) devralır
+            self._debounce_timer.start()
+            return
         paths = set(self._pending_reloads)
         self._pending_reloads.clear()
 
@@ -172,7 +181,11 @@ class FileWatchMixin:
         btn_keep = dlg.addButton(btn_keep_text, QMessageBox.ButtonRole.RejectRole)
         dlg.setDefaultButton(btn_keep)
 
-        dlg.exec()
+        self._reload_prompt_active = True
+        try:
+            dlg.exec()
+        finally:
+            self._reload_prompt_active = False
 
         if dlg.clickedButton() == btn_reload:
             # Cursor konumunu hatırla
