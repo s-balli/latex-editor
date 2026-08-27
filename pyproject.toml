@@ -4,7 +4,7 @@
 
 [project]
 name = "latex-editor"
-version = "1.0.14"
+version = "1.0.15"
 description = "LaTeX editörü ve derleyici (PyQt6 masaüstü uygulaması)"
 requires-python = ">=3.10"
 license = "GPL-3.0"

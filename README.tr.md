@@ -40,6 +40,18 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 
 ## Sürüm Geçmişi
 
+### v1.0.15: Daha Akıcı Düzenleme ve Güvenilir Çıktılar
+- **Sürümle (Ctrl+K) artık dondurmuyor**: sürüm anlık görüntüsü arka planda alınıyor; büyük klasörlerde saniyeler süren dulwich kaydı sırasında arayüz kilitleniyordu. İş sürerken ikinci Ctrl+K reddediliyor, durum çubuğu 'Sürüm alınıyor...' gösteriyor
+- **Yazma akıcılığı büyük belgelerde**: sözdizimi renklendirmesi belge baytlarını önbelleğe aldı; her tuş vuruşunda tüm belge yeniden kopyalanmıyordu artık değil (330KB belgede stil maliyeti ~1.9x hızlandı). Matematik bölgesi de artık tema fontunu alıyor
+- **İpucu çöküşü düzeltmesi**: bazı hata ipuçları (listings, kapanmamış ortam) gösterilirken panel yarıda kesiliyor ve Log sekmesi boş kalabiliyordu; şablonlardaki gerçek LaTeX parantezleri artık güvenli işleniyor
+- **Yeni ipucu: Listings + Türkçe babel**: 'language ansi of c undefined' hatasının nedeni ve çözümü (language={[ANSI]C}) artık uygulama kendisi söylüyor
+- **Dışa aktarma sağlamlığı**: beklenmedik hatalar artık dışa aktarmayı kalıcı kilitlemiyor; Markdown dışa aktarımında 'width' geçen metin örnekleri yanlışlıkla silinmiyor (yalnız görsel boyut nitelikleri düşürülüyor); pandoc hataları tam ayrıntısıyla loglanıyor
+- **Dosya değişimi bildirimleri sıraya giriyor**: 'dosya değişti' diyaloğu açıkken gelen diğer değişiklikler artık üst üste pencere yığmıyor, diyaloğun ardından sırayla geliyor
+- **Anahat tercihleri korunuyor**: elle daralttığınız/genişlettiğiniz bölümler artık her düzenlemede geri geliyor değil, düzenlemeler arasında da korunuyor
+- **Sürüm Geçmişi sekmesi**: adı 'Geçmiş'ten 'Sürüm Geçmişi'ne değişti (derleme sekmeleriyle karışmıyor)
+- **Hafiflemeler**: uzun oturumlarda önbellek birikmesine sınır; bağlantılı dosya denetimi tek okumaya indi; \input'lu büyük projelerde sekme geçişleri hızlandı
+- **881 birim testi**
+
 ### v1.0.14: Büyük PDF'lerde Akıcı Görüntüleyici
 - **Sayfa render'ı arka planda**: eskiden her scroll/zoom adımında görünür sayfalar UI'yi bloke ederek render ediliyordu; artık arka plan işçisi render ediyor, sayfalar placeholder'dan dolduğu gibi görünür. Hızlı kaydırmada arayüz hiç durmaz (181 sayfalık belgede ölçüldü: adım başına 0 ms bloklama)
 - **Bellek üst sınırı**: sayfa görseli önbelleği artık 256MB ile sınırlı; yüksek zoomda (~40MB/sayfa) eskiden ~800MB'a çıkabiliyordu

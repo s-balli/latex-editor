@@ -40,6 +40,18 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 
 ## Version History
 
+### v1.0.15: Smoother Editing and More Reliable Output
+- **Snapshot (Ctrl+K) no longer freezes the UI**: version snapshots are taken in the background; the dulwich commit could take seconds on large folders while blocking the interface. A second Ctrl+K while one is running is rejected, and the status bar shows 'Taking a snapshot...'
+- **Smoother typing in large documents**: syntax highlighting now caches the document bytes instead of re-copying the whole document on every keystroke (~1.9x faster styling in a 330KB document). Math regions also get the theme font now
+- **Hint crash fix**: some error hints (listings, unclosed environment) broke the output panel halfway and left the Log tab empty; real LaTeX braces in hint templates are now handled safely
+- **New hint: Listings + Turkish babel**: the cause and fix (language={[ANSI]C}) for the 'language ansi of c undefined' error are now suggested by the app itself
+- **Export robustness**: unexpected errors no longer leave export permanently locked; Markdown export no longer deletes text examples that merely contain 'width' (only image size attributes are dropped); pandoc failures are logged with full detail
+- **File-change prompts are queued**: while a 'file changed' dialog is open, further changes no longer stack windows on top of each other; they arrive in order after it closes
+- **Outline preferences preserved**: sections you collapse/expand manually now survive edits instead of resetting on every change
+- **Version History tab**: renamed from 'History' to 'Version History' (no longer confusable with the compile tabs)
+- **Lighter footprints**: caches are bounded in long sessions; the linked-file check reads each file once; tab switching is faster in large multi-file projects
+- **881 unit tests**
+
 ### v1.0.14: Smooth Viewer on Large PDFs
 - **Background page rendering**: visible pages used to render on the UI thread, freezing the interface on every scroll/zoom step; a background worker now renders them and pages fill in progressively. Rapid scrolling never blocks (measured on a 181-page document: 0 ms blocking per step)
 - **Memory cap**: the page image cache is now bounded at 256MB; at high zoom (~40MB/page) it could previously grow to ~800MB
