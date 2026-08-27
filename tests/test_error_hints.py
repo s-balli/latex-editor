@@ -104,6 +104,17 @@ def test_latex_multiply_defined_label():
     assert get_hint("There were multiply-defined labels.")[0] == "duplicate_label"
 
 
+def test_listings_language_turkish_babel():
+    """Regression: Türkçe babel + tek harflik dil adı (C) listings'in lehçe
+    çözümlemesini bozuyor; gerçek üretim hatası bu iki mesajla geliyordu."""
+    assert get_hint("Package Listings Error: Couldn't load requested language.")[0] \
+        == "listings_language"
+    assert get_hint("Package Listings Error: language ansi of c undefined.")[0] \
+        == "listings_language"
+    # yanlış yazılmış dil adı da aynı kalıba düşer
+    assert get_hint("language xyz of abc undefined.")[0] == "listings_language"
+
+
 # =====================================================================
 # log_parser: pdfTeX/LuaTeX motor uyarıları artık yakalanır
 # =====================================================================

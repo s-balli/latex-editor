@@ -35,6 +35,7 @@ def _hint_templates() -> dict:
         "reference_undefined": _("Çapraz referans çözülmedi: tekrar derleyin; \\label tanımlı mı diye Referansları Denetle'ye bakın"),
         "rerun_needed": _("Tekrar derleyin: çapraz referanslar ve kaynakça iki derleme geçesinde çözülür"),
         "duplicate_label": _("Aynı \\label iki kez kullanılmış; F2 ile birini yeniden adlandırın"),
+        "listings_language": _("Listings dili yüklenemedi. \\usepackage[turkish]{babel} kullanıyorsanız bu bilinen bir çakışmadır: language=C yerine language={[ANSI]C} yazın. Değilse dil adını kontrol edin (C, Python, Pascal, Java...)"),
     }
 
 

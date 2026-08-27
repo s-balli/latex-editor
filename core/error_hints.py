@@ -38,6 +38,11 @@ _PATTERNS: list[tuple[re.Pattern, str]] = [
     # "Label `x' multiply defined." / "There were multiply-defined labels."
     (re.compile(r"multiply.defined labels?|Label `[^']*' multiply defined"),
      "duplicate_label"),
+    # listings + Türkçe babel çakışması: turkish.ldf tek harflik dil adlarının
+    # (C) lehçe çözümlemesini bozuyor → "language ansi of c undefined".
+    # Dil adı gerçekten yanlış da yazılmış olabilir; ipucu ikisini kapsar.
+    (re.compile(r"Listings Error: Couldn't load requested language"
+                r"|language \S+ of \S+ undefined"), "listings_language"),
 ]
 
 _RE_ENV_UNDEFINED = re.compile(r"Environment (\S+) undefined")
