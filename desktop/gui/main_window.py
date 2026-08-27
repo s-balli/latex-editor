@@ -730,7 +730,7 @@ class MainWindow(
         right += "<span style='color:" + dim + "'>" + _("Sınırsız geri al ve yinele.") + "</span>"
         right += "<br><br>"
         right += "<b>" + _("Sürümleme") + " (Ctrl+K)</b><br>"
-        right += "<span style='color:" + dim + "'>" + _("Ctrl+K ile tüm değişiklikleri adlandırılmış bir sürüme kaydedin; Geçmiş sekmesinden farkları görün veya dosyayı eski sürümden geri yükleyin. Git bilgisine gerek yok; klasörde standart .git oluşur.") + "</span>"
+        right += "<span style='color:" + dim + "'>" + _("Ctrl+K ile tüm değişiklikleri adlandırılmış bir sürüme kaydedin; Sürüm Geçmişi sekmesinden farkları görün veya dosyayı eski sürümden geri yükleyin. Git bilgisine gerek yok; klasörde standart .git oluşur.") + "</span>"
         right += "<br><br>"
         right += "<b>" + _("Satıra Git") + " (Ctrl+G)</b><br>"
         right += "<span style='color:" + dim + "'>" + _("Belirli bir satır numarasına hızlıca gidin.") + "</span>"

@@ -1,4 +1,4 @@
-"""Sürümleme mixin — Ctrl+K 'Sürümle', Geçmiş sekmesi, geri yükleme/fark.
+"""Sürümleme mixin — Ctrl+K 'Sürümle', Sürüm Geçmişi sekmesi, geri yükleme/fark.
 
 Çekirdek core/versioning.py'dedir (dulwich). Kullanıcı hiçbir git kavramı
 görmez: anlık görüntü metaforu. Klasör .git içeriyorsa olduğu gibi kullanılır.

@@ -116,7 +116,7 @@ class OutputPanel(QWidget):
             f"{list_base} color: {t['fg_primary']};")
         self._history_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self._history_list.customContextMenuRequested.connect(self._on_history_menu)
-        self._history_tab_index = self._tabs.addTab(self._history_list, _("Geçmiş"))
+        self._history_tab_index = self._tabs.addTab(self._history_list, _("Sürüm Geçmişi"))
 
         layout.addWidget(self._tabs)
         self.setMaximumHeight(200)

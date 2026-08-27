@@ -157,7 +157,7 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 - **Otomatik derleme** — Ctrl+S ile kaydet ve derle; derleme bitince PDF imlecin olduğu yere otomatik kaydırılır (SyncTeX)
 - **`% !TEX root` desteği** — çok dosyalı projelerde alt dosyadan (bölüm dosyası) derleyin; kök belge otomatik bulunur ve derlenir
 - **Tablo sihirbazı (Ctrl+T)** — hücrelere yazarak veya CSV yükleyerek tabular üret (booktabs, hizalama, caption/label); mevcut tabloyu düzenler ve kolonları hizalar
-- **Sürümleme (Ctrl+K)** — tüm değişiklikleri adlandırılmış anlık görüntüye kaydet; Geçmiş sekmesinden farkları gör, dosyayı eski sürümden geri yükle. Git bilgisine gerek yok (gömülü dulwich; standart .git oluşur, dış araçlarla uyumlu)
+- **Sürümleme (Ctrl+K)** — tüm değişiklikleri adlandırılmış anlık görüntüye kaydet; Sürüm Geçmişi sekmesinden farkları gör, dosyayı eski sürümden geri yükle. Git bilgisine gerek yok (gömülü dulwich; standart .git oluşur, dış araçlarla uyumlu)
 - **Üçlü motor desteği** — lualatex (varsayılan), pdflatex ve xelatex
 - **Proje yönetimi** — klasör açma, dosya ağacı, çoklu dosya sekmeleri
 - **Hata görüntüleme** — derleme hataları ve uyarıları ayrı sekmelerde
