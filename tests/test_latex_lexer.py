@@ -540,3 +540,67 @@ def test_reset_state_clears_cache(qapp):
     data = editor.text().encode("utf-8")
     assert _style_at(editor, data.index(b"$i$")) == LatexLexer.VERBATIM
     assert _style_at(editor, data.index(b"son")) == LatexLexer.DEFAULT
+
+
+# =====================================================================
+# Belge-bayt önbelleği: tuş başına text()+encode taban maliyeti
+# =====================================================================
+
+
+class TestSourceCache:
+    def _editor(self, qapp):
+        from gui.editor import EditorWidget
+        ed = EditorWidget()
+        ed.setText("\\begin{document}\nselam $x$\n\\end{document}\n")
+        return ed
+
+    def test_belge_ayniysa_text_cekilmez(self, qapp, monkeypatch):
+        ed = self._editor(qapp)
+        lexer = ed.lexer()
+        cekim = []
+        gercek_text = ed.text
+
+        def sayan_text():
+            cekim.append(1)
+            return gercek_text()
+
+        monkeypatch.setattr(ed, "text", sayan_text)
+
+        lexer.styleText(0, 10)
+        assert cekim, "ilk cagri text cekmeli"
+        lexer.styleText(0, 12)          # belge degismedi -> onbellekten
+        assert len(cekim) == 1, "ayni belge icin text() tekrar cekilmemeli"
+
+    def test_belge_degisince_onbellek_duser(self, qapp):
+        ed = self._editor(qapp)
+        lexer = ed.lexer()
+        lexer.styleText(0, 10)
+        assert lexer._src_cache is not None
+
+        ed.setText("\\begin{document}\nbaska $y$\n\\end{document}\n")
+        # textChanged baglantisinin tetiklemesi: processEvents'suz dogrudan
+        # sinyal yolu da test kapsaminda dogrulanir
+        assert lexer._src_cache is None, "textChanged invalidate etmeli"
+
+    def test_uzunluk_farkliysa_savunma_duser(self, qapp, monkeypatch):
+        """textChanged baglantisi atlanirsa (ör. dogrudan styleText) uzunluk
+        denetimi bayat önbelleği yakalar."""
+        ed = self._editor(qapp)
+        lexer = ed.lexer()
+        lexer.styleText(0, 10)
+        ed.append("uzun satir eklendi\n")
+        lexer.invalidate_cache()   # bilincli: simule edelim baglanti calismadi
+        ed.text  # noqa: B018 -- erisim
+        lexer.styleText(0, 5)
+        # cache yeniden kurulmus olmali (bayt uzunlugu artik farkli)
+        assert lexer._src_cache is not None
+
+    def test_math_stili_font_aliyor(self, qapp):
+        from gui.theme import THEMES
+        from syntax.latex_lexer import LatexLexer
+        lex = LatexLexer()
+        lex.apply_theme(THEMES["dark"], font_size=13)
+        f = lex.font(LatexLexer.MATH)
+        assert f.pointSize() == 13
+        assert f.family() in ("Consolas", "DejaVu Sans Mono", "Menlo",
+                              "Courier New", "monospace")

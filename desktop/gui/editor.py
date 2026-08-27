@@ -92,6 +92,10 @@ class EditorWidget(QsciScintilla):
     def _setup_editor(self):
         lexer = LatexLexer(self)
         self.setLexer(lexer)
+        # Lexer'ın belge-bayt önbelleği: her metin değişiminde düşsün. Bu sinyal
+        # stil isteğinden (styleText) önce işlenir (_invalidate_beginend_cache
+        # ile aynı faz); ek savunma olarak _source_bytes uzunluk da doğrular.
+        self.textChanged.connect(lexer.invalidate_cache)
 
         self.setMarginLineNumbers(1, True)
         self.setMarginWidth(1, "0000")

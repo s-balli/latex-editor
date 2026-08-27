@@ -57,6 +57,24 @@ class LatexLexer(QsciLexerCustom):
         self._offset_states = {0: 0}
         self._doc_len = None
         self._doc_lines = None
+        # Belge baytları önbelleği: editor.text() tüm belgeyi Python'a çekip
+        # encode eder (iki tam-kopya); tuş başına bu taban maliyeti kaldırmak
+        # için aynı zamanda byte uzunluğuyla doğrulanır. Editor.textChanged ->
+        # invalidate_cache bağlar (beginend önbelleğiyle aynı faz).
+        self._src_cache: tuple[bytes, int] | None = None
+
+    def invalidate_cache(self):
+        """Belge değişti: bayt önbelleğini düşür (textChanged'e bağlı)."""
+        self._src_cache = None
+
+    def _source_bytes(self, editor) -> bytes:
+        cached = self._src_cache
+        n = editor.length()   # Scintilla uzunluğu bayt cinsindendir
+        if cached is not None and cached[1] == n:
+            return cached[0]
+        data = editor.text().encode("utf-8")
+        self._src_cache = (data, len(data))
+        return data
 
     def reset_state(self):
         """Belge bütünüyle değiştiğinde (setText ile yeniden yükleme) önbelleği
@@ -66,6 +84,7 @@ class LatexLexer(QsciLexerCustom):
         self._offset_states = {0: 0}
         self._doc_len = None
         self._doc_lines = None
+        self._src_cache = None
 
     def apply_theme(self, t: dict, font_size: int = 11):
         bg = QColor(t["bg_primary"])
@@ -95,6 +114,7 @@ class LatexLexer(QsciLexerCustom):
         math_bg = QColor(t["bg_math"])
         self.setColor(QColor(t["syn_math"]), self.MATH)
         self.setPaper(math_bg, self.MATH)
+        self.setFont(mono, self.MATH)   # eksikti: math metni tema fontuna düşüyordu
 
         self.setColor(QColor(t["syn_math_cmd"]), self.MATH_CMD)
         self.setPaper(math_bg, self.MATH_CMD)
@@ -125,11 +145,11 @@ class LatexLexer(QsciLexerCustom):
         if editor is None:
             return
 
-        # Tarama doğrudan UTF-8 baytları üzerinde: encode tek C-hızlı geçiş,
-        # bayt offsetleri Scintilla pozisyonlarıyla birebir örtüşür. (Eski kod
-        # her çağrıda tüm belge için Python döngüsüyle char→byte tablosu
-        # kuruyordu; büyük belgelerde tuş başına ciddi maliyet.)
-        source = editor.text().encode("utf-8")
+        # Tarama doğrudan UTF-8 baytları üzerinde: bayt offsetleri Scintilla
+        # pozisyonlarıyla birebir örtüşür. Baytlar önbellekten gelir
+        # (_source_bytes): tuş başına çift tam-belge kopyası (text + encode)
+        # yalnızca belge gerçekten değiştiğinde ödenir.
+        source = self._source_bytes(editor)
         if not source:
             self.reset_state()
             return
