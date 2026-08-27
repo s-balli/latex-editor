@@ -15,6 +15,7 @@ try:
     from PyQt6.QtWidgets import QApplication
     from gui.editor import EditorWidget
     from gui.mixins.compile_ops import CompileOpsMixin
+    from gui.mixins.tab_ops import TabOpsMixin
     from gui.mixins.synctex_ops import SyncTexMixin
     from core.log_parser import CompileResult
     from tests.stub_main import StubMain
@@ -64,7 +65,7 @@ class _StubViewer:
         self.scrolled = a
 
 
-class _Stub(CompileOpsMixin, SyncTexMixin, StubMain):
+class _Stub(CompileOpsMixin, TabOpsMixin, SyncTexMixin, StubMain):
     def __init__(self, editors, synctex_dir, engine="pdflatex"):
         StubMain.__init__(self, editors=editors, pdf_viewer=_StubViewer(), engine=engine)
         self._synctex_dir = synctex_dir

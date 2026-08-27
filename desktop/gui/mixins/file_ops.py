@@ -80,16 +80,7 @@ class FileOpsMixin:
             editor.deleteLater()
             return
         editor.setCursorPosition(3, 0)
-        editor.modificationChanged.connect(lambda m, e=editor: self._update_tab_title(e))
-        editor.cursorPositionChanged.connect(self._update_cursor_pos)
-        editor.textChanged.connect(lambda e=editor: self._update_wordcount(e))
-        editor.textChanged.connect(lambda e=editor: self._update_outline_debounced(e))
-        editor.forward_search_requested.connect(self._on_forward_search)
-        editor.image_paste_requested.connect(self._paste_image)
-        editor.rename_label_requested.connect(self._on_rename_label)
-        editor.rename_cite_requested.connect(self._on_rename_cite)
-        editor.rename_bibitem_requested.connect(self._on_rename_bibitem)
-        editor.goto_definition_requested.connect(self._on_goto_definition)
+        self._connect_editor_signals(editor)
         idx = self._editor_tabs.addTab(editor, editor.display_name)
         self._editor_tabs.setCurrentIndex(idx)
         self._add_tab_close_button(idx)
@@ -106,27 +97,34 @@ class FileOpsMixin:
         for p in paths:
             self._open_file_in_editor(p)
 
+    def _connect_editor_signals(self, editor):
+        """Editör sinyallerini ana pencere işleyicilerine bağla.
+
+        _new_file ve _open_file_in_editor aynı listeyi taşıyordu; yeni sinyal
+        eklendiğinde iki yerin güncellenmesi gerekiyordu.
+        """
+        editor.modificationChanged.connect(lambda m, e=editor: self._update_tab_title(e))
+        editor.cursorPositionChanged.connect(self._update_cursor_pos)
+        editor.textChanged.connect(lambda e=editor: self._update_wordcount(e))
+        editor.textChanged.connect(lambda e=editor: self._update_outline_debounced(e))
+        editor.forward_search_requested.connect(self._on_forward_search)
+        editor.image_paste_requested.connect(self._paste_image)
+        editor.rename_label_requested.connect(self._on_rename_label)
+        editor.rename_cite_requested.connect(self._on_rename_cite)
+        editor.rename_bibitem_requested.connect(self._on_rename_bibitem)
+        editor.goto_definition_requested.connect(self._on_goto_definition)
+
     def _open_file_in_editor(self, path: str, add_recent: bool = True):
-        for i in range(self._editor_tabs.count()):
-            editor = self._editor_tabs.widget(i)
-            if isinstance(editor, EditorWidget) and editor.file_path == os.path.normpath(path):
-                self._editor_tabs.setCurrentIndex(i)
-                return
+        editor = self._editor_by_path(path)
+        if editor is not None:
+            self._editor_tabs.setCurrentWidget(editor)
+            return
 
         editor = EditorWidget(theme=self._theme_mgr.theme)
         self._apply_editor_settings(editor)
         if editor.open_file(path):
             _logger.info("Dosya açıldı: %s", path)
-            editor.modificationChanged.connect(lambda m, e=editor: self._update_tab_title(e))
-            editor.cursorPositionChanged.connect(self._update_cursor_pos)
-            editor.textChanged.connect(lambda e=editor: self._update_wordcount(e))
-            editor.textChanged.connect(lambda e=editor: self._update_outline_debounced(e))
-            editor.forward_search_requested.connect(self._on_forward_search)
-            editor.image_paste_requested.connect(self._paste_image)
-            editor.goto_definition_requested.connect(self._on_goto_definition)
-            editor.rename_label_requested.connect(self._on_rename_label)
-            editor.rename_cite_requested.connect(self._on_rename_cite)
-            editor.rename_bibitem_requested.connect(self._on_rename_bibitem)
+            self._connect_editor_signals(editor)
             idx = self._editor_tabs.addTab(editor, editor.display_name)
             self._editor_tabs.setCurrentIndex(idx)
             self._add_tab_close_button(idx)

@@ -51,6 +51,22 @@ def _latex_wordcount(text: str) -> tuple[int, int]:
 
 class TabOpsMixin:
 
+    def _editor_by_path(self, path: str) -> "EditorWidget | None":
+        """``path`` açık sekmedeyse editörünü döndür (yoksa None).
+
+        Tek kaynak: bu aramayı beş mixin ayrı kopya tutuyordu
+        (compile/edit_ops/file_watch/file_ops/main_window); yeni sinyal veya
+        karşılaştırma kuralı eklendiğinde beşini birden güncellemek
+        gerekiyordu. Yollar her iki tarafta normpath'tir (open_file
+        normpath'le saklar).
+        """
+        path = os.path.normpath(path)
+        for i in range(self._editor_tabs.count()):
+            editor = self._editor_tabs.widget(i)
+            if isinstance(editor, EditorWidget) and editor.file_path == path:
+                return editor
+        return None
+
     def _add_tab_close_button(self, index: int):
         btn = QToolButton()
         btn.setFixedSize(18, 18)

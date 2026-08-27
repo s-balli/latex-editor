@@ -15,7 +15,6 @@ class FindReplaceBar(QWidget):
         super().__init__(parent)
         self._editor: QsciScintilla | None = None
         self._match_count = 0
-        self._current_match = 0
         self._count_timer = QTimer(self)
         self._count_timer.setSingleShot(True)
         self._count_timer.setInterval(300)

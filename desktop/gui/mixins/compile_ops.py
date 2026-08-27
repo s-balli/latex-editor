@@ -17,22 +17,13 @@ _logger = get_logger("compile")
 
 class CompileOpsMixin:
 
-    def _open_editor_for(self, path: str) -> EditorWidget | None:
-        """``path`` açık sekmedeyse editörünü döndür."""
-        path = os.path.normpath(path)
-        for i in range(self._editor_tabs.count()):
-            editor = self._editor_tabs.widget(i)
-            if isinstance(editor, EditorWidget) and editor.file_path == path:
-                return editor
-        return None
-
     def _save_if_open(self, path: str) -> bool:
         """``path`` açık sekmedeyse ve değiştiyse kaydet (kök belge kaydı dahil).
 
         Dosya açık değilse True (kayılacak bir şey yok). Kayıt başarısız olursa
         False döner; çağıran derlemeyi iptal eder.
         """
-        editor = self._open_editor_for(path)
+        editor = self._editor_by_path(path)
         if editor is None:
             return True
         if editor.isModified():
@@ -112,7 +103,7 @@ class CompileOpsMixin:
         engine = self._engine_combo.currentText()
         if target != path:
             engine = _detect_engine(target) or engine
-        editor = self._open_editor_for(path)
+        editor = self._editor_by_path(path)
         if editor is not None:
             line, col = editor.getCursorPosition()
             self._compile_cursor_ctx = (path, line + 1, col + 1)

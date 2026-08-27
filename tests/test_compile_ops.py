@@ -12,6 +12,7 @@ try:
     from PyQt6.QtWidgets import QApplication
     from gui.editor import EditorWidget
     from gui.mixins.compile_ops import CompileOpsMixin
+    from gui.mixins.tab_ops import TabOpsMixin
     from tests.stub_main import StubMain
 except ImportError:  # pragma: no cover
     pytest.skip("PyQt6 / gui modülleri gerekli", allow_module_level=True)
@@ -36,7 +37,7 @@ class _FakeCompiler:
         return True
 
 
-class _Stub(CompileOpsMixin, StubMain):
+class _Stub(CompileOpsMixin, TabOpsMixin, StubMain):
     def __init__(self, editors, busy=False):
         StubMain.__init__(self, editors=editors)
         self._compiler = _FakeCompiler(busy)

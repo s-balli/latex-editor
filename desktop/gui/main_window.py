@@ -450,10 +450,6 @@ class MainWindow(
         quick_open.setContext(Qt.ShortcutContext.ApplicationShortcut)
         quick_open.activated.connect(self._quick_open)
 
-        stop_shortcut = QShortcut(QKeySequence("Esc"), self)
-        stop_shortcut.setContext(Qt.ShortcutContext.WidgetShortcut)
-        stop_shortcut.activated.connect(self._on_esc)
-
     # --- Tema ---
 
     def _apply_theme(self, t: dict = None):
@@ -775,14 +771,10 @@ class MainWindow(
 
     def _goto_line(self, file_path: str, line: int):
         if file_path:
-            found = False
-            for i in range(self._editor_tabs.count()):
-                editor = self._editor_tabs.widget(i)
-                if isinstance(editor, EditorWidget) and editor.file_path == os.path.normpath(file_path):
-                    self._editor_tabs.setCurrentIndex(i)
-                    found = True
-                    break
-            if not found and os.path.isfile(file_path):
+            editor = self._editor_by_path(file_path)
+            if editor is not None:
+                self._editor_tabs.setCurrentWidget(editor)
+            elif os.path.isfile(file_path):
                 self._open_file_in_editor(file_path)
 
         editor = self._current_editor()

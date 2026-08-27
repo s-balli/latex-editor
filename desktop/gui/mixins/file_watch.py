@@ -102,7 +102,7 @@ class FileWatchMixin:
             self._watcher.removePath(path)
             self._save_hashes.pop(path, None)
             # İlgili sekmeyi bul ve kullanıcıya bildir
-            editor = self._find_editor_by_path(path)
+            editor = self._editor_by_path(path)
             if editor:
                 self._handle_deleted_file(editor, path)
             return
@@ -118,7 +118,7 @@ class FileWatchMixin:
             return
 
         # 3) İlgili editörü bul
-        editor = self._find_editor_by_path(path)
+        editor = self._editor_by_path(path)
         if editor is None:
             _logger.debug("Editör bulunamadı, watcher'dan kaldırılıyor: %s", path)
             self._watcher.removePath(path)
@@ -131,14 +131,6 @@ class FileWatchMixin:
         # 5) Bazı platformlarda fileChanged sonrası watcher kaldırılır, yeniden ekle
         if os.path.isfile(path) and path not in self._watcher.files():
             self._watcher.addPath(path)
-
-    def _find_editor_by_path(self, path: str) -> EditorWidget | None:
-        """Açık sekmelerde path'e sahip editörü bul."""
-        for i in range(self._editor_tabs.count()):
-            editor = self._editor_tabs.widget(i)
-            if isinstance(editor, EditorWidget) and editor.file_path == path:
-                return editor
-        return None
 
     def _handle_deleted_file(self, editor: EditorWidget, path: str):
         """Dosya diskten silinmiş — kullanıcıya bildir ve sekmeyi kapat."""

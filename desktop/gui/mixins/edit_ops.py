@@ -164,15 +164,6 @@ class EditOpsMixin:
 
     # --- F2: yeniden adlandırma (label + cite) — ortak altyapı ---
 
-    def _tab_editor(self, path: str):
-        """``path`` açık sekmedeyse editörünü, yoksa None döndür."""
-        from gui.editor import EditorWidget
-        for i in range(self._editor_tabs.count()):
-            w = self._editor_tabs.widget(i)
-            if isinstance(w, EditorWidget) and w.file_path == os.path.normpath(path):
-                return w
-        return None
-
     @staticmethod
     def _read_text(path: str) -> str | None:
         try:
@@ -208,7 +199,7 @@ class EditOpsMixin:
         from gui.editor import EditorWidget, _decode_bytes
         changed = 0
         for path in paths:
-            target = self._tab_editor(path)
+            target = self._editor_by_path(path)
             if target is not None:
                 spans = span_fn(target.text())
                 if spans:
@@ -320,7 +311,7 @@ class EditOpsMixin:
         # çift anahtar kontrolü: .bib (sekmeyse arabellekten, değilse diskten)
         bib_text = ""
         if bib_path:
-            bib_ed = self._tab_editor(bib_path)
+            bib_ed = self._editor_by_path(bib_path)
             bib_text = bib_ed.text() if bib_ed else (self._read_text(bib_path) or "")
         if bib_text and bib_key_rename_spans(bib_text, new_key):
             QMessageBox.warning(
@@ -331,7 +322,7 @@ class EditOpsMixin:
 
         paths = []
         if base_path:
-            base_ed = self._tab_editor(base_path)
+            base_ed = self._editor_by_path(base_path)
             base_content = base_ed.text() if base_ed else self._read_text(base_path)
             if base_content is not None:
                 paths.append(base_path)

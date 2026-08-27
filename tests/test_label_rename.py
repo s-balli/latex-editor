@@ -17,6 +17,7 @@ try:
     from gui.editor import EditorWidget
     from gui.main_window import MainWindow
     from gui.mixins.edit_ops import EditOpsMixin
+    from gui.mixins.tab_ops import TabOpsMixin
 except ImportError:  # pragma: no cover
     pytest.skip("PyQt6 / gui import edilemiyor", allow_module_level=True)
 
@@ -66,7 +67,7 @@ def test_f2_elsewhere_no_signal(qapp):
 from tests.stub_main import StubMain
 
 
-class _StubMain(EditOpsMixin, StubMain):
+class _StubMain(EditOpsMixin, TabOpsMixin, StubMain):
     """MainWindow yerine: _on_rename_label'in ihtiyaç duyduğu arayüz."""
 
 

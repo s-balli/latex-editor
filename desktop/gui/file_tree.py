@@ -352,13 +352,6 @@ class FileTree(QWidget):
             _logger.warning("Dosya toplama başarısız: %s — %s", dir_path, e)
         return files
 
-    def _check_refresh(self):
-        if not self._root:
-            return
-        current = self._collect_files(self._root)
-        if current != self._last_snapshot:
-            self.refresh()
-
     def _on_double_click(self, item: QTreeWidgetItem, column: int):
         path = item.data(0, Qt.ItemDataRole.UserRole)
         editable = item.data(0, Qt.ItemDataRole.UserRole + 1)
