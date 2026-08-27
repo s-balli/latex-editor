@@ -5,8 +5,9 @@ görmez: anlık görüntü metaforu. Klasör .git içeriyorsa olduğu gibi kulla
 """
 
 import os
+import threading
 
-from PyQt6.QtCore import QCoreApplication
+from PyQt6.QtCore import QCoreApplication, QObject, pyqtSignal
 from PyQt6.QtWidgets import QInputDialog, QMessageBox
 
 from core import versioning
@@ -14,6 +15,32 @@ from core.log import get_logger
 
 _ = lambda s: QCoreApplication.translate("VersionOpsMixin", s)
 _logger = get_logger("version_ops")
+
+
+class _SnapshotRunner(QObject):
+    """Arka planda dulwich add+commit — UI thread'i kilitlemez.
+
+    Büyük klasörlerde (ve WSL /mnt/c dosya sisteminde) snapshot saniyeler
+    sürüyor; senkron koşarken Ctrl+K arayüzü tamamen donduruyordu.
+    file_ops._ExportRunner deseni: daemon thread + done sinyali.
+    """
+
+    done = pyqtSignal(bool, str, object)   # ok, hata metni, entry (veya None)
+
+    def start(self, root: str, msg: str, first: bool):
+        def work():
+            try:
+                if first:
+                    versioning.init_repo(root)
+                entry = versioning.snapshot(root, msg)
+            except Exception as e:
+                _logger.error("Sürüm kaydı başarısız: %s", root, exc_info=True)
+                self.done.emit(False, str(e), None)
+                return
+            # entry None = değişiklik yok (başarı, sürüm atlandı)
+            self.done.emit(True, "", entry)
+
+        threading.Thread(target=work, name="version-snapshot", daemon=True).start()
 
 
 def classify_diff_line(line: str) -> str:
@@ -107,22 +134,32 @@ class VersionOpsMixin:
             return
         msg = msg.strip() or (_("Başlangıç sürümü") if first else _("Güncelleme"))
 
-        try:
-            if first:
-                versioning.init_repo(root)
-            entry = versioning.snapshot(root, msg)
-        except Exception as e:
-            _logger.error("Sürüm kaydı başarısız: %s", root, exc_info=True)
-            self._status.showMessage(_("Sürüm kaydı başarısız") + f": {e}")
+        # dulwich add+commit arka planda: büyük klasörde saniyeler sürer,
+        # senkron koşarken Ctrl+K arayüzü kilitleniyordu. İş sürerken ikinci
+        # snapshot reddedilir (yarışık/çift kayıt önlenir).
+        if getattr(self, "_snapshot_busy", False):
+            self._status.showMessage(_("Sürüm alınıyor; bitmesini bekleyin"))
             return
+        if getattr(self, "_snapshot_runner", None) is None:
+            self._snapshot_runner = _SnapshotRunner()
+            self._snapshot_runner.done.connect(self._on_snapshot_done)
+        self._snapshot_busy = True
+        self._status.showMessage(_("Sürüm alınıyor") + "...")
+        self._snapshot_runner.start(root, msg, first)
 
+    def _on_snapshot_done(self, ok: bool, error: str, entry):
+        """Arka plan snapshot'ı bitti — durumu bildir, geçmişi yenile."""
+        self._snapshot_busy = False
+        if not ok:
+            self._status.showMessage(_("Sürüm kaydı başarısız") + f": {error}")
+            return
         if entry is None:
             self._status.showMessage(_("Değişiklik yok — sürüm atlandı"))
             return
         self._status.showMessage(
             _("Sürüm kaydedildi") + f": {entry.short} · {entry.nfiles} " + _("dosya"))
-        _logger.info("Sürüm kaydedildi: %s (%d dosya) — %s",
-                     entry.short, entry.nfiles, msg)
+        _logger.info("Sürüm kaydedildi: %s (%d dosya)",
+                     entry.short, entry.nfiles)
         self._refresh_history(select_tab=True)
 
     # --- Geçmiş ---

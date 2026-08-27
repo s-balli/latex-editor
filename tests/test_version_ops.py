@@ -4,6 +4,7 @@ dulwich yoksa atlar; MainWindow kurulumu yerine StubMain + VersionOpsMixin.
 """
 
 from types import SimpleNamespace
+import time
 
 import pytest
 
@@ -59,13 +60,27 @@ def _stub_with_editor(tmp_path, monkeypatch, mesaj="deneme sürümü"):
     return stub, ed, tex
 
 
+def _snap(qapp, stub):
+    """_snapshot çağır ve arka plan işi bitene (busy düşene) kadar dön.
+
+    Snapshot artık arka planda koşuyor (dulwich add+commit UI'yi
+    kilitlemesin diye); sonuç sinyali event loop üzerinden gelir.
+    """
+    stub._snapshot()
+    deadline = time.monotonic() + 10
+    while getattr(stub, "_snapshot_busy", False) and time.monotonic() < deadline:
+        qapp.processEvents()
+        time.sleep(0.01)
+    qapp.processEvents()
+
+
 # --- Sürümle ---
 
 
 def test_first_snapshot_inits_repo_and_fills_history(qapp, tmp_path, monkeypatch):
     stub, ed, tex = _stub_with_editor(tmp_path, monkeypatch)
 
-    stub._snapshot()
+    _snap(qapp, stub)
     assert V.is_repo(str(tmp_path))
     assert "Sürüm kaydedildi" in stub._status.msg
     assert stub._output_panel._history_list.count() == 1
@@ -85,7 +100,7 @@ def test_open_folder_refreshes_history(qapp, tmp_path, monkeypatch):
     # 1. klasörde sürüm at
     stub, ed, tex = _stub_with_editor(tmp_path, monkeypatch)
     folder_stub = _FolderStub([ed], str(tmp_path))
-    folder_stub._snapshot()
+    _snap(qapp, folder_stub)
     assert folder_stub._output_panel._history_list.count() == 1
 
     # 2. başka klasör aç (boş, sürümsüz)
@@ -104,9 +119,9 @@ def test_open_folder_refreshes_history(qapp, tmp_path, monkeypatch):
 
 def test_second_snapshot_without_changes_skipped(qapp, tmp_path, monkeypatch):
     stub, ed, tex = _stub_with_editor(tmp_path, monkeypatch)
-    stub._snapshot()
+    _snap(qapp, stub)
 
-    stub._snapshot()
+    _snap(qapp, stub)
     assert "Değişiklik yok" in stub._status.msg
     assert stub._output_panel._history_list.count() == 1
 
@@ -116,14 +131,14 @@ def test_snapshot_saves_dirty_editor_first(qapp, tmp_path, monkeypatch):
     ed.setText(ed.text() + "\n% yeni satır\n")
     ed.setModified(True)
 
-    stub._snapshot()
+    _snap(qapp, stub)
     assert ed.isModified() is False, "kirli sekme sürümden önce kaydedilmeli"
     assert "% yeni satır" in open(tex, encoding="utf-8").read()
 
 
 def test_snapshot_without_folder_shows_status(qapp):
     stub = _Stub([], "")
-    stub._snapshot()
+    _snap(qapp, stub)
     assert "klasör açın" in stub._status.msg
 
 
@@ -132,7 +147,7 @@ def test_snapshot_without_folder_shows_status(qapp):
 
 def test_restore_from_version(qapp, tmp_path, monkeypatch):
     stub, ed, tex = _stub_with_editor(tmp_path, monkeypatch)
-    stub._snapshot()
+    _snap(qapp, stub)
     sha = V.history(str(tmp_path))[0].sha
 
     # dosyayı boz
@@ -153,7 +168,7 @@ def test_restore_records_watch_save(qapp, tmp_path, monkeypatch):
     """Geri yükleme watcher hash'ini günceller: sahte 'diskte değişti' diyaloğu
     önlenir (yazım doğrudan diske yapılıyor, watcher görür)."""
     stub, ed, tex = _stub_with_editor(tmp_path, monkeypatch)
-    stub._snapshot()
+    _snap(qapp, stub)
     sha = V.history(str(tmp_path))[0].sha
 
     monkeypatch.setattr(
@@ -174,7 +189,7 @@ def test_restore_preserves_cursor(qapp, tmp_path, monkeypatch):
     stub, ed, tex = _stub_with_editor(tmp_path, monkeypatch)
     ed.setText("\\begin{document}\nsatır1\nsatır2\nsatır3\n\\end{document}\n")
     ed.save_file()
-    stub._snapshot()  # uzun sürüm
+    _snap(qapp, stub)  # uzun sürüm
     sha = V.history(str(tmp_path))[0].sha
 
     ed.setCursorPosition(3, 2)  # 'satır2' ortası
@@ -188,7 +203,7 @@ def test_restore_preserves_cursor(qapp, tmp_path, monkeypatch):
 
 def test_version_action_without_editor(qapp, tmp_path, monkeypatch):
     stub, ed, tex = _stub_with_editor(tmp_path, monkeypatch)
-    stub._snapshot()
+    _snap(qapp, stub)
     empty = _Stub([], str(tmp_path))
     empty._on_version_action("restore", "deadbeef")
     assert "Açık dosya yok" in empty._status.msg
@@ -236,7 +251,7 @@ def test_restore_cp1254_file_not_corrupted(qapp, tmp_path, monkeypatch):
     import gui.mixins.version_ops as vo
     monkeypatch.setattr(vo.QInputDialog, "getText",
                         staticmethod(lambda *a, **k: ("kayıt", True)))
-    stub._snapshot()
+    _snap(qapp, stub)
     sha = V.history(str(tmp_path))[0].sha
 
     f.write_bytes("% BOZUK".encode("cp1254"))
@@ -254,7 +269,7 @@ def test_copy_version_content_to_clipboard(qapp, tmp_path, monkeypatch):
     from PyQt6.QtWidgets import QApplication
 
     stub, ed, tex = _stub_with_editor(tmp_path, monkeypatch)
-    stub._snapshot()
+    _snap(qapp, stub)
     sha = V.history(str(tmp_path))[0].sha
     before = open(tex, encoding="utf-8").read()
 
@@ -270,9 +285,9 @@ def test_copy_version_content_to_clipboard(qapp, tmp_path, monkeypatch):
 
 def test_drop_version_from_history(qapp, tmp_path, monkeypatch):
     stub, ed, tex = _stub_with_editor(tmp_path, monkeypatch)
-    stub._snapshot()
+    _snap(qapp, stub)
     (tmp_path / "ana.tex").write_text("yeni hâl\n", encoding="utf-8")
-    stub._snapshot()
+    _snap(qapp, stub)
     assert stub._output_panel._history_list.count() == 2
 
     monkeypatch.setattr(
@@ -356,3 +371,35 @@ def test_ctrl_k_handled_by_app_key_shortcut(qapp):
                    Qt.KeyboardModifier.ControlModifier, "k")
     assert MainWindow._handle_app_key_shortcut(mw, ev) is True
     assert calls == ["k"]
+
+
+def test_snapshot_busy_iken_ikinci_cagri_reddedilir(qapp, tmp_path, monkeypatch):
+    """İş sürerken ikinci Ctrl+K çift kayıt atmasın; 'bekle' mesajı versin."""
+    import gui.mixins.version_ops as vo
+
+    stub, ed, tex = _stub_with_editor(tmp_path, monkeypatch)
+
+    gercek = vo.versioning.snapshot
+
+    def yavas_snapshot(root, msg):
+        time.sleep(0.4)
+        return gercek(root, msg)
+
+    monkeypatch.setattr(vo.versioning, "snapshot", yavas_snapshot)
+    import threading
+    _snap(qapp, stub)
+    assert "Sürüm kaydedildi" in stub._status.msg
+    assert stub._output_panel._history_list.count() == 1
+
+    # ayni yavaslikla ikinci tur: is surerken (busy) ücüncü cagri red
+    monkeypatch.setattr(vo.versioning, "snapshot", yavas_snapshot)
+    ed.setText(ed.text() + "\n% baska satir\n")
+    threading.Thread(target=stub._snapshot, daemon=True).start()
+    deadline = time.monotonic() + 5
+    while not getattr(stub, "_snapshot_busy", False) and time.monotonic() < deadline:
+        qapp.processEvents(); time.sleep(0.01)
+    assert stub._snapshot_busy, "arka plan isine gec girildi mi kontrol"
+    stub._snapshot()
+    assert "bekleyin" in stub._status.msg
+    _snap(qapp, stub)   # gercek cagri zaten red edildi; busy'nin dusmesi bekle
+    assert stub._output_panel._history_list.count() == 2
