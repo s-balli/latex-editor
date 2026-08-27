@@ -141,10 +141,13 @@ class OutputPanel(QWidget):
         if not tmpl:
             return ""
         cmd = params.get("cmd", "")
-        return tmpl.format(
-            cmd=f" ({cmd})" if cmd else "",
-            env=params.get("env", ""),
-        )
+        env = params.get("env", "")
+        # str.format KULLANMA: şablonlar gerçek LaTeX küme parantezleri taşıyor
+        # ('\end{...}', '{[ANSI]C}', '{babel}') — format onları yer tutucu sanıp
+        # KeyError fırlatıyor, show_result yarıda kesiliyor ve Log sekmesi boş
+        # kalıyordu. Yerine basit ikame.
+        out = tmpl.replace("{cmd}", f" ({cmd})" if cmd else "")
+        return out.replace("{env}", env)
 
     def show_result(self, result: CompileResult):
         self.clear()

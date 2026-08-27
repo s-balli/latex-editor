@@ -116,6 +116,50 @@ def test_listings_language_turkish_babel():
 
 
 # =====================================================================
+# _hint_text: şablonlardaki gerçek LaTeX parantezleri format() tuzağına
+# düşmemeli (KeyError show_result'i kesip Log sekmesini boş bırakıyordu)
+# =====================================================================
+
+
+def test_hint_text_sablon_parantezleri_guvenli(qapp):
+    from gui.output_panel import OutputPanel
+
+    # listings ipucu: '{babel}' ve '{[ANSI]C}' gerçek metin, yer tutucu değil
+    text = OutputPanel._hint_text(("listings_language", {}))
+    assert "{[ANSI]C}" in text and "babel" in text
+
+    # mevcut gizli tuzak: file_ended_scanning '\\end{...}' içeriyordu
+    text = OutputPanel._hint_text(("file_ended_scanning", {}))
+    assert "\\end{...}" in text
+
+    # parametreli şablonlar ikame yoluyla çalışmaya devam etmeli
+    text = OutputPanel._hint_text(("undefined_control", {"cmd": "\\textbf"}))
+    assert "(\\textbf)" in text
+    text = OutputPanel._hint_text(("env_undefined", {"env": "deneme"}))
+    assert "deneme" in text
+
+
+def test_show_result_listings_hatasi_logu_doldurur(qapp):
+    """Kullanıcının yaşadığı semptom: listings hatası ipucu üretince
+    show_result patlıyor, Ham çıktı (Log) sekmesi boş kalıyordu."""
+    from gui.output_panel import OutputPanel
+    from gui.theme import THEMES
+    from core.log_parser import CompileResult, LatexError
+
+    panel = OutputPanel(theme=THEMES["dark"])
+    result = CompileResult(success=False, raw_output="[derleniyor] bolum2 ...\n"
+                          "[hata] derleme basarisiz\n")
+    result.errors = [
+        LatexError(message="Package Listings Error: Couldn't load requested language."),
+        LatexError(message="Package Listings Error: language ansi of c undefined."),
+    ]
+    panel.show_result(result)          # patlamamalı
+    assert panel._error_list.count() == 2
+    assert panel._log_text.toPlainText() != "", "Log sekmesi bos kalmamali"
+    assert "babel" in panel._error_list.item(0).text()  # ipucu satırda
+
+
+# =====================================================================
 # log_parser: pdfTeX/LuaTeX motor uyarıları artık yakalanır
 # =====================================================================
 
