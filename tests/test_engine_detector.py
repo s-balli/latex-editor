@@ -372,3 +372,18 @@ class TestCanCompile:
     def test_nonexistent_file(self):
         ok, _ = can_compile("/nonexistent/file.tex")
         assert ok is False
+
+
+def test_detect_root_from_head_path_ile_ayni_sonuc(tmp_path):
+    """detect_root_from_head, detect_root ile aynı kökü çözmeli (tek okuma
+    varyantı; file_tree _input_ref_ok kullanıyor)."""
+    from core.engine_detector import detect_root, detect_root_from_head
+    root = tmp_path / "main.tex"
+    root.write_text("\\begin{document}x\\end{document}\n")
+    child = tmp_path / "bolum.tex"
+    child.write_text("% !TEX root = main.tex\nmetin\n")
+
+    beklenen = detect_root(str(child))
+    assert beklenen == str(root)
+    assert detect_root_from_head(child.read_text(encoding="utf-8"), str(child)) == beklenen
+    assert detect_root_from_head("magic yok\n", str(child)) == ""

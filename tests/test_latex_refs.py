@@ -462,3 +462,45 @@ def test_bibitem_rename_spans_with_label():
 
 def test_bibitem_rename_spans_no_match():
     assert latex_refs.bibitem_rename_spans("\\bibitem{baska}\n", "yok") == []
+
+
+# =====================================================================
+# Önbellek sınırları: uzun oturumda sınırsız birikme yok (LRU)
+# =====================================================================
+
+
+class TestCacheBounds:
+    def test_cache_put_siniri_asarsa_en_eski_duser(self):
+        from core import latex_refs as lr
+        lr._label_file_cache.clear()
+        for i in range(lr._CACHE_MAX + 10):
+            lr._cache_put(lr._label_file_cache, f"f{i}.tex", (1.0, [f"lab{i}"]))
+        assert len(lr._label_file_cache) == lr._CACHE_MAX
+        # en eski girdiler düştü, en yeniler duruyor
+        assert "f0.tex" not in lr._label_file_cache
+        assert f"f{lr._CACHE_MAX + 9}.tex" in lr._label_file_cache
+
+    def test_cache_get_isabet_tazelestirir(self):
+        from core import latex_refs as lr
+        lr._bib_cache.clear()
+        for i in range(lr._CACHE_MAX):
+            lr._cache_put(lr._bib_cache, f"b{i}.bib", (1.0, []))
+        # en eskiye isabet: tazelenir; yeni ekleme artik ikinci en eskiyi düşürür
+        assert lr._cache_get(lr._bib_cache, "b0.bib") == (1.0, [])
+        lr._cache_put(lr._bib_cache, "yeni.bib", (2.0, []))
+        assert "b0.bib" in lr._bib_cache
+        assert "b1.bib" not in lr._bib_cache
+
+    def test_collect_labels_cok_dosyada_sinirda_kalir(self, tmp_path):
+        from core import latex_refs as lr
+        ana = tmp_path / "ana.tex"
+        satirlar = ["\\begin{document}"] + [
+            f"\\input{{c{i}}}" for i in range(lr._CACHE_MAX + 5)
+        ] + ["\\end{document}"]
+        ana.write_text("\n".join(satirlar), encoding="utf-8")
+        for i in range(lr._CACHE_MAX + 5):
+            (tmp_path / f"c{i}.tex").write_text(f"\\label{{l{i}}}\n", encoding="utf-8")
+        lr._label_file_cache.clear()
+        lr.collect_labels(ana.read_text(encoding="utf-8"), str(ana))
+        assert len(lr._label_file_cache) <= lr._CACHE_MAX
+        lr._label_file_cache.clear()

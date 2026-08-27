@@ -24,6 +24,25 @@ _label_file_cache: dict[str, tuple[float, list[str]]] = {}
 # .bib anahtar önbelleği: bib_path -> (mtime, [keys])
 _bib_cache: dict[str, tuple[float, list[str]]] = {}
 
+# Önbellek üst sınırı: uzun oturumda silinmiş/projeden çıkmış dosyaların
+# girdileri sonsuza dek birikmesin (LRU: isabet girdiyi taze taşır)
+_CACHE_MAX = 64
+
+
+def _cache_get(cache: dict, key: str):
+    """İsabet: değeri döndür ve girdiyi en taze konuma taşı (LRU)."""
+    value = cache.get(key)
+    if value is not None:
+        cache.pop(key)
+        cache[key] = value
+    return value
+
+
+def _cache_put(cache: dict, key: str, value) -> None:
+    cache[key] = value
+    while len(cache) > _CACHE_MAX:
+        cache.pop(next(iter(cache)))
+
 
 def _base_dir(base_path: str) -> str:
     return os.path.dirname(os.path.abspath(base_path)) if base_path else os.getcwd()
@@ -63,7 +82,7 @@ def collect_labels(content: str, base_path: str) -> list[str]:
             mtime = os.path.getmtime(path)
         except OSError:
             continue
-        cached = _label_file_cache.get(path)
+        cached = _cache_get(_label_file_cache, path)
         if cached and cached[0] == mtime:
             file_labels = cached[1]
         else:
@@ -72,7 +91,7 @@ def collect_labels(content: str, base_path: str) -> list[str]:
                     file_labels = _extract_labels(f.read())
             except OSError:
                 continue
-            _label_file_cache[path] = (mtime, file_labels)
+            _cache_put(_label_file_cache, path, (mtime, file_labels))
         labels.update(file_labels)
     return sorted(labels)
 
@@ -159,7 +178,7 @@ def collect_cite_keys(content: str, base_path: str) -> list[str]:
         mtime = os.path.getmtime(bib_path)
     except OSError:
         return []
-    cached = _bib_cache.get(bib_path)
+    cached = _cache_get(_bib_cache, bib_path)
     if cached and cached[0] == mtime:
         return cached[1]
     try:
@@ -167,7 +186,7 @@ def collect_cite_keys(content: str, base_path: str) -> list[str]:
             keys = sorted({m.group(1).strip() for m in _RE_BIBENTRY.finditer(f.read())})
     except OSError:
         return []
-    _bib_cache[bib_path] = (mtime, keys)
+    _cache_put(_bib_cache, bib_path, (mtime, keys))
     return keys
 
 

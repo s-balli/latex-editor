@@ -73,6 +73,13 @@ def detect_root(tex_path: str) -> str:
             head = "".join(line for _, line in zip(range(_MAGIC_SCAN_LINES), f))
     except OSError:
         return ""
+    return detect_root_from_head(head, tex_path)
+
+
+def detect_root_from_head(head: str, tex_path: str) -> str:
+    """detect_root'un içerik-alan varyantı (dosya zaten okunduysa ikinci
+    okuma yapma; web backend'i de kullanabilir). ``head``: dosyanın en az
+    ilk ``_MAGIC_SCAN_LINES`` satırı (tamamı da olur)."""
     for line in head.splitlines():
         m = _MAGIC_TEX_ROOT.match(line.strip())
         if not m:

@@ -20,7 +20,12 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import QFileSystemWatcher, QMimeData
 
 from core.input_parser import parse_inputs, group_by_directory
-from core.engine_detector import can_compile as _can_compile, detect_root as _detect_root
+from core.engine_detector import (
+    can_compile as _can_compile,
+    detect_root as _detect_root,
+    can_compile_from_content as _can_compile_content,
+    detect_root_from_head as _detect_root_head,
+)
 from core.log import get_logger
 from PyQt6.QtCore import QCoreApplication
 
@@ -188,6 +193,24 @@ class FileTree(QWidget):
         self._input_header.show()
         self._input_tree.show()
 
+    def _input_ref_ok(self, path: str) -> bool:
+        """Bağlantılı dosya derlenebilir mi (ya da % !TEX root'a mı yönlendirilmiş)?
+
+        Sekme degistiginde her baglanti icin cagriliyor; eskiden can_compile
+        (tam okuma) + detect_root (30 satir okuma) iki ayri acilis yapiyordu.
+        Simdi dosya TEK okusla okunup iki denetim de icerikten yapiliyor.
+        """
+        if not path.endswith(".tex"):
+            return False
+        try:
+            with open(path, "r", encoding="utf-8", errors="replace") as f:
+                content = f.read()
+        except OSError:
+            return False
+        if _can_compile_content(content, os.path.basename(path))[0]:
+            return True
+        return _detect_root_head(content, path) != ""
+
     def _populate_input_tree(self, refs, parent):
         for ref in refs:
             if ref.get('is_dir'):
@@ -195,7 +218,7 @@ class FileTree(QWidget):
                 item.setData(0, Qt.ItemDataRole.UserRole, None)
                 item.setForeground(0, QColor(self._theme["sem_folder"]))
             else:
-                ok = _can_compile(ref['path'])[0] or _detect_root(ref['path']) != ""
+                ok = self._input_ref_ok(ref['path'])
                 item = QTreeWidgetItem(parent, [f"📎 {ref['name']}"])
                 item.setData(0, Qt.ItemDataRole.UserRole, ref['path'])
                 if ok:
