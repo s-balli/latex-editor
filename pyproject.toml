@@ -15,9 +15,12 @@ line-length = 100
 
 [tool.ruff.lint]
 # E9 (sözdizimi/çalışma zamanı hatası) + F (pyflakes): gerçek bug ve ölü kod.
+# W605: geçersiz kaçış dizisi — Python 3.12'de SyntaxWarning, ilerideki bir
+# sürümde SyntaxError olacak. LaTeX komutları docstring'e ham yazıldığında
+# (\section vb.) sessizce oluşur; kapı olmadan tekrar birikir.
 # Stil gürültüsü (E501 satır uzunluğu, whitespace) bilerek kapalı — kod tabanı
 # uzun HTML/docstring satırlarını bilinçle kullanıyor (287 satır >100).
-select = ["E9", "F"]
+select = ["E9", "F", "W605"]
 
 [tool.ruff.lint.per-file-ignores]
 # __init__.py'ler alt modülleri bilerek re-export eder.

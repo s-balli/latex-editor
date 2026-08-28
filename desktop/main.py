@@ -45,17 +45,13 @@ def _register_file_association():
             # OpenWithProgids — varsayılanı değiştirmez, sadece listeye ekler
             with winreg.CreateKey(winreg.HKEY_CURRENT_USER, "Software\\Classes\\.tex\\OpenWithProgids") as key:
                 winreg.SetValueEx(key, prog_id, 0, winreg.REG_NONE, b"")
-            # Windows'un kullandığı ProgID'nin ikonunu da ayarla
-            try:
-                with winreg.OpenKey(winreg.HKEY_CURRENT_USER,
-                    r"Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.tex\UserChoice") as uc_key:
-                    active_prog_id = winreg.QueryValueEx(uc_key, "ProgId")[0]
-                if active_prog_id and active_prog_id != prog_id:
-                    with winreg.CreateKey(winreg.HKEY_CURRENT_USER,
-                        f"Software\\Classes\\{active_prog_id}\\DefaultIcon") as di_key:
-                        winreg.SetValue(di_key, None, winreg.REG_SZ, icon_path)
-            except Exception:
-                pass
+            # NOT: Buradan, .tex'in AKTİF ProgID'sinin (UserChoice) DefaultIcon'unu
+            # bizim ikonumuzla ezen bir blok kaldırıldı. .tex başka bir editöre
+            # (TeXstudio, VS Code...) bağlıysa o uygulamanın kayıt defteri
+            # girdisini değiştiriyordu: HKCU, HKLM'i ezdiği için dosyalar bizim
+            # ikonumuzla görünüp o programda açılıyordu ve geri alınmıyordu.
+            # Kendi ProgID'mizin ikonunu ayarlamak (yukarıda) meşru; başkasınınkini
+            # değiştirmek değil.
         except Exception:
             pass
 

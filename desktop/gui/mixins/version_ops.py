@@ -27,6 +27,10 @@ class _SnapshotRunner(QObject):
 
     done = pyqtSignal(bool, str, object)   # ok, hata metni, entry (veya None)
 
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._thread = None
+
     def start(self, root: str, msg: str, first: bool):
         def work():
             try:
@@ -40,7 +44,21 @@ class _SnapshotRunner(QObject):
             # entry None = değişiklik yok (başarı, sürüm atlandı)
             self.done.emit(True, "", entry)
 
-        threading.Thread(target=work, name="version-snapshot", daemon=True).start()
+        self._thread = threading.Thread(target=work, name="version-snapshot", daemon=True)
+        self._thread.start()
+
+    def wait(self, timeout_ms: int) -> bool:
+        """Kayıt bitene kadar bekle. True = bitti/zaten boştaydı.
+
+        Daemon thread yorumlayıcı çıkışında KESİLİR: add+commit'in ortasında
+        kesilmek depoyu yarım nesne/index ile bırakabilir. Kapanışta beklenir
+        (bkz. MainWindow.closeEvent).
+        """
+        t = self._thread
+        if t is None or not t.is_alive():
+            return True
+        t.join(timeout_ms / 1000)
+        return not t.is_alive()
 
 
 def classify_diff_line(line: str) -> str:
@@ -114,6 +132,56 @@ class VersionOpsMixin:
 
     # --- Sürümle (Ctrl+K) ---
 
+    # QSettings anahtarı: hangi klasörler için depo uyarısı onaylandı.
+    _REPO_ACK_KEY = "versioning/acked_roots"
+
+    def _repo_ack_roots(self) -> list:
+        val = self._settings.value(self._REPO_ACK_KEY, [])
+        if isinstance(val, str):       # QSettings tek elemanlı listeyi str verir
+            return [val]
+        return list(val or [])
+
+    def _confirm_repo_use(self, root: str) -> bool:
+        """Yabancı/iç içe depoda ilk sürümlemede onay al. True = devam et.
+
+        Editör depoyu ayırt etmediği için 'Sürümle' kullanıcının GERÇEK git
+        deposuna, gerçek dalına commit atabilir. Klasör başına bir kez sorulur
+        (onay QSettings'te tutulur); editörün kendi yarattığı depolarda hiç
+        sorulmaz, yani normal kullanımda ek tıklama yok.
+        """
+        st = versioning.repo_status(root)
+        if not (st.foreign or st.nested):
+            return True
+        if os.path.normpath(root) in {os.path.normpath(p) for p in self._repo_ack_roots()}:
+            return True
+
+        # Metinler tek satırlık _() çağrısı: scripts/update_translations.sh
+        # yalnız bu biçimi çıkarabiliyor (çok satırlı birleştirme katalogdan düşer).
+        if st.nested:
+            text = _("Bu klasör, '{parent}' git deposunun içinde.\n\nSürümleme burada İÇ İÇE bir depo (.git) oluşturur; üst depo bu klasörü tek bir girdi olarak görür ve içeriği izlenmez.").format(parent=st.parent_repo)
+        else:
+            nerede = (_("Uzak bağlantılar: ") + ", ".join(st.remotes)) if st.remotes \
+                else _("Bu depo bu editör tarafından oluşturulmamış.")
+            text = _("Bu klasör zaten bir git deposu.\n\nSürümleme AYRI bir geçmiş tutmaz: kayıtlar mevcut deponuza, bulunduğunuz dala işlenir. 'Sürüm Geçmişi' sekmesindeki silme işlemleri de bu gerçek depoyu etkiler.\n\n{nerede}").format(nerede=nerede)
+
+        dlg = QMessageBox(self)
+        dlg.setWindowTitle(_("Sürümleme — Mevcut Git Deposu"))
+        dlg.setIcon(QMessageBox.Icon.Warning)
+        dlg.setText(text)
+        btn_ok = dlg.addButton(_("Anladım, Devam Et"), QMessageBox.ButtonRole.AcceptRole)
+        dlg.addButton(_("Vazgeç"), QMessageBox.ButtonRole.RejectRole)
+        dlg.setDefaultButton(btn_ok)
+        dlg.exec()
+        if dlg.clickedButton() is not btn_ok:
+            self._status.showMessage(_("Sürümleme iptal edildi"))
+            return False
+
+        acked = self._repo_ack_roots()
+        acked.append(os.path.normpath(root))
+        self._settings.setValue(self._REPO_ACK_KEY, acked)
+        _logger.info("Mevcut git deposunda sürümleme onaylandı: %s", root)
+        return True
+
     def _snapshot(self):
         root = self._version_root()
         if not root or not os.path.isdir(root):
@@ -123,6 +191,12 @@ class VersionOpsMixin:
             self._status.showMessage(
                 _("Sürümleme için 'dulwich' paketi gerekli") + " (pip install dulwich)")
             return
+        # Onay ÖNCE: vazgeçen kullanıcının açık sekmeleri diske yazılmış olmasın
+        # (Ctrl+K'nın tek yan etkisi kayıt bile olsa, iptal 'hiçbir şey olmadı'
+        # demeli).
+        if not self._confirm_repo_use(root):
+            return
+
         if not self._save_all_open():
             self._status.showMessage(_("Kayıt başarısız — sürümleme iptal"))
             return
@@ -258,11 +332,23 @@ class VersionOpsMixin:
         self._status.showMessage(
             _("Bu sürümdeki içerik panoya kopyalandı") + f": {rel} @ {sha[:7]}")
 
+    @staticmethod
+    def _foreign_repo_note(root: str) -> str:
+        """Yabancı depoda silme dialoglarına eklenecek uyarı (yoksa "")."""
+        st = versioning.repo_status(root)
+        if not st.foreign:
+            return ""
+        note = "\n\n" + _("DİKKAT: Bu, editörün değil sizin git deponuz.")
+        if st.remotes:
+            note += " " + _("Uzak bağlantılar: ") + ", ".join(st.remotes) + "."
+        return note
+
     def _drop_version(self, root: str):
         """En yeni sürümü geçmişten sil (dosyalara dokunmaz)."""
         answer = QMessageBox.question(
             self, _("Sürümü Sil"),
-            _("En yeni sürüm geçmişten silinir; dosyalarınız değişmez. Devam?"),
+            _("En yeni sürüm geçmişten silinir; dosyalarınız değişmez. Devam?")
+            + self._foreign_repo_note(root),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         if answer != QMessageBox.StandardButton.Yes:
             return
@@ -284,11 +370,21 @@ class VersionOpsMixin:
 
         Proje dosyalarına dokunmaz; yanlış silmede klasör geri getirilebilir.
         """
+        # Yabancı depoda bu işlem kullanıcının TÜM git geçmişini (dallar, etiketler,
+        # remote yapılandırması) çöp kutusuna yollar; onay metni bunu söylemeli.
+        st = versioning.repo_status(root)
+        if st.foreign:
+            metin = _("Bu klasördeki .git klasörü — yani SİZİN git deponuz — çöp kutusuna taşınacak.\n\nTüm dallar, etiketler ve uzak bağlantı ayarları gider; proje dosyalarınız yerinde kalır. Geri almak için çöp kutusundan kurtarmanız gerekir.")
+            if st.remotes:
+                metin += "\n\n" + _("Uzak bağlantılar: ") + ", ".join(st.remotes)
+            metin += "\n\n" + _("Devam etmek istediğinize emin misiniz?")
+        else:
+            metin = _("TÜM sürüm geçmişi silinecek (dosyalarınız silinmez). Devam etmek istediğinize emin misiniz?")
         answer = QMessageBox.question(
-            self, _("Tüm Geçmişi Sil"),
-            _("TÜM sürüm geçmişi silinecek (dosyalarınız silinmez). "
-              "Devam etmek istediğinize emin misiniz?"),
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
+            self, _("Tüm Geçmişi Sil"), metin,
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            # Yanlışlıkla Enter'a basıp gerçek depoyu silmeyi zorlaştır.
+            QMessageBox.StandardButton.No)
         if answer != QMessageBox.StandardButton.Yes:
             return
         if not versioning.drop_all(root):

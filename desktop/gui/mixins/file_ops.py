@@ -25,12 +25,29 @@ class _ExportRunner(QObject):
 
     done = pyqtSignal(bool, str)  # ok, hata mesajı
 
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self._thread = None
+
     def start(self, tex_path: str, dest_path: str):
         def work():
             ok, err = _export(tex_path, dest_path)
             self.done.emit(ok, err)
 
-        threading.Thread(target=work, name="pandoc-export", daemon=True).start()
+        self._thread = threading.Thread(target=work, name="pandoc-export", daemon=True)
+        self._thread.start()
+
+    def wait(self, timeout_ms: int) -> bool:
+        """İş bitene kadar bekle. True = bitti/zaten boştaydı.
+
+        Daemon thread yorumlayıcı çıkışında KESİLİR; kapanışta beklenmezse
+        hedef dosya yarım yazılmış kalabilir (bkz. MainWindow.closeEvent).
+        """
+        t = self._thread
+        if t is None or not t.is_alive():
+            return True
+        t.join(timeout_ms / 1000)
+        return not t.is_alive()
 
 
 class FileOpsMixin:

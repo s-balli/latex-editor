@@ -47,13 +47,18 @@ def _init_once():
     ))
     root.addHandler(fh)
 
-    # Console handler — DEBUG ve üstü (sadece geliştirme)
-    ch = logging.StreamHandler(sys.stdout)
-    ch.setLevel(logging.DEBUG)
-    ch.setFormatter(logging.Formatter(
-        "%(levelname)-8s | %(name)s | %(message)s",
-    ))
-    root.addHandler(ch)
+    # Console handler — DEBUG ve üstü (sadece geliştirme).
+    # Paketlenmiş sürüm windowed (console=False): sys.stdout/stderr None olur ve
+    # StreamHandler(None) stream'i sys.stderr'e (yine None) düşürür; her log
+    # kaydı emit()'te AttributeError atıp handleError() içinde sessizce yutulur.
+    # Konsol yoksa handler hiç eklenmez.
+    if sys.stdout is not None:
+        ch = logging.StreamHandler(sys.stdout)
+        ch.setLevel(logging.DEBUG)
+        ch.setFormatter(logging.Formatter(
+            "%(levelname)-8s | %(name)s | %(message)s",
+        ))
+        root.addHandler(ch)
 
     root.info("LaTeX Editor başlatıldı — log dizini: %s", LOG_DIR)
 

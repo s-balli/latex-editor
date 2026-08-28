@@ -1,7 +1,10 @@
 """log.py — merkezi logging testleri."""
 
+import io
 import os
 import logging
+from logging.handlers import RotatingFileHandler
+
 import pytest
 
 
@@ -62,6 +65,47 @@ class TestGetLogger:
         fresh_log.get_logger("b")
         second_handlers = len(logging.getLogger("latex_editor").handlers)
         assert first_handlers == second_handlers
+
+
+class TestConsoleHandler:
+    """Paketlenmiş sürüm windowed (console=False): sys.stdout/stderr None olur.
+
+    StreamHandler(None) stream'i sys.stderr'e (yine None) düşürür; her log
+    kaydı emit()'te AttributeError atıp handleError() içinde sessizce yutulur.
+    Görünür bir belirti yok, o yüzden testle sabitleniyor.
+    """
+
+    def test_stdout_varken_konsol_handleri_eklenir(self, fresh_log, monkeypatch):
+        monkeypatch.setattr(fresh_log.sys, "stdout", io.StringIO())
+        fresh_log.get_logger("test")
+        handlers = logging.getLogger("latex_editor").handlers
+        assert any(isinstance(h, logging.StreamHandler)
+                   and not isinstance(h, RotatingFileHandler) for h in handlers)
+
+    def test_stdout_yokken_konsol_handleri_eklenmez(self, fresh_log, monkeypatch):
+        monkeypatch.setattr(fresh_log.sys, "stdout", None)
+        fresh_log.get_logger("test")
+        handlers = logging.getLogger("latex_editor").handlers
+        assert [h for h in handlers if isinstance(h, RotatingFileHandler)], \
+            "dosya handler'ı her koşulda kalmalı"
+        assert not [h for h in handlers
+                    if isinstance(h, logging.StreamHandler)
+                    and not isinstance(h, RotatingFileHandler)]
+
+    def test_stdout_yokken_log_sessizce_yutulmaz(self, fresh_log, monkeypatch):
+        """Regresyon: her kayıt bir istisna kurup atıyordu; dosyaya yazım sürer."""
+        monkeypatch.setattr(fresh_log.sys, "stdout", None)
+        monkeypatch.setattr(fresh_log.sys, "stderr", None)
+        logger = fresh_log.get_logger("test")
+        yakalanan = []
+        monkeypatch.setattr(logging.Handler, "handleError",
+                            lambda self, record: yakalanan.append(record))
+        logger.info("konsolsuz kayıt")
+        for h in logging.getLogger("latex_editor").handlers:
+            h.flush()
+        assert yakalanan == [], "handler emit()'te hata verdi"
+        with open(fresh_log.LOG_FILE, encoding="utf-8") as f:
+            assert "konsolsuz kayıt" in f.read()
 
 
 class TestLogPath:

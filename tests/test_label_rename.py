@@ -357,7 +357,7 @@ def test_f2_bibitem_line_start_fallback(qapp):
 
 
 def test_rename_bibitem_updates_chain(qapp, tmp_path):
-    """bibitem + zincirdeki tüm \cite kullanımları birlikte değişir."""
+    r"""bibitem + zincirdeki tüm \cite kullanımları birlikte değişir."""
     ch = tmp_path / "ch.tex"
     ch.write_text("bakın \\cite{karaca2024} ve \\cite{karaca2024, baska}\n", encoding="utf-8")
     main = tmp_path / "m.tex"

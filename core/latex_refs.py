@@ -115,13 +115,13 @@ def find_bib_path(content: str, base_path: str) -> str:
 # --- \input / \include tamamlama: projedeki .tex dosyaları ---
 
 def collect_input_paths(base_path: str) -> list[str]:
-    """\\input{ / \\include{ tamamlaması için projedeki .tex dosyaları.
+    r"""\input{ / \include{ tamamlaması için projedeki .tex dosyaları.
 
     Ana dosyanın dizinini ve alt dizinlerini tarar; kök dizine göre .tex
     uzantısı soyulmuş göreli yollar döndürür (\include uzantı kabul etmez,
     \input uzantısızı da bulur; ikisi için de uzantısız öneri derlenir).
     Gizli dizinlere inilmez; ana dosyanın kendisi listede olmaz (kendini
-    \\input etmek döngü olur). Yol ayracı her platformda LaTeX'in beklediği
+    \input etmek döngü olur). Yol ayracı her platformda LaTeX'in beklediği
     '/'tir.
     """
     bdir = _base_dir(base_path)

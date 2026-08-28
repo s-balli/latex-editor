@@ -142,12 +142,59 @@ class FileWatchMixin:
             self._watcher.addPath(path)
 
     def _handle_deleted_file(self, editor: EditorWidget, path: str):
-        """Dosya diskten silinmiş — kullanıcıya bildir ve sekmeyi kapat."""
+        """Dosya diskten silinmiş — sekmeyi kapat, kaydedilmemiş içeriği koru.
+
+        Arabellek kirliyse sekme sessizce KAPATILAMAZ: setModified(False) ile
+        kapatmak kullanıcının kaydedilmemiş emeğini uyarısız yok eder (dosya
+        dışarıdan silinmiş olabilir: dal değiştirme, temizlik betiği, senkron
+        istemcisi). _prompt_reload'daki kirli-arabellek nezaketi burada da
+        geçerli; üç yol sunulur ve varsayılan içeriği kurtarandır.
+        """
         fname = os.path.basename(path)
-        QMessageBox.information(
-            self, _("Dosya Silindi"),
-            _("{fname} dosyası diskten silindi.\nİlgili sekme kapatılacak.").format(fname=fname),
-        )
+
+        if editor.isModified():
+            dlg = QMessageBox(self)
+            dlg.setWindowTitle(_("Dosya Silindi"))
+            dlg.setIcon(QMessageBox.Icon.Warning)
+            # Tek satırlık _() çağrısı: scripts/update_translations.sh yalnız bu
+            # biçimi çıkarabiliyor; çok satırlı birleştirme katalogdan düşer.
+            dlg.setText(_("{fname} dosyası diskten silindi.\n\nBu dosyada kaydedilmemiş değişiklikleriniz var; sekmeyi kapatırsanız kaybolur.").format(fname=fname))
+            btn_saveas = dlg.addButton(_("Farklı Kaydet..."), QMessageBox.ButtonRole.AcceptRole)
+            dlg.addButton(_("Sekmede Tut"), QMessageBox.ButtonRole.RejectRole)
+            btn_close = dlg.addButton(_("Sekmeyi Kapat"), QMessageBox.ButtonRole.DestructiveRole)
+            dlg.setDefaultButton(btn_saveas)
+
+            # _prompt_reload ile aynı guard: dialog exec() event loop'u
+            # döndürür, debounce timer tekrar tetiklenip ikinci prompt yığardı.
+            self._reload_prompt_active = True
+            try:
+                dlg.exec()
+            finally:
+                self._reload_prompt_active = False
+
+            clicked = dlg.clickedButton()
+            if clicked is btn_saveas:
+                idx = self._editor_tabs.indexOf(editor)
+                if idx >= 0:
+                    # _save_file_as aktif sekmeye bakar; hedefi öne al.
+                    self._editor_tabs.setCurrentIndex(idx)
+                self._save_file_as()
+                # Dialog iptal edilirse kayıt olmaz: sekme kirli hâliyle açık
+                # kalır (kapatmak, kurtarma teklifini boşa çıkarırdı).
+                _logger.info("Silinen dosya için Farklı Kaydet: %s", path)
+                return
+            if clicked is not btn_close:
+                # "Sekmede Tut" (ve dialogun X ile kapatılması): içerik editörde
+                # durur, yol korunur — Ctrl+S dosyayı eski yerine geri yazar.
+                _logger.info("Silinen dosya sekmede tutuldu: %s", path)
+                return
+            _logger.info("Silinen dosyanın sekmesi kaydedilmeden kapatıldı: %s", path)
+        else:
+            QMessageBox.information(
+                self, _("Dosya Silindi"),
+                _("{fname} dosyası diskten silindi.\nİlgili sekme kapatılacak.").format(fname=fname),
+            )
+
         idx = self._editor_tabs.indexOf(editor)
         if idx >= 0:
             editor.setModified(False)  # save prompt olmadan kapat

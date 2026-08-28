@@ -6,6 +6,7 @@
 - main_window: arka plan pandoc kontrolü bayrak + tooltip günceller
 """
 
+import threading
 import time
 from types import SimpleNamespace
 
@@ -154,6 +155,96 @@ def test_export_busy_guard(qapp, tmp_path, monkeypatch):
     ok = _spin(qapp, lambda: started and not stub._export_busy)
     assert ok
     assert len(started) == 1, "meşgulken ikinci export başladı"
+
+
+# =====================================================================
+# Kapanış: diske yazan daemon thread'ler kesilmeden beklenmeli
+# =====================================================================
+
+
+def test_export_runner_wait_isi_bekler(qapp, tmp_path, monkeypatch):
+    """wait() iş bitene kadar bloklar; kapanışta yarım dosya kalmasın."""
+    import gui.mixins.file_ops as fo
+
+    bitti = []
+
+    def slow_export(src, dst):
+        time.sleep(0.3)
+        bitti.append(dst)
+        return True, ""
+
+    monkeypatch.setattr(fo, "_export", slow_export)
+    runner = fo._ExportRunner()
+    runner.start("a.tex", "a.docx")
+
+    assert runner.wait(5000) is True
+    assert bitti == ["a.docx"], "wait() iş bitmeden döndü"
+
+
+def test_runner_wait_bos_ve_zaman_asimi():
+    """Hiç başlatılmamışsa anında True; süre yetmezse False (kapanış askıda kalmasın)."""
+    import gui.mixins.file_ops as fo
+
+    runner = fo._ExportRunner()
+    assert runner.wait(1000) is True          # _thread None
+
+    monkeypatch_free = threading.Event()
+    runner._thread = threading.Thread(
+        target=monkeypatch_free.wait, daemon=True)
+    runner._thread.start()
+    try:
+        assert runner.wait(50) is False, "bitmeyen iş için False dönmeli"
+    finally:
+        monkeypatch_free.set()
+
+
+def test_snapshot_runner_wait(qapp, tmp_path, monkeypatch):
+    """Sürümleme thread'i: add+commit ortasında kesilmek depoyu bozabilir."""
+    import gui.mixins.version_ops as vo
+
+    monkeypatch.setattr(vo.versioning, "init_repo", lambda root: None)
+
+    def slow_snapshot(root, msg):
+        time.sleep(0.3)
+        return None
+
+    monkeypatch.setattr(vo.versioning, "snapshot", slow_snapshot)
+    runner = vo._SnapshotRunner()
+    runner.start(str(tmp_path), "mesaj", first=True)
+
+    assert runner.wait(5000) is True
+    assert not runner._thread.is_alive()
+
+
+def test_wait_background_writers_hepsini_bekler(qapp):
+    """MainWindow.closeEvent kancası: tanımlı her yazıcıyı bekler, yoksa atlar."""
+    from gui.main_window import MainWindow
+
+    beklenen = []
+
+    class _Runner:
+        def __init__(self, ad, sonuc):
+            self.ad, self.sonuc = ad, sonuc
+
+        def wait(self, timeout_ms):
+            beklenen.append((self.ad, timeout_ms))
+            return self.sonuc
+
+    stub = SimpleNamespace(
+        _BG_WRITERS=MainWindow._BG_WRITERS,        # gerçek liste/süreler sınansın
+        _snapshot_runner=_Runner("snapshot", True),
+        _export_runner=_Runner("export", False),   # zaman aşımı: sadece uyarı
+    )
+    MainWindow._wait_background_writers(stub)
+
+    assert [ad for ad, _ in beklenen] == ["snapshot", "export"]
+    sureler = dict(beklenen)
+    assert sureler["snapshot"] >= sureler["export"], \
+        "git commit dışa aktarmadan daha uzun tutulmalı"
+
+    # Yazıcı hiç oluşmamışsa (sürümleme/dışa aktarma kullanılmadı) sessiz geçer
+    MainWindow._wait_background_writers(
+        SimpleNamespace(_BG_WRITERS=MainWindow._BG_WRITERS))
 
 
 # =====================================================================

@@ -81,6 +81,64 @@ def is_repo(root: str) -> bool:
     return os.path.isdir(os.path.join(root, ".git"))
 
 
+@dataclass
+class RepoStatus:
+    """Sürümlemenin hangi depoya dokunacağının teşhisi.
+
+    'Sürümle' kullanıcının kendi git deposuna commit atabilir: editör depoyu
+    ayırt etmez, mevcut .git'i olduğu gibi kullanır. Bu tasarım bilinçlidir
+    (gerçek git ile birlikte çalışsın diye) ama kullanıcı bunu bilmeden
+    kendi dalına kayıt atarsa — ya da 'Tüm Geçmişi Sil' ile aylarca geçmişi
+    çöp kutusuna yollarsa — sürpriz olur. GUI katmanı bu teşhisle uyarır.
+    """
+    exists: bool          # root'un kendisi bir depo mu
+    remotes: list         # tanımlı remote adları (origin, upstream...)
+    foreign: bool         # depo VAR ve editörün yarattığı depo değil
+    parent_repo: str      # root depo DEĞİLSE, onu kapsayan üst deponun yolu
+
+    @property
+    def nested(self) -> bool:
+        """Burada 'Sürümle' üst deponun içine iç içe .git yaratır mı?"""
+        return not self.exists and bool(self.parent_repo)
+
+
+def _enclosing_repo(root: str) -> str:
+    """root'u kapsayan en yakın üst deponun yolu (yoksa "")."""
+    cur = os.path.abspath(root)
+    while True:
+        parent = os.path.dirname(cur)
+        if parent == cur:            # kök dizine ulaşıldı
+            return ""
+        if os.path.isdir(os.path.join(parent, ".git")):
+            return parent
+        cur = parent
+
+
+def repo_status(root: str) -> RepoStatus:
+    """Depo teşhisi — GUI uyarıları için. dulwich yoksa da güvenle çağrılır."""
+    if not is_repo(root):
+        return RepoStatus(exists=False, remotes=[], foreign=False,
+                          parent_repo=_enclosing_repo(root))
+    remotes: list[str] = []
+    foreign = True   # okuyamıyorsak temkinli davran: yabancı say, uyar
+    if DULWICH_AVAILABLE:
+        try:
+            repo = Repo(root)
+            cfg = repo.get_config()
+            for section in cfg.sections():
+                if len(section) == 2 and section[0] == b"remote":
+                    remotes.append(section[1].decode("utf-8", "replace"))
+            # Editörün kendi deposunda HEAD commit'i _AUTHOR imzalıdır. Remote
+            # tanımlıysa zaten kullanıcının deposudur (editör remote eklemez).
+            head_author = repo[repo.head()].author
+            foreign = bool(remotes) or head_author != _AUTHOR
+        except KeyError:
+            foreign = bool(remotes)   # kayıtsız (boş) depo: HEAD yok
+        except Exception:             # bozuk/erişilemez depo — temkinli kal
+            _logger.warning("Depo durumu okunamadı: %s", root, exc_info=True)
+    return RepoStatus(exists=True, remotes=remotes, foreign=foreign, parent_repo="")
+
+
 def init_repo(root: str) -> Repo:
     """Depoyu kur (yoksa) ve .gitignore yaz (yoksa). Varsa olanı döndürür."""
     _require()

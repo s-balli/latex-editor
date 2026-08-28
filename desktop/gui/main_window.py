@@ -1034,6 +1034,26 @@ class MainWindow(
 
     # --- Durum kaydetme ---
 
+    # Kapanışta beklenecek arka plan yazıcıları: (öznitelik, süre ms).
+    # Sürümleme daha uzun tutulur — büyük klasörde add+commit saniyeler sürer
+    # ve yarıda kesilmesi depoyu bozabilir; dışa aktarmada en kötü hâl yarım
+    # bir çıktı dosyasıdır.
+    _BG_WRITERS = (("_snapshot_runner", 15000), ("_export_runner", 10000))
+
+    def _wait_background_writers(self):
+        """Diske yazan daemon thread'lerin bitmesini bekle.
+
+        _SnapshotRunner / _ExportRunner düz daemon thread kullanır; bunlar
+        yorumlayıcı çıkışında haber vermeden KESİLİR. git commit'in ya da
+        pandoc çıktısının ortasında kesilmek yarım iş bırakır.
+        """
+        for attr, timeout_ms in self._BG_WRITERS:
+            runner = getattr(self, attr, None)
+            if runner is None:
+                continue
+            if not runner.wait(timeout_ms):
+                _logger.warning("Arka plan işi kapanışta bitmedi: %s", attr)
+
     def closeEvent(self, event):
         # Güncelleme kontrolü thread'i çalışıyorsa bekle. quit() işe yaramaz
         # (run() override event loop çalıştırmaz); tek güvence wait. check_for_update
@@ -1042,6 +1062,7 @@ class MainWindow(
         if self._update_thread and self._update_thread.isRunning():
             self._update_thread.quit()
             self._update_thread.wait(6000)
+        self._wait_background_writers()
         # Kaydedilmemiş sekmeleri kontrol et
         for i in range(self._editor_tabs.count()):
             editor = self._editor_tabs.widget(i)
