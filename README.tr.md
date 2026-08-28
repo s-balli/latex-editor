@@ -40,6 +40,14 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 
 ## Sürüm Geçmişi
 
+### v1.0.16: Kaydedilmemiş Emeğin Korunması
+- **Silinen dosya artık kaydedilmemiş değişikliklerinizi de götürmüyor**: editörde açık bir dosya diskten silindiğinde (dal değiştirme, temizlik betiği, senkron istemcisi) sekme sessizce kapanıyor ve arabellekteki her şey onunla gidiyordu. Kaydedilmemiş değişiklik varsa artık seçenek sunuluyor — Farklı Kaydet, Sekmede Tut, Sekmeyi Kapat — ve varsayılan, emeğinizi kurtaran seçenek
+- **Sürümleme, kendi git deponuza yazacağı zaman artık haber veriyor**: "Sürümle" ayrı bir geçmiş tutmaz — kayıtları mevcut deponuza, bulunduğunuz dala işler — ve "Tüm Geçmişi Sil" o gerçek `.git` klasörünü (dallar, etiketler, uzak bağlantılar dahil) çöp kutusuna taşır. Klasör sizin deponuzsa ya da bir deponun içindeyse ilk sürümlemeden önce bir kez uyarılıyorsunuz; silme diyalogları da neyin gittiğini açıkça söylüyor. Editörün kendi kurduğu klasörlerde hiç sorulmuyor
+- **Başka editörlerin `.tex` ikonu artık ezilmiyor**: Windows'ta uygulama, `.tex` uzantısının bağlı olduğu programın (TeXstudio, VS Code…) kaydettiği ikonu kendi ikonuyla değiştiriyordu; dosyalar bu uygulamanın ikonuyla görünüp o programda açılıyor ve bu geri alınmıyordu. Artık yalnız kendi ikonunu ayarlıyor
+- **Daha temiz kapanış**: arka planda sürüm alınırken ya da dışa aktarma sürerken pencere kapatılırsa işin bitmesi bekleniyor; ortasında kesilen bir `git` kaydı depoyu yarım bırakabiliyordu
+- **İngilizce arayüz tamamlandı**: dört diyalog (UTF-8 olmayan dosya uyarısı, "dosya diskte değişti" isteminin iki hâli ve sürüm geri yükleme onayı) hâlâ Türkçe görünüyordu — çeviri çıkarıcısındaki bir kusur yüzünden hiç kataloğa girmemişlerdi. Çıkarıcı yeniden yazıldı; artık bir arayüz metninin sessizce çeviri dışına düşmesini bir test engelliyor
+- **931 birim testi**
+
 ### v1.0.15: Daha Akıcı Düzenleme ve Güvenilir Çıktılar
 - **Sürümle (Ctrl+K) artık dondurmuyor**: sürüm anlık görüntüsü arka planda alınıyor; büyük klasörlerde saniyeler süren dulwich kaydı sırasında arayüz kilitleniyordu. İş sürerken ikinci Ctrl+K reddediliyor, durum çubuğu 'Sürüm alınıyor...' gösteriyor
 - **Yazma akıcılığı büyük belgelerde**: sözdizimi renklendirmesi belge baytlarını önbelleğe aldı; her tuş vuruşunda tüm belge yeniden kopyalanmıyordu artık değil (330KB belgede stil maliyeti ~1.9x hızlandı). Matematik bölgesi de artık tema fontunu alıyor

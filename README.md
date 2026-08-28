@@ -40,6 +40,14 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 
 ## Version History
 
+### v1.0.16: Protecting Unsaved Work
+- **A deleted file no longer takes your unsaved changes with it**: when a file open in the editor was deleted from disk (a branch switch, a cleanup script, a sync client), the tab was closed silently and everything in the buffer went with it. If there are unsaved changes you now get a choice — Save As, Keep in Tab, or Close Tab — and the default is the one that rescues your work
+- **Versioning now tells you when it is about to write to your own git repository**: "Snapshot" does not keep a separate history — it commits to the existing repository, on your current branch — and "Delete All History" moves that real `.git` folder (branches, tags, remotes and all) to the recycle bin. If the folder is your own repository, or sits inside one, you are warned once before the first snapshot, and the deletion dialogs now say exactly what is at stake. Folders the editor created itself never ask
+- **The `.tex` icon of other editors is left alone**: on Windows the app was overwriting the icon registered by whichever program owns `.tex` (TeXstudio, VS Code…), so files showed this app's icon but opened in the other program — and it was never undone. The app now only sets its own icon
+- **Cleaner shutdown**: closing the window during a background snapshot or export now waits for it to finish; a `git` commit interrupted midway could leave the repository half-written
+- **English interface completed**: four dialogs (the non-UTF-8 file warning, both "file changed on disk" prompts, and the version-restore confirmation) were still appearing in Turkish — a flaw in the translation extractor meant they never reached the catalogue. The extractor was rebuilt, and a test now guarantees that no interface text can silently fall out of translation again
+- **931 unit tests**
+
 ### v1.0.15: Smoother Editing and More Reliable Output
 - **Snapshot (Ctrl+K) no longer freezes the UI**: version snapshots are taken in the background; the dulwich commit could take seconds on large folders while blocking the interface. A second Ctrl+K while one is running is rejected, and the status bar shows 'Taking a snapshot...'
 - **Smoother typing in large documents**: syntax highlighting now caches the document bytes instead of re-copying the whole document on every keystroke (~1.9x faster styling in a 330KB document). Math regions also get the theme font now
