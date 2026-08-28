@@ -25,8 +25,14 @@ LANGS="tr en"
 TS_DIR="desktop/translations"
 mkdir -p "$TS_DIR"
 
-# pylupdate6 lambda ile _() çağrılarını göremez.
-# Geçici dosyalarda _() → QCoreApplication.translate() dönüştürmesi yap
+# pylupdate6 lambda ile _() çağrılarını göremez; geçici kopyalarda
+# _() → QCoreApplication.translate() dönüşümü yapılır.
+#
+# Bu iş eskiden tek satırlık bir regex'le yapılıyordu ve ÇOK SATIRLI _()
+# çağrılarını (örtük dizge birleştirme) hiç görmüyordu: o dizgeler katalogdan
+# type="vanished" olarak düşüyor, uygulama İngilizceye alınsa bile Türkçe
+# kalıyorlardı. CI yalnız "unfinished" saydığı için sessizce kaçıyordu.
+# Dönüşüm artık AST tabanlı: scripts/extract_tr.py (gerekçesi orada).
 TMPDIR=$(mktemp -d)
 trap "rm -rf $TMPDIR" EXIT
 
@@ -34,30 +40,7 @@ echo "=== Kaynak dosyalar hazırlanıyor ==="
 for src in $(find desktop/gui desktop/gui/mixins desktop/gui/pdf_viewer_mixins -name "*.py" -not -path "*__pycache__*") desktop/main.py; do
     tmp="$TMPDIR/$src"
     mkdir -p "$(dirname "$tmp")"
-    # _ = lambda s: QCoreApplication.translate("Ctx", s) → bağlamı çıkar
-    # _("text") → QCoreApplication.translate("Ctx", "text") dönüştür
-    ctx=$(grep '_ = lambda s: QCoreApplication.translate(' "$src" 2>/dev/null | head -1 | sed 's/.*translate("//;s/".*//')
-    if [ -n "$ctx" ]; then
-        # _("[text]") → QCoreApplication.translate("Ctx", "[text]")
-        # _('[text]') → QCoreApplication.translate('Ctx', '[text]')
-        # Bağlam tırnakları argüman tırnaklarıyla eşleşir: f-string içindeki
-        # _('...') çağrısına çift tırnaklı bağlam koymak geçici dosyada
-        # sözdizimi bozuyor (pylupdate6 "Invalid syntax" veriyordu).
-        python3 - "$src" "$tmp" "$ctx" <<'PYEOF'
-import re
-import sys
-
-src_path, dst_path, ctx = sys.argv[1], sys.argv[2], sys.argv[3]
-text = open(src_path, encoding="utf-8").read()
-text = re.sub(r'_\("((?:[^"\\]|\\.)*)"\)',
-              lambda m: f'QCoreApplication.translate("{ctx}", "{m.group(1)}")', text)
-text = re.sub(r"_\('((?:[^'\\]|\\.)*)'\)",
-              lambda m: f"QCoreApplication.translate('{ctx}', '{m.group(1)}')", text)
-open(dst_path, "w", encoding="utf-8").write(text)
-PYEOF
-    else
-        cp "$src" "$tmp"
-    fi
+    python3 "$SCRIPT_DIR/extract_tr.py" "$src" "$tmp"
 done
 
 echo "=== Çeviri dosyaları güncelleniyor ==="

@@ -156,9 +156,11 @@ class FileWatchMixin:
             dlg = QMessageBox(self)
             dlg.setWindowTitle(_("Dosya Silindi"))
             dlg.setIcon(QMessageBox.Icon.Warning)
-            # Tek satırlık _() çağrısı: scripts/update_translations.sh yalnız bu
-            # biçimi çıkarabiliyor; çok satırlı birleştirme katalogdan düşer.
-            dlg.setText(_("{fname} dosyası diskten silindi.\n\nBu dosyada kaydedilmemiş değişiklikleriniz var; sekmeyi kapatırsanız kaybolur.").format(fname=fname))
+            dlg.setText(_(
+                "{fname} dosyası diskten silindi.\n\n"
+                "Bu dosyada kaydedilmemiş değişiklikleriniz var; sekmeyi "
+                "kapatırsanız kaybolur."
+            ).format(fname=fname))
             btn_saveas = dlg.addButton(_("Farklı Kaydet..."), QMessageBox.ButtonRole.AcceptRole)
             dlg.addButton(_("Sekmede Tut"), QMessageBox.ButtonRole.RejectRole)
             btn_close = dlg.addButton(_("Sekmeyi Kapat"), QMessageBox.ButtonRole.DestructiveRole)

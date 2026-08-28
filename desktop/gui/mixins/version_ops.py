@@ -155,14 +155,21 @@ class VersionOpsMixin:
         if os.path.normpath(root) in {os.path.normpath(p) for p in self._repo_ack_roots()}:
             return True
 
-        # Metinler tek satırlık _() çağrısı: scripts/update_translations.sh
-        # yalnız bu biçimi çıkarabiliyor (çok satırlı birleştirme katalogdan düşer).
         if st.nested:
-            text = _("Bu klasör, '{parent}' git deposunun içinde.\n\nSürümleme burada İÇ İÇE bir depo (.git) oluşturur; üst depo bu klasörü tek bir girdi olarak görür ve içeriği izlenmez.").format(parent=st.parent_repo)
+            text = _(
+                "Bu klasör, '{parent}' git deposunun içinde.\n\n"
+                "Sürümleme burada İÇ İÇE bir depo (.git) oluşturur; üst depo "
+                "bu klasörü tek bir girdi olarak görür ve içeriği izlenmez."
+            ).format(parent=st.parent_repo)
         else:
             nerede = (_("Uzak bağlantılar: ") + ", ".join(st.remotes)) if st.remotes \
                 else _("Bu depo bu editör tarafından oluşturulmamış.")
-            text = _("Bu klasör zaten bir git deposu.\n\nSürümleme AYRI bir geçmiş tutmaz: kayıtlar mevcut deponuza, bulunduğunuz dala işlenir. 'Sürüm Geçmişi' sekmesindeki silme işlemleri de bu gerçek depoyu etkiler.\n\n{nerede}").format(nerede=nerede)
+            text = _(
+                "Bu klasör zaten bir git deposu.\n\n"
+                "Sürümleme AYRI bir geçmiş tutmaz: kayıtlar mevcut deponuza, "
+                "bulunduğunuz dala işlenir. 'Sürüm Geçmişi' sekmesindeki silme "
+                "işlemleri de bu gerçek depoyu etkiler.\n\n{nerede}"
+            ).format(nerede=nerede)
 
         dlg = QMessageBox(self)
         dlg.setWindowTitle(_("Sürümleme — Mevcut Git Deposu"))
@@ -374,12 +381,18 @@ class VersionOpsMixin:
         # remote yapılandırması) çöp kutusuna yollar; onay metni bunu söylemeli.
         st = versioning.repo_status(root)
         if st.foreign:
-            metin = _("Bu klasördeki .git klasörü — yani SİZİN git deponuz — çöp kutusuna taşınacak.\n\nTüm dallar, etiketler ve uzak bağlantı ayarları gider; proje dosyalarınız yerinde kalır. Geri almak için çöp kutusundan kurtarmanız gerekir.")
+            metin = _(
+                "Bu klasördeki .git klasörü — yani SİZİN git deponuz — çöp "
+                "kutusuna taşınacak.\n\nTüm dallar, etiketler ve uzak bağlantı "
+                "ayarları gider; proje dosyalarınız yerinde kalır. Geri almak "
+                "için çöp kutusundan kurtarmanız gerekir."
+            )
             if st.remotes:
                 metin += "\n\n" + _("Uzak bağlantılar: ") + ", ".join(st.remotes)
             metin += "\n\n" + _("Devam etmek istediğinize emin misiniz?")
         else:
-            metin = _("TÜM sürüm geçmişi silinecek (dosyalarınız silinmez). Devam etmek istediğinize emin misiniz?")
+            metin = _("TÜM sürüm geçmişi silinecek (dosyalarınız silinmez). "
+                      "Devam etmek istediğinize emin misiniz?")
         answer = QMessageBox.question(
             self, _("Tüm Geçmişi Sil"), metin,
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
