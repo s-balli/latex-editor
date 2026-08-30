@@ -125,21 +125,10 @@ class PdfRenderMixin:
             self._pages_layout.removeItem(item)
         self._update_nav()
 
-    def close_pdf(self):
-        if self._pdf:
-            self._pdf.close()
-            self._pdf = None
-        self._clear_highlight()
-        self._clear_search()
-        self._clear_pages()
-        self._render_gen += 1
-        self._render_worker.open_document("", self._render_gen)
-        self._search_worker.open_document("", self._render_gen)
-        self._cache_reset()
-        self._pres_cache.clear()
-        self._page_count = 0
-        self._current_page = 0
-        self._update_nav()
+    # close_pdf kaldırıldı (2026-08-30, F3): hiçbir yerden çağrılmıyordu ve
+    # clear()'ın neredeyse birebir kopyasıydı. İki kopya bulunması bakımda
+    # tuzaktı — bu turda B1/B2 düzeltmeleri ikisine de ayrı ayrı eklenmişti.
+    # Belge kapatmak isteyen clear() kullanmalı.
 
     def shutdown(self):
         """Uygulama kapanışı: render işçisini durdur ve bekle (QThread

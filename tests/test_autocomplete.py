@@ -132,3 +132,59 @@ def test_completion_end_to_end_closes_brace(qapp):
     qapp.processEvents()  # SCN_AUTOCCOMPLETED işlensin
     assert _line(ed, 0) == "\\frac{}"
     assert ed.getCursorPosition() == (0, 6)
+
+
+# --- Boşluk filtresi tek kaynakta (2026-08-30 denetimi, F5) ---
+
+def _gosterilen(ed, monkeypatch) -> list[str]:
+    """_popup_goster'in Scintilla'ya verdiği aday listesini yakala."""
+    yakalanan = []
+    orij = ed.SendScintilla
+
+    def sahte(mesaj, *a):
+        if mesaj == QsciScintilla.SCI_AUTOCSHOW and a:
+            yakalanan.append(a[-1].decode("utf-8").split(" "))
+            return 0
+        return orij(mesaj, *a)
+
+    monkeypatch.setattr(ed, "SendScintilla", sahte)
+    return yakalanan
+
+
+def test_bosluklu_aday_tum_tamamlamalarda_eleniyor(qapp, monkeypatch):
+    r"""Liste ayırıcısı boşluk: adında boşluk geçen aday listeyi bozuyor.
+
+    Filtre eskiden 6 popup çağrısının yalnız 2'sinde vardı; \label{fig: bir}
+    gibi bir etiket \ref tamamlamasında listeyi iki sahte öğeye bölüyordu.
+    Artık filtre _popup_goster içinde, yani hepsinde.
+    """
+    ed = _editor()
+    ed.setText("\\label{fig:temiz}\n\\label{fig: bosluklu}\n")
+    yakalanan = _gosterilen(ed, monkeypatch)
+
+    ed._show_ref_completion("fig:")
+    assert yakalanan, "popup hiç gösterilmedi"
+    adaylar = yakalanan[0]
+    assert "fig:temiz" in adaylar
+    assert not any(" " in a for a in adaylar)
+    assert not any("bosluklu" in a for a in adaylar), adaylar
+
+
+def test_bosluklu_adaylarin_hepsi_elenince_popup_acilmiyor(qapp, monkeypatch):
+    """Filtre sonrası liste boşalırsa popup hiç gösterilmemeli."""
+    ed = _editor()
+    yakalanan = _gosterilen(ed, monkeypatch)
+    ed._popup_goster(["bir tane", "iki tane"], "b")
+    assert yakalanan == [], "boş listeyle popup açıldı"
+
+
+def test_tek_popup_cagri_yeri_kaldi():
+    """6 kopya tek yardımcıya indi; yenisi eklenirse filtre yine atlanmasın."""
+    import io
+    import os
+    yol = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                       "desktop", "gui", "editor.py")
+    kaynak = io.open(yol, encoding="utf-8").read()
+    assert kaynak.count("SCI_AUTOCSHOW") == 1, (
+        "editor.py'de birden fazla SCI_AUTOCSHOW çağrısı var — "
+        "popup gösterimi _popup_goster üzerinden yapılmalı (boşluk filtresi orada)")

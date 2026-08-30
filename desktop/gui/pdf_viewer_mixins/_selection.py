@@ -3,7 +3,6 @@
 import unicodedata
 
 from PyQt6.QtCore import QTimer
-from PyQt6.QtGui import QKeySequence
 from PyQt6.QtWidgets import QLabel, QApplication, QMenu
 
 from PyQt6.QtCore import QCoreApplication
@@ -267,8 +266,6 @@ class PdfSelectionMixin:
             text = self._normalize_pdf_text(self._selected_text)
             QApplication.clipboard().setText(text)
 
-    def _handle_selection_key(self, event):
-        if event.matches(QKeySequence.StandardKey.Copy):
-            self._copy_selection()
-            return True
-        return False
+# _handle_selection_key kaldırıldı (2026-08-30, F3): hiçbir yerden
+# çağrılmıyordu. İşlevi PdfViewer.keyPressEvent'e taşınmış (pdf_viewer.py:69-73),
+# aynı StandardKey.Copy denetimini orası yapıyor — bu yalnız geride kalan kopyaydı.

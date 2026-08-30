@@ -543,10 +543,23 @@ class EditorWidget(QsciScintilla):
         if not matches:
             return
 
-        # Autocompletion separator ayarla ve popup göster
+        self._popup_goster(matches, word)
+
+    def _popup_goster(self, matches: list[str], typed: str):
+        """Tamamlama popup'ını göster.
+
+        Bu üç satır altı yerde kopyalanmıştı ve BOŞLUK FİLTRESİ yalnız ikisinde
+        vardı (2026-08-30 denetimi, F5). Liste ayırıcısı boşluk olduğu için
+        adında boşluk geçen bir aday listeyi bozuyor: Scintilla onu iki ayrı
+        öğe sanıyor. \\label{fig: bir} gibi bir etiket ref/cite tamamlamasında
+        tam olarak bunu yapıyordu. Filtre artık tek yerde, herkes için.
+        """
+        matches = [m for m in matches if " " not in m]
+        if not matches:
+            return
         self.SendScintilla(QsciScintilla.SCI_AUTOCSETSEPARATOR, ord(' '))
         entries = " ".join(matches).encode('utf-8')
-        self.SendScintilla(QsciScintilla.SCI_AUTOCSHOW, len(word), entries)
+        self.SendScintilla(QsciScintilla.SCI_AUTOCSHOW, len(typed), entries)
 
     def _show_env_completion(self, typed: str, manual: bool):
         """\\begin{ / \\end{ sonrası yaygın ortam adlarını tamamlar (C.6).
@@ -562,11 +575,7 @@ class EditorWidget(QsciScintilla):
         else:
             lo, hi = 0, len(_LATEX_ENVIRONMENTS)
         matches = [e for e in _LATEX_ENVIRONMENTS[lo:hi] if e != typed]
-        if not matches:
-            return
-        self.SendScintilla(QsciScintilla.SCI_AUTOCSETSEPARATOR, ord(' '))
-        entries = " ".join(matches).encode('utf-8')
-        self.SendScintilla(QsciScintilla.SCI_AUTOCSHOW, len(typed), entries)
+        self._popup_goster(matches, typed)
 
     def _show_ref_completion(self, typed: str):
         r"""\ref{...} için projedeki \label anahtarlarını öner (doküman-farkında)."""
@@ -576,11 +585,7 @@ class EditorWidget(QsciScintilla):
             _logger.debug("label toplama başarısız", exc_info=True)
             return
         matches = [lab for lab in labels if lab.startswith(typed) and lab != typed]
-        if not matches:
-            return
-        self.SendScintilla(QsciScintilla.SCI_AUTOCSETSEPARATOR, ord(' '))
-        entries = " ".join(matches).encode('utf-8')
-        self.SendScintilla(QsciScintilla.SCI_AUTOCSHOW, len(typed), entries)
+        self._popup_goster(matches, typed)
 
     def _show_cite_completion(self, typed: str):
         r"""\cite{...} için .bib anahtarlarını öner (key1,key2 çoklu destek)."""
@@ -591,11 +596,7 @@ class EditorWidget(QsciScintilla):
             _logger.debug("cite anahtar toplama başarısız", exc_info=True)
             return
         matches = [k for k in keys if k.startswith(partial) and k != partial]
-        if not matches:
-            return
-        self.SendScintilla(QsciScintilla.SCI_AUTOCSETSEPARATOR, ord(' '))
-        entries = " ".join(matches).encode('utf-8')
-        self.SendScintilla(QsciScintilla.SCI_AUTOCSHOW, len(partial), entries)
+        self._popup_goster(matches, partial)
 
     def _show_input_completion(self, typed: str):
         r"""\input{...} için projedeki .tex dosyalarını öner (göreli yol, .tex'siz)."""
@@ -606,14 +607,9 @@ class EditorWidget(QsciScintilla):
         except Exception:
             _logger.debug("input dosya toplama başarısız", exc_info=True)
             return
-        # Tamamlama listesi ayırıcısı boşluk olduğundan adında boşluk geçen
-        # yollar listeye konamaz (popup'a sığmaz).
-        matches = [p for p in paths if p.startswith(typed) and p != typed and " " not in p]
-        if not matches:
-            return
-        self.SendScintilla(QsciScintilla.SCI_AUTOCSETSEPARATOR, ord(' '))
-        entries = " ".join(matches).encode('utf-8')
-        self.SendScintilla(QsciScintilla.SCI_AUTOCSHOW, len(typed), entries)
+        # Boşluk filtresi artık _popup_goster içinde (tek kaynak).
+        matches = [p for p in paths if p.startswith(typed) and p != typed]
+        self._popup_goster(matches, typed)
 
     def _show_graphics_completion(self, typed: str):
         r"""\includegraphics{...} için projedeki resimleri öner (uzantılı göreli yol)."""
@@ -624,14 +620,9 @@ class EditorWidget(QsciScintilla):
         except Exception:
             _logger.debug("resim dosya toplama başarısız", exc_info=True)
             return
-        # Tamamlama listesi ayırıcısı boşluk — adında boşluk geçen yollar
-        # listeye konamaz (popup'a sığmaz).
-        matches = [p for p in paths if p.startswith(typed) and p != typed and " " not in p]
-        if not matches:
-            return
-        self.SendScintilla(QsciScintilla.SCI_AUTOCSETSEPARATOR, ord(' '))
-        entries = " ".join(matches).encode('utf-8')
-        self.SendScintilla(QsciScintilla.SCI_AUTOCSHOW, len(typed), entries)
+        # Boşluk filtresi artık _popup_goster içinde (tek kaynak).
+        matches = [p for p in paths if p.startswith(typed) and p != typed]
+        self._popup_goster(matches, typed)
 
     def _on_autoc_completed(self, text, *rest):
         """Otomatik tamamlama popup'ından seçilen komut kapanış ayracı ekler.
