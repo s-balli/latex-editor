@@ -40,6 +40,16 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 
 ## Version History
 
+### v1.0.17: Open With, Finally
+- **"Open With" now actually opens the file**: the app registered itself for `.tex` — icon, context menu, the lot — but a second launch was simply rejected with "already running", and the file was never opened. Double-clicking a `.tex` while the editor was open did nothing useful. The second instance now hands the path to the running window, which opens it in a new tab and comes to the front. If the running instance is wedged, you still get told rather than nothing happening
+- **Fixes an app that would not start at all for a second user on Linux**: the single-instance lock lived at a fixed name under the temp directory, which is per-user on Windows but shared (`/tmp`) on Linux. On a multi-user machine — a lab, a shared workstation — the second person to try was refused outright, because the lock still belonged to the first person's live process. Lock and socket names now include the user
+- **Launcher script passed no arguments**: `LaTeX Editor.bat` (used when running from source) dropped the file path entirely, so nothing reached the app. Only affected source runs; the packaged build was never affected
+- **Console logging on Turkish Windows**: ten log lines contain `→`, which cp1254 cannot encode. Each one raised inside the logging handler and was silently swallowed, so the line never appeared in the console at all. The file log was always fine
+- **Two silent failures now leave a trace**: a failed compilability check in the file tree, and a failed label scan in the table wizard, used to fail invisibly
+- **English interface**: four dialogs still shown in Turkish are now translated, and a dead branch in the translation lookup was removed
+- **Tests now run on Windows too**: the suite was Linux-only in practice — 13 failures and one infinite hang, the hang caused by a test writing a file without an encoding, which made the app correctly raise its "this file is not UTF-8" dialog and wait forever for a click. 950 unit tests, green on both platforms
+- **950 unit tests**
+
 ### v1.0.16: Protecting Unsaved Work
 - **A deleted file no longer takes your unsaved changes with it**: when a file open in the editor was deleted from disk (a branch switch, a cleanup script, a sync client), the tab was closed silently and everything in the buffer went with it. If there are unsaved changes you now get a choice — Save As, Keep in Tab, or Close Tab — and the default is the one that rescues your work
 - **Versioning now tells you when it is about to write to your own git repository**: "Snapshot" does not keep a separate history — it commits to the existing repository, on your current branch — and "Delete All History" moves that real `.git` folder (branches, tags, remotes and all) to the recycle bin. If the folder is your own repository, or sits inside one, you are warned once before the first snapshot, and the deletion dialogs now say exactly what is at stake. Folders the editor created itself never ask

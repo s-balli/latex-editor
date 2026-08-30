@@ -40,6 +40,17 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 
 ## Sürüm Geçmişi
 
+### v1.0.17: "Birlikte Aç" Nihayet Açıyor
+- **"Birlikte Aç" artık dosyayı gerçekten açıyor**: uygulama `.tex` için kendini kaydediyordu — ikon, sağ tık menüsü, hepsi — ama ikinci açılış yalnızca "zaten çalışıyor" denip reddediliyor, dosya hiç açılmıyordu. Editör açıkken bir `.tex`'e çift tıklamak işe yaramıyordu. İkinci örnek artık yolu çalışan pencereye iletiyor; dosya yeni sekmede açılıyor ve pencere öne geliyor. Çalışan örnek takılmışsa hiçbir şey olmaması yerine size durum bildiriliyor
+- **Linux'ta ikinci kullanıcının uygulamayı hiç açamaması giderildi**: tek örnek kilidi geçici dizinde sabit bir adla duruyordu; bu dizin Windows'ta kullanıcıya özel ama Linux'ta paylaşımlı (`/tmp`). Çok kullanıcılı bir makinede — laboratuvar, ortak iş istasyonu — ikinci deneyen doğrudan reddediliyordu, çünkü kilit hâlâ birinci kişinin canlı sürecine aitti. Kilit ve soket adı artık kullanıcıyı içeriyor
+- **Başlatıcı betik argüman iletmiyordu**: `LaTeX Editor.bat` (kaynaktan çalıştırırken kullanılan) dosya yolunu tamamen düşürüyordu, uygulamaya hiçbir şey ulaşmıyordu. Yalnız kaynaktan çalıştırmayı etkiliyordu; paketlenmiş sürüm etkilenmiyordu
+- **Türkçe Windows'ta konsol logu**: log satırlarının onunda `→` geçiyor ve cp1254 bu karakteri kodlayamıyor. Her biri logging handler'ının içinde hata verip sessizce yutuluyor, satır konsola hiç yazılmıyordu. Dosya logu her zaman doğruydu
+- **İki sessiz hata artık iz bırakıyor**: dosya ağacındaki derlenebilirlik denetimi ve tablo sihirbazındaki etiket taraması düşerse görünmeden geçiyordu
+- **İngilizce arayüz**: hâlâ Türkçe görünen dört diyalog çevrildi, çeviri aramasındaki ölü dal kalktı
+- **Özellikler listesi**: Ortam Denetimi eksikti, eklendi; tek-instance açıklaması yeni davranışı anlatıyor
+- **Testler artık Windows'ta da koşuyor**: paket pratikte yalnız Linux'taydı — 13 başarısız ve bir sonsuz asılma vardı. Asılmanın sebebi kodlama vermeden dosya yazan bir testti; uygulama haklı olarak "bu dosya UTF-8 değil" diyaloğunu açıyor ve tıklama bekliyordu. 950 birim testi, iki platformda da yeşil
+- **950 birim testi**
+
 ### v1.0.16: Kaydedilmemiş Emeğin Korunması
 - **Silinen dosya artık kaydedilmemiş değişikliklerinizi de götürmüyor**: editörde açık bir dosya diskten silindiğinde (dal değiştirme, temizlik betiği, senkron istemcisi) sekme sessizce kapanıyor ve arabellekteki her şey onunla gidiyordu. Kaydedilmemiş değişiklik varsa artık seçenek sunuluyor — Farklı Kaydet, Sekmede Tut, Sekmeyi Kapat — ve varsayılan, emeğinizi kurtaran seçenek
 - **Sürümleme, kendi git deponuza yazacağı zaman artık haber veriyor**: "Sürümle" ayrı bir geçmiş tutmaz — kayıtları mevcut deponuza, bulunduğunuz dala işler — ve "Tüm Geçmişi Sil" o gerçek `.git` klasörünü (dallar, etiketler, uzak bağlantılar dahil) çöp kutusuna taşır. Klasör sizin deponuzsa ya da bir deponun içindeyse ilk sürümlemeden önce bir kez uyarılıyorsunuz; silme diyalogları da neyin gittiğini açıkça söylüyor. Editörün kendi kurduğu klasörlerde hiç sorulmuyor
