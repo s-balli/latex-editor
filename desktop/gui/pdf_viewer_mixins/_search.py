@@ -56,11 +56,6 @@ class PdfSearchMixin:
         if not label:
             return
 
-        # Sayfayı render et (eğer henüz render edilmediyse) — arka planda;
-        # eşleşme vurgusu ve kaydırma pixmapi beklemez
-        if label.pixmap() is None or label.pixmap().isNull():
-            self._request_render(page_idx)
-
         # textpage'i UI tarafında, ihtiyaç anında yarat (işçi sonuçları
         # yalnız koordinat taşır; iş parçacıkları arası handle yok)
         scale = 1.5 * self._zoom
@@ -80,6 +75,20 @@ class PdfSearchMixin:
         self._update_nav()
 
         self._draw_search_highlight(idx)
+
+        # Render isteği EN SONA: pdfium thread-safe değil ve bu fonksiyon (artık
+        # yukarıda biten kısmı + _draw_search_highlight) UI thread'inden pdfium
+        # çağırıyor. İstek başta yapılınca render işçisi kendi pdfium çağrısına
+        # (doc[idx]) UI hâlâ get_textpage/get_charbox içindeyken giriyor ve süreç
+        # segfault ile ölüyordu — CI run 33329685864, Python 3.10, üç thread'in
+        # yığını bu ikisini yan yana gösterdi.
+        # Davranış aynı: istek zaten asenkron, pixmap birkaç satır sonra gelmiyor;
+        # _draw_search_highlight pixmap yoksa zaten erken dönüyordu.
+        # NOT: Bu YALNIZ en sık tetiklenen yolu kapatır. _get_page_size,
+        # _update_link_cursor ve sunum modu da UI'dan pdfium çağırıyor
+        # (bkz. BACKLOG B5: kilit ya da UI'ı pdfium'dan tamamen çıkarma).
+        if label.pixmap() is None or label.pixmap().isNull():
+            self._request_render(page_idx)
 
     def _draw_search_highlight(self, idx):
         self._clear_search_highlights()
