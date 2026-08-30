@@ -6,15 +6,14 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _HERE)
 sys.path.insert(0, os.path.join(_HERE, '..'))
 
-from PyQt6.QtCore import QLockFile, QStandardPaths
+from PyQt6.QtCore import QStandardPaths
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from core.i18n import init as init_i18n
 from PyQt6.QtCore import QCoreApplication
 _ = lambda s: QCoreApplication.translate("App", s)
 from gui.main_window import MainWindow
-
-_APP_LOCK_NAME = "latex_editor_single_instance.lock"
+from gui.single_instance import SingleInstance
 
 
 def _register_file_association():
@@ -137,19 +136,6 @@ def main():
     init_i18n(app)
     _register_file_association()
 
-    lock_dir = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.TempLocation)
-    lock_path = os.path.join(lock_dir, _APP_LOCK_NAME)
-    lock = QLockFile(lock_path)
-    lock.setStaleLockTime(0)
-
-    if not lock.tryLock(100):
-        QMessageBox.warning(
-            None,
-            "LaTeX Editor",
-            _("Uygulama zaten çalışıyor.\nAynı anda yalnızca bir örnek çalıştırılabilir."),
-        )
-        sys.exit(1)
-
     # Komut satırından dosya yolu geldiyse al (Windows "Birlikte Aç")
     file_arg = ""
     for arg in sys.argv[1:]:
@@ -157,11 +143,27 @@ def main():
             file_arg = os.path.normpath(arg)
             break
 
+    single = SingleInstance()
+    if not single.try_become_primary():
+        # Zaten bir örnek çalışıyor. Eskiden burada yalnız "zaten çalışıyor"
+        # uyarısı vardı ve dosya AÇILMIYORDU — "Birlikte Aç" ilk açılıştan
+        # sonra işlevsizdi. Artık yol çalışan örneğe iletilip sessizce çıkılır.
+        if single.send(file_arg):
+            sys.exit(0)
+        QMessageBox.warning(
+            None,
+            "LaTeX Editor",
+            _("Uygulama zaten çalışıyor ama yanıt vermiyor.\n"
+              "Açık pencereyi kullanın ya da uygulamayı kapatıp yeniden başlatın."),
+        )
+        sys.exit(1)
+
     window = MainWindow(open_file=file_arg)
     window.show()
+    single.file_received.connect(window.open_from_other_instance)
 
     exit_code = app.exec()
-    lock.unlock()
+    single.stop()
     sys.exit(exit_code)
 
 

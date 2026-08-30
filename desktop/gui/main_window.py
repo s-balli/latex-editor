@@ -1032,6 +1032,36 @@ class MainWindow(
                 elif ext in ('.png', '.jpg', '.jpeg', '.pdf', '.eps'):
                     self._insert_image(path)
 
+    # --- İkinci örnekten gelen istek ---
+
+    # 'Birlikte Aç' ile gelen dosyalar; sürükle-bırakla aynı küme.
+    _OPENABLE_EXT = ('.tex', '.cls', '.sty', '.bib')
+
+    def open_from_other_instance(self, path: str):
+        """Çalışan örneğe iletilen dosyayı aç ve pencereyi öne getir.
+
+        İkinci örnek (ör. Explorer'da .tex'e çift tıklama) kendi penceresini
+        açmaz; yolu buraya iletip çıkar. Yol boş olabilir: kullanıcı yalnız
+        uygulamayı yeniden başlatmayı denemiştir, o zaman sadece öne gel.
+        """
+        path = (path or "").strip()
+        if path and os.path.isfile(path):
+            if os.path.splitext(path)[1].lower() in self._OPENABLE_EXT:
+                self._open_file_in_editor(path)
+            else:
+                _logger.info("İkinci örnekten desteklenmeyen tür: %s", path)
+        elif path:
+            _logger.warning("İkinci örnekten gelen dosya bulunamadı: %s", path)
+
+        # Simge durumundaysa geri al, sonra öne getir. Windows arka plandaki
+        # sürecin pencere aktifleştirmesini kısıtlayabilir; o durumda görev
+        # çubuğunda yanıp söner — kullanıcı yine de olup biteni görür.
+        if self.isMinimized():
+            self.setWindowState(self.windowState() & ~Qt.WindowState.WindowMinimized)
+        self.show()
+        self.raise_()
+        self.activateWindow()
+
     # --- Durum kaydetme ---
 
     # Kapanışta beklenecek arka plan yazıcıları: (öznitelik, süre ms).
