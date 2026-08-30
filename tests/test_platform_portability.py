@@ -143,3 +143,41 @@ def test_paketleme_haric_listeleri_ayrismiyor():
         "Sikistirilmis Exe Olustur.bat, spec'te olmayan modülleri hariç "
         f"tutuyor: {fazla}\n"
         "İkisi aynı olmalı; farklıysa yalnız yerel build'de görülen hatalar doğar.")
+
+
+def test_tex_gerektiren_testler_ci_derle_jobunda_kosuyor():
+    """lualatex'e bağlı her test dosyası derle job'ında ADLA çağrılmalı.
+
+    Bu dosyalar matrix job'ında `pytest tests/` ile toplanıyor ama orada TeX
+    kurulu olmadığı için pytestmark ile komple skip oluyorlar. Gerçekten
+    koştukları tek yer TeX kuran derle job'u — ve orada dosya ADIYLA
+    çağrılmazsa hiçbir yerde koşmuyorlar demektir.
+
+    Gerçekten oldu (2026-08-30, D4): test_synctex_live.py'nin 4 entegrasyon
+    testi hiçbir CI job'ında çalışmıyordu; SyncTeX bu turda iki ayrı hatayla
+    (B1 vurgu zehirlenmesi, E1 Türkçe yol) kırıldığı hâlde CI sessiz kaldı.
+    """
+    import re
+    # Modül düzeyi atlama koşulunda lualatex geçiyor mu? (Düz metin araması
+    # bu dosyanın kendisini de yakalardı — koşul pytestmark'a bağlı.)
+    mark_deseni = re.compile(r"pytestmark\s*=\s*pytest\.mark\.skipif\(.*?\)", re.S)
+    tex_bagimli = []
+    for y in _test_dosyalari():
+        if not y.name.startswith("test_"):
+            continue
+        for m in mark_deseni.findall(y.read_text(encoding="utf-8")):
+            if "lualatex" in m:
+                tex_bagimli.append(y.name)
+                break
+    tex_bagimli.sort()
+    assert tex_bagimli, "lualatex'e bağlı test bulunamadı — kapı boşa düşmesin"
+
+    ci = (_REPO / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    derle = ci[ci.index("\n  derle:"):]
+    kosanlar = set(re.findall(r"tests/(test_\w+\.py)", derle))
+
+    eksik = [ad for ad in tex_bagimli if ad not in kosanlar]
+    assert not eksik, (
+        "TeX gerektiren şu test dosyaları derle job'ında çağrılmıyor, yani "
+        f"HİÇBİR yerde koşmuyorlar: {eksik}\n"
+        "ci.yml'deki derle adımının pytest satırına ekleyin.")
