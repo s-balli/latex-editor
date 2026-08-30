@@ -26,10 +26,27 @@ class PdfHighlightMixin:
         self._highlight_timer.start(3000)
 
     def _clear_highlight(self):
+        """Vurguyu kaldır — ebeveyn sayfa etiketi silinmiş olsa bile.
+
+        Vurgu QLabel'ı sayfa etiketinin ÇOCUĞU, zamanlayıcı ise viewer'ın
+        çocuğu: sayfa etiketleri (load_pdf, clear, çift-sayfa geçişi) 3 sn
+        dolmadan yok edilirse zamanlayıcı yaşamaya devam ediyor ve ölü
+        sarmalayıcıda deleteLater() RuntimeError atıyordu. İstisna bir
+        sonraki satırı atladığı için alan None'lanmıyor, sonraki HER çağrı
+        aynı yerde patlıyordu: zoom, sayfaya sığdır ve tüm SyncTeX atlamaları
+        oturum boyunca ölüyordu. Kardeş _clear_search_highlights bu korumayı
+        zaten taşıyor.
+        """
         if self._highlight_label:
-            self._highlight_label.deleteLater()
+            try:
+                self._highlight_label.deleteLater()
+            except RuntimeError:
+                pass          # ebeveyniyle birlikte çoktan yok edilmiş
             self._highlight_label = None
         if self._highlight_timer:
-            self._highlight_timer.stop()
-            self._highlight_timer.deleteLater()
+            try:
+                self._highlight_timer.stop()
+                self._highlight_timer.deleteLater()
+            except RuntimeError:
+                pass
             self._highlight_timer = None

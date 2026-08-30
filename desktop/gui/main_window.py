@@ -92,6 +92,11 @@ class MainWindow(
         self._compile_target = ""       # derlenen ana dosya yolu (path resolve base)
         self._synctex_dir = tempfile.mkdtemp(prefix="latex_editor_")
         self._settings = QSettings("LatexEditor", "LatexEditor")
+        # Otomatik derleme tercihi kalıcı (varsayılan: açık). QSettings bool'u
+        # bazı arka uçlarda dizge olarak döndürüyor — _auto_audit_enabled ile
+        # aynı gevşek karşılaştırma.
+        self._auto_compile = self._settings.value("compile/auto_compile", True) not in (
+            False, "false", "False")
         self._theme_mgr = ThemeManager(self._settings, self)
 
         self._init_synctex_worker()
@@ -203,10 +208,18 @@ class MainWindow(
         self._add_action(file_menu, _("Yeni &Dosya"), self._new_file, "Ctrl+N")
         file_menu.addSeparator()
         self._add_action(file_menu, _("&Klasör Aç..."), self._open_folder, "Ctrl+O")
-        self._add_action(file_menu, _("&Dosya Aç..."), self._open_file, "Ctrl+Shift+O")
+        self._add_action(file_menu, _("D&osya Aç..."), self._open_file, "Ctrl+Shift+O")
         file_menu.addSeparator()
-        self._add_action(file_menu, _("&Kaydet"), self._save_file)
-        self._add_action(file_menu, _("Farklı &Kaydet..."), self._save_file_as, "Ctrl+Shift+S")
+        # Ctrl+S menüde görünür ve menü/araç çubuğu/kısayol AYNI işi yapar.
+        # Eskiden menü ve toolbar _save_file (yalnız kaydet), Ctrl+S ise
+        # _on_save_and_compile (kaydet + derle) çağırıyordu; üstelik menüde
+        # kısayol yazmıyordu. Yardım diyaloğu Ctrl+S'i "Kaydet + Derle" diye
+        # belgelediği için menü belgelenen davranışla çelişiyordu.
+        # app_shortcut: QScintilla odaktayken de çalışsın (eski QShortcut'ın
+        # ApplicationShortcut context'i buraya taşındı).
+        self._add_action(file_menu, _("Ka&ydet"), self._on_save_and_compile,
+                         "Ctrl+S", app_shortcut=True)
+        self._add_action(file_menu, _("Farklı Kayde&t..."), self._save_file_as, "Ctrl+Shift+S")
         file_menu.addSeparator()
         self._add_action(file_menu, _("Sürümle"), self._snapshot, "Ctrl+K", app_shortcut=True)
         self._add_action(file_menu, _("Sürüm &Geçmişi"), self._show_history)
@@ -242,7 +255,7 @@ class MainWindow(
             self._export_actions.append(act)
             if not self._pandoc_available:
                 act.setToolTip(_("pandoc gerekli: apt install pandoc"))
-        self._add_action(file_menu, _("Çı&kış"), self.close, "Ctrl+Q")
+        self._add_action(file_menu, _("Çıkı&ş"), self.close, "Ctrl+Q")
 
         # Düzenle menüsü
         edit_menu = menubar.addMenu(_("Dü&zenle"))
@@ -253,21 +266,28 @@ class MainWindow(
         self._add_action(edit_menu, _("Bul &Değiştir..."), self._show_replace, "Ctrl+H")
         edit_menu.addSeparator()
         self._add_action(edit_menu, _("Yorum &Toggle"), self._toggle_comment)
-        self._add_action(edit_menu, _("Satıra &Git..."), self._goto_line_dialog, "Ctrl+G")
+        self._add_action(edit_menu, _("Satıra G&it..."), self._goto_line_dialog, "Ctrl+G")
         edit_menu.addSeparator()
         self._add_action(edit_menu, _("Tablo &Sihirbazı..."), self._table_wizard, "Ctrl+T", app_shortcut=True)
         self._add_action(edit_menu, _("Tabloyu &Hizala"), self._align_table)
         edit_menu.addSeparator()
         self._add_action(edit_menu, _("&Referansları Denetle"), self._audit_references)
         edit_menu.addSeparator()
-        self._add_action(edit_menu, _("&Sonraki Hata"), self._goto_next_error, "F4", app_shortcut=True)
+        self._add_action(edit_menu, _("S&onraki Hata"), self._goto_next_error, "F4", app_shortcut=True)
         self._add_action(edit_menu, _("Ö&nceki Hata"), self._goto_prev_error, "Shift+F4", app_shortcut=True)
 
         # Derle menüsü
-        build_menu = menubar.addMenu(_("&Derle"))
+        build_menu = menubar.addMenu(_("De&rle"))
         self._add_action(build_menu, _("&Derle"), self._compile, "Ctrl+B", app_shortcut=True)
-        self._add_action(build_menu, _("&Durdur"), self._stop_compile)
+        self._add_action(build_menu, _("D&urdur"), self._stop_compile)
         build_menu.addSeparator()
+        # Otomatik Derle anahtarı eskiden YALNIZ araç çubuğundaki QLabel'daydı:
+        # klavye odağı almıyor, Space/Enter tetiklemiyor, menüde ve kısayol
+        # listesinde hiç görünmüyordu. Menüdeki QAction ile etiket senkron.
+        auto_act = self._add_action(build_menu, _("&Otomatik Derle"), self._toggle_auto)
+        auto_act.setCheckable(True)
+        auto_act.setChecked(self._auto_compile)
+        self._auto_compile_action = auto_act
         act = self._add_action(build_menu, _("Derleme Sonrası &Referans Denetimi"), self._toggle_auto_audit)
         act.setCheckable(True)
         act.setChecked(self._auto_audit_enabled(self._settings))
@@ -329,7 +349,7 @@ class MainWindow(
         toolbar.addAction(_("📂 Klasör Aç"), self._open_folder)
         toolbar.addAction(_("📄 Dosya Aç"), self._open_file)
         toolbar.addSeparator()
-        toolbar.addAction(_("💾 Kaydet"), self._save_file)
+        toolbar.addAction(_("💾 Kaydet"), self._on_save_and_compile)
         toolbar.addAction(_("✔ Sürümle"), self._snapshot)
         toolbar.addAction(_("▶ Derle"), self._compile)
         toolbar.addSeparator()
@@ -349,6 +369,8 @@ class MainWindow(
             f"color: {t['accent_progress']}; font-weight: bold; padding: 3px 8px; "
             "border: 1px solid transparent; border-radius: 4px;"
         )
+        self._auto_label.setToolTip(_("Kaydederken otomatik derle — açmak/kapatmak için tıklayın (Derle menüsü)"))
+        self._auto_label.setCursor(Qt.CursorShape.PointingHandCursor)
         self._auto_label.mousePressEvent = lambda e: self._toggle_auto()
         toolbar.addWidget(self._auto_label)
 
@@ -442,10 +464,7 @@ class MainWindow(
         )
 
         # QShortcut — ApplicationShortcut ile QScintilla focus problemi çözülür
-        save_shortcut = QShortcut(QKeySequence("Ctrl+S"), self)
-        save_shortcut.setContext(Qt.ShortcutContext.ApplicationShortcut)
-        save_shortcut.activated.connect(self._on_save_and_compile)
-
+        # (Ctrl+S artık Dosya menüsündeki QAction'da, app_shortcut=True ile.)
         quick_open = QShortcut(QKeySequence("Ctrl+P"), self)
         quick_open.setContext(Qt.ShortcutContext.ApplicationShortcut)
         quick_open.activated.connect(self._quick_open)
@@ -563,7 +582,7 @@ class MainWindow(
         t = self._theme_mgr.theme
         c = t["fg_primary"]
         html = "<span style='color:" + c + "'>"
-        html += "<b>Dosya</b><br>"
+        html += "<b>" + _("Dosya") + "</b><br>"
         html += "Ctrl+S — " + _("Kaydet + Derle (Otomatik modda)") + "<br>"
         html += "Ctrl+B — " + _("Derle (Manuel modda veya yeniden derle)") + "<br>"
         html += "Ctrl+O — " + _("Klasör Aç") + "<br>"
@@ -572,7 +591,7 @@ class MainWindow(
         html += "Ctrl+K — " + _("Sürümle (tüm değişiklikleri tek kayda al)") + "<br>"
         html += "Ctrl+P — " + _("Hızlı Dosya Aç") + "<br>"
         html += "Ctrl+Q — " + _("Çıkış") + "<br><br>"
-        html += "<b>Düzenle</b><br>"
+        html += "<b>" + _("Düzenle") + "</b><br>"
         html += "Ctrl+Z — " + _("Geri Al") + "<br>"
         html += "Ctrl+Y — " + _("Yinele") + "<br>"
         html += "Ctrl+F — " + _("Bul") + "<br>"
@@ -649,10 +668,10 @@ class MainWindow(
         left += "<b>" + _("Yeniden Adlandır") + " (F2)</b><br>"
         left += "<span style='color:" + dim + "'>" + _("\\label/\\ref/\\cite/\\bibitem veya .bib girdisi üzerinde F2 → anahtar doküman, \\input zinciri ve .bib'te toplu değişir. Açık sekmeler tek undo adımı alır; çift isim engellenir.") + "</span>"
         left += "<br><br>"
-        left += "<b>" + _("Referans Denetimi") + " (Düzenle menüsü)</b><br>"
+        left += "<b>" + _("Referans Denetimi (Düzenle menüsü)") + "</b><br>"
         left += "<span style='color:" + dim + "'>" + _("Tanımsız \\ref/\\cite, kullanılmayan .bib girdisi ve label'ları derlemeden bulur; bulguya tıkla, yerine atla. Derle menüsünden her derleme sonrası otomatik çalışacak şekilde açılabilir.") + "</span>"
         left += "<br><br>"
-        left += "<b>" + _("Editör Ayarları") + " (Görünüm menüsü)</b><br>"
+        left += "<b>" + _("Editör Ayarları (Görünüm menüsü)") + "</b><br>"
         left += "<span style='color:" + dim + "'>" + _("Tab genişliği, font boyutu ve satır kaydırma; kalıcıdır, tüm sekmelere uygulanır. Ctrl+tekerlek ile anlık zoom da vardır.") + "</span>"
         left += "<br><br>"
         left += "<b>" + _("Otomatik Derleme") + "</b><br>"
@@ -1052,9 +1071,16 @@ class MainWindow(
             if os.path.splitext(path)[1].lower() in self._OPENABLE_EXT:
                 self._open_file_in_editor(path)
             else:
+                # Sessiz kalmıyoruz: pencere öne geliyor ama hiçbir şey
+                # açılmıyordu, kullanıcı yalnız log'a bakarak anlayabilirdi.
                 _logger.info("İkinci örnekten desteklenmeyen tür: %s", path)
+                self._status.showMessage(
+                    _("Bu dosya türü açılamıyor: {name}").format(
+                        name=os.path.basename(path)))
         elif path:
             _logger.warning("İkinci örnekten gelen dosya bulunamadı: %s", path)
+            self._status.showMessage(
+                _("Dosya bulunamadı: {name}").format(name=os.path.basename(path)))
 
         # Simge durumundaysa geri al, sonra öne getir. Windows arka plandaki
         # sürecin pencere aktifleştirmesini kısıtlayabilir; o durumda görev

@@ -115,6 +115,9 @@ class CompileOpsMixin:
     def _stop_compile(self):
         self._compiler.stop()
         self._progress.hide()
+        # stop() artık sonuç yaymıyor, dolayısıyla _on_compile_finished'in
+        # yaptığı imleç geri alma da çalışmıyor: burada yapılmalı.
+        self.setCursor(Qt.CursorShape.ArrowCursor)
         self._status.showMessage(_("Derleme durduruldu"))
 
     def _on_esc(self):
@@ -167,7 +170,7 @@ class CompileOpsMixin:
             if os.path.getsize(result.pdf_path) > 0:
                 if not self._pdf_viewer.load_pdf(result.pdf_path):
                     failed = True
-                    status_msg = _("PDF acilamadi — motoru degistirip tekrar deneyin")
+                    status_msg = _("PDF açılamadı — motoru değiştirip tekrar deneyin")
                 else:
                     pdf_shown = True
                     self._current_pdf = result.pdf_path
@@ -327,6 +330,13 @@ class CompileOpsMixin:
 
     def _toggle_auto(self):
         self._auto_compile = not self._auto_compile
+        # Kalıcı: motor seçimi ve referans denetimi anahtarı zaten hatırlanıyordu,
+        # bu değil. Kullanıcı büyük belgede Manuel'e geçiyor, ertesi gün uygulama
+        # yine Otomatik açılıyor ve ilk Ctrl+S'te arayüz derlemeye takılıyordu.
+        self._settings.setValue("compile/auto_compile", self._auto_compile)
+        act = getattr(self, "_auto_compile_action", None)
+        if act is not None and act.isChecked() != self._auto_compile:
+            act.setChecked(self._auto_compile)
         self._update_auto_label_theme(self._theme_mgr.theme)
 
     def _update_auto_label_theme(self, t: dict):

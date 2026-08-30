@@ -21,6 +21,44 @@ _ = lambda s: QCoreApplication.translate("EnvDoctor", s)
 _MARK = {"ok": "✅", "missing": "❌", "error": "⚠️", "info": "ℹ️"}
 
 
+def _yerellestir(metin: str) -> str:
+    """core/env_check.py'nin ham Türkçe durum metnini arayüz diline çevir.
+
+    core/ bilinçli olarak Qt'süz; çeviri bu yüzden SUNUM katmanında yapılıyor.
+    Sözlük çağrı anında kuruluyor: QTranslator uygulama başladıktan sonra
+    yükleniyor, modül düzeyinde kurulsa çeviriler boşa düşerdi. Bu satırlar
+    İngilizce arayüzde Türkçe kalıyordu ("pdflatex: kurulu değil").
+
+    Bileşik metinler ("kurulu değil (minted belgeleri için gerekli)") parça
+    parça çevrilir; ``fix_hint`` kabuk komutu olduğu için ÇEVRİLMEZ.
+    """
+    if not metin:
+        return metin
+    tablo = {
+        "kurulu değil": _("kurulu değil"),
+        "çalışıyor": _("çalışıyor"),
+        "wsl bulunamadı": _("wsl bulunamadı"),
+        "WSL olmadığından denetlenemedi": _("WSL olmadığından denetlenemedi"),
+        "WSL çalışmadığından denetlenemedi": _("WSL çalışmadığından denetlenemedi"),
+        "çalıştırılamadı (dağıtım kurulu olmayabilir)":
+            _("çalıştırılamadı (dağıtım kurulu olmayabilir)"),
+        "minted belgeleri için gerekli": _("minted belgeleri için gerekli"),
+        "hiç motor kurulu değil; eksik paketleri tek tek kurmak yerine "
+        "README'nin tam kurulumu önerilir":
+            _("hiç motor kurulu değil; eksik paketleri tek tek kurmak yerine "
+              "README'nin tam kurulumu önerilir"),
+        "TeX Live kurulumu": _("TeX Live kurulumu"),
+    }
+    if metin in tablo:
+        return tablo[metin]
+    # "temel (not)" biçimi — ikisini ayrı ayrı çevir
+    if metin.endswith(")") and " (" in metin:
+        temel, _ayrac, not_ = metin[:-1].partition(" (")
+        if temel in tablo or not_ in tablo:
+            return f"{tablo.get(temel, temel)} ({tablo.get(not_, not_)})"
+    return metin
+
+
 class _CheckSignal(QObject):
     """Arka plan denetimden UI'ya sonuç taşıyan sinyal köprüsü."""
     done = pyqtSignal(list)
@@ -106,9 +144,10 @@ class EnvDoctorDialog(QDialog):
         rows = []
         for r in results:
             color = err if r.status == "missing" else (muted if r.status == "info" else fg)
-            line = f"<span style='color:{color}'>{_MARK.get(r.status, '•')} <b>{r.name}</b>"
+            line = (f"<span style='color:{color}'>{_MARK.get(r.status, '•')} "
+                    f"<b>{_yerellestir(r.name)}</b>")
             if r.detail:
-                line += f": {r.detail}"
+                line += f": {_yerellestir(r.detail)}"
             if r.fix_hint and r.status != "ok":
                 line += (f"<br>&nbsp;&nbsp;&nbsp;&nbsp;"
                          f"<span style='color:{muted}'>→ {r.fix_hint}</span>")

@@ -7,12 +7,16 @@ import sys
 import time
 from pathlib import Path
 
-from PyQt6.QtCore import QObject, QProcess, QTimer, pyqtSignal
+from PyQt6.QtCore import QCoreApplication, QObject, QProcess, QTimer, pyqtSignal
 
 from core.log_parser import CompileResult, LatexError, LatexSuggestion, parse_output
 from core.paths import windows_to_wsl
 
 PLATFORM = sys.platform  # win32, linux, darwin
+
+# Bu modül zaten QtCore'a bağımlı (QProcess); kullanıcıya görünen derleme
+# hataları İngilizce arayüzde Türkçe kalmasın diye çevrilebilir.
+_ = lambda s: QCoreApplication.translate("Compiler", s)
 
 # Derleme watchdog sınırı: bu sürede bitmeyen derleme iptal edilir.
 DEFAULT_TIMEOUT_MS = 120_000
@@ -187,13 +191,12 @@ class LatexCompiler(QObject):
     def _on_error(self, error: QProcess.ProcessError):
         self._timeout_timer.stop()
         self._flush_output()
-        msg = "Derleme hatası"
+        msg = _("Derleme hatası")
         if error == QProcess.ProcessError.FailedToStart:
-            msg = "Süreç başlatılamadı"
             if PLATFORM == "win32":
-                msg += " — WSL yüklü mü?"
+                msg = _("Süreç başlatılamadı — WSL yüklü mü?")
             else:
-                msg += " — bash/derle.sh bulunamadı"
+                msg = _("Süreç başlatılamadı — bash/derle.sh bulunamadı")
         self.output_line.emit(f"[hata] {msg}\n")
 
         result = CompileResult(success=False)
@@ -204,7 +207,7 @@ class LatexCompiler(QObject):
             # sekmesi hem komutu gösterir hem (kurulum önerisi taşıyan
             # sonuçlarda) Ortam Denetimi satırını açar.
             result.suggestions.append(LatexSuggestion(
-                message="WSL bulunamadı",
+                message=_("WSL bulunamadı"),
                 install_command="wsl --install  (yönetici PowerShell, ardından yeniden başlat)",
             ))
         if not self._finished_emitted:
@@ -230,6 +233,20 @@ class LatexCompiler(QObject):
         self.compilation_finished.emit(result)
 
     def stop(self):
+        """Derlemeyi iptal et — sonuç YAYMADAN.
+
+        _finished_emitted burada da set edilmeli (_on_timeout ile aynı kalıp).
+        Eskiden set edilmiyordu: waitForFinished içinde finished sinyali
+        senkron gelip _on_finished'i çalıştırıyor, exit_code != 0 olduğu için
+        normal bir "başarısız derleme" sonucu yayılıyordu. compile_ops o kolda
+        PDF panelini temizleyip _current_pdf'i boşaltıyor — oysa ekrandaki PDF
+        son BAŞARILI derlemenin çıktısı ve hâlâ geçerli. Yan etki olarak
+        _current_pdf boşaldığı için SyncTeX de bir sonraki başarılı derlemeye
+        kadar "Önce derleyin" demeye başlıyordu. İptal, başarısız derleme
+        değildir.
+        """
         if self.process and self.process.state() != QProcess.ProcessState.NotRunning:
+            self._finished_emitted = True
             self.process.kill()
             self.process.waitForFinished(3000)
+            self._timeout_timer.stop()

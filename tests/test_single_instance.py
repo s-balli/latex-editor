@@ -176,7 +176,7 @@ def test_stop_sonrasi_kilit_devralinabilir(qapp, temiz_ad):
 def _pencere_stub():
     """open_from_other_instance'ın dokunduğu asgari arayüz."""
     from types import SimpleNamespace
-    kayit = SimpleNamespace(acilan=[], one_alindi=0, minimize=False)
+    kayit = SimpleNamespace(acilan=[], one_alindi=0, minimize=False, mesaj="")
 
     def _ac(path, add_recent=True):
         kayit.acilan.append(path)
@@ -184,6 +184,8 @@ def _pencere_stub():
     return SimpleNamespace(
         _OPENABLE_EXT=('.tex', '.cls', '.sty', '.bib'),
         _open_file_in_editor=_ac,
+        _status=SimpleNamespace(
+            showMessage=lambda m, *a: setattr(kayit, "mesaj", m)),
         isMinimized=lambda: kayit.minimize,
         windowState=lambda: 0,
         setWindowState=lambda s: None,
@@ -215,15 +217,20 @@ def test_desteklenmeyen_uzanti_acilmaz(qapp, tmp_path):
     k = _isle(_pencere_stub(), str(baska))
     assert k.acilan == []
     assert k.one_alindi == 1, "dosya açılmasa da pencere öne gelmeli"
+    # Sessiz no-op olmamalı: pencere öne gelip hiçbir şey olmuyordu, kullanıcı
+    # sebebi yalnız log'dan görebiliyordu.
+    assert "a.exe" in k.mesaj, "desteklenmeyen tür için durum mesajı yok"
 
 
 def test_olmayan_dosya_cokmez(qapp, tmp_path):
     k = _isle(_pencere_stub(), str(tmp_path / "yok.tex"))
     assert k.acilan == []
     assert k.one_alindi == 1
+    assert "yok.tex" in k.mesaj, "bulunamayan dosya için durum mesajı yok"
 
 
 def test_bos_yol_yalniz_one_alir(qapp):
     k = _isle(_pencere_stub(), "")
     assert k.acilan == []
     assert k.one_alindi == 1
+    assert k.mesaj == "", "boş yol yalnız öne alır, mesaj yazmaz"

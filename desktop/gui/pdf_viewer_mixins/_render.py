@@ -48,7 +48,16 @@ class PdfRenderMixin:
             if self._pdf:
                 self._pdf.close()
                 self._pdf = None
-            self._pdf = pypdfium2.PdfDocument(path)
+            # Dosyayı belleğe alıp öyle aç. pypdfium2 yol üzerinden açılan
+            # dokümanın sayfa verisini ihtiyaç anında TEMBEL okuyor; kullanıcının
+            # main.pdf'i her derlemede yerinde truncate+yeniden yazılıyor
+            # (derle.sh'nin mv'si ayrı dosya sistemine kopya+unlink'e düşüyor).
+            # Panelde gezinirken eski handle yarım yazılmış dosyadan okuyunca
+            # pdfium C++ tarafında süreci düşürebiliyor. İki arka plan işçisi
+            # (pdf_render_worker, pdf_search_worker) bu kalıba çoktan geçmişti;
+            # UI handle'ı dışarıda kalmıştı.
+            with open(path, "rb") as f:
+                self._pdf = pypdfium2.PdfDocument(f.read())
             self._pdf_path = path
             self._page_count = len(self._pdf)
             self._current_page = 0
@@ -95,6 +104,11 @@ class PdfRenderMixin:
         self._pdf_path = ""
         self._btn_save.setEnabled(False)
         self.update_bookmarks()
+        # Sayfa etiketleri birazdan yok edilecek: vurgu onların çocuğu, arama
+        # sonuçları da eski dokümanın ofsetleri. İkisi de burada bırakılırsa
+        # canlı kalıp ölü doküman üzerinde çalışıyordu.
+        self._clear_highlight()
+        self._clear_search()
         self._clear_selection()
         self._page_count = 0
         self._current_page = 0
@@ -116,6 +130,7 @@ class PdfRenderMixin:
             self._pdf.close()
             self._pdf = None
         self._clear_highlight()
+        self._clear_search()
         self._clear_pages()
         self._render_gen += 1
         self._render_worker.open_document("", self._render_gen)
@@ -150,6 +165,9 @@ class PdfRenderMixin:
         return (max(w, 50), max(h, 50))
 
     def _create_placeholders(self):
+        # Sayfa etiketleri yenileniyor: vurgu eskisinin çocuğuydu. Çift-sayfa
+        # geçişi bu yoldan geliyor ve tek başına _clear_highlight çağırmıyordu.
+        self._clear_highlight()
         self._clear_pages()
         if not self._pdf:
             return

@@ -145,6 +145,16 @@ class PdfSearchMixin:
         self._search_highlights = []
 
     def _clear_search(self):
+        """Arama sonuçlarını temizle ve UÇUŞTAKİ aramayı da geçersiz kıl.
+
+        Bayatlık damgası yalnız _do_search'te artıyordu; _clear_search onu
+        atlıyordu. Derleme bitip load_pdf yeni PDF'i yüklediğinde süren arama
+        aynı damgayla dönüyor, _on_search_done guard'ından geçiyor ve ESKİ
+        dokümanın karakter ofsetleri yeni doküman üzerinde kullanılıyordu:
+        yanlış sayfaya kaydırma, yanlış vurgu kutusu, yanlış "N / M" sayacı.
+        get_charbox istisnası yutulduğu için hepsi sessizdi.
+        """
+        self._search_id += 1
         self._clear_search_highlights()
         self._search_results = []
         self._search_index = 0
