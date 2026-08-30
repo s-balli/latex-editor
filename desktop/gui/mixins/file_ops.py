@@ -250,7 +250,11 @@ class FileOpsMixin:
             from PyQt6.QtWidgets import QMessageBox
             QMessageBox.warning(
                 self, _("Dışa Aktarma"),
-                _("pandoc yüklü değil.\n\nKurmak için:\nLinux: sudo apt install pandoc\nWindows (WSL): sudo apt install pandoc\nWindows: pandoc.org")
+                # "Windows: pandoc.org" satırı kaldırıldı: Windows'ta dışa
+                # aktarma pandoc'u WSL içinde çağırıyor, Windows'a kurulan
+                # native pandoc hiç kullanılmıyor. Eski metin kullanıcıyı
+                # işe yaramayacak bir kuruluma yönlendiriyordu.
+                _("pandoc yüklü değil.\n\nKurmak için:\nLinux: sudo apt install pandoc\nWindows: WSL içinde 'sudo apt install pandoc'")
             )
             return
 

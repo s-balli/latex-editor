@@ -28,8 +28,26 @@ class TestWindowsToWsl:
     def test_empty_string(self):
         assert windows_to_wsl("") == ""
 
-    def test_unc_path(self):
-        assert windows_to_wsl(r"\\server\share\file") == "//server/share/file"
+    def test_ag_yolu_uydurulmuyor(self):
+        r"""Ağ (UNC) paylaşımının WSL karşılığı yok — yol KORUNMALI.
+
+        Bu test eskiden `//server/share/file` bekliyordu, yani hatayı
+        sabitliyordu (2026-08-30 denetimi, E3): o yol WSL'de yoktur, üstelik
+        hata da verilmediği için derleme "dosya bulunamadı" ile sessizce
+        düşüyordu. Uydurulmuş bir yol yerine girdinin korunması, sorunun
+        WSL tarafında açık bir hata olarak görünmesini sağlıyor; ayrıntı
+        log'a yazılıyor.
+        """
+        assert windows_to_wsl(r"\\server\share\file") == r"\\server\share\file"
+
+    def test_wsl_kendi_dosya_sistemi_cevriliyor(self):
+        r"""\\wsl.localhost\<dagitim>\... ve \\wsl$\... gerçek karşılığı olan
+        tek UNC biçimi: dağıtım adı yutulur, gerisi mutlak WSL yoludur."""
+        assert windows_to_wsl(r"\\wsl.localhost\Ubuntu\home\s\a.tex") == "/home/s/a.tex"
+        assert windows_to_wsl(r"\\wsl$\Ubuntu\home\s\a.tex") == "/home/s/a.tex"
+        assert windows_to_wsl(r"\\WSL.LOCALHOST\Debian\tmp\x") == "/tmp/x"
+        # Dağıtım kökü
+        assert windows_to_wsl(r"\\wsl.localhost\Ubuntu") == "/"
 
     def test_spaces_in_path(self):
         assert windows_to_wsl(r"C:\My Files\doc.tex") == "/mnt/c/My Files/doc.tex"

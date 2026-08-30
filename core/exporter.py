@@ -23,8 +23,17 @@ PLATFORM = sys.platform
 
 
 def pandoc_available() -> bool:
+    """Dışa aktarma GERÇEKTEN çalışabilir mi.
+
+    Windows'ta export() her zaman _export_wsl kullanıyor (pandoc WSL'de
+    çağrılıyor), dolayısıyla Windows'a kurulmuş NATIVE pandoc işe yaramıyor.
+    Eskiden burada "native VEYA wsl" deniyordu: pandoc'u Windows'a kurmuş ama
+    WSL'e kurmamış kullanıcıda menü açık kalıyor, hiçbir uyarı çıkmıyor ve
+    dışa aktarma sessizce başarısız oluyordu. Kullanılabilirlik, kullanılan
+    yolla aynı olmalı.
+    """
     if PLATFORM == "win32":
-        return shutil.which("pandoc") is not None or _wsl_pandoc_available()
+        return _wsl_pandoc_available()
     return shutil.which("pandoc") is not None
 
 

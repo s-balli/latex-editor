@@ -26,10 +26,15 @@ if exist "upx\upx.exe" (
     --add-data "syntax;syntax" ^
     --add-data "linux;linux" ^
     --add-data "translations;translations" ^
+REM Hariç tutma listesi "LaTeX Editor.spec" ile AYNI olmalı — yayınlanan exe
+REM o spec'ten üretiliyor, buradaki yalnız yerel sıkıştırılmış build.
+REM email HARİÇ TUTULAMAZ: urllib.request -> http.client -> email zinciriyle
+REM 15 email alt modülü yüklüyor. Hariç tutulunca core.updater import edilemiyor,
+REM main_window'daki try/except onu "ağ hatası" sanıp bildiriyor ve kullanıcı
+REM güncellemelerden sonsuza dek habersiz kalıyordu (2026-08-30, E6).
     --exclude-module tkinter ^
     --exclude-module unittest ^
     --exclude-module test ^
-    --exclude-module email ^
     --exclude-module html ^
     --exclude-module xmlrpc ^
     --exclude-module pydoc ^

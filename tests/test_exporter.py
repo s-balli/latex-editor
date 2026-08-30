@@ -69,9 +69,16 @@ class TestPandocAvailable:
     @patch("core.exporter._wsl_pandoc_available", return_value=False)
     @patch("core.exporter.shutil.which")
     @patch("core.exporter.PLATFORM", "win32")
-    def test_available_windows_native(self, mock_which, mock_wsl):
+    def test_windows_native_pandoc_yetmez(self, mock_which, mock_wsl):
+        """Windows'ta NATIVE pandoc kullanılmıyor: export() her zaman WSL'e gider.
+
+        Bu test eskiden True bekliyordu, yani hatayı sabitliyordu
+        (2026-08-30 denetimi, E5): pandoc'u Windows'a kurmuş ama WSL'e
+        kurmamış kullanıcıda menü açık kalıyor, uyarı çıkmıyor ve dışa
+        aktarma sessizce başarısız oluyordu.
+        """
         mock_which.return_value = "C:\\pandoc.exe"
-        assert pandoc_available() is True
+        assert pandoc_available() is False
 
     @patch("core.exporter._wsl_pandoc_available", return_value=True)
     @patch("core.exporter.shutil.which")

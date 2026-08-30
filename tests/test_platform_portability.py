@@ -114,3 +114,32 @@ def test_urun_subprocess_cagrilari_encoding_belirtir():
     assert not eksik, (
         "ürün kodunda encoding= verilmeyen subprocess çağrısı:\n"
         + "\n".join(f"  {f}:{ln}  subprocess.{ne}(text=True)" for f, ln, ne in eksik))
+
+
+def test_paketleme_haric_listeleri_ayrismiyor():
+    """Sıkıştırılmış build ile yayın spec'i aynı modülleri hariç tutmalı.
+
+    İkisi ayrışınca yalnız YEREL build'de var olan, kullanıcıya ulaşmayan
+    hatalar doğuyor ve teşhisi zor oluyor. Gerçekten oldu (2026-08-30, E6):
+    .bat'ta `--exclude-module email` vardı, spec'te yoktu. urllib.request
+    zinciri email'e bağlı olduğundan core.updater import edilemiyor,
+    main_window'daki try/except onu "ağ hatası" sanıp bildiriyordu — yani
+    sıkıştırılmış exe kullanıcısı güncellemelerden hiç haberdar olmuyordu.
+    """
+    import re
+    spec_metin = (_REPO / "desktop" / "LaTeX Editor.spec").read_text(encoding="utf-8")
+    m = re.search(r"excludes=\[([^\]]*)\]", spec_metin)
+    assert m, "spec içinde excludes=[...] bulunamadı — kapı boşa düşmesin"
+    spec = set(re.findall(r"'([^']+)'", m.group(1)))
+
+    bat_metin = (_REPO / "desktop" / "Sikistirilmis Exe Olustur.bat").read_text(
+        encoding="utf-8")
+    bat = set(re.findall(r"--exclude-module\s+(\S+)", bat_metin))
+
+    assert spec, "spec exclude listesi boş okundu"
+    assert bat, "bat exclude listesi boş okundu"
+    fazla = sorted(bat - spec)
+    assert not fazla, (
+        "Sikistirilmis Exe Olustur.bat, spec'te olmayan modülleri hariç "
+        f"tutuyor: {fazla}\n"
+        "İkisi aynı olmalı; farklıysa yalnız yerel build'de görülen hatalar doğar.")
