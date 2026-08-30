@@ -24,35 +24,31 @@ def init(app=None):
     from PyQt6.QtCore import QSettings, QTranslator
 
     _trans_dir = os.path.normpath(_find_trans_dir())
-    _logger.info("Çeviri dizini: %s (var: %s)", _trans_dir, os.path.isdir(_trans_dir))
 
     # Ayarlardan dil al, yoksa kaynak dil (Türkçe)
     settings = QSettings("LatexEditor", "LatexEditor")
     lang = settings.value("language", "")
-    _logger.info("Ayardaki dil: [%s]", lang)
     locale = lang if lang else "tr"
-    _logger.info("Kullanılacak locale: [%s]", locale)
+    qm_path = os.path.normpath(
+        os.path.join(_trans_dir, f"latexeditor_{locale}.qm"))
 
-    # Tam dosya yolunu oluştur
-    qm_path = os.path.join(_trans_dir, f"latexeditor_{locale}.qm")
-    qm_path = os.path.normpath(qm_path)
-    _logger.info("Yüklenecek dosya: %s (var: %s, boyut: %s)",
-                 qm_path, os.path.isfile(qm_path),
-                 os.path.getsize(qm_path) if os.path.isfile(qm_path) else "N/A")
+    # Adım adım teşhis DEBUG'da: dosya handler'ı INFO ve üstünü yazıyor, bu
+    # satırlar her açılışta rotating log'un yerini yiyordu. Sorun çıktığında
+    # gereken bilgi aşağıdaki tek WARNING satırında zaten toplu duruyor.
+    _logger.debug("Çeviri aranıyor: %s (dizin var: %s, dosya var: %s, ayar: [%s])",
+                  qm_path, os.path.isdir(_trans_dir), os.path.isfile(qm_path), lang)
 
     translator = QTranslator()
-    loaded = translator.load(qm_path)
-    _logger.info("translator.load sonucu: %s", loaded)
-
-    if loaded:
+    if translator.load(qm_path):
         app.installTranslator(translator)
         _backend = _QtBackend(translator)
-        _logger.info("Çeviri backend'i yüklendi: %s", locale)
+        _logger.info("Çeviri yüklendi: %s", locale)
     else:
-        _logger.warning("Çeviri dosyası yüklenemedi: %s", qm_path)
-        if os.path.isdir(_trans_dir):
-            _logger.info("Mevcut .qm dosyaları: %s",
-                         [f for f in os.listdir(_trans_dir) if f.endswith('.qm')])
+        mevcut = ([f for f in os.listdir(_trans_dir) if f.endswith(".qm")]
+                  if os.path.isdir(_trans_dir) else "(dizin yok)")
+        _logger.warning(
+            "Çeviri dosyası yüklenemedi: %s — dizindeki .qm dosyaları: %s",
+            qm_path, mevcut)
 
 
 def translator(ctx: str):
@@ -131,6 +127,9 @@ class _QtBackend:
         self._translator = translator
 
     def translate(self, ctx: str, text: str) -> str:
+        # QCoreApplication.translate karşılık bulamazsa kaynak metni aynen
+        # döndürür — istenen davranış bu (Türkçe kaynak dil). Buradaki eski
+        # 'result != text' üçlüsü iki dalda da aynı değeri veriyordu; bir yedek
+        # düşünülüp yazılmamış, ölü koda dönüşmüştü.
         from PyQt6.QtCore import QCoreApplication
-        result = QCoreApplication.translate(ctx, text)
-        return result if result != text else text
+        return QCoreApplication.translate(ctx, text)
