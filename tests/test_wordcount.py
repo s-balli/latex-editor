@@ -97,3 +97,105 @@ def test_mixed_document():
     )
     # Görünür kelimeler: Giris Bu bir denklemdir ve onemli. Sonuc budur. = 8
     assert words(text) == 8
+
+
+# =====================================================================
+# Sayacın sistematik olarak yanıldığı yedi durum (2026-08-30 denetimi).
+# Gerçekçi bir tez belgesinde toplam sapma +%25'ti; hatalar iki yönlüydü
+# (kaçış yutması eksiltiyor, ayraç/önsöz şişiriyordu) ve kısmen birbirini
+# götürdüğü için fark edilmemişti.
+# =====================================================================
+
+
+def test_kacisli_yuzde_yorum_sanilmiyor():
+    r"""`\%` yorum başlangıcı değil: satırın geri kalanı silinmemeli."""
+    assert words(r"Oran \%50 artti bu yil.") == 5
+    # Gerçek yorum hâlâ silinmeli: görünen "Oran %50 artti"
+    assert words(r"Oran \%50 artti % bu yorum") == 3
+
+
+def test_kacisli_dolar_matematik_sanilmiyor():
+    r"""`\$100 ... \$200` arası matematik bölgesi sanılıp yutulmamalı."""
+    assert words(r"Fiyat \$100 ile \$200 arasi") == 5
+    # Gerçek matematik hâlâ elenmeli: görünen "Deger kadar"
+    assert words(r"Deger $x + y$ kadar") == 2
+
+
+def test_satir_sonu_kelime_degil():
+    r"""`\\` satır sonu ve `\\[2mm]` kelime sayılmamalı."""
+    assert words(r"birinci satir \\ ikinci satir") == 4
+    assert words(r"birinci satir \\[2mm] ikinci satir") == 4
+
+
+def test_tablo_ayraci_kelime_degil():
+    r"""Tablo `&` ayracı kelime sayılmamalı; kaçışlı `\&` sayılmalı."""
+    assert words(r"elma & armut \\ kiraz & incir") == 4
+    assert words(r"Ahmet \& Mehmet geldi") == 4
+
+
+def test_onsoz_sayilmiyor_baslik_sayiliyor():
+    r"""Önsöz elenmeli ama \title/\author \maketitle ile basıldığı için sayılmalı."""
+    text = (
+        "\\documentclass[12pt]{article}\n"
+        "\\usepackage[utf8]{inputenc}\n"
+        "\\title{Yapay Ogrenme}\n"
+        "\\author{Serkan Balli}\n"
+        "\\begin{document}\n"
+        "\\maketitle\n"
+        "Tek satir metin\n"
+        "\\end{document}\n"
+    )
+    # Yapay Ogrenme (2) + Serkan Balli (2) + Tek satir metin (3) = 7
+    assert words(text) == 7
+
+
+def test_bolum_dosyasinda_tum_metin_sayilir():
+    r"""\input ile çağrılan bölümde \begin{document} yoktur: hepsi sayılır."""
+    assert words("Bu bir bolum dosyasi metnidir") == 5
+
+
+def test_gorunmez_komut_argumani_sayilmiyor():
+    r"""\includegraphics/\usepackage argümanı kelime değil; \section başlığı kelime."""
+    assert words(r"Sekil \includegraphics{resim.png} burada") == 2
+    assert words(r"Sekil \includegraphics[width=0.8\textwidth]{a/b.png} burada") == 2
+    assert words(r"\section{Giris Bolumu} ve yazi") == 4
+
+
+def test_kod_ortami_sayilmiyor():
+    """verbatim/lstlisting içeriği düzyazı değil, sayılmamalı."""
+    text = ("Metin\n\\begin{verbatim}\nfor i in range(10):\n"
+            "\\end{verbatim}\nSon")
+    assert words(text) == 2
+    text2 = ("Metin\n\\begin{lstlisting}\nx = %100\n\\end{lstlisting}\nSon")
+    assert words(text2) == 2
+
+
+def test_karakter_sayisi_ic_bosluklari_saymiyor():
+    """chars görünür metnin karakteri olmalı: iç boşluk/satır sonu şişirmesin."""
+    assert _latex_wordcount("Merhaba dunya")[1] == len("Merhaba dunya")
+    # Komut silindikten sonra kalan çoklu boşluk teke iner
+    assert _latex_wordcount(r"Bu \textbf{kalin} yazi")[1] == len("Bu kalin yazi")
+    # Satır sonu tek boşluk sayılır
+    assert _latex_wordcount("birinci\nikinci")[1] == len("birinci ikinci")
+
+
+def test_gercekci_belge_tam_isabet():
+    """Uçtan uca: önsöz + tablo + matematik + şekil + kaçışlar."""
+    text = (
+        "\\documentclass{article}\n"
+        "\\usepackage{booktabs}\n"
+        "\\title{Sonuclar}\n"
+        "\\begin{document}\n"
+        "\\maketitle\n"
+        "\\section{Giris}\n"
+        "Dogruluk orani \\%92 oldu.\n"
+        "\\begin{tabular}{lr}\n"
+        "Yontem & Skor \\\\\n"
+        "Agac & 0.87 \\\\\n"
+        "\\end{tabular}\n"
+        "Maliyet $J(x)$ dusuktur.\n"
+        "\\end{document}\n"
+    )
+    # Sonuclar(1) Giris(1) Dogruluk orani %92 oldu.(4)
+    # Yontem Skor Agac 0.87 (4) Maliyet dusuktur.(2) = 12
+    assert words(text) == 12

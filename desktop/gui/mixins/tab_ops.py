@@ -14,9 +14,44 @@ from PyQt6.QtCore import QCoreApplication
 
 _ = lambda s: QCoreApplication.translate("TabOpsMixin", s)
 
-# LaTeX-aware kelime sayımı için regex'ler
+# LaTeX-aware kelime sayımı için regex'ler.
+#
+# Sıra kritik (bkz. _latex_wordcount). Kaçışlı noktalama sentinel'e alınmadan
+# yorum/matematik temizliği yapılamaz: `\%` yorum başlangıcı sanılıp satırın
+# GERİ KALANI siliniyordu (metin kaybı), `\$100 ... \$200` ise matematik
+# bölgesi sanılıp arası yutuluyordu.
+
+# Önsöz sayıma girmemeli: \usepackage[utf8]{inputenc} gibi satırlar
+# "utf8inputenc" diye kelime sayılıyordu. \input ile çağrılan bölüm
+# dosyalarında bu ortam yoktur; o zaman metnin tamamı sayılır.
+_RE_BODY = re.compile(r'\\begin\{document\}(.*?)\\end\{document\}', re.DOTALL)
+# ...ama önsözdeki \title/\author/\date \maketitle ile SAYFAYA BASILIR:
+# görünür metindir, gövdeyle birlikte sayılır.
+_RE_TITLE_META = re.compile(
+    r'\\(?:title|subtitle|author|date)\s*(?:\[[^\]]*\])?\s*'
+    r'\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}'
+)
+
+# Kod ortamları: içeriği düzyazı değil. Matematik ortamları gibi blok olarak
+# atılır ve EN ÖNCE atılır — içindeki % bir yorum değil, düz karakterdir.
+_RE_VERBATIM_BLOCK = re.compile(
+    r'\\begin\{(verbatim\*?|lstlisting|minted|Verbatim|alltt)\}.*?\\end\{\1\}',
+    re.DOTALL,
+)
+# Satır sonu (\\ ve \\[2mm]) kelime değildir; \\[a-zA-Z]+ bunu eşlemediği için
+# split() onu ayrı bir "kelime" sayıyordu.
+_RE_LINEBREAK = re.compile(r'\\\\(?:\[[^\]]*\])?')
+
+# Kaçışlı noktalama LaTeX'te görünür karakterdir, işaretçi değil.
+_ESC_CHARS = "%$&#_"
+_RE_ESCAPED = re.compile(r'\\([' + re.escape(_ESC_CHARS) + r'])')
+_RE_SENTINEL = re.compile('[\x01-\x05]')
+
 _RE_COMMENT = re.compile(r'%.*$', re.MULTILINE)
-_RE_COMMANDS = re.compile(r'\\[a-zA-Z]+')           # \command
+# \command, yıldızlı biçimi ve köşeli argümanı: \section*[kısa]{...}
+_RE_COMMANDS = re.compile(r'\\[a-zA-Z]+\*?(?:\[[^\]]*\])?')
+# \, \; \! gibi sembol komutları (kaçışlar zaten sentinel'de)
+_RE_SYMCMD = re.compile(r'\\[^a-zA-Z\s]')
 # Matematik bölgeleri: $$...$$ ÖNCE denenmeli (yoksa $$ boş satır içi math gibi yanlış eşlenir)
 _RE_MATH_DELIM = re.compile(
     r'\$\$.+?\$\$|\$[^$\n]*\$|\\\(.+?\\\)|\\\[.+?\\\]',
@@ -28,25 +63,54 @@ _RE_MATH_ENV_BLOCK = re.compile(
     re.DOTALL,
 )
 _RE_BRACES = re.compile(r'[{}\[\]]')
-_RE_LABELS = re.compile(r'\\(?:label|ref|cite|eqref|pageref|bibliography|addbibresource)\{[^}]*\}')
-_RE_BEGIN_END = re.compile(r'\\(?:begin|end)\{[^}]*\}')
+# Argümanı GÖRÜNÜR METİN OLMAYAN komutlar — argümanıyla birlikte atılır.
+# (\section{Başlık} bu listede DEĞİL: başlık okunan metindir, sayılmalı.)
+# İç içe küme desteği \graphicspath{{sekiller/}} için gerekli.
+_RE_LABELS = re.compile(
+    r'\\(?:label|ref|eqref|pageref|autoref|[cC]ref|nocite|cite[a-zA-Z]*'
+    r'|bibliography|bibliographystyle|addbibresource|bibitem'
+    r'|includegraphics|usepackage|RequirePackage|documentclass|graphicspath'
+    r'|input|include|setlength|definecolor|hypersetup|geometry'
+    r'|pagestyle|thispagestyle|url|href)'
+    r'\s*(?:\[[^\]]*\])?\s*\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}'
+)
+_RE_BEGIN_END = re.compile(r'\\(?:begin|end)\{[^}]*\}(?:\[[^\]]*\])?(?:\{[^}]*\})*')
+# Hizalama ayracı: tablo satırı başına 2-3 sahte kelime üretiyordu.
+_RE_ALIGN = re.compile(r'&')
 
 
 def _latex_wordcount(text: str) -> tuple[int, int]:
-    """LaTeX kaynağından gerçek kelime ve karakter sayısı.
+    """LaTeX kaynağından görünür metnin kelime ve karakter sayısı.
 
-    Yorumları, matematik bölgelerini/ortamlarını, komutları, label/ref'leri ve
-    begin/end etiketlerini temizler; sadece görünür metni sayar."""
-    t = _RE_COMMENT.sub('', text)
-    t = _RE_MATH_ENV_BLOCK.sub('', t)   # \begin{equation}...\end{equation} (tag'ler ayrılmadan önce)
-    t = _RE_MATH_DELIM.sub('', t)       # $...$, $$...$$, \(...\), \[...\]
-    t = _RE_LABELS.sub('', t)
-    t = _RE_BEGIN_END.sub('', t)
-    t = _RE_COMMANDS.sub('', t)
+    Önsözü, yorumları, matematik/kod ortamlarını, komutları ve tablo
+    ayraçlarını eler; kaçışlı noktalamayı (\\%, \\$, \\&) görünür karakter
+    olarak korur.
+    """
+    body = _RE_BODY.search(text)
+    if body:
+        baslik = ' '.join(m.group(1) for m in _RE_TITLE_META.finditer(text[:body.start()]))
+        t = baslik + '\n' + body.group(1)
+    else:
+        t = text
+
+    t = _RE_VERBATIM_BLOCK.sub(' ', t)   # içindeki % yorum değil: en önce
+    t = _RE_LINEBREAK.sub(' ', t)        # "\\%" dizisi doğru çözümlensin diye önce
+    t = _RE_ESCAPED.sub(lambda m: chr(1 + _ESC_CHARS.index(m.group(1))), t)
+
+    t = _RE_COMMENT.sub('', t)
+    t = _RE_MATH_ENV_BLOCK.sub(' ', t)   # \begin{equation}...\end{equation} (tag'ler ayrılmadan önce)
+    t = _RE_MATH_DELIM.sub(' ', t)       # $...$, $$...$$, \(...\), \[...\]
+    t = _RE_LABELS.sub(' ', t)
+    t = _RE_BEGIN_END.sub(' ', t)
+    t = _RE_COMMANDS.sub(' ', t)
+    t = _RE_SYMCMD.sub(' ', t)
+    t = _RE_ALIGN.sub(' ', t)
     t = _RE_BRACES.sub('', t)
-    words = len(t.split())
-    chars = len(t.strip())
-    return words, chars
+
+    t = _RE_SENTINEL.sub(lambda m: _ESC_CHARS[ord(m.group(0)) - 1], t)
+
+    parcalar = t.split()
+    return len(parcalar), len(' '.join(parcalar))
 
 
 class TabOpsMixin:
