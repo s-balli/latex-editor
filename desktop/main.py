@@ -96,7 +96,8 @@ def _register_file_association():
                     import subprocess
                     result = subprocess.run(
                         ['gsettings', 'get', 'org.gnome.desktop.interface', 'icon-theme'],
-                        capture_output=True, text=True)
+                        capture_output=True, text=True,
+                        encoding="utf-8", errors="replace")
                     if result.returncode == 0:
                         active_theme = result.stdout.strip().strip("'")
                         theme_base = os.path.expanduser(f"~/.local/share/icons/{active_theme}")

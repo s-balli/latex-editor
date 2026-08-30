@@ -65,6 +65,12 @@ _RE_SUGGESTION = re.compile(r'^==>\s*(Eksik (?:dil )?paket[ie]?): (.+)')
 _RE_INSTALL = re.compile(r'^\s+sudo apt-get install (.+)')
 # Motor gereksinimi: hata mesajında "requires LuaLaTeX" vb.
 _RE_ENGINE_REQ = re.compile(r'requires\s+(LuaLaTeX|LuaTeX|XeLaTeX|XeTeX|pdfTeX)', re.IGNORECASE)
+# derle.sh'nin KENDİ hataları: "[hata] lualatex kurulu değil — derlenemedi".
+# Bunlar LaTeX log'u değil betik çıktısı, o yüzden yukarıdaki '! ' desenleri
+# hiçbirini görmüyordu: motor kurulu değilken, dosya bulunamazken veya PDF hiç
+# oluşmazken panel "Başarısız — 0 hata" diyor, ayrıştırıcı success=True
+# döndürüyordu — kullanıcıya sebebi söyleyen tek satır kayıptı.
+_RE_SCRIPT_ERROR = re.compile(r'^\s*\[hata\]\s*(.+?)\s*$')
 
 def parse_output(raw: str, source_file: str = "") -> CompileResult:
     """derle.sh çıktısını parse eder."""
@@ -84,6 +90,20 @@ def parse_output(raw: str, source_file: str = "") -> CompileResult:
         m = _RE_FILE_REF.search(line)
         if m and m.group(3) == "tex" and not os.path.isabs(m.group(2)):
             current_file = m.group(2)
+
+        # derle.sh'nin kendi hata satırı
+        m = _RE_SCRIPT_ERROR.match(line)
+        if m:
+            mesaj = m.group(1)
+            # İki nokta ile biten satırlar BAŞLIK ("— derleme hatalari:"),
+            # ardından gerçek ayrıntılar geliyor; onları hata saymak listeyi
+            # ikizlerdi.
+            if not mesaj.endswith(":"):
+                if current_error:
+                    result.errors.append(current_error)
+                    current_error = None
+                result.errors.append(LatexError(message=mesaj, file_path=current_file))
+            continue
 
         # Paket hatası (daha spesifik, önce kontrol edilmeli)
         m = _RE_PKG_ERROR.match(line)

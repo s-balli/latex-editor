@@ -74,6 +74,7 @@ def _run(cmd: list[str], timeout: float = 20.0) -> tuple[int | None, str]:
         flags = subprocess.CREATE_NO_WINDOW
     try:
         r = subprocess.run(cmd, capture_output=True, text=True,
+                           encoding="utf-8", errors="replace",
                            timeout=timeout, creationflags=flags)
         return r.returncode, (r.stdout or "").strip()
     except FileNotFoundError:

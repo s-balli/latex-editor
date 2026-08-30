@@ -93,6 +93,19 @@ def reverse_search(page: int, x: float, y: float, pdf_path: str,
     return _reverse_native(page, x, y, pdf_path, synctex_dir)
 
 
+# Bu dosyadaki dört subprocess.run çağrısı da encoding="utf-8" GEÇMEK ZORUNDA.
+# text=True + encoding yoksa Python locale.getpreferredencoding() kullanır;
+# Türkçe Windows'ta bu cp1254'tür. Proje yolu Türkçe karakter içerdiğinde
+# (C:\Users\Şerif\... çok yaygın) synctex çıktısındaki yol UTF-8 gelir ve
+# cp1254'te tanımsız bayta denk gelir: 'Ş' = C5 9E, cp1254'te 0x9E YOK.
+# Çözme hatası OKUMA THREAD'inde oluştuğu için run() istisna FIRLATMAZ —
+# r.stdout None olur, returncode 0 kalır, guard'dan geçer ve _parse_*(None)
+# AttributeError verir. except kolu onu yakalamıyor; synctex_worker'ın geniş
+# except'i yutuyor ve SyncTeX Türkçe yollu projede sessizce hiç çalışmıyordu.
+# 'r.stdout is None' denetimi ikinci savunma hattı: encoding sorunu dışında
+# bir nedenle de None gelirse sessiz AttributeError yerine düzgün None dönsün.
+
+
 def _forward_wsl(tex_path: str, line: int, col: int, pdf_path: str,
                 synctex_dir: str = "") -> ForwardResult | None:
     cmd = ["wsl", "-e", "synctex", "view",
@@ -101,9 +114,10 @@ def _forward_wsl(tex_path: str, line: int, col: int, pdf_path: str,
     if synctex_dir:
         cmd += ["-d", windows_to_wsl(synctex_dir)]
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=3,
+        r = subprocess.run(cmd, capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", timeout=3,
                            startupinfo=_SI, creationflags=_SUBPROCESS_FLAGS)
-        if r.returncode != 0:
+        if r.returncode != 0 or r.stdout is None:
             return None
         return _parse_forward(r.stdout)
     except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
@@ -119,8 +133,10 @@ def _forward_native(tex_path: str, line: int, col: int, pdf_path: str,
     if synctex_dir:
         cmd += ["-d", synctex_dir]
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=3, env=clean_child_env())
-        if r.returncode != 0:
+        r = subprocess.run(cmd, capture_output=True, text=True,
+                           encoding="utf-8", errors="replace",
+                           timeout=3, env=clean_child_env())
+        if r.returncode != 0 or r.stdout is None:
             return None
         return _parse_forward(r.stdout)
     except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
@@ -136,9 +152,10 @@ def _reverse_wsl(page: int, x: float, y: float, pdf_path: str,
     if synctex_dir:
         cmd += ["-d", windows_to_wsl(synctex_dir)]
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=3,
+        r = subprocess.run(cmd, capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", timeout=3,
                            startupinfo=_SI, creationflags=_SUBPROCESS_FLAGS)
-        if r.returncode != 0:
+        if r.returncode != 0 or r.stdout is None:
             return None
         parsed = _parse_reverse(r.stdout)
         if parsed:
@@ -156,8 +173,10 @@ def _reverse_native(page: int, x: float, y: float, pdf_path: str,
     if synctex_dir:
         cmd += ["-d", synctex_dir]
     try:
-        r = subprocess.run(cmd, capture_output=True, text=True, timeout=3, env=clean_child_env())
-        if r.returncode != 0:
+        r = subprocess.run(cmd, capture_output=True, text=True,
+                           encoding="utf-8", errors="replace",
+                           timeout=3, env=clean_child_env())
+        if r.returncode != 0 or r.stdout is None:
             return None
         return _parse_reverse(r.stdout)
     except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:

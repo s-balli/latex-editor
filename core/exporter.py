@@ -32,7 +32,8 @@ def _wsl_pandoc_available() -> bool:
     try:
         r = subprocess.run(
             ["wsl", "-e", "which", "pandoc"],
-            capture_output=True, text=True, timeout=5,
+            capture_output=True, text=True,
+            encoding="utf-8", errors="replace", timeout=5,
             creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0),
         )
         return r.returncode == 0

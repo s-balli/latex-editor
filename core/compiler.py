@@ -155,9 +155,21 @@ class LatexCompiler(QObject):
         else:
             self._ansi_tail = b""
         data = _RE_ANSI.sub(b"", data)
-        # Artımlı UTF-8 çözücü çok baytlı karakteri chunk sınırında bölünse
-        # bile tamamlanını bekler; errors="replace" ancak gerçek bozuklukta devreye girer
-        text = self._utf8_dec.decode(data, final=False)
+        # wsl.exe KENDİ hata mesajlarını UTF-16LE yazıyor ("Sağlanan ada sahip
+        # dağıtım yok", "Wsl/Service/..." gibi). UTF-8 çözücüden geçince panele
+        # NUL dolu çöp düşüyordu ('S\x00a\x00\x1f\x01l\x00...') ve log_parser
+        # de oradan öneri çıkaramıyordu — WSL kurulu olmayan kullanıcı, sorunun
+        # ne olduğunu söyleyen tek mesajı hiç göremiyordu.
+        # NUL baytı ayırt edici: derle.sh/LaTeX çıktısı (UTF-8 metin) NUL
+        # içermez, UTF-16LE'ye kodlanmış ASCII ise her karakterde bir tane
+        # taşır. İki akış iç içe gelmiyor (wsl.exe hatası bash hiç başlamadan
+        # yazılıyor), o yüzden chunk bazında karar vermek yeterli.
+        if b"\x00" in data:
+            text = data.decode("utf-16-le", errors="replace")
+        else:
+            # Artımlı UTF-8 çözücü çok baytlı karakteri chunk sınırında bölünse
+            # bile tamamlanını bekler; errors="replace" ancak gerçek bozuklukta devreye girer
+            text = self._utf8_dec.decode(data, final=False)
         self._output += text
         self.output_line.emit(text)
 

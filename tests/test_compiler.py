@@ -285,3 +285,22 @@ class TestChunkCarryOver:
         self._feed(c, b"\xc3")               # yarım karakter + süreç kapandı
         c._flush_output()
         assert c._output == "�"
+
+    def test_wsl_exe_utf16_hatasi_okunabilir_geliyor(self):
+        r"""wsl.exe KENDİ hatalarını UTF-16LE yazıyor (2026-08-30, E2).
+
+        UTF-8 çözücüden geçince panele NUL dolu çöp düşüyordu
+        ('S\x00a\x00\x1f\x01l\x00...'); WSL kurulu olmayan kullanıcı sorunun
+        ne olduğunu söyleyen tek mesajı hiç göremiyordu.
+        """
+        c = LatexCompiler()
+        mesaj = "Sağlanan ada sahip dağıtım yok.\r\n"
+        self._feed(c, mesaj.encode("utf-16-le"))
+        assert c._output == mesaj
+        assert "\x00" not in c._output
+
+    def test_normal_utf8_ciktisi_utf16_sanilmiyor(self):
+        """NUL sezgisi düz LaTeX çıktısını bozmamalı."""
+        c = LatexCompiler()
+        self._feed(c, "Çıktı: başarılı — 0 hata\n".encode("utf-8"))
+        assert c._output == "Çıktı: başarılı — 0 hata\n"

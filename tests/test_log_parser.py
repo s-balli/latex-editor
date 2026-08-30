@@ -226,3 +226,43 @@ class TestResolveErrorPath:
         (tmp_path / "ch.tex").write_text("x", encoding="utf-8")
         out = resolve_error_path("./ch.tex", str(tmp_path))
         assert out == str(tmp_path / "ch.tex")
+
+
+class TestBetikHatalari:
+    r"""derle.sh'nin KENDİ [hata] satırları (2026-08-30 denetimi, E4).
+
+    Bunlar LaTeX log'u değil betik çıktısı; '! ' desenleri hiçbirini
+    görmüyordu. Motor kurulu değilken ya da PDF hiç oluşmazken panel
+    "Başarısız — 0 hata" diyor, ayrıştırıcı success=True döndürüyordu —
+    kullanıcıya sebebi söyleyen tek satır kayıptı.
+    """
+
+    def test_motor_kurulu_degil_hata_sayiliyor(self):
+        r = parse_output("[hata] lualatex kurulu değil — derlenemedi\n", "main.tex")
+        assert r.success is False
+        assert len(r.errors) == 1
+        assert "kurulu değil" in r.errors[0].message
+
+    def test_dosya_bulunamadi(self):
+        r = parse_output("[hata] Dosya bulunamadi: bolum3.tex\n", "main.tex")
+        assert r.success is False
+        assert "bolum3.tex" in r.errors[0].message
+
+    def test_pdf_olusmadi(self):
+        r = parse_output("[hata] 12:00:00 — PDF olusmadi\n", "main.tex")
+        assert r.success is False
+        assert len(r.errors) == 1
+
+    def test_baslik_satiri_hata_sayilmiyor(self):
+        """'... derleme hatalari:' bir BAŞLIK; ardından gerçek hatalar gelir."""
+        cikti = ("[hata] 12:00:00 — derleme hatalari:\n"
+                 "! Undefined control sequence.\n"
+                 "l.5 \\foo\n")
+        r = parse_output(cikti, "main.tex")
+        assert len(r.errors) == 1, [e.message for e in r.errors]
+        assert "Undefined control sequence" in r.errors[0].message
+
+    def test_basarili_derleme_etkilenmiyor(self):
+        r = parse_output("[basarili] main.pdf olusturuldu\n", "main.tex")
+        assert r.success is True
+        assert r.errors == []

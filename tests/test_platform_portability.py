@@ -78,3 +78,39 @@ def test_dosya_cagrilari_encoding_belirtir():
     assert not eksik, (
         "encoding= verilmeyen çağrılar (Windows'ta cp1254'e düşer):\n"
         + "\n".join(f"  {f}:{ln}  {ne}" for f, ln, ne in eksik))
+
+
+def _urun_dosyalari() -> list[pathlib.Path]:
+    ciktilar = subprocess.run(["git", "ls-files", "core", "desktop"], cwd=_REPO,
+                              capture_output=True, text=True, encoding="utf-8").stdout
+    return [_REPO / s for s in ciktilar.split() if s.endswith(".py")]
+
+
+def test_urun_subprocess_cagrilari_encoding_belirtir():
+    """ÜRÜN kodunda metin modlu subprocess encoding= vermek ZORUNDA.
+
+    Yalnız subprocess denetleniyor (open() değil): dış süreçlerin çıktısı
+    her zaman UTF-8, Python'ın varsayımı ise Türkçe Windows'ta cp1254.
+
+    Gerçekten yaşandı (2026-08-30, E1): synctex çağrıları encoding almıyordu.
+    Proje yolu Türkçe karakter içerince — C:\\Users\\Şerif\\... çok yaygın —
+    'Ş' = UTF-8 C5 9E, cp1254'te 0x9E TANIMSIZ, çözme hatası okuma
+    thread'inde oluşuyor: run() istisna FIRLATMIYOR, stdout None oluyor,
+    returncode 0 kalıyor, guard'dan geçiyor ve _parse_*(None) AttributeError
+    veriyor. SyncTeX Türkçe yollu projede sessizce hiç çalışmıyordu.
+    """
+    eksik = []
+    for y in _urun_dosyalari():
+        tree = ast.parse(y.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            f = node.func
+            if not (isinstance(f, ast.Attribute) and f.attr in _SUREC_METOTLARI):
+                continue
+            kw = {k.arg for k in node.keywords}
+            if ("text" in kw or "universal_newlines" in kw) and "encoding" not in kw:
+                eksik.append((y.relative_to(_REPO).as_posix(), node.lineno, f.attr))
+    assert not eksik, (
+        "ürün kodunda encoding= verilmeyen subprocess çağrısı:\n"
+        + "\n".join(f"  {f}:{ln}  subprocess.{ne}(text=True)" for f, ln, ne in eksik))
