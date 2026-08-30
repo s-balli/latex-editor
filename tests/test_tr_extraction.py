@@ -163,7 +163,7 @@ def _kaynak_dizgeleri() -> list[tuple[str, int, str]]:
     """Koddaki tüm _( "sabit" ) çağrıları: (dosya, satır, metin)."""
     ciktilar = subprocess.run(
         ["git", "ls-files", "desktop/gui", "desktop/main.py"],
-        cwd=_REPO, capture_output=True, text=True, check=True).stdout.split()
+        cwd=_REPO, capture_output=True, text=True, check=True, encoding="utf-8").stdout.split()
     bulunan = []
     for rel in ciktilar:
         if not rel.endswith(".py"):

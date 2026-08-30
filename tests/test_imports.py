@@ -64,7 +64,7 @@ def test_all_py_files_valid_syntax():
                 continue
             filepath = os.path.join(root, f)
             try:
-                ast.parse(open(filepath).read())
+                ast.parse(open(filepath, encoding="utf-8").read())
             except SyntaxError as e:
                 errors.append(f"{filepath}: {e}")
     assert not errors, "\n".join(errors)

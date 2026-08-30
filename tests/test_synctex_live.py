@@ -69,9 +69,9 @@ def compiled():
     """
     d = tempfile.mkdtemp(prefix="synctex_src_")
     tex = os.path.join(d, "doc.tex")
-    with open(tex, "w") as f:
+    with open(tex, "w", encoding="utf-8") as f:
         f.write(SAMPLE_TEX)
-    r = subprocess.run(["bash", _SCRIPT, tex], capture_output=True, text=True, timeout=90)
+    r = subprocess.run(["bash", _SCRIPT, tex], capture_output=True, text=True, timeout=90, encoding="utf-8")
     assert r.returncode == 0, f"derleme başarısız (exit {r.returncode}):\n{r.stdout[-400:]}"
     pdf = tex[:-4] + ".pdf"
     assert os.path.exists(pdf), "PDF üretilmedi"

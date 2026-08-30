@@ -6,6 +6,19 @@ derleme çıktısıyla çağrılır; gerçek derleme gerekmediğinden CI'da da k
 
 import os
 import subprocess
+import sys
+
+import pytest
+
+# derle.sh POSIX bash betiği; buradaki çağrı `source <(...)` (process
+# substitution) ve `sed` kullanıyor. Windows'ta PATH'teki `bash` Git Bash
+# (MSYS) olabiliyor ve argüman/yol dönüşümü yüzünden "$1" boşalıyor —
+# betiğin kendisiyle ilgisi olmayan bir kabuk farkı. Gerçek kapı, CI'ın
+# Linux'ta koşan derle job'u; orada bu testler tam çalışıyor.
+pytestmark = pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="POSIX bash gerekli (process substitution + sed); CI'da Linux'ta koşuyor",
+)
 
 SCRIPT = os.path.join(os.path.dirname(__file__), "..", "core", "derle.sh")
 
@@ -15,8 +28,7 @@ def _eksik_paket_goster(cikti: str) -> str:
         ["bash", "-c",
          'source <(sed -n "1,/^# Argüman kontrol/p" "$1"); eksik_paket_goster "$2"',
          "bash", SCRIPT, cikti],
-        capture_output=True, text=True, timeout=15,
-    )
+        capture_output=True, text=True, timeout=15, encoding="utf-8")
     assert r.returncode == 0, r.stderr
     return r.stdout
 

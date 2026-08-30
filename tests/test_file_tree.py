@@ -23,23 +23,23 @@ def qapp():
 
 
 def test_collect_files_skip_ve_derinlik_kurallari(qapp, tmp_path):
-    (tmp_path / "ana.tex").write_text("x")
+    (tmp_path / "ana.tex").write_text("x", encoding="utf-8")
     sub = tmp_path / "bolum"
     sub.mkdir()
-    (sub / "giris.tex").write_text("x")
+    (sub / "giris.tex").write_text("x", encoding="utf-8")
     for skip in ("node_modules", "venv", "__pycache__"):
         d = tmp_path / skip
         d.mkdir()
-        (d / f"{skip}.tex").write_text("x")
+        (d / f"{skip}.tex").write_text("x", encoding="utf-8")
     (tmp_path / ".git").mkdir()
-    (tmp_path / ".git" / "gizli.tex").write_text("x")
+    (tmp_path / ".git" / "gizli.tex").write_text("x", encoding="utf-8")
 
     # _MAX_DEPTH = 5: kök düzey 0; 6 seviye derindeki dosya taranmamalı
     deep = tmp_path
     for i in range(6):
         deep = deep / f"d{i}"
         deep.mkdir()
-    (deep / "cok_derin.tex").write_text("x")
+    (deep / "cok_derin.tex").write_text("x", encoding="utf-8")
 
     tree = FileTree(theme=THEMES["dark"])
     files = tree._collect_files(str(tmp_path))
@@ -54,9 +54,9 @@ def test_input_ref_ok_tek_okumayla_iki_denetim(qapp, tmp_path, monkeypatch):
     from gui.file_tree import FileTree
 
     root = tmp_path / "main.tex"
-    root.write_text("\\begin{document}\\input{bolum}\\end{document}\n")
+    root.write_text("\\begin{document}\\input{bolum}\\end{document}\n", encoding="utf-8")
     child = tmp_path / "bolum.tex"
-    child.write_text("% !TEX root = main.tex\nparca\n")
+    child.write_text("% !TEX root = main.tex\nparca\n", encoding="utf-8")
 
     tree = FileTree(theme=THEMES["dark"])
     acilis = {"n": 0}
@@ -74,8 +74,8 @@ def test_input_ref_ok_tek_okumayla_iki_denetim(qapp, tmp_path, monkeypatch):
     assert acilis["n"] == 1, "dosya tek kez açılmalı"
 
     plain = tmp_path / "bagimsiz.tex"
-    plain.write_text("\\begin{document}tam belge\\end{document}\n")
+    plain.write_text("\\begin{document}tam belge\\end{document}\n", encoding="utf-8")
     assert tree._input_ref_ok(str(plain)) is True      # doğrudan derlenebilir
     parcacik = tmp_path / "parca2.tex"
-    parcacik.write_text("yalnızca parça\n")
+    parcacik.write_text("yalnızca parça\n", encoding="utf-8")
     assert tree._input_ref_ok(str(parcacik)) is False

@@ -12,11 +12,14 @@ from core import versioning as V
 
 
 def _mk(root):
+    # newline="": Windows'ta metin modu '\n' -> '\r\n' çevirir; testler git
+    # blob'unu BAYT olarak geri okuyup karşılaştırdığı için satır sonu aynen
+    # yazılmalı (yoksa 'giriş içeriği\r\n' != 'giriş içeriği\n').
     (root / "ana.tex").write_text(
-        "\\begin{document}\nmerhaba\n\\end{document}\n", encoding="utf-8")
+        "\\begin{document}\nmerhaba\n\\end{document}\n", encoding="utf-8", newline="")
     sub = root / "bolumler"
     sub.mkdir(exist_ok=True)
-    (sub / "giris.tex").write_text("giriş içeriği\n", encoding="utf-8")
+    (sub / "giris.tex").write_text("giriş içeriği\n", encoding="utf-8", newline="")
 
 
 # --- kurulum / is_repo ---
@@ -70,8 +73,7 @@ def test_snapshot_captures_modify_and_delete(tmp_path):
     V.init_repo(str(tmp_path))
     V.snapshot(str(tmp_path), "1")
 
-    (tmp_path / "ana.tex").write_text("\\begin{document}yeni\\end{document}\n",
-                                      encoding="utf-8")
+    (tmp_path / "ana.tex").write_text("\\begin{document}yeni\\end{document}\n", encoding="utf-8")
     (tmp_path / "bolumler" / "giris.tex").unlink()
     changed = V.changed_files(str(tmp_path))
     assert "ana.tex" in changed and "bolumler/giris.tex" in changed
@@ -167,7 +169,7 @@ def test_real_git_reads_dulwich_repo(tmp_path):
     V.init_repo(str(tmp_path))
     V.snapshot(str(tmp_path), "dulwich kaydı")
     r = subprocess.run(["git", "log", "--oneline"], cwd=str(tmp_path),
-                       capture_output=True, text=True)
+                       capture_output=True, text=True, encoding="utf-8")
     assert r.returncode == 0 and "dulwich kaydı" in r.stdout
 
 

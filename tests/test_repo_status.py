@@ -149,8 +149,7 @@ def test_bozuk_depo_temkinli_davranir(tmp_path):
     """.git var ama okunamıyor: sessizce 'güvenli' demek yerine uyar."""
     _mk(tmp_path)
     (tmp_path / ".git").mkdir()
-    (tmp_path / ".git" / "config").write_text("bu gecerli bir git yapisi degil\n",
-                                              encoding="utf-8")
+    (tmp_path / ".git" / "config").write_text("bu gecerli bir git yapisi degil\n", encoding="utf-8")
     st = V.repo_status(str(tmp_path))
     assert st.exists is True
     assert st.foreign is True, "okunamayan depoda uyarı bastırılmamalı"

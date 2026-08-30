@@ -36,7 +36,7 @@ class TestFindDerleSh:
         core_dir = meipass / "core"
         core_dir.mkdir(parents=True)
         derle_sh = core_dir / "derle.sh"
-        derle_sh.write_text("#!/bin/bash\necho test\n")
+        derle_sh.write_text("#!/bin/bash\necho test\n", encoding="utf-8")
 
         with patch.object(sys, "frozen", True, create=True), \
              patch.object(sys, "_MEIPASS", str(meipass), create=True):
@@ -83,7 +83,7 @@ class TestLatexCompiler:
     def test_compile_sets_engine(self, tmp_path):
         """compile() engine'i ayarlamalı."""
         tex = tmp_path / "test.tex"
-        tex.write_text("\\documentclass{article}\n\\begin{document}\n\\end{document}")
+        tex.write_text("\\documentclass{article}\n\\begin{document}\n\\end{document}", encoding="utf-8")
         compiler = LatexCompiler()
         # QProcess'i mock'la — gerçek derleme yapma
         with patch.object(compiler, "_start_windows"), \
@@ -100,7 +100,7 @@ class TestLatexCompiler:
     def test_recompile_releases_old_process(self, tmp_path):
         """Yeni derleme başlarken eski QProcess deleteLater ile bırakılmalı (sızıntı)."""
         tex = tmp_path / "test.tex"
-        tex.write_text("\\documentclass{article}\n\\begin{document}\n\\end{document}")
+        tex.write_text("\\documentclass{article}\n\\begin{document}\n\\end{document}", encoding="utf-8")
         compiler = LatexCompiler()
         with patch.object(compiler, "_start_windows"), \
              patch.object(compiler, "_start_native"), \
@@ -121,9 +121,12 @@ class TestLatexCompiler:
     def test_compile_xelatex_arg(self, tmp_path):
         """xelatex motoru derle.sh'e --xelatex bayrağıyla iletilmeli (native yol)."""
         tex = tmp_path / "test.tex"
-        tex.write_text("\\documentclass{article}\n\\begin{document}\n\\end{document}")
+        tex.write_text("\\documentclass{article}\n\\begin{document}\n\\end{document}", encoding="utf-8")
         compiler = LatexCompiler()
-        with patch.object(compiler, "_start_windows"), \
+        # PLATFORM sabitlenir: Windows'ta compile() _start_windows'a gider ve
+        # native dal hiç koşmaz — mock_proc.start çağrılmadığından call_args
+        # None kalırdı. Test adı native yolu sınadığını söylüyor; öyle olsun.
+        with patch("core.compiler.PLATFORM", "linux"), \
              patch("core.compiler.QProcess") as mock_qproc:
             mock_proc = MagicMock()
             mock_qproc.return_value = mock_proc
@@ -162,7 +165,7 @@ class TestDerlemeZamanAsimi:
     @staticmethod
     def _compile_mocked(compiler, tmp_path, **kwargs):
         tex = tmp_path / "test.tex"
-        tex.write_text("\\documentclass{article}\n\\begin{document}\n\\end{document}")
+        tex.write_text("\\documentclass{article}\n\\begin{document}\n\\end{document}", encoding="utf-8")
         with patch.object(compiler, "_start_windows"), \
              patch.object(compiler, "_start_native"), \
              patch("core.compiler.QProcess") as mock_qproc:

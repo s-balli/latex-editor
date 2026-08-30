@@ -242,7 +242,7 @@ class TestImportSafety:
     def test_all_imports_in_init_are_resolvable(self):
         """init() içinde kullanılan tüm Qt sınıfları import edilmeli."""
         import ast
-        source = open("core/i18n.py").read()
+        source = open("core/i18n.py", encoding="utf-8").read()
         tree = ast.parse(source)
 
         for node in ast.walk(tree):
@@ -265,7 +265,7 @@ class TestImportSafety:
     def test_all_imports_in_set_language_are_resolvable(self):
         """set_language() içinde kullanılan Qt sınıfları import edilmeli."""
         import ast
-        source = open("core/i18n.py").read()
+        source = open("core/i18n.py", encoding="utf-8").read()
         tree = ast.parse(source)
 
         for node in ast.walk(tree):
@@ -284,7 +284,7 @@ class TestImportSafety:
     def test_all_imports_in_backend_are_resolvable(self):
         """_QtBackend.translate() içinde kullanılan Qt sınıfları import edilmeli."""
         import ast
-        source = open("core/i18n.py").read()
+        source = open("core/i18n.py", encoding="utf-8").read()
         tree = ast.parse(source)
 
         for node in ast.walk(tree):
@@ -315,7 +315,7 @@ class TestMainStartup:
         main_path = os.path.join(
             os.path.dirname(os.path.dirname(__file__)), "desktop", "main.py"
         )
-        source = open(main_path).read()
+        source = open(main_path, encoding="utf-8").read()
         tree = ast.parse(source)
 
         for node in ast.walk(tree):
@@ -335,7 +335,7 @@ class TestMainStartup:
         main_path = os.path.join(
             os.path.dirname(os.path.dirname(__file__)), "desktop", "main.py"
         )
-        source = open(main_path).read()
+        source = open(main_path, encoding="utf-8").read()
         tree = ast.parse(source)
 
         fn_names = [n.name for n in ast.walk(tree) if isinstance(n, ast.FunctionDef)]
@@ -347,7 +347,7 @@ class TestMainStartup:
         main_path = os.path.join(
             os.path.dirname(os.path.dirname(__file__)), "desktop", "main.py"
         )
-        source = open(main_path).read()
+        source = open(main_path, encoding="utf-8").read()
         tree = ast.parse(source)
 
         for node in ast.walk(tree):
@@ -360,7 +360,7 @@ class TestMainStartup:
         main_path = os.path.join(
             os.path.dirname(os.path.dirname(__file__)), "desktop", "main.py"
         )
-        source = open(main_path).read()
+        source = open(main_path, encoding="utf-8").read()
         lines = source.split("\n")
 
         lambda_line = None

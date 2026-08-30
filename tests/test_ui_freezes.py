@@ -99,7 +99,7 @@ def test_export_runs_in_background_and_reports(qapp, tmp_path, monkeypatch):
     import gui.mixins.file_ops as fo
 
     tex = tmp_path / "doc.tex"
-    tex.write_text("\\documentclass{article}\n\\begin{document}\nhi\n\\end{document}")
+    tex.write_text("\\documentclass{article}\n\\begin{document}\nhi\n\\end{document}", encoding="utf-8")
     ed = EditorWidget()
     ed._file_path = str(tex)
     stub = _FileOpsStub([ed])
@@ -131,7 +131,7 @@ def test_export_busy_guard(qapp, tmp_path, monkeypatch):
     import gui.mixins.file_ops as fo
 
     tex = tmp_path / "doc.tex"
-    tex.write_text("\\begin{document}x\\end{document}")
+    tex.write_text("\\begin{document}x\\end{document}", encoding="utf-8")
     ed = EditorWidget()
     ed._file_path = str(tex)
     stub = _FileOpsStub([ed])
@@ -294,8 +294,8 @@ def test_tree_compile_check_is_deferred_and_correct(qapp, tmp_path):
     from gui.file_tree import FileTree
 
     (tmp_path / "main.tex").write_text(
-        "\\documentclass{article}\n\\begin{document}\nx\n\\end{document}\n")
-    (tmp_path / "child.tex").write_text("yalnızca parça; ana belge işareti yok\n")
+        "\\documentclass{article}\n\\begin{document}\nx\n\\end{document}\n", encoding="utf-8")
+    (tmp_path / "child.tex").write_text("yalnızca parça; ana belge işareti yok\n", encoding="utf-8")
 
     theme = THEMES["dark"]
     tree = FileTree(theme=theme)
@@ -316,7 +316,7 @@ def test_tree_refresh_keeps_queue_consistent(qapp, tmp_path):
     """refresh() bekleyen denetimleri düşürür; kuyruk her zaman geçerli öğe taşır."""
     from gui.file_tree import FileTree
 
-    (tmp_path / "a.tex").write_text("\\begin{document}\\end{document}")
+    (tmp_path / "a.tex").write_text("\\begin{document}\\end{document}", encoding="utf-8")
     tree = FileTree(theme=THEMES["dark"])
     tree.set_root(str(tmp_path))
     assert tree._pending_checks  # kuyruk dolu

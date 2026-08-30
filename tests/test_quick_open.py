@@ -28,18 +28,18 @@ def qapp():
 
 
 def test_collect_filters_and_sorts(tmp_path):
-    (tmp_path / "main.tex").write_text("x")
-    (tmp_path / "refs.bib").write_text("x")
+    (tmp_path / "main.tex").write_text("x", encoding="utf-8")
+    (tmp_path / "refs.bib").write_text("x", encoding="utf-8")
     sub = tmp_path / "bolum"
     sub.mkdir()
-    (sub / "giris.tex").write_text("x")
+    (sub / "giris.tex").write_text("x", encoding="utf-8")
     (tmp_path / "sekil.png").write_bytes(b"")      # uzantı dışı → listede yok
     hid = tmp_path / ".git"
     hid.mkdir()
-    (hid / "gizli.tex").write_text("x")            # gizli dizin → yok
+    (hid / "gizli.tex").write_text("x", encoding="utf-8")            # gizli dizin → yok
     nm = tmp_path / "node_modules"
     nm.mkdir()
-    (nm / "paket.sty").write_text("x")             # skip dizini → yok (dosya ağacıyla aynı kural)
+    (nm / "paket.sty").write_text("x", encoding="utf-8")             # skip dizini → yok (dosya ağacıyla aynı kural)
     rels = collect_project_files(str(tmp_path))
     assert rels == ["bolum/giris.tex", "main.tex", "refs.bib"]
 
@@ -81,8 +81,8 @@ def test_fuzzy_no_match():
 
 
 def test_dialog_filters_and_selects(qapp, tmp_path):
-    (tmp_path / "main.tex").write_text("x")
-    (tmp_path / "makale.tex").write_text("x")
+    (tmp_path / "main.tex").write_text("x", encoding="utf-8")
+    (tmp_path / "makale.tex").write_text("x", encoding="utf-8")
     dlg = QuickOpenDialog(str(tmp_path))
     assert dlg._list.count() == 2
     dlg._edit.setText("mak")
@@ -93,9 +93,9 @@ def test_dialog_filters_and_selects(qapp, tmp_path):
 
 
 def test_dialog_keyboard_navigation(qapp, tmp_path):
-    (tmp_path / "a.tex").write_text("x")
-    (tmp_path / "b.tex").write_text("x")
-    (tmp_path / "c.tex").write_text("x")
+    (tmp_path / "a.tex").write_text("x", encoding="utf-8")
+    (tmp_path / "b.tex").write_text("x", encoding="utf-8")
+    (tmp_path / "c.tex").write_text("x", encoding="utf-8")
     dlg = QuickOpenDialog(str(tmp_path))
     assert dlg._list.currentRow() == 0
     ev = QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_Down, Qt.KeyboardModifier.NoModifier)
@@ -118,7 +118,7 @@ class _StubQuick(FileOpsMixin, StubMain):
 
 def test_quick_open_handler_opens_picked(qapp, tmp_path):
     tex = tmp_path / "main.tex"
-    tex.write_text("x")
+    tex.write_text("x", encoding="utf-8")
     stub = _StubQuick(str(tmp_path))
     with patch("gui.quick_open.QuickOpenDialog.pick", return_value=str(tex)):
         MainWindow._quick_open(stub)

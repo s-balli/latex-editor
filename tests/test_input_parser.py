@@ -40,26 +40,26 @@ class TestParseInputs:
 
     def test_single_input(self, tmp_path):
         chapter = tmp_path / "chapter1.tex"
-        chapter.write_text("content")
+        chapter.write_text("content", encoding="utf-8")
         result = parse_inputs("\\input{chapter1}", str(tmp_path))
         assert len(result) == 1
         assert result[0]["name"] == "chapter1.tex"
 
     def test_single_include(self, tmp_path):
         chapter = tmp_path / "chapter1.tex"
-        chapter.write_text("content")
+        chapter.write_text("content", encoding="utf-8")
         result = parse_inputs("\\include{chapter1}", str(tmp_path))
         assert len(result) == 1
 
     def test_missing_extension(self, tmp_path):
         chapter = tmp_path / "chapter1.tex"
-        chapter.write_text("content")
+        chapter.write_text("content", encoding="utf-8")
         result = parse_inputs("\\input{chapter1}", str(tmp_path))
         assert result[0]["name"] == "chapter1.tex"
 
     def test_explicit_extension(self, tmp_path):
         chapter = tmp_path / "chapter1.tex"
-        chapter.write_text("content")
+        chapter.write_text("content", encoding="utf-8")
         result = parse_inputs("\\input{chapter1.tex}", str(tmp_path))
         assert len(result) == 1
 
@@ -69,9 +69,9 @@ class TestParseInputs:
 
     def test_nested_input(self, tmp_path):
         c = tmp_path / "c.tex"
-        c.write_text("leaf content")
+        c.write_text("leaf content", encoding="utf-8")
         b = tmp_path / "b.tex"
-        b.write_text("\\input{c}")
+        b.write_text("\\input{c}", encoding="utf-8")
         result = parse_inputs("\\input{b}", str(tmp_path))
         assert len(result) == 1
         assert result[0]["name"] == "b.tex"
@@ -81,8 +81,8 @@ class TestParseInputs:
     def test_circular_reference(self, tmp_path):
         a = tmp_path / "a.tex"
         b = tmp_path / "b.tex"
-        a.write_text("\\input{b}")
-        b.write_text("\\input{a}")
+        a.write_text("\\input{b}", encoding="utf-8")
+        b.write_text("\\input{a}", encoding="utf-8")
         result = parse_inputs("\\input{a}", str(tmp_path))
         assert len(result) == 1
         assert result[0]["name"] == "a.tex"
@@ -99,7 +99,7 @@ class TestParseInputs:
 
     def test_multiple_inputs(self, tmp_path):
         for name in ("ch1.tex", "ch2.tex", "ch3.tex"):
-            (tmp_path / name).write_text("content")
+            (tmp_path / name).write_text("content", encoding="utf-8")
         result = parse_inputs(
             "\\input{ch1}\n\\input{ch2}\n\\input{ch3}", str(tmp_path)
         )
@@ -107,13 +107,13 @@ class TestParseInputs:
 
     def test_comment_input_ignored(self, tmp_path):
         chapter = tmp_path / "chapter1.tex"
-        chapter.write_text("content")
+        chapter.write_text("content", encoding="utf-8")
         result = parse_inputs("% \\input{chapter1}", str(tmp_path))
         assert result == []
 
     def test_space_before_brace(self, tmp_path):
         chapter = tmp_path / "chapter1.tex"
-        chapter.write_text("content")
+        chapter.write_text("content", encoding="utf-8")
         result = parse_inputs("\\input {chapter1}", str(tmp_path))
         assert len(result) == 1
         assert result[0]["name"] == "chapter1.tex"

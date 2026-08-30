@@ -21,7 +21,7 @@ HAS_BIBER = bool(shutil.which("biber"))
 try:
     _has_biblatex = subprocess.run(
         ["kpsewhich", "biblatex.sty"], capture_output=True, text=True
-    ).stdout.strip()
+    , encoding="utf-8").stdout.strip()
 except Exception:
     _has_biblatex = ""
 HAS_BIBLATEX = bool(_has_biblatex)
@@ -34,7 +34,7 @@ _biber_skip = pytest.mark.skipif(
 try:
     _has_minted = subprocess.run(
         ["kpsewhich", "minted.sty"], capture_output=True, text=True
-    ).stdout.strip()
+    , encoding="utf-8").stdout.strip()
 except Exception:
     _has_minted = ""
 HAS_MINTED = bool(shutil.which("pygmentize")) and bool(_has_minted)
@@ -87,8 +87,7 @@ BIB_REF = r"""@article{test2020, author={Test}, title={Sample}, journal={J}, yea
 def _run_derle(args, cwd, timeout=30):
     result = subprocess.run(
         ["bash", SCRIPT] + args,
-        capture_output=True, text=True, timeout=timeout, cwd=cwd,
-    )
+        capture_output=True, text=True, timeout=timeout, cwd=cwd, encoding="utf-8")
     return result
 
 
@@ -104,9 +103,9 @@ class TestArgumanKontrolu:
         assert "bulunamadi" in r.stdout.lower() or r.returncode != 0
 
     def test_klasor_tex_dosyalarini_bulur(self, tmp_path):
-        (tmp_path / "a.tex").write_text(MINIMAL_TEX)
-        (tmp_path / "b.tex").write_text(MINIMAL_TEX)
-        (tmp_path / "notex.txt").write_text("nope")
+        (tmp_path / "a.tex").write_text(MINIMAL_TEX, encoding="utf-8")
+        (tmp_path / "b.tex").write_text(MINIMAL_TEX, encoding="utf-8")
+        (tmp_path / "notex.txt").write_text("nope", encoding="utf-8")
         r = _run_derle([str(tmp_path)], cwd=str(tmp_path), timeout=60)
         assert r.returncode == 0
         assert "2 dosya" in r.stdout or "Basarili" in r.stdout
@@ -114,8 +113,8 @@ class TestArgumanKontrolu:
     def test_watch_modda_cok_dosya_hata(self, tmp_path):
         f1 = tmp_path / "a.tex"
         f2 = tmp_path / "b.tex"
-        f1.write_text(MINIMAL_TEX)
-        f2.write_text(MINIMAL_TEX)
+        f1.write_text(MINIMAL_TEX, encoding="utf-8")
+        f2.write_text(MINIMAL_TEX, encoding="utf-8")
         r = _run_derle([str(f1), str(f2), "--watch"], cwd=str(tmp_path))
         assert r.returncode != 0
         assert "tek dosya" in r.stdout.lower() or "Watch" in r.stdout
@@ -124,14 +123,14 @@ class TestArgumanKontrolu:
 class TestMotorSecimi:
     def test_lualatex_varsayilan(self, tmp_path):
         tex = tmp_path / "test.tex"
-        tex.write_text(MINIMAL_TEX)
+        tex.write_text(MINIMAL_TEX, encoding="utf-8")
         r = _run_derle([str(tex)], cwd=str(tmp_path), timeout=60)
         assert r.returncode == 0
         assert "lualatex" in r.stdout.lower()
 
     def test_pdflatex_flag(self, tmp_path):
         tex = tmp_path / "test.tex"
-        tex.write_text(MINIMAL_TEX)
+        tex.write_text(MINIMAL_TEX, encoding="utf-8")
         r = _run_derle([str(tex), "--pdflatex"], cwd=str(tmp_path), timeout=60)
         assert r.returncode == 0
         assert "pdflatex" in r.stdout.lower()
@@ -140,21 +139,21 @@ class TestMotorSecimi:
 class TestDerlemeBasarili:
     def test_pdf_olusur(self, tmp_path):
         tex = tmp_path / "test.tex"
-        tex.write_text(MINIMAL_TEX)
+        tex.write_text(MINIMAL_TEX, encoding="utf-8")
         r = _run_derle([str(tex)], cwd=str(tmp_path), timeout=60)
         assert r.returncode == 0
         assert (tmp_path / "test.pdf").exists()
 
     def test_turkce_karakter(self, tmp_path):
         tex = tmp_path / "turkce.tex"
-        tex.write_text(MINIMAL_TEX)
+        tex.write_text(MINIMAL_TEX, encoding="utf-8")
         r = _run_derle([str(tex)], cwd=str(tmp_path), timeout=60)
         assert r.returncode == 0
         assert (tmp_path / "turkce.pdf").exists()
 
     def test_buyuk_harf_uzanti(self, tmp_path):
         tex = tmp_path / "test.TEX"
-        tex.write_text(MINIMAL_TEX)
+        tex.write_text(MINIMAL_TEX, encoding="utf-8")
         r = _run_derle([str(tex)], cwd=str(tmp_path), timeout=60)
         assert r.returncode == 0
         assert (tmp_path / "test.pdf").exists()
@@ -163,14 +162,14 @@ class TestDerlemeBasarili:
 class TestDerlemeHatasi:
     def test_undefined_command(self, tmp_path):
         tex = tmp_path / "hata.tex"
-        tex.write_text(MINIMAL_TEX_ERROR)
+        tex.write_text(MINIMAL_TEX_ERROR, encoding="utf-8")
         r = _run_derle([str(tex)], cwd=str(tmp_path), timeout=60)
         assert r.returncode != 0
         assert "basarisiz" in r.stdout.lower() or "hata" in r.stdout.lower()
 
     def test_bos_dosya(self, tmp_path):
         tex = tmp_path / "bos.tex"
-        tex.write_text("")
+        tex.write_text("", encoding="utf-8")
         r = _run_derle([str(tex)], cwd=str(tmp_path), timeout=60)
         assert r.returncode != 0
 
@@ -188,8 +187,7 @@ class TestHataDeseni:
         r = subprocess.run(
             ["bash", "-c", "printf '%s' \"$1\" | grep -A4 -E '^!' | grep -v '^--$' || true",
              "bash", snippet],
-            capture_output=True, text=True,
-        )
+            capture_output=True, text=True, encoding="utf-8")
         return r.stdout
 
     def test_warning_baglami_lNNN_hata_degil(self):
@@ -227,7 +225,7 @@ class TestCokluGecis:
 
     def test_toc_ve_referanslar_cozulur(self, tmp_path):
         tex = tmp_path / "main.tex"
-        tex.write_text(TOC_TEX)
+        tex.write_text(TOC_TEX, encoding="utf-8")
         r = _run_derle([str(tex)], cwd=str(tmp_path), timeout=90)
         assert r.returncode == 0
         assert (tmp_path / "main.pdf").exists()
@@ -239,8 +237,8 @@ class TestKaynakca:
     """Kaynakça: biber varsa çözülmeli, yoksa kurulum önerisi verilmeli."""
 
     def _yaz(self, tmp_path):
-        (tmp_path / "main.tex").write_text(BIB_TEX)
-        (tmp_path / "refs.bib").write_text(BIB_REF)
+        (tmp_path / "main.tex").write_text(BIB_TEX, encoding="utf-8")
+        (tmp_path / "refs.bib").write_text(BIB_REF, encoding="utf-8")
 
     @_biber_skip
     def test_biber_var_kaynakca_cozulur(self, tmp_path):
@@ -260,8 +258,7 @@ class TestKaynakca:
         )
         r = subprocess.run(
             ["bash", "-c", cmd, SCRIPT, str(tmp_path / "main.tex")],
-            capture_output=True, text=True, cwd=str(tmp_path), timeout=120,
-        )
+            capture_output=True, text=True, cwd=str(tmp_path), timeout=120, encoding="utf-8")
         assert "Eksik paket: biber" in r.stdout
         assert "sudo apt-get install biber" in r.stdout
 
@@ -270,8 +267,8 @@ class TestInputInclude:
     def test_input_dosyasi(self, tmp_path):
         tex = tmp_path / "main.tex"
         bolum = tmp_path / "bolum.tex"
-        tex.write_text(MINIMAL_TEX_INPUT)
-        bolum.write_text(BOLUM_TEX)
+        tex.write_text(MINIMAL_TEX_INPUT, encoding="utf-8")
+        bolum.write_text(BOLUM_TEX, encoding="utf-8")
         r = _run_derle([str(tex)], cwd=str(tmp_path), timeout=60)
         assert r.returncode == 0
         assert (tmp_path / "main.pdf").exists()
@@ -285,7 +282,7 @@ class TestEksikPaketGoster:
 \begin{document}
 \SI{5}{\meter}
 \end{document}
-""")
+""", encoding="utf-8")
         r = _run_derle([str(tex)], cwd=str(tmp_path), timeout=60)
         # siunitx kurulu olabilir veya olmayabilir
         if r.returncode != 0:
@@ -294,8 +291,8 @@ class TestEksikPaketGoster:
 
 class TestCokluDosya:
     def test_iki_dosya_derleme(self, tmp_path):
-        (tmp_path / "a.tex").write_text(MINIMAL_TEX)
-        (tmp_path / "b.tex").write_text(MINIMAL_TEX)
+        (tmp_path / "a.tex").write_text(MINIMAL_TEX, encoding="utf-8")
+        (tmp_path / "b.tex").write_text(MINIMAL_TEX, encoding="utf-8")
         r = _run_derle([str(tmp_path / "a.tex"), str(tmp_path / "b.tex")],
                        cwd=str(tmp_path), timeout=120)
         assert r.returncode == 0
@@ -304,8 +301,8 @@ class TestCokluDosya:
         assert "Toplam" in r.stdout or "Basarili" in r.stdout
 
     def test_biri_hatali(self, tmp_path):
-        (tmp_path / "ok.tex").write_text(MINIMAL_TEX)
-        (tmp_path / "bad.tex").write_text(MINIMAL_TEX_ERROR)
+        (tmp_path / "ok.tex").write_text(MINIMAL_TEX, encoding="utf-8")
+        (tmp_path / "bad.tex").write_text(MINIMAL_TEX_ERROR, encoding="utf-8")
         r = _run_derle([str(tmp_path / "ok.tex"), str(tmp_path / "bad.tex")],
                        cwd=str(tmp_path), timeout=120)
         assert r.returncode != 0
@@ -318,14 +315,14 @@ class TestBoslukluYol:
         klasor = tmp_path / "My Project"
         klasor.mkdir()
         tex = klasor / "test.tex"
-        tex.write_text(MINIMAL_TEX)
+        tex.write_text(MINIMAL_TEX, encoding="utf-8")
         r = _run_derle([str(tex)], cwd=str(tmp_path), timeout=60)
         assert r.returncode == 0
         assert (klasor / "test.pdf").exists()
 
     def test_bosluklu_dosya_adi(self, tmp_path):
         tex = tmp_path / "my document.tex"
-        tex.write_text(MINIMAL_TEX)
+        tex.write_text(MINIMAL_TEX, encoding="utf-8")
         r = _run_derle([str(tex)], cwd=str(tmp_path), timeout=60)
         assert r.returncode == 0
         assert (tmp_path / "my document.pdf").exists()
@@ -334,7 +331,7 @@ class TestBoslukluYol:
         klasor = tmp_path / "Belgeler"
         klasor.mkdir()
         tex = klasor / "test.tex"
-        tex.write_text(MINIMAL_TEX)
+        tex.write_text(MINIMAL_TEX, encoding="utf-8")
         r = _run_derle([str(tex)], cwd=str(tmp_path), timeout=60)
         assert r.returncode == 0
         assert (klasor / "test.pdf").exists()
@@ -343,7 +340,7 @@ class TestBoslukluYol:
 class TestSynctex:
     def test_synctex_gz_olusur(self, tmp_path):
         tex = tmp_path / "test.tex"
-        tex.write_text(MINIMAL_TEX)
+        tex.write_text(MINIMAL_TEX, encoding="utf-8")
         r = _run_derle([str(tex)], cwd=str(tmp_path), timeout=60)
         assert r.returncode == 0
         assert (tmp_path / "test.synctex.gz").exists()
@@ -354,13 +351,13 @@ class TestIncludeAltDizin:
         alt = tmp_path / "bolumler"
         alt.mkdir()
         (alt / "giris.tex").write_text(r"""Giriş içeriği.
-""")
+""", encoding="utf-8")
         main = tmp_path / "main.tex"
         main.write_text(r"""\documentclass{article}
 \begin{document}
 \include{bolumler/giris}
 \end{document}
-""")
+""", encoding="utf-8")
         r = _run_derle([str(main)], cwd=str(tmp_path), timeout=60)
         assert r.returncode == 0
         assert (tmp_path / "main.pdf").exists()
@@ -370,7 +367,7 @@ class TestShellEscape:
     def test_shell_escape_flag_basarisiz(self, tmp_path):
         # minted olmayan dosyada --shell-escape zorla
         tex = tmp_path / "test.tex"
-        tex.write_text(MINIMAL_TEX)
+        tex.write_text(MINIMAL_TEX, encoding="utf-8")
         r = _run_derle([str(tex), "--shell-escape"], cwd=str(tmp_path), timeout=60)
         # shell-escape ile derlemeli, başarılı olmalı
         assert r.returncode == 0
@@ -382,7 +379,7 @@ class TestShellEscape:
         webdiller.sty senaryosu: \usepackage{minted} hiçbir .tex'te geçmiyor,
         eski tespit deseni bunu kaçırıyordu.
         """
-        (tmp_path / "paket.sty").write_text("\\RequirePackage{minted}\n")
+        (tmp_path / "paket.sty").write_text("\\RequirePackage{minted}\n", encoding="utf-8")
         tex = tmp_path / "test.tex"
         tex.write_text(
             "\\documentclass{article}\n"
@@ -390,7 +387,7 @@ class TestShellEscape:
             "\\begin{document}\n"
             "\\begin{minted}{python}\nprint('merhaba')\n\\end{minted}\n"
             "\\end{document}\n"
-        )
+        , encoding="utf-8")
         r = _run_derle([str(tex)], cwd=str(tmp_path), timeout=120)
         # Eski desen: '\usepackage{minted}' geçmediğinden shell-escape açılmıyor,
         # minted "shell-escape flag" hatasıyla düşüyordu.
@@ -400,9 +397,9 @@ class TestShellEscape:
 
 class TestGlob:
     def test_glob_tex_dosyalari(self, tmp_path):
-        (tmp_path / "a.tex").write_text(MINIMAL_TEX)
-        (tmp_path / "b.tex").write_text(MINIMAL_TEX)
-        (tmp_path / "c.txt").write_text("nope")
+        (tmp_path / "a.tex").write_text(MINIMAL_TEX, encoding="utf-8")
+        (tmp_path / "b.tex").write_text(MINIMAL_TEX, encoding="utf-8")
+        (tmp_path / "c.txt").write_text("nope", encoding="utf-8")
         r = _run_derle([str(tmp_path / "*.tex")], cwd=str(tmp_path), timeout=120)
         # glob bash tarafından genişletilir veya betik içinde handle edilir
         # en azından a.tex derlenmiş olmalı
@@ -412,7 +409,7 @@ class TestGlob:
 class TestLogDosyasi:
     def test_hatali_derleme_log_kopyalanir(self, tmp_path):
         tex = tmp_path / "hata.tex"
-        tex.write_text(MINIMAL_TEX_ERROR)
+        tex.write_text(MINIMAL_TEX_ERROR, encoding="utf-8")
         r = _run_derle([str(tex)], cwd=str(tmp_path), timeout=60)
         assert r.returncode != 0
         assert (tmp_path / "hata.log").exists()
@@ -425,7 +422,7 @@ class TestXelatexModu:
     @_xe
     def test_xelatex_flag(self, tmp_path):
         tex = tmp_path / "test.tex"
-        tex.write_text(MINIMAL_TEX)
+        tex.write_text(MINIMAL_TEX, encoding="utf-8")
         r = _run_derle([str(tex), "--xelatex"], cwd=str(tmp_path), timeout=90)
         assert r.returncode == 0
         assert "xelatex" in r.stdout.lower()
@@ -440,7 +437,7 @@ class TestXelatexModu:
             "\\usepackage{fontspec}\n"
             "\\setmainfont{DejaVu Serif}\n"
             "\\begin{document}\nMerhaba XeLaTeX Dünya!\n\\end{document}\n"
-        )
+        , encoding="utf-8")
         r = _run_derle([str(tex), "--xelatex"], cwd=str(tmp_path), timeout=90)
         assert r.returncode == 0
         assert (tmp_path / "xe.pdf").exists()
@@ -457,13 +454,12 @@ class TestXelatexModu:
         libdir.mkdir()
         (libdir / "libstdc++.so.6").write_bytes(b"bozuk-ikili")
         tex = tmp_path / "test.tex"
-        tex.write_text(MINIMAL_TEX)
+        tex.write_text(MINIMAL_TEX, encoding="utf-8")
         r = subprocess.run(
             ["bash", SCRIPT, str(tex), "--xelatex"],
             capture_output=True, text=True, timeout=90,
             env={**os.environ, "LD_LIBRARY_PATH": str(libdir)},
-            cwd=str(tmp_path),
-        )
+            cwd=str(tmp_path), encoding="utf-8")
         assert r.returncode == 0
         assert (tmp_path / "test.pdf").exists()
 
@@ -471,7 +467,7 @@ class TestXelatexModu:
         # Kurulu olmayan motor: hata + '==> Eksik paket' önerisi (GUI Öneriler
         # sekmesi bu çıktıyı parse eder). Motoru sandbox PATH ile görünmez kıl.
         tex = tmp_path / "test.tex"
-        tex.write_text(MINIMAL_TEX)
+        tex.write_text(MINIMAL_TEX, encoding="utf-8")
         sandbox = tmp_path / "bin"
         sandbox.mkdir()
         for tool in ("bash", "dirname", "realpath", "basename"):
@@ -480,8 +476,7 @@ class TestXelatexModu:
             ["bash", SCRIPT, str(tex), "--xelatex"],
             capture_output=True, text=True, timeout=30,
             env={"PATH": str(sandbox)},
-            cwd=str(tmp_path),
-        )
+            cwd=str(tmp_path), encoding="utf-8")
         assert r.returncode != 0
         assert "Eksik paket" in r.stdout
         assert "texlive-xetex" in r.stdout
@@ -516,8 +511,7 @@ class TestWatchModu:
         proc = subprocess.Popen(
             ["bash", SCRIPT, str(tex), "--watch"],
             cwd=str(tmp_path), text=True,
-            stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-        )
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding="utf-8")
         out = []
         reader = threading.Thread(target=self._pump, args=(proc, out), daemon=True)
         reader.start()

@@ -93,7 +93,7 @@ def _errs(tmp_path, lines):
     out = []
     for i, ln in enumerate(lines):
         f = tmp_path / f"b{i}.tex"
-        f.write_text("x\n" * max(ln, 1))
+        f.write_text("x\n" * max(ln, 1), encoding="utf-8")
         out.append(LatexError(line_number=ln, message=f"err{i}", file_path=str(f)))
     return out
 

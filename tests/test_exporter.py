@@ -1,5 +1,6 @@
 """exporter.py — pandoc dışa aktarma testleri."""
 
+import os
 import subprocess
 import sys
 from unittest.mock import MagicMock, patch, mock_open
@@ -95,8 +96,15 @@ class TestPandocArgs:
         assert "--embed-resources" in args
 
     def test_resource_path(self):
-        args = _pandoc_args("/home/user/doc.tex", "/home/user/doc.docx")
-        assert "--resource-path=/home/user" in args
+        # Yol platformun kendi biçiminde kurulur: Windows'ta "/home/user/doc.tex"
+        # dirname'i "C:\home\user" olur (sürücü harfi eklenir), sabit POSIX
+        # dizgesiyle karşılaştırma orada tutmaz.
+        src = os.path.join(os.sep, "home", "user", "doc.tex")
+        args = _pandoc_args(src, os.path.join(os.sep, "home", "user", "doc.docx"))
+        # _pandoc_args abspath'ten dirname alıyor; Windows'ta bu sürücü harfi
+        # ekler ("\home\user" -> "C:\home\user"). Beklenti aynı yoldan kurulur.
+        beklenen = os.path.dirname(os.path.abspath(src))
+        assert f"--resource-path={beklenen}" in args
 
 
 class TestExtractGraphicsPaths:
@@ -256,40 +264,42 @@ class TestExportWsl:
 class TestFixMdImagePaths:
     def test_relative_path_with_graphicspath(self, tmp_path):
         tex_file = tmp_path / "doc.tex"
-        tex_file.write_text(r"\graphicspath{{media/}}")
+        tex_file.write_text(r"\graphicspath{{media/}}", encoding="utf-8")
         md_file = tmp_path / "doc.md"
-        md_file.write_text("![alt](image.png)")
+        md_file.write_text("![alt](image.png)", encoding="utf-8")
         _fix_md_image_paths(str(tex_file), str(md_file))
-        content = md_file.read_text()
+        content = md_file.read_text(encoding="utf-8")
         assert "media/image.png" in content
-        # fix: göreceli yol .tex dizinine göre mutlak yapıldı (sadece substring değil)
-        assert str(tex_file.parent) in content
+        # fix: göreceli yol .tex dizinine göre mutlak yapıldı (sadece substring değil).
+        # Markdown yolu her platformda '/' ayraçlı üretilir; Windows'ta
+        # str(tex_file.parent) ters bölü verdiği için karşılaştırma normalize edilir.
+        assert str(tex_file.parent).replace(os.sep, "/") in content
 
     def test_absolute_path_unchanged(self, tmp_path):
         tex_file = tmp_path / "doc.tex"
-        tex_file.write_text("no graphicspath")
+        tex_file.write_text("no graphicspath", encoding="utf-8")
         md_file = tmp_path / "doc.md"
-        md_file.write_text("![alt](/absolute/image.png)")
+        md_file.write_text("![alt](/absolute/image.png)", encoding="utf-8")
         _fix_md_image_paths(str(tex_file), str(md_file))
-        content = md_file.read_text()
+        content = md_file.read_text(encoding="utf-8")
         assert "/absolute/image.png" in content
 
     def test_http_url_unchanged(self, tmp_path):
         tex_file = tmp_path / "doc.tex"
-        tex_file.write_text("no graphicspath")
+        tex_file.write_text("no graphicspath", encoding="utf-8")
         md_file = tmp_path / "doc.md"
-        md_file.write_text("![alt](https://example.com/img.png)")
+        md_file.write_text("![alt](https://example.com/img.png)", encoding="utf-8")
         _fix_md_image_paths(str(tex_file), str(md_file))
-        content = md_file.read_text()
+        content = md_file.read_text(encoding="utf-8")
         assert "https://example.com/img.png" in content
 
     def test_pandoc_width_attribute_removed(self, tmp_path):
         tex_file = tmp_path / "doc.tex"
-        tex_file.write_text("no graphicspath")
+        tex_file.write_text("no graphicspath", encoding="utf-8")
         md_file = tmp_path / "doc.md"
-        md_file.write_text('![alt](image.png){width="70%"}')
+        md_file.write_text('![alt](image.png){width="70%"}', encoding="utf-8")
         _fix_md_image_paths(str(tex_file), str(md_file))
-        content = md_file.read_text()
+        content = md_file.read_text(encoding="utf-8")
         assert '{width="70%"}' not in content
 
 
@@ -299,7 +309,7 @@ class TestFixMdImagePaths:
 class TestPreprocess:
     def test_abstract_becomes_section(self, tmp_path):
         tex = tmp_path / "d.tex"
-        tex.write_text("\\begin{abstract}\nÖzet metni.\n\\end{abstract}")
+        tex.write_text("\\begin{abstract}\nÖzet metni.\n\\end{abstract}", encoding="utf-8")
         out = _preprocess_tex(str(tex))
         content = open(out, encoding="utf-8").read()
         assert "\\section*{Abstract}" in content
@@ -310,7 +320,7 @@ class TestPreprocess:
 
     def test_title_becomes_section(self, tmp_path):
         tex = tmp_path / "d.tex"
-        tex.write_text("\\title{Belge Başlığı}\n\\section{X}")
+        tex.write_text("\\title{Belge Başlığı}\n\\section{X}", encoding="utf-8")
         out = _preprocess_tex(str(tex))
         content = open(out, encoding="utf-8").read()
         assert "\\section*{Belge Başlığı}" in content
@@ -318,7 +328,7 @@ class TestPreprocess:
 
     def test_title_with_optional_arg(self, tmp_path):
         tex = tmp_path / "d.tex"
-        tex.write_text("\\title[Kısa]{Uzun Başlık}")
+        tex.write_text("\\title[Kısa]{Uzun Başlık}", encoding="utf-8")
         out = _preprocess_tex(str(tex))
         content = open(out, encoding="utf-8").read()
         assert "\\section*{Uzun Başlık}" in content
@@ -326,7 +336,7 @@ class TestPreprocess:
 
     def test_frontmatter_stripped(self, tmp_path):
         tex = tmp_path / "d.tex"
-        tex.write_text("\\begin{frontmatter}\n\\title{X}\n\\end{frontmatter}\n\\section{Y}")
+        tex.write_text("\\begin{frontmatter}\n\\title{X}\n\\end{frontmatter}\n\\section{Y}", encoding="utf-8")
         out = _preprocess_tex(str(tex))
         content = open(out, encoding="utf-8").read()
         assert "\\begin{frontmatter}" not in content
@@ -335,7 +345,7 @@ class TestPreprocess:
 
     def test_no_change_returns_original(self, tmp_path):
         tex = tmp_path / "d.tex"
-        tex.write_text("\\section{Gövde}\nMetin.")
+        tex.write_text("\\section{Gövde}\nMetin.", encoding="utf-8")
         out = _preprocess_tex(str(tex))
         assert out == str(tex)  # değişiklik yok -> geçici dosya yok
 
@@ -346,24 +356,24 @@ class TestPreprocess:
 class TestFindBibliography:
     def test_bibliography_command(self, tmp_path):
         tex = tmp_path / "d.tex"
-        (tmp_path / "refs.bib").write_text("@article{x,...}")
-        tex.write_text("\\bibliography{refs}")
+        (tmp_path / "refs.bib").write_text("@article{x,...}", encoding="utf-8")
+        tex.write_text("\\bibliography{refs}", encoding="utf-8")
         assert _find_bibliography(str(tex)) == str(tmp_path / "refs.bib")
 
     def test_addbibresource(self, tmp_path):
         tex = tmp_path / "d.tex"
-        (tmp_path / "src.bib").write_text("@article{x,...}")
-        tex.write_text("\\addbibresource{src.bib}")
+        (tmp_path / "src.bib").write_text("@article{x,...}", encoding="utf-8")
+        tex.write_text("\\addbibresource{src.bib}", encoding="utf-8")
         assert _find_bibliography(str(tex)) == str(tmp_path / "src.bib")
 
     def test_missing_bib_file(self, tmp_path):
         tex = tmp_path / "d.tex"
-        tex.write_text("\\bibliography{refs}")  # refs.bib yok
+        tex.write_text("\\bibliography{refs}", encoding="utf-8")  # refs.bib yok
         assert _find_bibliography(str(tex)) == ""
 
     def test_no_bibliography(self, tmp_path):
         tex = tmp_path / "d.tex"
-        tex.write_text("\\section{X}\nMetin.")
+        tex.write_text("\\section{X}\nMetin.", encoding="utf-8")
         assert _find_bibliography(str(tex)) == ""
 
 
@@ -402,7 +412,7 @@ class TestExportIntegration:
             "\\documentclass{article}\n\\begin{document}\n"
             "\\begin{abstract}\nBu özet dışa aktarımda görünmeli.\n\\end{abstract}\n"
             "\\section{Giriş}\nGövde.\n\\end{document}\n"
-        )
+        , encoding="utf-8")
         md = tmp_path / "d.md"
         ok, err = export(str(tex), str(md))
         assert ok, f"export failed: {err}"
@@ -418,12 +428,12 @@ class TestExportIntegration:
         bib = tmp_path / "refs.bib"
         bib.write_text(
             "@article{kazemi2025synthetic,\nauthor={Kazemi},\ntitle={Synthetic},\nyear={2025}}\n"
-        )
+        , encoding="utf-8")
         tex.write_text(
             "\\documentclass{article}\n\\begin{document}\n"
             "Metin \\cite{kazemi2025synthetic}.\n"
             "\\bibliography{refs}\n\\end{document}\n"
-        )
+        , encoding="utf-8")
         html = tmp_path / "d.html"
         ok, err = export(str(tex), str(html))
         assert ok, f"export failed: {err}"
@@ -436,11 +446,11 @@ class TestExportIntegration:
         # pandoc MD'de citeproc'u atlar; bizim çözücümüz [@key]'i çözüp liste ekler.
         tex = tmp_path / "d.tex"
         bib = tmp_path / "refs.bib"
-        bib.write_text("@article{k,\nauthor={Kazemi, A.},\ntitle={T},\nyear={2020}}\n")
+        bib.write_text("@article{k,\nauthor={Kazemi, A.},\ntitle={T},\nyear={2020}}\n", encoding="utf-8")
         tex.write_text(
             "\\documentclass{article}\n\\begin{document}\n"
             "Metin \\cite{k}.\n\\bibliography{refs}\n\\end{document}\n"
-        )
+        , encoding="utf-8")
         md = tmp_path / "d.md"
         ok, err = export(str(tex), str(md))
         assert ok, f"export failed: {err}"
@@ -456,7 +466,7 @@ class TestExportIntegration:
         tex.write_text(
             "\\documentclass{article}\n\\begin{document}\n"
             "Metin \\cite{k}.\n\\end{document}\n"
-        )
+        , encoding="utf-8")
         md = tmp_path / "d.md"
         ok, err = export(str(tex), str(md))
         assert ok, f"export failed: {err}"
@@ -470,11 +480,11 @@ class TestExportIntegration:
         bib.write_text(
             "@article{k,\nauthor={Kazemi, Arefeh and B, C.},\ntitle={Paper One},\n"
             "journal={Nature},\nyear={2025},\ndoi={10.1000/one}}\n"
-        )
+        , encoding="utf-8")
         tex.write_text(
             "\\documentclass{article}\n\\begin{document}\n"
             "Metin \\cite{k}.\n\\bibliography{refs}\n\\end{document}\n"
-        )
+        , encoding="utf-8")
         md = tmp_path / "d.md"
         ok, err = export(str(tex), str(md))
         assert ok, f"export failed: {err}"
@@ -488,11 +498,11 @@ class TestExportIntegration:
         # .txt -> -t plain: gerçek plain text + citeproc çözümü.
         tex = tmp_path / "d.tex"
         bib = tmp_path / "refs.bib"
-        bib.write_text("@article{k,\nauthor={Kazemi},\ntitle={T},\nyear={2025}}\n")
+        bib.write_text("@article{k,\nauthor={Kazemi},\ntitle={T},\nyear={2025}}\n", encoding="utf-8")
         tex.write_text(
             "\\documentclass{article}\n\\begin{document}\n"
             "Metin \\cite{k}.\n\\bibliography{refs}\n\\end{document}\n"
-        )
+        , encoding="utf-8")
         txt = tmp_path / "d.txt"
         ok, err = export(str(tex), str(txt))
         assert ok, f"export failed: {err}"
@@ -508,9 +518,9 @@ class TestResolveMdCitations:
         bib = tmp_path / "r.bib"
         bib.write_text(
             "@article{k,\nauthor={A, X. and B, Y. and C, Z.},\ntitle={T},\nyear={2024}}\n"
-        )
+        , encoding="utf-8")
         md = tmp_path / "d.md"
-        md.write_text("See [@k].\n")
+        md.write_text("See [@k].\n", encoding="utf-8")
         _resolve_md_citations(str(md), "", str(bib))   # tex yoksa inline yine çözülür
         content = md.read_text(encoding="utf-8")
         assert "(A et al. 2024)" in content   # 3+ yazar -> et al.
@@ -521,9 +531,9 @@ class TestResolveMdCitations:
         bib.write_text(
             "@article{k1,\nauthor={Kazemi, A.},\ntitle={S},\nyear={2025}}\n"
             "@article{k2,\nauthor={Hasan, M.},\ntitle={L},\nyear={2026}}\n"
-        )
+        , encoding="utf-8")
         md = tmp_path / "d.md"
-        md.write_text("[@k1; @k2]\n")
+        md.write_text("[@k1; @k2]\n", encoding="utf-8")
         _resolve_md_citations(str(md), "", str(bib))
         content = md.read_text(encoding="utf-8")
         assert "(Kazemi 2025; Hasan 2026)" in content
@@ -531,9 +541,9 @@ class TestResolveMdCitations:
     @pytest.mark.skipif(not _PANDOC, reason="pandoc gerekli")
     def test_unknown_key_left_as_is(self, tmp_path):
         bib = tmp_path / "r.bib"
-        bib.write_text("@article{k1,\nauthor={A},\ntitle={T},\nyear={2020}}\n")
+        bib.write_text("@article{k1,\nauthor={A},\ntitle={T},\nyear={2020}}\n", encoding="utf-8")
         md = tmp_path / "d.md"
-        md.write_text("[@k1] and [@unknownkey]\n")
+        md.write_text("[@k1] and [@unknownkey]\n", encoding="utf-8")
         _resolve_md_citations(str(md), "", str(bib))
         content = md.read_text(encoding="utf-8")
         assert "(A 2020)" in content
@@ -575,7 +585,7 @@ class TestFixDocxBrokenAnchors:
             "\\documentclass{article}\n\\begin{document}\n"
             "See Figure \\ref{fig:missing}.\n"
             "\\end{document}\n"
-        )
+        , encoding="utf-8")
         docx_path = tmp_path / "d.docx"
         ok, _ = export(str(tex), str(docx_path))
         assert ok
@@ -593,14 +603,14 @@ class TestFixDocxBrokenAnchors:
         tex.write_text(
             "\\documentclass{article}\n\\begin{document}\n"
             "See \\ref{fig:missing}. Some text.\n\\end{document}\n"
-        )
+        , encoding="utf-8")
         docx_path = tmp_path / "d.docx"
         ok, _ = export(str(tex), str(docx_path))
         assert ok
         d = _docx.Document(str(docx_path))   # çökmemeli
         assert len(d.paragraphs) >= 1
 
-    @pytest.mark.skipif(not _PANDOC, reason="pandoc gereklib")
+    @pytest.mark.skipif(not _PANDOC, reason="pandoc gerekli")
     def test_undefined_table_style_replaced(self, tmp_path):
         # pandoc 3.1.3 FigureTable bug'ı simülasyonu: tanımsız stili enjekte et, düzelir mi?
         import zipfile, subprocess
@@ -609,7 +619,7 @@ class TestFixDocxBrokenAnchors:
             "\\documentclass{article}\n\\begin{document}\n"
             "\\begin{table}[h]\\caption{X}\\begin{tabular}{c}1\\\\\\end{tabular}\\end{table}\n"
             "\\end{document}\n"
-        )
+        , encoding="utf-8")
         docx_path = tmp_path / "d.docx"
         subprocess.run(["pandoc", str(tex), "-o", str(docx_path)],
                        capture_output=True, check=True)
@@ -636,11 +646,15 @@ class TestExporterSaglamlik:
         import core.exporter as ex
 
         tex = tmp_path / "a.tex"
-        tex.write_text("\\begin{document}x\\end{document}\n")
+        tex.write_text("\\begin{document}x\\end{document}\n", encoding="utf-8")
 
         def patlat(*a, **k):
             raise RuntimeError("boom")
 
+        # PLATFORM sabitlenir: Windows'ta export() _export_wsl'e gider ve
+        # yamalanan _export_native hiç çağrılmaz — istisna doğmaz, test yanlışlıkla
+        # ok=True görürdü. Sınanan davranış (istisna yutulur) platformdan bağımsız.
+        monkeypatch.setattr(ex, "PLATFORM", "linux")
         monkeypatch.setattr(ex, "_export_native", patlat)
         ok, err = ex.export(str(tex), str(tmp_path / "a.md"))
         assert ok is False
@@ -657,8 +671,7 @@ class TestExporterSaglamlik:
         md.write_text(
             "![ şekil ](media/fig1.png){width=70%}\n\n"
             "Metinde ölçü örneği: {image width: 5cm} şeklinde yazılır.\n\n"
-            "![ diğeri ](media/fig2.png) {width=.8\\\\linewidth height=4cm}\n",
-            encoding="utf-8")
+            "![ diğeri ](media/fig2.png) {width=.8\\\\linewidth height=4cm}\n", encoding="utf-8")
 
         _fix_md_image_paths(str(tex), str(md))
         out = md.read_text(encoding="utf-8")

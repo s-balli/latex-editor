@@ -81,9 +81,9 @@ def _project(tmp_path):
     """Kök + % !TEX root işaretli alt dosya projesi kur; yolları döndür."""
     root = tmp_path / "tez.tex"
     root.write_text("\\documentclass{article}\n\\usepackage{fontspec}\n"
-                    "\\begin{document}\n\\input{bolum1}\n\\end{document}\n")
+                    "\\begin{document}\n\\input{bolum1}\n\\end{document}\n", encoding="utf-8")
     child = tmp_path / "bolum1.tex"
-    child.write_text("% !TEX root = tez.tex\nbölüm metni\n")
+    child.write_text("% !TEX root = tez.tex\nbölüm metni\n", encoding="utf-8")
     return root, child
 
 
@@ -124,7 +124,7 @@ def test_standalone_file_compiles_itself(qapp, tmp_path):
 
 def test_child_without_root_rejected(qapp, tmp_path):
     child = tmp_path / "parca.tex"
-    child.write_text("yalnızca parça, kök işareti yok\n")
+    child.write_text("yalnızca parça, kök işareti yok\n", encoding="utf-8")
     ed = _editor_for(child)
     stub = _Stub([ed], str(tmp_path))
 

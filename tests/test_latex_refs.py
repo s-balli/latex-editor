@@ -53,8 +53,7 @@ def test_collect_labels_input_chain_cached(tmp_path):
 def test_collect_cite_keys_basic(tmp_path):
     bib = tmp_path / "refs.bib"
     bib.write_text(
-        "@article{smith2020,\n title={X},\n}\n@book{jones_2019, author={Y}}\n",
-        encoding="utf-8")
+        "@article{smith2020,\n title={X},\n}\n@book{jones_2019, author={Y}}\n", encoding="utf-8")
     tex = tmp_path / "m.tex"
     tex.write_text("\\addbibresource{refs.bib}\n", encoding="utf-8")
     keys = latex_refs.collect_cite_keys(tex.read_text(encoding="utf-8"), str(tex))

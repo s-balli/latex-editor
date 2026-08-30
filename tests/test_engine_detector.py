@@ -20,48 +20,48 @@ from core.latex_utils import strip_comments as _strip_comments
 
 class TestDetectRoot:
     def test_same_dir_root(self, tmp_path):
-        (tmp_path / "main.tex").write_text("\\begin{document}\\end{document}")
+        (tmp_path / "main.tex").write_text("\\begin{document}\\end{document}", encoding="utf-8")
         child = tmp_path / "bolum1.tex"
-        child.write_text("% !TEX root = main.tex\nbölüm içeriği\n")
+        child.write_text("% !TEX root = main.tex\nbölüm içeriği\n", encoding="utf-8")
         assert detect_root(str(child)) == str(tmp_path / "main.tex")
 
     def test_parent_dir_root(self, tmp_path):
-        (tmp_path / "tez.tex").write_text("\\begin{document}\\end{document}")
+        (tmp_path / "tez.tex").write_text("\\begin{document}\\end{document}", encoding="utf-8")
         sub = tmp_path / "bolumler"
         sub.mkdir()
         child = sub / "giris.tex"
-        child.write_text("% !TEX root = ../tez.tex\niçerik\n")
+        child.write_text("% !TEX root = ../tez.tex\niçerik\n", encoding="utf-8")
         assert detect_root(str(child)) == str(tmp_path / "tez.tex")
 
     def test_missing_target_returns_empty(self, tmp_path):
         child = tmp_path / "a.tex"
-        child.write_text("% !TEX root = yok.tex\niçerik\n")
+        child.write_text("% !TEX root = yok.tex\niçerik\n", encoding="utf-8")
         assert detect_root(str(child)) == ""
 
     def test_no_comment_returns_empty(self, tmp_path):
         child = tmp_path / "a.tex"
-        child.write_text("içerik\n")
+        child.write_text("içerik\n", encoding="utf-8")
         assert detect_root(str(child)) == ""
 
     def test_missing_file_returns_empty(self, tmp_path):
         assert detect_root(str(tmp_path / "yok.tex")) == ""
 
     def test_quoted_path(self, tmp_path):
-        (tmp_path / "ana dosya.tex").write_text("\\begin{document}\\end{document}")
+        (tmp_path / "ana dosya.tex").write_text("\\begin{document}\\end{document}", encoding="utf-8")
         child = tmp_path / "b.tex"
-        child.write_text('% !TEX root = "ana dosya.tex"\n')
+        child.write_text('% !TEX root = "ana dosya.tex"\n', encoding="utf-8")
         assert detect_root(str(child)) == str(tmp_path / "ana dosya.tex")
 
     def test_case_insensitive_directive(self, tmp_path):
-        (tmp_path / "main.tex").write_text("\\begin{document}\\end{document}")
+        (tmp_path / "main.tex").write_text("\\begin{document}\\end{document}", encoding="utf-8")
         child = tmp_path / "c.tex"
-        child.write_text("% !tex Root = main.tex\n")
+        child.write_text("% !tex Root = main.tex\n", encoding="utf-8")
         assert detect_root(str(child)) == str(tmp_path / "main.tex")
 
     def test_comment_below_scan_window_ignored(self, tmp_path):
-        (tmp_path / "main.tex").write_text("x")
+        (tmp_path / "main.tex").write_text("x", encoding="utf-8")
         child = tmp_path / "d.tex"
-        child.write_text("\n" * 40 + "% !TEX root = main.tex\n")
+        child.write_text("\n" * 40 + "% !TEX root = main.tex\n", encoding="utf-8")
         assert detect_root(str(child)) == ""
 
 
@@ -226,17 +226,17 @@ class TestMagicComment:
 
     def test_magic_in_detect_engine_file(self, tmp_path):
         tex = tmp_path / "test.tex"
-        tex.write_text("% !TEX program = pdflatex\n\\begin{document}\\end{document}")
+        tex.write_text("% !TEX program = pdflatex\n\\begin{document}\\end{document}", encoding="utf-8")
         assert detect_engine(str(tex)) == "pdflatex"
 
     def test_magic_file_function(self, tmp_path):
         tex = tmp_path / "test.tex"
-        tex.write_text("% !TEX program = lualatex\n\\begin{document}\\end{document}")
+        tex.write_text("% !TEX program = lualatex\n\\begin{document}\\end{document}", encoding="utf-8")
         assert detect_engine_from_magic_comment(str(tex)) == "lualatex"
 
     def test_magic_file_function_none(self, tmp_path):
         tex = tmp_path / "test.tex"
-        tex.write_text("\\documentclass{article}\nno magic here")
+        tex.write_text("\\documentclass{article}\nno magic here", encoding="utf-8")
         assert detect_engine_from_magic_comment(str(tex)) is None
 
     def test_magic_file_function_nonexistent(self):
@@ -324,17 +324,17 @@ class TestCanCompileFromContent:
 class TestDetectEngine:
     def test_fontspec_file(self, tmp_path):
         tex = tmp_path / "test.tex"
-        tex.write_text("\\usepackage{fontspec}\n\\begin{document}\\end{document}")
+        tex.write_text("\\usepackage{fontspec}\n\\begin{document}\\end{document}", encoding="utf-8")
         assert detect_engine(str(tex)) == "lualatex"
 
     def test_inputenc_file(self, tmp_path):
         tex = tmp_path / "test.tex"
-        tex.write_text("\\usepackage[utf8]{inputenc}\n\\begin{document}\\end{document}")
+        tex.write_text("\\usepackage[utf8]{inputenc}\n\\begin{document}\\end{document}", encoding="utf-8")
         assert detect_engine(str(tex)) == "pdflatex"
 
     def test_empty_file(self, tmp_path):
         tex = tmp_path / "test.tex"
-        tex.write_text("")
+        tex.write_text("", encoding="utf-8")
         assert detect_engine(str(tex)) is None
 
     def test_nonexistent_file(self):
@@ -342,14 +342,14 @@ class TestDetectEngine:
 
     def test_with_cls_file(self, tmp_path):
         tex = tmp_path / "main.tex"
-        tex.write_text("\\documentclass{myclass}\n\\begin{document}\\end{document}")
+        tex.write_text("\\documentclass{myclass}\n\\begin{document}\\end{document}", encoding="utf-8")
         cls = tmp_path / "myclass.cls"
-        cls.write_text("\\RequireXeTeX")
+        cls.write_text("\\RequireXeTeX", encoding="utf-8")
         assert detect_engine(str(tex)) == "xelatex"
 
     def test_cls_not_found(self, tmp_path):
         tex = tmp_path / "main.tex"
-        tex.write_text("\\documentclass{missing}\n\\begin{document}\\end{document}")
+        tex.write_text("\\documentclass{missing}\n\\begin{document}\\end{document}", encoding="utf-8")
         assert detect_engine(str(tex)) is None
 
 
@@ -359,13 +359,13 @@ class TestDetectEngine:
 class TestCanCompile:
     def test_valid_tex(self, tmp_path):
         tex = tmp_path / "test.tex"
-        tex.write_text("\\begin{document}\nhello\n\\end{document}")
+        tex.write_text("\\begin{document}\nhello\n\\end{document}", encoding="utf-8")
         ok, _ = can_compile(str(tex))
         assert ok is True
 
     def test_non_tex_extension(self, tmp_path):
         cls = tmp_path / "style.cls"
-        cls.write_text("some class content")
+        cls.write_text("some class content", encoding="utf-8")
         ok, _ = can_compile(str(cls))
         assert ok is False
 
@@ -379,9 +379,9 @@ def test_detect_root_from_head_path_ile_ayni_sonuc(tmp_path):
     varyantı; file_tree _input_ref_ok kullanıyor)."""
     from core.engine_detector import detect_root, detect_root_from_head
     root = tmp_path / "main.tex"
-    root.write_text("\\begin{document}x\\end{document}\n")
+    root.write_text("\\begin{document}x\\end{document}\n", encoding="utf-8")
     child = tmp_path / "bolum.tex"
-    child.write_text("% !TEX root = main.tex\nmetin\n")
+    child.write_text("% !TEX root = main.tex\nmetin\n", encoding="utf-8")
 
     beklenen = detect_root(str(child))
     assert beklenen == str(root)

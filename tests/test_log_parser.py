@@ -206,13 +206,13 @@ l.20
 
 class TestResolveErrorPath:
     def test_bare_filename_resolved_against_base(self, tmp_path):
-        (tmp_path / "bolum1.tex").write_text("x")
+        (tmp_path / "bolum1.tex").write_text("x", encoding="utf-8")
         out = resolve_error_path("bolum1.tex", str(tmp_path))
         assert out == str(tmp_path / "bolum1.tex")
 
     def test_absolute_existing_returned_as_is(self, tmp_path):
         f = tmp_path / "a.tex"
-        f.write_text("x")
+        f.write_text("x", encoding="utf-8")
         assert resolve_error_path(str(f), str(tmp_path)) == str(f)
 
     def test_nonexistent_bare_left_unchanged(self, tmp_path):
@@ -223,6 +223,6 @@ class TestResolveErrorPath:
         assert resolve_error_path("", str(tmp_path)) == ""
 
     def test_dot_slash_prefix_stripped(self, tmp_path):
-        (tmp_path / "ch.tex").write_text("x")
+        (tmp_path / "ch.tex").write_text("x", encoding="utf-8")
         out = resolve_error_path("./ch.tex", str(tmp_path))
         assert out == str(tmp_path / "ch.tex")
