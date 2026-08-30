@@ -2,7 +2,7 @@
 
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
-    QWidget, QHBoxLayout, QLineEdit, QPushButton, QLabel,
+    QWidget, QHBoxLayout, QLineEdit, QPushButton, QLabel, QMessageBox,
 )
 from PyQt6.Qsci import QsciScintilla
 
@@ -11,6 +11,14 @@ _ = lambda s: QCoreApplication.translate("FindReplaceBar", s)
 
 
 class FindReplaceBar(QWidget):
+    # "Tümünü Değiştir" için üst sınır. Döngü normalde kendiliğinden biter
+    # (arama wrap'siz ileri gider, imleç her değiştirmede ilerler); bu yalnız
+    # patolojik bir durumda takılmamak için konmuş bir emniyet kemeri.
+    # Sınıra ULAŞILDIĞINDA kullanıcı UYARILMAK zorunda: eskiden sessizce
+    # kesiliyor, etiket yine sayıyı yazıyordu ve kullanıcı belgenin yarım
+    # değiştiğini ancak derleme hatasından anlıyordu (2026-08-30 denetimi, D5).
+    _REPLACE_LIMIT = 10000
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self._editor: QsciScintilla | None = None
@@ -239,16 +247,29 @@ class FindReplaceBar(QWidget):
         found = self._editor.findFirst(
             find_text, False, False, False, False, True, 0, 0
         )
+        sinira_ulasildi = False
         while found and self._editor.hasSelectedText():
+            if count >= self._REPLACE_LIMIT:
+                sinira_ulasildi = True
+                break
             self._editor.replaceSelectedText(replace_text)
             count += 1
             line, col = self._editor.getCursorPosition()
             found = self._editor.findFirst(
                 find_text, False, False, False, False, True, line, col
             )
-            if count > 10000:
-                break
 
         self._editor.endUndoAction()
         self._match_count = 0
         self._lbl_count.setText(_("{n} değişiklik").format(n=count))
+
+        if sinira_ulasildi:
+            # Sessiz kesme yok: belge YARIM değişti, kullanıcı bilmeli.
+            # Arama ileri yönlü ve wrap'siz olduğu için komutu tekrarlamak
+            # kaldığı yerden devam eder — eyleme dönük tavsiye bu.
+            QMessageBox.warning(
+                self, _("Tümünü Değiştir"),
+                _("{n} değişiklik yapıldı ve güvenlik sınırına ulaşıldı.\n\n"
+                  "Belgede değiştirilmemiş eşleşmeler kalmış olabilir; "
+                  "işlemi tekrarlayarak kaldığı yerden sürdürebilirsiniz.").format(n=count),
+            )
