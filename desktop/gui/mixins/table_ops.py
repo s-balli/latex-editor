@@ -76,7 +76,12 @@ class TableOpsMixin:
         if editor.file_path:
             try:
                 existing = collect_labels(text, editor.file_path)
-            except Exception:
+            except Exception as e:
+                # Sihirbaz mevcut etiketleri gösteremeden açılır; sessiz kalırsa
+                # kullanıcı "etiketlerim neden listelenmiyor" diye sorar ve logda
+                # iz olmaz. Akışı kesmeye değmez, ama kaydı kalsın.
+                _logger.warning("Etiketler toplanamadı: %s — %s",
+                                editor.file_path, e, exc_info=True)
                 existing = []
 
         dlg = TableWizardDialog(self, existing_labels=existing)

@@ -108,6 +108,66 @@ class TestConsoleHandler:
             assert "konsolsuz kayıt" in f.read()
 
 
+class TestConsoleEncoding:
+    """Konsol dar kodlamalıysa (Türkçe Windows: cp1254) satır kaybolmamalı.
+
+    Log metinlerinde '→' geçiyor (exporter, synctex_ops, file_ops...); cp1254'te
+    bu karakter yok. errors="replace" olmadan emit() UnicodeEncodeError atar,
+    handleError() yutar ve satır konsola HİÇ yazılmaz.
+    """
+
+    @staticmethod
+    def _cp1254_konsol():
+        ham = io.BytesIO()
+        return ham, io.TextIOWrapper(ham, encoding="cp1254", newline="")
+
+    def test_cp1254_konsolda_ok_karakteri_satiri_dusurmez(self, fresh_log, monkeypatch):
+        ham, konsol = self._cp1254_konsol()
+        monkeypatch.setattr(fresh_log.sys, "stdout", konsol)
+        yutulan = []
+        monkeypatch.setattr(logging.Handler, "handleError",
+                            lambda self, record: yutulan.append(record))
+
+        logger = fresh_log.get_logger("test")
+        logger.info("Motor algılandı: a.tex → lualatex")
+        for h in logging.getLogger("latex_editor").handlers:
+            h.flush()
+
+        assert yutulan == [], "handler emit()'te hata verdi, satır düştü"
+        assert b"lualatex" in ham.getvalue(), "satır konsola hiç yazılmadı"
+
+    def test_turkce_karakterler_bozulmadan_gecer(self, fresh_log, monkeypatch):
+        """errors='replace' yalnız kodlanamayanı vurmalı; ş/ı/ğ cp1254'te var."""
+        ham, konsol = self._cp1254_konsol()
+        monkeypatch.setattr(fresh_log.sys, "stdout", konsol)
+        logger = fresh_log.get_logger("test")
+        logger.info("Sürüm alınıyor: değişiklik")
+        for h in logging.getLogger("latex_editor").handlers:
+            h.flush()
+        assert "değişiklik" in ham.getvalue().decode("cp1254")
+
+    def test_dosyaya_tam_metin_yazilir(self, fresh_log, monkeypatch):
+        """Konsol '?' bassa da UTF-8 log dosyası '→' karakterini korumalı."""
+        _, konsol = self._cp1254_konsol()
+        monkeypatch.setattr(fresh_log.sys, "stdout", konsol)
+        logger = fresh_log.get_logger("test")
+        logger.info("a.tex → b.pdf")
+        for h in logging.getLogger("latex_editor").handlers:
+            h.flush()
+        with open(fresh_log.LOG_FILE, encoding="utf-8") as f:
+            assert "a.tex → b.pdf" in f.read()
+
+    def test_reconfigure_desteklenmezse_patlamaz(self, fresh_log, monkeypatch):
+        """reconfigure'ı olmayan stream (eski/sahte nesne) kurulumu düşürmemeli."""
+        class _Eski(io.StringIO):
+            def reconfigure(self, *a, **k):
+                raise AttributeError("reconfigure yok")
+
+        monkeypatch.setattr(fresh_log.sys, "stdout", _Eski())
+        logger = fresh_log.get_logger("test")   # patlarsa test burada düşer
+        logger.info("deneme")
+
+
 class TestLogPath:
     def test_returns_log_file_path(self, fresh_log):
         fresh_log.get_logger("test")

@@ -255,7 +255,12 @@ class FileTree(QWidget):
         for item, path in batch:
             try:
                 ok = _can_compile(path)[0] or _detect_root(path) != ""
-            except Exception:
+            except Exception as e:
+                # Denetim düşerse dosya "derlenemez" renginde kalır; sebebi
+                # görünmezdi. exc_info YOK: bu kod her dosya için koşuyor,
+                # sistematik bir hatada yüzlerce traceback log'u doldururdu —
+                # yol + hata mesajı teşhis için yeterli.
+                _logger.warning("Derlenebilirlik denetimi başarısız: %s — %s", path, e)
                 ok = False
             if ok:
                 item.setForeground(0, QColor(self._theme["sem_compilable"]))

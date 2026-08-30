@@ -53,6 +53,17 @@ def _init_once():
     # kaydı emit()'te AttributeError atıp handleError() içinde sessizce yutulur.
     # Konsol yoksa handler hiç eklenmez.
     if sys.stdout is not None:
+        # Konsol varsa da kodlaması dar olabilir: Türkçe Windows'ta cp1254.
+        # Log metinlerinde geçen '→' (10 çağrı: exporter, synctex_ops, file_ops...)
+        # cp1254'te yok; emit() UnicodeEncodeError atar, handleError() yutar ve
+        # satır konsola HİÇ yazılmaz. errors="replace" ile kayıp yerine '?' basılır.
+        # Dosya handler'ı zaten UTF-8, tam metin oraya gidiyor.
+        # Not: reconfigure sys.stdout'u global etkiler — bu uygulamada stdout
+        # yalnız log için kullanılıyor, print() ile çakışan bir kullanım yok.
+        try:
+            sys.stdout.reconfigure(errors="replace")
+        except (AttributeError, ValueError, OSError):
+            pass  # reconfigure yok/desteklenmiyor: eski davranış sürsün
         ch = logging.StreamHandler(sys.stdout)
         ch.setLevel(logging.DEBUG)
         ch.setFormatter(logging.Formatter(
