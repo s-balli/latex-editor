@@ -38,13 +38,34 @@ def modname(request):
     return request.param
 
 
+# Eksikliği SKIP sebebi olan üçüncü parti paketler. Bunun DIŞINDAki her
+# ImportError bizim kodumuzun hatasıdır ve testi kırmalıdır.
+_UCUNCU_PARTI = {
+    "PyQt6", "Qsci", "pypdfium2", "PIL", "send2trash", "dulwich",
+}
+
+
 def test_module_imports(modname):
-    """Her modülün hatasiz import edilmesi."""
-    # __init__.py olmayan paketler (ör. mixins klasörü) import edilemez
+    """Her modülün hatasiz import edilmesi.
+
+    ImportError'ı koşulsuz yutup skip etmek, asıl yakalaması gereken şeyi
+    kaçırıyordu: ModuleNotFoundError ImportError'ın alt sınıfı olduğundan
+    BİZİM kodumuzdaki kırık bir iç import (bir modül taşındıktan sonra kalan
+    `from gui.eski_ad import X`) eksik bağımlılıkla aynı kefeye giriyor ve
+    test SKIP oluyordu — CI yemyeşil geçiyordu.
+
+    Bu özellikle önemli: env_doctor, settings_dialog, quick_open,
+    table_wizard, outline ve find_replace ana pencereye TIKLAMA anında lazy
+    import ediliyor, yani test_main_window_imports zincirine hiç girmiyorlar.
+    Tek import kapıları bu test.
+    """
     try:
         importlib.import_module(modname)
-    except ImportError:
-        pytest.skip(f"{modname} import edilemedi (bagimlilik eksik olabilir)")
+    except ImportError as exc:
+        kok = (exc.name or "").split(".")[0]
+        if kok in _UCUNCU_PARTI:
+            pytest.skip(f"{modname}: {kok} kurulu değil")
+        raise
 
 
 def test_main_window_imports():

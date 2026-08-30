@@ -238,68 +238,94 @@ class TestLangName:
 
 # --- Import güvenlik ---
 
+_I18N_YOLU = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "core", "i18n.py")
+
+# core/i18n.py Qt'yi FONKSİYON İÇİNDE import ediyor (core Qt'süz de çalışsın
+# diye). Unutulan bir import ancak çalışma zamanında NameError veriyor.
+_QT_SINIFLARI = {"QCoreApplication", "QLocale", "QSettings", "QTranslator"}
+
+
+def _i18n_agaci():
+    import ast
+    kaynak = open(_I18N_YOLU, encoding="utf-8").read()
+    return ast.parse(kaynak)
+
+
+def _baglanan_adlar(node):
+    """``node`` altında import ile BAĞLANAN adlar (biriktirerek).
+
+    Eski sürüm `imported = [...]` ile ÜZERİNE YAZIYORDU: iki ayrı
+    `from PyQt6.QtCore import ...` satırı olan bir fonksiyonda yalnız
+    sonuncusu görülüyor, ilki 'import edilmemiş' sanılıyordu.
+    """
+    import ast
+    adlar = set()
+    for child in ast.walk(node):
+        if isinstance(child, (ast.Import, ast.ImportFrom)):
+            for alias in child.names:
+                adlar.add(alias.asname or alias.name.split(".")[0])
+    return adlar
+
+
+def _kullanilan_qt_adlari(node):
+    """``node`` altında GERÇEKTEN kullanılan Qt sınıf adları.
+
+    Eski sürüm `if cls in fn_source` ile düz metin arıyordu: yorumda veya
+    dizgede geçen bir sınıf adı da testi tetikliyordu.
+    """
+    import ast
+    return {c.id for c in ast.walk(node)
+            if isinstance(c, ast.Name) and c.id in _QT_SINIFLARI}
+
+
+def _fonksiyon(tree, ad, sinif=None):
+    import ast
+    kapsam = tree
+    if sinif:
+        for n in ast.walk(tree):
+            if isinstance(n, ast.ClassDef) and n.name == sinif:
+                kapsam = n
+                break
+        else:
+            raise AssertionError(f"sınıf bulunamadı: {sinif}")
+    for n in ast.walk(kapsam):
+        if isinstance(n, ast.FunctionDef) and n.name == ad:
+            return n
+    raise AssertionError(f"fonksiyon bulunamadı: {ad}")
+
+
 class TestImportSafety:
-    def test_all_imports_in_init_are_resolvable(self):
-        """init() içinde kullanılan tüm Qt sınıfları import edilmeli."""
-        import ast
-        source = open("core/i18n.py", encoding="utf-8").read()
-        tree = ast.parse(source)
+    """core/i18n.py'de kullanılan Qt sınıfları import edilmiş mi.
 
-        for node in ast.walk(tree):
-            if isinstance(node, ast.FunctionDef) and node.name == "init":
-                init_source = ast.get_source_segment(source, node)
-                break
+    Üç kusur düzeltildi (2026-08-30 denetimi, D6):
+    - `open("core/i18n.py")` göreli yoldu; depo kökü dışından koşulunca üç
+      test birden FileNotFoundError veriyordu (deneyle üretildi).
+    - Toplanan import listesi biriktirmek yerine üzerine yazıyordu.
+    - Kullanım denetimi düz metin aramasıydı, AST değil.
+    """
 
-        for node in ast.walk(ast.parse(init_source)):
-            if isinstance(node, ast.ImportFrom) and node.module and "PyQt6" in node.module:
-                imported = [alias.name for alias in node.names]
+    @pytest.mark.parametrize("ad,sinif", [
+        ("init", None),
+        ("set_language", None),
+        ("translate", "_QtBackend"),
+    ])
+    def test_kullanilan_qt_sinifi_import_edilmis(self, ad, sinif):
+        tree = _i18n_agaci()
+        fn = _fonksiyon(tree, ad, sinif)
+        # Modül düzeyi + fonksiyon içi: ikisi de geçerli bağlama noktası
+        gorunur = _baglanan_adlar(tree) | _baglanan_adlar(fn)
+        eksik = _kullanilan_qt_adlari(fn) - gorunur
+        assert not eksik, (
+            f"{sinif + '.' if sinif else ''}{ad}() içinde kullanılan ama import "
+            f"edilmemiş Qt sınıfı: {sorted(eksik)} — çalışma zamanında NameError."
+        )
 
-        qt_classes = {"QCoreApplication", "QLocale", "QSettings", "QTranslator"}
-        for cls in qt_classes:
-            if cls in init_source:
-                assert cls in imported, (
-                    f"{cls} init() içinde kullanılıyor ama import edilmiş değil. "
-                    f"Bu NameError'a neden olur."
-                )
-
-    def test_all_imports_in_set_language_are_resolvable(self):
-        """set_language() içinde kullanılan Qt sınıfları import edilmeli."""
-        import ast
-        source = open("core/i18n.py", encoding="utf-8").read()
-        tree = ast.parse(source)
-
-        for node in ast.walk(tree):
-            if isinstance(node, ast.FunctionDef) and node.name == "set_language":
-                fn_source = ast.get_source_segment(source, node)
-                break
-
-        imported = []
-        for node in ast.walk(ast.parse(fn_source)):
-            if isinstance(node, ast.ImportFrom) and node.module and "PyQt6" in node.module:
-                imported = [alias.name for alias in node.names]
-
-        if "QSettings" in fn_source:
-            assert "QSettings" in imported, "QSettings kullanılıyor ama import edilmemiş"
-
-    def test_all_imports_in_backend_are_resolvable(self):
-        """_QtBackend.translate() içinde kullanılan Qt sınıfları import edilmeli."""
-        import ast
-        source = open("core/i18n.py", encoding="utf-8").read()
-        tree = ast.parse(source)
-
-        for node in ast.walk(tree):
-            if isinstance(node, ast.ClassDef) and node.name == "_QtBackend":
-                for item in node.body:
-                    if isinstance(item, ast.FunctionDef) and item.name == "translate":
-                        fn_source = ast.get_source_segment(source, item)
-                        imported = []
-                        for child in ast.walk(item):
-                            if isinstance(child, ast.ImportFrom) and \
-                               child.module and "PyQt6" in child.module:
-                                imported = [alias.name for alias in child.names]
-                        if "QCoreApplication" in fn_source:
-                            assert "QCoreApplication" in imported, \
-                                "QCoreApplication kullanılıyor ama import edilmemiş"
+    def test_denetlenen_fonksiyonlar_gercekten_qt_kullaniyor(self):
+        """Kapı boşa düşmesin: fonksiyonlar yeniden adlandırılırsa fark edilsin."""
+        tree = _i18n_agaci()
+        assert _kullanilan_qt_adlari(_fonksiyon(tree, "init"))
+        assert _kullanilan_qt_adlari(_fonksiyon(tree, "translate", "_QtBackend"))
 
 
 # --- main.py başlatma testi ---

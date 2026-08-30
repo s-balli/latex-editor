@@ -194,3 +194,62 @@ def test_katalogda_bitmemis_ceviri_yok():
     """CI kapısının aynısı; yerelde de kırmızı yansın."""
     ts = _TS_EN.read_text(encoding="utf-8")
     assert 'type="unfinished"' not in ts, "latexeditor_en.ts içinde unfinished çeviri var"
+
+
+# --- .ts ↔ .qm senkronu: uygulamanın GERÇEKTEN yüklediği dosya ---
+
+_QM_EN = _REPO / "desktop" / "translations" / "latexeditor_en.qm"
+
+
+@pytest.mark.skipif(not (_TS_EN.exists() and _QM_EN.exists()),
+                    reason="çeviri kataloğu veya derlenmiş .qm yok")
+def test_qm_ts_ile_senkron():
+    """Derlenmiş .qm, kaynak .ts ile aynı çevirileri taşımalı.
+
+    CI kapısı ve bu dosyadaki diğer testler yalnız .TS'i okuyor; uygulama ise
+    çalışırken .QM yüklüyor (core/i18n.py: translator.load(qm_path)).
+    scripts/update_translations.sh içinde lrelease OPSİYONEL — bulunamazsa
+    yalnız uyarı basıp çıkıyor. Yani .ts doldurulup lrelease unutulunca her
+    şey yeşil kalıyor, İngilizce arayüzde o dialoglar Türkçe görünüyordu.
+    Deneyle doğrulandı: .ts'te bir çeviriyi bozup lrelease koşmadan tüm
+    paket geçiyordu.
+
+    Düzeltme — WSL/Linux'ta:
+        PATH=/usr/lib/qt6/bin:$PATH lrelease desktop/translations/*.ts
+    """
+    import xml.etree.ElementTree as ET
+
+    QtCore = pytest.importorskip("PyQt6.QtCore")
+
+    # install ETMEDEN doğrudan sorgula: global çevirmen durumuna dokunmayalım,
+    # başka testlerin diline karışmasın.
+    translator = QtCore.QTranslator()
+    assert translator.load(str(_QM_EN)), f"yüklenemedi: {_QM_EN}"
+
+    uyusmayan = []
+    kontrol = 0
+    for ctx in ET.parse(_TS_EN).getroot().findall("context"):
+        ctx_adi = ctx.findtext("name") or ""
+        for msg in ctx.findall("message"):
+            tr = msg.find("translation")
+            if tr is None or tr.get("type") in ("unfinished", "vanished", "obsolete"):
+                continue
+            kaynak, beklenen = msg.findtext("source"), (tr.text or "")
+            if not kaynak or not beklenen:
+                continue
+            kontrol += 1
+            # QTranslator.translate() C++ tarafında const char* alıyor; PyQt6
+            # str'i ASCII'ye çevirmeye çalışıp Türkçe karakterde patlıyor.
+            # Qt kaynak metni .qm'de UTF-8 tutuyor, bayt geçmek doğrusu.
+            bulunan = translator.translate(ctx_adi.encode("utf-8"),
+                                           kaynak.encode("utf-8"))
+            # Qt çevirisi bulamazsa "" döndürür
+            if bulunan != beklenen:
+                uyusmayan.append(f"  [{ctx_adi}] {kaynak[:50]!r}\n"
+                                 f"     .ts: {beklenen[:50]!r}\n"
+                                 f"     .qm: {bulunan[:50]!r}")
+
+    assert kontrol > 100, f"yalnız {kontrol} mesaj denetlendi — ayrıştırma bozuk olabilir"
+    assert not uyusmayan, (
+        f".qm, .ts ile senkron değil ({len(uyusmayan)}/{kontrol} mesaj). "
+        "lrelease koşulmamış olabilir:\n" + "\n".join(uyusmayan[:10]))
