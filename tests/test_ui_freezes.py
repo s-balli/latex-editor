@@ -6,6 +6,7 @@
 - main_window: arka plan pandoc kontrolü bayrak + tooltip günceller
 """
 
+import os
 import threading
 import time
 from types import SimpleNamespace
@@ -53,6 +54,25 @@ class _FileOpsStub(FileOpsMixin, StubMain):
             currentText=lambda: "lualatex", findText=lambda t: -1,
             currentIndex=lambda: -1, setCurrentIndex=lambda i: None)
         self._file_watch_add = lambda p: None
+
+    def _editor_by_path(self, path):
+        for ed in self._editors:
+            if ed.file_path and os.path.normpath(ed.file_path) == os.path.normpath(path):
+                return ed
+        return None
+
+    def _save_if_open(self, path):
+        """CompileOpsMixin'deki eşleniğin sadeleştirilmiş kopyası.
+
+        Gerçek MainWindow her iki mixin'i de taşıyor; stub yalnız FileOps
+        aldığı için burada yeniden tanımlanıyor.
+        """
+        editor = self._editor_by_path(path)
+        if editor is None:
+            return True
+        if editor.isModified():
+            return editor.save_file()
+        return True
 
     def _apply_editor_settings(self, editor):
         pass
@@ -124,6 +144,41 @@ def test_export_runs_in_background_and_reports(qapp, tmp_path, monkeypatch):
     assert ok, "arka plan export tamamlanmadı"
     assert calls == [(str(tex), str(tmp_path / "out.docx"))]
     assert "Dışa aktarıldı" in stub._status.msg
+
+
+def test_export_kirli_arabellegi_once_kaydeder(qapp, tmp_path, monkeypatch):
+    """Dışa aktarma diskteki bayat içeriği değil, kaydedilmiş arabelleği işler.
+
+    exporter.export() .tex'i diskten okuyor; kaydetmeden dışa aktarınca
+    kullanıcı son değişiklikleri içermeyen bir DOCX alıp durum çubuğunda
+    'Dışa aktarıldı' görüyordu.
+    """
+    import gui.mixins.file_ops as fo
+
+    tex = tmp_path / "doc.tex"
+    tex.write_text("eski icerik\n", encoding="utf-8")
+    ed = EditorWidget()
+    ed.open_file(str(tex))
+    ed.setText("yeni icerik\n")          # arabellek kirli, disk hâlâ eski
+    assert ed.isModified()
+
+    goruldu = []
+
+    def fake_export(src, dst):
+        goruldu.append(open(src, encoding="utf-8").read())
+        return True, ""
+
+    monkeypatch.setattr(fo, "_export", fake_export)
+    monkeypatch.setattr(
+        fo.QFileDialog, "getSaveFileName",
+        lambda *a, **k: (str(tmp_path / "out.docx"), ""))
+
+    stub = _FileOpsStub([ed])
+    stub._export_file("DOCX", ".docx")
+    assert _spin(qapp, lambda: goruldu and not stub._export_busy), "export bitmedi"
+
+    assert goruldu == ["yeni icerik\n"], "pandoc'a bayat disk içeriği gitti"
+    assert not ed.isModified()
 
 
 def test_export_busy_guard(qapp, tmp_path, monkeypatch):

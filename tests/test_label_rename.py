@@ -209,6 +209,47 @@ def test_rename_cite_updates_tex_chain_and_bib(qapp, tmp_path):
     assert "3 dosya" in stub._status.msg
 
 
+def test_rename_yazilamayan_dosyayi_bildiriyor(qapp, tmp_path):
+    """Kısmi yeniden adlandırma sessiz geçemez: uyarı diyaloğu çıkmalı.
+
+    Salt okunur .bib ile .tex değişip .bib değişmiyordu; kullanıcı ise
+    'N dosya' başarı mesajı görüyor, sonraki derlemede atıflar '[?]' basıyordu.
+    """
+    bib = tmp_path / "refs.bib"
+    bib.write_text("@article{karaca2024,\n title={X},\n}\n", encoding="utf-8")
+    main = tmp_path / "m.tex"
+    main.write_text("\\addbibresource{refs.bib}\n\\cite{karaca2024}\n", encoding="utf-8")
+    ed = EditorWidget()
+    ed._file_path = str(main)
+    ed.setText(main.read_text(encoding="utf-8"))
+
+    # Yazma hatası doğrudan üretiliyor: gerçek tetikleyici platforma göre
+    # değişiyor (Windows'ta salt okunur DOSYA yeter; Linux'ta os.replace
+    # dizin iznine baktığı için salt okunur DİZİN gerekiyor). Test edilen
+    # şey tetikleyici değil, hatanın kullanıcıya bildirilmesi.
+    from gui.editor import EditorWidget as _EW
+    gercek = _EW._write_atomic
+
+    def yazamaz(path, text, enc):
+        if str(path).endswith(".bib"):
+            raise OSError(13, "Permission denied")
+        return gercek(path, text, enc)
+
+    stub = _StubMain(editors=[ed])
+    with patch.object(_EW, "_write_atomic", staticmethod(yazamaz)), \
+         patch("gui.mixins.edit_ops.QInputDialog.getText",
+               return_value=("yeni2024", True)), \
+         patch("gui.mixins.edit_ops.QMessageBox.warning") as uyari:
+        MainWindow._on_rename_cite(stub, "karaca2024")
+
+    assert uyari.called, "yazılamayan dosya için uyarı çıkmadı"
+    metin = " ".join(str(a) for a in uyari.call_args[0])
+    assert "refs.bib" in metin, "uyarı hangi dosyanın elde kaldığını söylemiyor"
+    # .bib gerçekten değişmedi — sessizce 'başarılı' denmemeli
+    assert "karaca2024" in bib.read_text(encoding="utf-8")
+    assert "yeniden adlandırıldı" not in stub._status.msg
+
+
 def test_rename_cite_from_bib_editor(qapp, tmp_path):
     """.bib sekmede tetiklenirse: .bib arabelleği + kullanım dosyası (disk) değişir."""
     bib = tmp_path / "refs.bib"

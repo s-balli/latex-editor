@@ -300,6 +300,37 @@ def test_align_table_reformats_editor(qapp):
     assert cols[0] == cols[1]
 
 
+def test_align_table_kisalinca_ikinci_tabloyu_yazmiyor(qapp):
+    r"""Hizalama bloğu kısaltınca yeniden ayrıştırma imlece değil blok başına bağlı.
+
+    Eski kod hizalanmış metni ESKİ imleç offseti ile ayrıştırıyordu; blok
+    kısalınca offset BİR SONRAKİ tabloya kayıyor ve o tablonun gövdesi
+    birincinin aralığına yazılıyordu (belge bozulması).
+    """
+    original = (
+        "\\begin{tabular}{ll}\n"
+        "    aaa      &   bbb    \\\\\n"      # fazla boşluk: hizalama kısaltacak
+        "\\end{tabular}\n"
+        "arada metin\n"
+        "\\begin{tabular}{ll}\n"
+        "    xxx & yyy \\\\\n"
+        "\\end{tabular}\n"
+    )
+    ed = EditorWidget()
+    ed.setText(original)
+    ed.setCursorPosition(2, 5)               # BİRİNCİ tablonun \end satırı
+    stub = _Stub([ed])
+
+    stub._align_table()
+    t = ed.text()
+
+    assert "Tablo hizalandı" in stub._status.msg
+    assert t.count("\\begin{tabular}") == 2, "tablo sayısı değişti — blok bozuldu"
+    assert "aaa" in t and "bbb" in t, "birinci tablonun içeriği kayboldu"
+    assert t.index("aaa") < t.index("xxx"), "tablolar yer değiştirdi"
+    assert t.count("xxx") == 1, "ikinci tablonun gövdesi birincinin yerine yazıldı"
+
+
 def test_align_table_outside(qapp):
     ed = EditorWidget()
     ed.setText("tablo yok burada\n")

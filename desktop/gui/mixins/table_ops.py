@@ -119,7 +119,18 @@ class TableOpsMixin:
         if new_text is None:
             self._status.showMessage(_("Tabloda hizalanacak satır yok"))
             return
-        new_block = parse_tabular_at(new_text, pos)
+        # Çıpa imleç DEĞİL blok başı: hizalama fazla boşlukları kırpıp bloğu
+        # kısaltabiliyor. Eski pos ile yeniden ayrıştırınca ya blok dışına
+        # düşüp None geliyordu (bir alttaki satırda TypeError, komut sessizce
+        # ölüyordu) ya da metindeki BİR SONRAKİ tabloya kayıp onun gövdesini
+        # bu tablonun aralığına yazdırıyordu. block["start"] güvenli çünkü
+        # format_tabular metnin o noktaya kadarki kısmını aynen koruyor
+        # (latex_tables.py: text[:block["start"]] + ...).
+        new_block = parse_tabular_at(new_text, block["start"])
+        if new_block is None:
+            self._status.showMessage(_("Tablo hizalanamadı"))
+            _logger.warning("Hizalanan blok yeniden ayrıştırılamadı: start=%d", block["start"])
+            return
         self._replace_char_range(editor, block["start"], block["end"],
                                  new_text[new_block["start"]:new_block["end"]])
         editor.setFocus()

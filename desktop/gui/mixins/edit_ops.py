@@ -6,7 +6,11 @@ import re
 from PyQt6.QtWidgets import QInputDialog, QApplication, QMessageBox
 from PyQt6.QtCore import QCoreApplication
 
+from core.log import get_logger
+
 _ = lambda s: QCoreApplication.translate("EditOpsMixin", s)
+
+_logger = get_logger("edit_ops")
 
 
 class EditOpsMixin:
@@ -189,15 +193,22 @@ class EditOpsMixin:
             target.endUndoAction()
         target.setCursorPosition(first_line, first_col + len(new_key))
 
-    def _apply_renamings(self, paths, span_fn, new_key: str) -> int:
+    def _apply_renamings(self, paths, span_fn, new_key: str) -> tuple[int, list[str]]:
         """``paths`` içindeki dosyalarda ``span_fn(text)`` aralıklarını değiştir.
 
         Sekmede açık dosyanın arabelleğinde seç-değiştir (undo geçmişi korunur,
         tek adım); disktekinden atomik yeniden yazılır (kodlama round-trip
-        güvenli). Değişen dosya sayısını döndürür.
+        güvenli).
+
+        ``(değişen_sayısı, dokunulamayan_yollar)`` döndürür. Okunamayan/
+        yazılamayan dosya sessizce atlanırsa yeniden adlandırma YARIM kalıyor
+        (\\ref'ler '??', \\cite'lar '[?]' basıyor) ama kullanıcı başarı mesajı
+        görüyordu — salt okunur .bib ya da ağ sürücüsü bunun için yeterli.
+        Çağıran, liste doluysa kullanıcıyı uyarmak zorunda.
         """
         from gui.editor import EditorWidget, _decode_bytes
         changed = 0
+        failed: list[str] = []
         for path in paths:
             target = self._editor_by_path(path)
             if target is not None:
@@ -209,7 +220,9 @@ class EditOpsMixin:
                 try:
                     with open(path, "rb") as f:
                         raw = f.read()
-                except OSError:
+                except OSError as exc:
+                    _logger.warning("Yeniden adlandırma — okunamadı: %s — %s", path, exc)
+                    failed.append(path)
                     continue
                 t, enc = _decode_bytes(raw)
                 spans = span_fn(t)
@@ -219,9 +232,33 @@ class EditOpsMixin:
                     try:
                         EditorWidget._write_atomic(path, t, enc)
                         changed += 1
-                    except (OSError, UnicodeError):
-                        pass
-        return changed
+                    except (OSError, UnicodeError) as exc:
+                        _logger.warning("Yeniden adlandırma — yazılamadı: %s — %s", path, exc)
+                        failed.append(path)
+        return changed, failed
+
+    def _report_rename(self, changed: int, failed: list[str], key: str,
+                       new_key: str, basari_sablonu: str):
+        """Yeniden adlandırma sonucunu bildir; kısmi başarıda diyalogla uyar.
+
+        Kısmi başarı sessiz geçemez: belge tutarsız kaldığı için kullanıcının
+        hangi dosyaların elde kaldığını bilmesi gerekiyor.
+        """
+        if failed:
+            QMessageBox.warning(
+                self, _("Yeniden Adlandırma"),
+                _("'{o}' → '{n}': {c} dosya değiştirildi, {f} dosya değiştirilemedi.\n\n"
+                  "{liste}\n\n"
+                  "Referanslar tutarsız kaldı. Bu dosyalara yazma izni verip "
+                  "işlemi tekrarlayın ya da elle düzeltin.").format(
+                      o=key, n=new_key, c=changed, f=len(failed),
+                      liste="\n".join(failed)),
+            )
+            return
+        if changed:
+            self._status.showMessage(basari_sablonu.format(o=key, n=new_key, c=changed))
+        else:
+            self._status.showMessage(_("Değişiklik yok: {k}").format(k=key))
 
     def _on_rename_label(self, key: str):
         r"""F2 (label): \label anahtarını doküman + \input zincirinde değiştir.
@@ -258,16 +295,12 @@ class EditOpsMixin:
             return
 
         paths = [ed.file_path] + input_chain_paths(content, ed.file_path)
-        changed = self._apply_renamings(
+        changed, failed = self._apply_renamings(
             paths, lambda t: label_rename_spans(t, key), new_key)
 
-        if changed:
-            self._status.showMessage(
-                _("Etiket yeniden adlandırıldı: {o} → {n} ({c} dosya)").format(
-                    o=key, n=new_key, c=changed)
-            )
-        else:
-            self._status.showMessage(_("Değişiklik yok: {k}").format(k=key))
+        self._report_rename(
+            changed, failed, key, new_key,
+            _("Etiket yeniden adlandırıldı: {o} → {n} ({c} dosya)"))
 
     def _on_rename_cite(self, key: str):
         r"""F2 (cite): .bib girdi anahtarını tüm \cite kullanımlarıyla değiştir.
@@ -331,18 +364,14 @@ class EditOpsMixin:
             paths.append(bib_path)
 
         # span_fn iki deseni de kapsar: .tex'te \cite kullanımı, .bib'te girdi
-        changed = self._apply_renamings(
+        changed, failed = self._apply_renamings(
             paths,
             lambda t: cite_rename_spans(t, key) + bib_key_rename_spans(t, key),
             new_key)
 
-        if changed:
-            self._status.showMessage(
-                _("Kaynakça anahtarı yeniden adlandırıldı: {o} → {n} ({c} dosya)").format(
-                    o=key, n=new_key, c=changed)
-            )
-        else:
-            self._status.showMessage(_("Değişiklik yok: {k}").format(k=key))
+        self._report_rename(
+            changed, failed, key, new_key,
+            _("Kaynakça anahtarı yeniden adlandırıldı: {o} → {n} ({c} dosya)"))
 
     def _on_rename_bibitem(self, key: str):
         r"""F2 (bibitem): thebibliography anahtarını tüm \cite kullanımlarıyla değiştir.
@@ -381,15 +410,11 @@ class EditOpsMixin:
             return
 
         paths = [ed.file_path] + input_chain_paths(content, ed.file_path)
-        changed = self._apply_renamings(
+        changed, failed = self._apply_renamings(
             paths,
             lambda t: cite_rename_spans(t, key) + bibitem_rename_spans(t, key),
             new_key)
 
-        if changed:
-            self._status.showMessage(
-                _("Kaynakça anahtarı yeniden adlandırıldı: {o} → {n} ({c} dosya)").format(
-                    o=key, n=new_key, c=changed)
-            )
-        else:
-            self._status.showMessage(_("Değişiklik yok: {k}").format(k=key))
+        self._report_rename(
+            changed, failed, key, new_key,
+            _("Kaynakça anahtarı yeniden adlandırıldı: {o} → {n} ({c} dosya)"))

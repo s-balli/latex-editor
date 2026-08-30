@@ -268,6 +268,15 @@ class FileOpsMixin:
         if not dest:
             return
 
+        # exporter.export() .tex'i DİSKTEN okur (core/exporter.py: os.path.exists
+        # + _preprocess_tex), arabellekten değil. Kaydetmeden dışa aktarınca
+        # kullanıcı son değişiklikleri içermeyen bir DOCX/HTML alıyor ve durum
+        # çubuğu yine "Dışa aktarıldı" diyordu. Derleme yolu bunu zaten yapıyor
+        # (compile_ops._compile), dışa aktarma atlamıştı.
+        if not self._save_if_open(editor.file_path):
+            self._status.showMessage(_("Kayıt başarısız — dışa aktarma iptal edildi"))
+            return
+
         # pandoc zinciri arka planda çalışır; süreç bitince durum çubuğu güncellenir
         if getattr(self, "_export_runner", None) is None:
             self._export_runner = _ExportRunner()
