@@ -1,6 +1,8 @@
 """PdfViewer bookmark mixin — PDF yer imlerini gösterme ve navigasyon."""
 
 from PyQt6.QtCore import Qt
+
+from gui.pdfium_lock import pdfium_lock
 from PyQt6.QtWidgets import QTreeWidget, QTreeWidgetItem, QSizePolicy
 
 from PyQt6.QtCore import QCoreApplication
@@ -67,7 +69,8 @@ class PdfBookmarksMixin:
             return
 
         try:
-            bookmarks = list(self._pdf.get_toc())
+            with pdfium_lock:
+                bookmarks = list(self._pdf.get_toc())
         except Exception:
             bookmarks = []
 

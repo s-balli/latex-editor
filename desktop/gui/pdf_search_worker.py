@@ -20,6 +20,8 @@ import pypdfium2  # type: ignore
 
 from PyQt6.QtCore import QThread, pyqtSignal
 
+from gui.pdfium_lock import pdfium_lock
+
 _alive_workers: set["PdfSearchWorker"] = set()
 
 
@@ -110,13 +112,15 @@ class PdfSearchWorker(QThread):
                 if self._job is not None:    # yeni sorgu geldi: bu arama öldü
                     return None
             try:
-                textpage = self._doc[i].get_textpage()
-                searcher = textpage.search(query)
-                while True:
-                    match = searcher.get_next()
-                    if match is None:
-                        break
-                    results.append((i, match[0], match[1]))
+                # Kilit SAYFA BAŞINA (bkz. gui/pdfium_lock.py)
+                with pdfium_lock:
+                    textpage = self._doc[i].get_textpage()
+                    searcher = textpage.search(query)
+                    while True:
+                        match = searcher.get_next()
+                        if match is None:
+                            break
+                        results.append((i, match[0], match[1]))
             except Exception:
                 continue
         return results
@@ -124,7 +128,8 @@ class PdfSearchWorker(QThread):
     def _swap_document(self, wanted):
         if self._doc is not None:
             try:
-                self._doc.close()
+                with pdfium_lock:
+                    self._doc.close()
             except Exception:
                 pass
             self._doc = None
@@ -133,6 +138,7 @@ class PdfSearchWorker(QThread):
             try:
                 with open(wanted[0], "rb") as f:
                     data = f.read()
-                self._doc = pypdfium2.PdfDocument(data)
+                with pdfium_lock:
+                    self._doc = pypdfium2.PdfDocument(data)
             except Exception:
                 self._doc = None

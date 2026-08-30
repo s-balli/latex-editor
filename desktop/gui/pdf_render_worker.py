@@ -24,6 +24,7 @@ from PyQt6.QtCore import QThread, pyqtSignal
 from PyQt6.QtGui import QImage
 
 from gui.pdf_render import render_page_to_qimage
+from gui.pdfium_lock import pdfium_lock
 
 # Çalışan işçilere güçlü referans: viewer'ı shutdown etmeyen kod (testler,
 # eski kullanım) işçiyi GC'ye düşürünce QThread çalışırken yok edilip
@@ -121,8 +122,11 @@ class PdfRenderWorker(QThread):
                     break
                 gen, scale, invert = jobs[idx]
                 try:
-                    page = self._doc[idx]
-                    img = render_page_to_qimage(page, scale, invert)
+                    # Kilit SAYFA BAŞINA: parti boyunca tutulsa UI uzun bir
+                    # render dizisi boyunca donardı (bkz. gui/pdfium_lock.py).
+                    with pdfium_lock:
+                        page = self._doc[idx]
+                        img = render_page_to_qimage(page, scale, invert)
                 except Exception:
                     continue
                 self.rendered.emit(gen, idx, scale, invert, img)
@@ -130,7 +134,8 @@ class PdfRenderWorker(QThread):
     def _swap_document(self, wanted):
         if self._doc is not None:
             try:
-                self._doc.close()
+                with pdfium_lock:
+                    self._doc.close()
             except Exception:
                 pass
             self._doc = None
@@ -144,6 +149,7 @@ class PdfRenderWorker(QThread):
                 # bitince load_pdf yeni nesil açıyor.
                 with open(wanted[0], "rb") as f:
                     data = f.read()
-                self._doc = pypdfium2.PdfDocument(data)
+                with pdfium_lock:
+                    self._doc = pypdfium2.PdfDocument(data)
             except Exception:
                 self._doc = None

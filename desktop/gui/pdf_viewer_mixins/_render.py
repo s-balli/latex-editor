@@ -13,6 +13,7 @@ _ = lambda s: QCoreApplication.translate("PdfViewer", s)
 
 from core.log import get_logger
 from gui.pdf_render_worker import PdfRenderWorker
+from gui.pdfium_lock import pdfium_lock
 
 _logger = get_logger("pdf_viewer")
 
@@ -46,7 +47,8 @@ class PdfRenderMixin:
             return False
         try:
             if self._pdf:
-                self._pdf.close()
+                with pdfium_lock:
+                    self._pdf.close()
                 self._pdf = None
             # Dosyayı belleğe alıp öyle aç. pypdfium2 yol üzerinden açılan
             # dokümanın sayfa verisini ihtiyaç anında TEMBEL okuyor; kullanıcının
@@ -57,9 +59,11 @@ class PdfRenderMixin:
             # (pdf_render_worker, pdf_search_worker) bu kalıba çoktan geçmişti;
             # UI handle'ı dışarıda kalmıştı.
             with open(path, "rb") as f:
-                self._pdf = pypdfium2.PdfDocument(f.read())
+                veri = f.read()
+            with pdfium_lock:
+                self._pdf = pypdfium2.PdfDocument(veri)
+                self._page_count = len(self._pdf)
             self._pdf_path = path
-            self._page_count = len(self._pdf)
             self._current_page = 0
             self._render_gen += 1
             self._cache_reset()
@@ -99,7 +103,8 @@ class PdfRenderMixin:
 
     def clear(self):
         if self._pdf:
-            self._pdf.close()
+            with pdfium_lock:
+                self._pdf.close()
             self._pdf = None
         self._pdf_path = ""
         self._btn_save.setEnabled(False)
@@ -147,10 +152,11 @@ class PdfRenderMixin:
     def _get_page_size(self, index: int):
         if not self._pdf or index >= self._page_count:
             return (100, 100)
-        page = self._pdf[index]
         scale = 1.5 * self._zoom
-        w = int(page.get_width() * scale)
-        h = int(page.get_height() * scale)
+        with pdfium_lock:
+            page = self._pdf[index]
+            w = int(page.get_width() * scale)
+            h = int(page.get_height() * scale)
         return (max(w, 50), max(h, 50))
 
     def _create_placeholders(self):

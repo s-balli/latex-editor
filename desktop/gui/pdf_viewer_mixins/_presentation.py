@@ -1,5 +1,6 @@
 """PdfViewer sunum modu mixin — tam ekran sunum, tuş/mouse navigasyonu."""
 
+from gui.pdfium_lock import pdfium_lock
 from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel
 
@@ -52,8 +53,9 @@ class PdfPresentationMixin:
         else:
             screen_size = self._presentation_widget.size()
 
-        page = self._pdf[idx]
-        pw, ph = page.get_width(), page.get_height()
+        with pdfium_lock:
+            page = self._pdf[idx]
+            pw, ph = page.get_width(), page.get_height()
         if pw <= 0 or ph <= 0:
             return
 
@@ -66,7 +68,9 @@ class PdfPresentationMixin:
 
         key = ("pres", idx, scale, self._invert_colors)
         if key not in self._pres_cache:
-            self._pres_cache[key] = render_page_to_pixmap(page, scale, self._invert_colors)
+            with pdfium_lock:
+                self._pres_cache[key] = render_page_to_pixmap(
+                    page, scale, self._invert_colors)
             while len(self._pres_cache) > 10:
                 oldest = next(iter(self._pres_cache))
                 del self._pres_cache[oldest]

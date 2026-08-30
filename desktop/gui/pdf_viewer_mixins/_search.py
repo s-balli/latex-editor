@@ -9,6 +9,7 @@ işçinin handle'ları iş parçacıkları arasında paylaşılmaz.
 
 from PyQt6.QtWidgets import QLabel
 
+from gui.pdfium_lock import pdfium_lock
 from PyQt6.QtCore import QCoreApplication, QPoint
 _ = lambda s: QCoreApplication.translate("PdfViewer", s)
 
@@ -60,9 +61,11 @@ class PdfSearchMixin:
         # yalnız koordinat taşır; iş parçacıkları arası handle yok)
         scale = 1.5 * self._zoom
         try:
-            textpage = self._pdf[page_idx].get_textpage()
-            left, bottom, right, top = textpage.get_charbox(start, loose=True)
-            match_y = (self._pdf[page_idx].get_height() - top) * scale
+            with pdfium_lock:
+                sayfa = self._pdf[page_idx]
+                textpage = sayfa.get_textpage()
+                left, bottom, right, top = textpage.get_charbox(start, loose=True)
+                match_y = (sayfa.get_height() - top) * scale
         except Exception:
             match_y = 0
 
@@ -76,17 +79,11 @@ class PdfSearchMixin:
 
         self._draw_search_highlight(idx)
 
-        # Render isteği EN SONA: pdfium thread-safe değil ve bu fonksiyon (artık
-        # yukarıda biten kısmı + _draw_search_highlight) UI thread'inden pdfium
-        # çağırıyor. İstek başta yapılınca render işçisi kendi pdfium çağrısına
-        # (doc[idx]) UI hâlâ get_textpage/get_charbox içindeyken giriyor ve süreç
-        # segfault ile ölüyordu — CI run 33329685864, Python 3.10, üç thread'in
-        # yığını bu ikisini yan yana gösterdi.
-        # Davranış aynı: istek zaten asenkron, pixmap birkaç satır sonra gelmiyor;
-        # _draw_search_highlight pixmap yoksa zaten erken dönüyordu.
-        # NOT: Bu YALNIZ en sık tetiklenen yolu kapatır. _get_page_size,
-        # _update_link_cursor ve sunum modu da UI'dan pdfium çağırıyor
-        # (bkz. BACKLOG B5: kilit ya da UI'ı pdfium'dan tamamen çıkarma).
+        # Render isteği EN SONA. Artık gui/pdfium_lock.py tüm eşzamanlı
+        # erişimi serileştiriyor, yani doğruluk için ŞART değil; ama sıra
+        # yine de anlamlı: UI'ın pdfium işi bitmeden işçiyi uyandırmak onu
+        # boşuna kilitte bekletirdi. Davranış değişmiyor — istek asenkron,
+        # pixmap birkaç satır sonra gelmiyor.
         if label.pixmap() is None or label.pixmap().isNull():
             self._request_render(page_idx)
 
@@ -100,26 +97,30 @@ class PdfSearchMixin:
         if not label or label.pixmap() is None or label.pixmap().isNull():
             return
 
-        try:
-            textpage = self._pdf[page_idx].get_textpage()
-        except Exception:
-            return
-
         scale = 1.5 * self._zoom
         t = self._theme
 
-        for ci in range(start, start + count):
-            try:
-                left, bottom, right, top = textpage.get_charbox(ci, loose=True)
-            except Exception:
-                continue
+        # Geometriler ÖNCE kilit altında hesaplanır, Qt widget'ları sonra
+        # kurulur: kilit yalnız pdfium çağrıları boyunca tutulsun (render
+        # işçisi bu sürede beklemek zorunda kalıyor).
+        kutular = []
+        try:
+            with pdfium_lock:
+                sayfa = self._pdf[page_idx]
+                textpage = sayfa.get_textpage()
+                yukseklik = sayfa.get_height()
+                for ci in range(start, start + count):
+                    try:
+                        left, bottom, right, top = textpage.get_charbox(ci, loose=True)
+                    except Exception:
+                        continue
+                    # PDF koordinatları: origin sol-alt, Qt: sol-üst
+                    kutular.append((left * scale, (yukseklik - top) * scale,
+                                    (right - left) * scale, (top - bottom) * scale))
+        except Exception:
+            return
 
-            # PDF koordinatları: origin sol-alt, Qt: sol-üst
-            x = left * scale
-            y = (self._pdf[page_idx].get_height() - top) * scale
-            w = (right - left) * scale
-            h = (top - bottom) * scale
-
+        for x, y, w, h in kutular:
             hl = QLabel(label)
             hl.setStyleSheet(
                 f"background-color: {t['pdf_hl_bg']}; "

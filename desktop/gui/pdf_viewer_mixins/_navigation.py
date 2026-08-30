@@ -2,6 +2,7 @@
 
 import os
 
+from gui.pdfium_lock import pdfium_lock
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QWheelEvent
 
@@ -63,14 +64,17 @@ class PdfNavigationMixin:
         """mode: 'width' veya 'page'"""
         if not self._pdf or self._page_count == 0:
             return
-        page = self._pdf[0]
+        with pdfium_lock:
+            page = self._pdf[0]
+            pw_ham = page.get_width()
+            ph_ham = page.get_height()
         vp_w = self._scroll.viewport().width()
         vp_h = self._scroll.viewport().height()
         if hasattr(self, '_bookmark_tree') and self._bookmark_tree.isVisible():
             vp_w -= self._bookmark_tree.width()
         dual = getattr(self, '_dual_page', False)
-        pw = page.get_width() * 1.5
-        ph = page.get_height() * 1.5
+        pw = pw_ham * 1.5
+        ph = ph_ham * 1.5
         if dual:
             pw *= 2
         margin = 20

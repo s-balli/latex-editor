@@ -3,6 +3,9 @@
 from PyQt6.QtGui import QImage, QPixmap
 
 
+from gui.pdfium_lock import pdfium_lock
+
+
 def render_page_to_qimage(page, scale: float, invert: bool = False) -> QImage:
     """Tek bir PDF sayfasını QImage olarak render et.
 
@@ -28,4 +31,7 @@ def render_page_to_pixmap(page, scale: float, invert: bool = False) -> QPixmap:
     Normal görüntüleme yolu arka plan işçisindedir (pdf_render_worker);
     cache/eviction çağıranın sorumluluğunda.
     """
-    return QPixmap.fromImage(render_page_to_qimage(page, scale, invert))
+    # Kilit burada da: çağıran zaten tutuyor olsa bile (RLock) bu
+    # fonksiyon tek başına da çağrılabilir olmalı.
+    with pdfium_lock:
+        return QPixmap.fromImage(render_page_to_qimage(page, scale, invert))

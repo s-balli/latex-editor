@@ -4,6 +4,8 @@ import webbrowser
 
 from PyQt6.QtCore import QEvent, QPoint, Qt, QTimer
 
+from gui.pdfium_lock import pdfium_lock
+
 from gui.pdf_links import (
     get_link_at_point, resolve_link_action, resolve_dest_scroll_y, get_dest_page_index,
 )
@@ -88,12 +90,13 @@ class PdfEventsMixin:
                 break
             label_pos = label.mapFrom(obj, pos) if obj != label else pos
             if label.rect().contains(label_pos):
-                page = self._pdf[i]
-                if not page.raw:
-                    return None
-                x_pts = label_pos.x() / scale
-                y_pdf = page.get_height() - label_pos.y() / scale
-                link = get_link_at_point(page.raw, x_pts, y_pdf)
+                with pdfium_lock:
+                    page = self._pdf[i]
+                    if not page.raw:
+                        return None
+                    x_pts = label_pos.x() / scale
+                    y_pdf = page.get_height() - label_pos.y() / scale
+                    link = get_link_at_point(page.raw, x_pts, y_pdf)
                 if link:
                     return (i, link, page)
                 return None
@@ -124,7 +127,9 @@ class PdfEventsMixin:
             self._request_render(idx)
 
         scale = 1.5 * self._zoom
-        scroll_y = resolve_dest_scroll_y(self._pdf.raw, dest, self._pdf[idx].get_height(), scale)
+        with pdfium_lock:
+            scroll_y = resolve_dest_scroll_y(
+                self._pdf.raw, dest, self._pdf[idx].get_height(), scale)
 
         # Dual modda label satır widget'ının çocuğudur: pos() satıra göre olur.
         # _synctex.py'deki gibi pages_widget'e göre hesapla.

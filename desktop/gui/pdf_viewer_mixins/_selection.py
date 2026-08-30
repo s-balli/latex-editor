@@ -5,6 +5,8 @@ import unicodedata
 from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QLabel, QApplication, QMenu
 
+from gui.pdfium_lock import pdfium_lock
+
 from PyQt6.QtCore import QCoreApplication
 _ = lambda s: QCoreApplication.translate("PdfViewer", s)
 
@@ -99,33 +101,35 @@ class PdfSelectionMixin:
             return
 
         try:
-            page = self._pdf[page_idx]
-            textpage = page.get_textpage()
-            scale = 1.5 * self._zoom
-            x_pdf = label_pos.x() / scale
-            y_pdf = page.get_height() - label_pos.y() / scale
-            idx = textpage.get_index(x_pdf, y_pdf, x_tol=5.0, y_tol=5.0)
-            if idx is None or idx < 0:
-                return
+            with pdfium_lock:
+                page = self._pdf[page_idx]
+                textpage = page.get_textpage()
+                scale = 1.5 * self._zoom
+                x_pdf = label_pos.x() / scale
+                y_pdf = page.get_height() - label_pos.y() / scale
+                idx = textpage.get_index(x_pdf, y_pdf, x_tol=5.0, y_tol=5.0)
+                if idx is None or idx < 0:
+                    return
 
-            total = textpage.count_chars()
-            start = idx
-            end = idx
-            while start > 0 and not self._is_word_boundary(textpage, start):
-                start -= 1
-            while end < total - 1 and not self._is_word_boundary(textpage, end + 1):
-                end += 1
+                total = textpage.count_chars()
+                start = idx
+                end = idx
+                while start > 0 and not self._is_word_boundary(textpage, start):
+                    start -= 1
+                while end < total - 1 and not self._is_word_boundary(textpage, end + 1):
+                    end += 1
 
-            if start <= end:
-                self._selection_char_range = (page_idx, start, end)
-                self._selected_text = textpage.get_text_range(start, end - start + 1) or ""
-                self._draw_selection_highlights(page_idx, start, end, textpage)
+                if start <= end:
+                    self._selection_char_range = (page_idx, start, end)
+                    self._selected_text = textpage.get_text_range(start, end - start + 1) or ""
+                    self._draw_selection_highlights(page_idx, start, end, textpage)
         except Exception:
             pass
 
     def _is_word_boundary(self, textpage, idx):
         try:
-            ch = textpage.get_text_range(idx, 1)
+            with pdfium_lock:
+                ch = textpage.get_text_range(idx, 1)
             if not ch:
                 return True
             return ch[0].isspace()
@@ -152,28 +156,29 @@ class PdfSelectionMixin:
     def _update_selection_highlight(self, page_idx, start_lp, end_lp):
         """Iki label-pozisyonu arasini sec (ayni sayfa label koordinatlarinda)."""
         try:
-            page = self._pdf[page_idx]
-            textpage = page.get_textpage()
-            scale = 1.5 * self._zoom
+            with pdfium_lock:
+                page = self._pdf[page_idx]
+                textpage = page.get_textpage()
+                scale = 1.5 * self._zoom
 
-            x1 = start_lp.x() / scale
-            y1 = page.get_height() - start_lp.y() / scale
-            x2 = end_lp.x() / scale
-            y2 = page.get_height() - end_lp.y() / scale
+                x1 = start_lp.x() / scale
+                y1 = page.get_height() - start_lp.y() / scale
+                x2 = end_lp.x() / scale
+                y2 = page.get_height() - end_lp.y() / scale
 
-            idx1 = textpage.get_index(x1, y1, x_tol=5.0, y_tol=5.0)
-            idx2 = textpage.get_index(x2, y2, x_tol=5.0, y_tol=5.0)
-            if idx1 is None or idx2 is None or idx1 < 0 or idx2 < 0:
-                return
+                idx1 = textpage.get_index(x1, y1, x_tol=5.0, y_tol=5.0)
+                idx2 = textpage.get_index(x2, y2, x_tol=5.0, y_tol=5.0)
+                if idx1 is None or idx2 is None or idx1 < 0 or idx2 < 0:
+                    return
 
-            lo, hi = (idx1, idx2) if idx1 <= idx2 else (idx2, idx1)
+                lo, hi = (idx1, idx2) if idx1 <= idx2 else (idx2, idx1)
 
-            if self._selection_char_range == (page_idx, lo, hi):
-                return
+                if self._selection_char_range == (page_idx, lo, hi):
+                    return
 
-            self._selection_char_range = (page_idx, lo, hi)
-            self._selected_text = textpage.get_text_range(lo, hi - lo + 1) or ""
-            self._draw_selection_highlights(page_idx, lo, hi, textpage)
+                self._selection_char_range = (page_idx, lo, hi)
+                self._selected_text = textpage.get_text_range(lo, hi - lo + 1) or ""
+                self._draw_selection_highlights(page_idx, lo, hi, textpage)
         except Exception:
             pass
 
@@ -184,7 +189,8 @@ class PdfSelectionMixin:
             return
 
         scale = 1.5 * self._zoom
-        page_height = self._pdf[page_idx].get_height()
+        with pdfium_lock:
+            page_height = self._pdf[page_idx].get_height()
         t = self._theme
 
         runs = []
@@ -192,7 +198,8 @@ class PdfSelectionMixin:
 
         for i in range(start_idx, end_idx + 1):
             try:
-                left, bottom, right, top = textpage.get_charbox(i, loose=True)
+                with pdfium_lock:
+                    left, bottom, right, top = textpage.get_charbox(i, loose=True)
             except Exception:
                 continue
             if right - left < 0.5 or top - bottom < 0.5:
