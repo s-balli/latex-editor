@@ -862,10 +862,22 @@ class EditorWidget(QsciScintilla):
             return False
 
     def save_file_as(self, path: str) -> bool:
+        """Hedefe kaydet; BAŞARISIZSA editörün eski kimliğini geri al.
+
+        Üç alan eskiden yazma denenmeden atanıyordu. Yazma başarısız olunca
+        (salt okunur hedef, kopmuş ağ sürücüsü, dolu disk) editör var olmayan
+        bir dosyayı gösteriyor; eski yol, eski kodlama (cp1254/iso-8859-9) ve
+        satır sonu stili geri alınamaz biçimde kayboluyordu. Ctrl+S de kalıcı
+        olarak yazılamayan hedefe gitmeye devam ediyordu.
+        """
+        eski = (self._file_path, self._encoding, self._newline)
         self._file_path = os.path.normpath(path)
         self._encoding = "utf-8"  # yeni dosya -> modern varsayılan
         self._newline = "lf"      # LaTeX dünyası tercihi; platform bağımsız
-        return self.save_file()
+        if self.save_file():
+            return True
+        self._file_path, self._encoding, self._newline = eski
+        return False
 
     @property
     def display_name(self) -> str:

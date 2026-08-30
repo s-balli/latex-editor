@@ -254,3 +254,64 @@ class TestFormat:
         pos = MESSY.index("91.2")
         once = format_tabular(MESSY, pos)
         assert format_tabular(once, once.index("91.2")) == once
+
+
+class TestSarilmisSatir:
+    r"""Sarılmış tablo satırı ikiye bölünmemeli (2026-08-30 denetimi, A2).
+
+    _row_cells satırın `\\` ile bitip bitmediğine bakmıyor, format_tabular da
+    HER kaynak satırının sonuna koşulsuz ` \\` ekliyordu. Kaynakta iki satıra
+    sarılmış tek bir tablo satırı ikiye bölünüyor, ilki tek hücreli kalıyor ve
+    LaTeX "Extra alignment tab" hatası veriyordu.
+    """
+
+    SARILI = (
+        "\\begin{tabular}{ll}\n"
+        "    Uzun bir hucre metni\n"
+        "      burada devam ediyor & ikinci sutun \\\\\n"
+        "\\end{tabular}\n"
+    )
+
+    def test_sarilmis_satir_bolunmuyor(self):
+        out = format_tabular(self.SARILI, 30)
+        # Tek mantıksal satır -> tek sonlandırıcı
+        assert out.count("\\\\") == 1
+        # İçerik iki parçadan da korunmalı
+        assert "Uzun bir hucre metni" in out
+        assert "burada devam ediyor" in out
+        assert "ikinci sutun" in out
+
+    def test_son_satirda_uydurma_sonlandirici_yok(self):
+        r"""Son veri satırında `\\` bulunmaması LaTeX'te geçerlidir."""
+        src = (
+            "\\begin{tabular}{ll}\n"
+            "    aaa   &   bbb \\\\\n"
+            "    cc & dd\n"
+            "\\end{tabular}\n"
+        )
+        out = format_tabular(src, 30)
+        assert out.count("\\\\") == 1, "son satıra olmayan sonlandırıcı eklendi"
+        # Yine de hizalanmış olmalı
+        satirlar = [ln for ln in out.split("\n") if "&" in ln]
+        sutun = [ln.index("&") for ln in satirlar]
+        assert sutun[0] == sutun[1]
+
+    def test_araliksiz_sonlandirici_korunuyor(self):
+        r"""`\\[2mm]` gibi aralık argümanı kaybolmamalı."""
+        src = (
+            "\\begin{tabular}{ll}\n"
+            "    aaa   &   bbb \\\\[2mm]\n"
+            "    cc & dd \\\\\n"
+            "\\end{tabular}\n"
+        )
+        out = format_tabular(src, 30)
+        assert "\\\\[2mm]" in out
+        # Eski kod sonlandırıcıyı ÇİFTLİYORDU: "bbb \\[2mm] \\"
+        assert "[2mm] \\\\" not in out
+        assert out.count("\\\\") == 2, "sonlandırıcı sayısı değişti"
+
+    def test_parse_tabular_at_sarilmis_satiri_birlestirir(self):
+        block = parse_tabular_at(self.SARILI, 30)
+        assert block is not None
+        assert len(block["rows"]) == 1, "sarılmış satır iki satır olarak ayrıştırıldı"
+        assert len(block["rows"][0]) == 2

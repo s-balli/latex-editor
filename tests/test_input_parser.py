@@ -172,3 +172,47 @@ class TestGroupByDirectory:
         assert result[0]["is_dir"] is True
         # children within the dir group
         assert len(result[0]["children"]) == 1
+
+
+class TestAltDizinZinciri:
+    r"""İç içe \input LaTeX gibi KÖK dizine göre çözülmeli (A2026-08-30, A4).
+
+    Özyinelemede base_dir olarak çocuğun dizini geçiliyordu; LaTeX ise yolları
+    derleme dizinine (ana dosyanın dizini) göre çözer. Alt dizinli tez/kitap
+    projelerinde torun dosyalar hiç bulunamıyor, dosya ağacında görünmüyor ve
+    \label'ları Referans Denetimi'ne gelmiyordu.
+    """
+
+    def test_torun_koke_gore_bulunuyor(self, tmp_path):
+        (tmp_path / "bolumler").mkdir()
+        (tmp_path / "main.tex").write_text(
+            "\\input{bolumler/bolum1}\n", encoding="utf-8")
+        # LaTeX uzlaşımı: çocuk da yolu KÖKE göre yazar
+        (tmp_path / "bolumler" / "bolum1.tex").write_text(
+            "\\input{bolumler/bolum2}\n", encoding="utf-8")
+        (tmp_path / "bolumler" / "bolum2.tex").write_text("son\n", encoding="utf-8")
+
+        refs = parse_inputs("\\input{bolumler/bolum1}\n", str(tmp_path))
+        assert len(refs) == 1
+        assert refs[0]["name"] == "bolum1.tex"
+        cocuklar = refs[0].get("children") or []
+        assert [c["name"] for c in cocuklar] == ["bolum2.tex"]
+
+    def test_cocuk_goreli_yazim_geri_donuk_calisiyor(self, tmp_path):
+        """Bölümü kendi dizinine göre yazan projeler de desteklenmeli."""
+        (tmp_path / "bol").mkdir()
+        (tmp_path / "main.tex").write_text("\\input{bol/b1}\n", encoding="utf-8")
+        (tmp_path / "bol" / "b1.tex").write_text("\\input{b2}\n", encoding="utf-8")
+        (tmp_path / "bol" / "b2.tex").write_text("son\n", encoding="utf-8")
+
+        refs = parse_inputs("\\input{bol/b1}\n", str(tmp_path))
+        cocuklar = refs[0].get("children") or []
+        assert [c["name"] for c in cocuklar] == ["b2.tex"]
+
+    def test_kok_disina_cikis_hala_engelleniyor(self, tmp_path):
+        """Traversal koruması kökle yapılmalı; dışarısı yine yasak."""
+        kok = tmp_path / "proje"
+        kok.mkdir()
+        (tmp_path / "gizli.tex").write_text("sir\n", encoding="utf-8")
+        refs = parse_inputs("\\input{../gizli}\n", str(kok))
+        assert refs == []

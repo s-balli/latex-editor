@@ -167,16 +167,71 @@ _RE_RULE = re.compile(
 _RE_SPLIT_CELLS = re.compile(r"(?<!\\)&")
 
 
+#  \\  ya da  \\[2mm]  — satır sonlandırıcı ve isteğe bağlı aralık argümanı
+_RE_ROW_END = re.compile(r"\\\\(?:\[[^\]]*\])?\s*$")
+
+
+def _is_passthrough(s: str) -> bool:
+    r"""Satır veri satırı DEĞİL mi? (kural, \end, yorum, boş)"""
+    return (not s or s.startswith("%") or bool(_RE_RULE.match(s))
+            or s.startswith("\\end{"))
+
+
 def _row_cells(line: str) -> list[str] | None:
     r"""Satır tablo veri satırıysa hücrelerini, değilse None döndür.
 
     Kural satırları (\toprule vb.), \end satırı, yorum ve boş satırlar None.
+    Tek satırlık kullanım içindir; sarılmış satırlar için _logical_rows.
     """
     s = line.strip()
-    if not s or s.startswith("%") or _RE_RULE.match(s) or s.startswith("\\end{"):
+    if _is_passthrough(s):
         return None
     cells = [c.strip() for c in _RE_SPLIT_CELLS.split(s.rstrip("\\").strip())]
     return None if cells == [""] else cells
+
+
+def _logical_rows(lines):
+    r"""Kaynak satırlarını MANTIKSAL tablo satırlarına grupla.
+
+    Bir tablo satırı kaynakta birden fazla satıra sarılmış olabilir; mantıksal
+    satır ``\\`` ile biter. SON veri satırında sonlandırıcı bulunmaması
+    LaTeX'te geçerlidir — o da tek başına bir mantıksal satırdır. İkisini
+    ayırmadan her kaynak satırına ``\\`` eklemek, sarılmış bir satırı ikiye
+    bölüp olmayan bir satır sonlandırıcı uyduruyordu ("Extra alignment tab").
+
+    Üretir:
+      ("gec", ham_satır)                      — olduğu gibi korunacak satır
+      ("satir", hücreler, sonek, ham_satırlar) — sonek: "" | "\\" | "\\[2mm]"
+    """
+    tampon: list[str] = []
+
+    def bosalt():
+        if not tampon:
+            return None
+        s = " ".join(x.strip() for x in tampon)
+        m = _RE_ROW_END.search(s)
+        sonek = m.group(0).strip() if m else ""
+        if m:
+            s = s[:m.start()]
+        cells = [c.strip() for c in _RE_SPLIT_CELLS.split(s.strip())]
+        grup = ("satir", cells, sonek, list(tampon))
+        tampon.clear()
+        return grup
+
+    for ln in lines:
+        s = ln.strip()
+        if _is_passthrough(s):
+            bekleyen = bosalt()
+            if bekleyen:
+                yield bekleyen
+            yield ("gec", ln)
+            continue
+        tampon.append(ln)
+        if _RE_ROW_END.search(s):
+            yield bosalt()
+    son = bosalt()
+    if son:
+        yield son
 
 
 def parse_tabular_at(text: str, pos: int) -> dict | None:
@@ -208,12 +263,9 @@ def parse_tabular_at(text: str, pos: int) -> dict | None:
     spec_m = re.match(r"\s*(\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\})", text[spec_at:end])
     col_spec = spec_m.group(1)[1:-1] if spec_m else ""
 
-    rows = []
     body_start = spec_at + (spec_m.end() if spec_m else 0)
-    for raw in text[body_start:end].split("\n"):
-        cells = _row_cells(raw)
-        if cells is not None:
-            rows.append(cells)
+    rows = [g[1] for g in _logical_rows(text[body_start:end].split("\n"))
+            if g[0] == "satir" and g[1] != [""]]
     return {"start": start, "end": end, "env": env, "col_spec": col_spec,
             "rows": rows}
 
@@ -256,7 +308,8 @@ def format_tabular(text: str, pos: int) -> str | None:
     indent = re.match(r"[ \t]*", text[begin_line_start:block["start"]]).group(0) or "    "
 
     src_lines = text[block["start"]:block["end"]].split("\n")
-    rows = [c for c in (_row_cells(ln) for ln in src_lines[1:]) if c]
+    gruplar = list(_logical_rows(src_lines[1:]))
+    rows = [g[1] for g in gruplar if g[0] == "satir" and g[1] != [""]]
     if not rows:
         return None
     ncols = max(len(r) for r in rows)
@@ -266,11 +319,16 @@ def format_tabular(text: str, pos: int) -> str | None:
             widths[i] = max(widths[i], len(c))
 
     out = [src_lines[0]]  # \begin{...}{spec} satırı olduğu gibi
-    for ln in src_lines[1:]:
-        cells = _row_cells(ln)
-        if cells is None:
-            out.append(ln)
+    for g in gruplar:
+        if g[0] == "gec":
+            out.append(g[1])
+            continue
+        _, cells, sonek, ham = g
+        if cells == [""]:
+            out.extend(ham)
             continue
         padded = [c.ljust(widths[i]) for i, c in enumerate(cells)]
-        out.append(indent + " & ".join(padded).rstrip() + " \\\\")
+        # Sonlandırıcı YENİDEN ÜRETİLMEZ: kaynakta yoksa eklenmez (son satırda
+        # `\\` bulunmaması geçerlidir), varsa aynen korunur (`\\[2mm]` dahil).
+        out.append(indent + " & ".join(padded).rstrip() + (" " + sonek if sonek else ""))
     return text[:block["start"]] + "\n".join(out) + text[block["end"]:]

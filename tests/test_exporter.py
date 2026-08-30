@@ -706,3 +706,55 @@ class TestExporterSaglamlik:
         import ntpath  # win32 yolunu bu test Linux'ta dogru ayirsin
         beklenen = f"/tmp/export_{os.getpid()}_{ntpath.basename(dest)}"
         assert beklenen in pandoc_cmds[0]
+
+
+class TestMdResimYollari:
+    r"""Markdown dışa aktarımda TÜM \graphicspath dizinleri denenmeli (A7).
+
+    _fix_md_image_paths tüm göreli yollara koşulsuz graphics_paths[0] önekini
+    ekliyordu: ikinci dizin hiç denenmiyor, tam yol yazılmış görsel de
+    'media/media/logo.png' oluyordu. Sonuç sessizce kırık bağlantıydı —
+    yanlış yol istisna üretmediği için except da yakalamıyordu.
+    """
+
+    def _kur(self, tmp_path):
+        from core.exporter import _fix_md_image_paths
+        (tmp_path / "sekil1").mkdir()
+        (tmp_path / "sekil2").mkdir()
+        (tmp_path / "sekil1" / "a.png").write_bytes(b"x")
+        (tmp_path / "sekil2" / "b.png").write_bytes(b"x")
+        (tmp_path / "duz.png").write_bytes(b"x")
+        tex = tmp_path / "m.tex"
+        tex.write_text("\\graphicspath{{sekil1/}{sekil2/}}\n", encoding="utf-8")
+        return _fix_md_image_paths, tex
+
+    def _yollar(self, md_path):
+        import re
+        icerik = md_path.read_text(encoding="utf-8")
+        return re.findall(r'!\[[^\]]*\]\(([^)]+)\)', icerik)
+
+    def test_ikinci_graphicspath_dizini_de_deneniyor(self, tmp_path):
+        duzelt, tex = self._kur(tmp_path)
+        md = tmp_path / "m.md"
+        md.write_text("![bir](a.png)\n![iki](b.png)\n", encoding="utf-8")
+        duzelt(str(tex), str(md))
+        yollar = self._yollar(md)
+        assert len(yollar) == 2
+        for y in yollar:
+            assert os.path.isfile(y), f"kırık bağlantı: {y}"
+
+    def test_tam_yol_yazilmis_gorsel_ikiye_katlanmiyor(self, tmp_path):
+        duzelt, tex = self._kur(tmp_path)
+        md = tmp_path / "m.md"
+        md.write_text("![uc](duz.png)\n", encoding="utf-8")
+        duzelt(str(tex), str(md))
+        (yol,) = self._yollar(md)
+        assert "sekil1/duz.png" not in yol.replace(os.sep, "/")
+        assert os.path.isfile(yol)
+
+    def test_mutlak_ve_url_dokunulmuyor(self, tmp_path):
+        duzelt, tex = self._kur(tmp_path)
+        md = tmp_path / "m.md"
+        md.write_text("![u](https://ornek.org/x.png)\n", encoding="utf-8")
+        duzelt(str(tex), str(md))
+        assert self._yollar(md) == ["https://ornek.org/x.png"]

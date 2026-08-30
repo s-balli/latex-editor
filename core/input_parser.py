@@ -11,11 +11,24 @@ _logger = logging.getLogger("latex_editor.input_parser")
 _RE_INPUT = re.compile(r'\\(?:input|include)\s*\{([^}]+)\}')
 
 
-def parse_inputs(content: str, base_dir: str, visited: set | None = None) -> list[dict]:
+def parse_inputs(content: str, base_dir: str, visited: set | None = None,
+                 root_dir: str | None = None) -> list[dict]:
+    r"""``\input``/``\include`` zincirini çözümle.
+
+    ``root_dir`` ana belgenin dizinidir ve özyinelemede DEĞİŞMEZ: LaTeX
+    yolları derleme dizinine göre çözer, çocuğun kendi dizinine göre değil.
+    Eskiden çocuğa kendi dizini kök olarak veriliyordu; alt dizinli
+    projelerde (``\input{bolumler/bolum1}``, bolum1 içinde
+    ``\input{bolumler/bolum2}``) torun dosyalar hiç bulunamıyor, dosya
+    ağacında görünmüyor, ``\label``'ları tamamlamaya gelmiyor ve Referans
+    Denetimi olmayan "tanımsız \ref" uyduruyordu.
+    """
     if visited is None:
         visited = set()
+    if root_dir is None:
+        root_dir = base_dir
 
-    base_resolved = Path(base_dir).resolve()
+    root_resolved = Path(root_dir).resolve()
     stripped = strip_comments(content)
     refs = []
 
@@ -26,12 +39,18 @@ def parse_inputs(content: str, base_dir: str, visited: set | None = None) -> lis
         if not os.path.splitext(ref)[1]:
             ref += '.tex'
 
-        full_path = os.path.normpath(os.path.join(base_dir, ref))
-        # Path traversal koruması
+        # Önce LaTeX uzlaşımı (köke göre); bulunamazsa çocuğa göre dene —
+        # bazı projeler bölümleri kendi dizinlerine göre yazıyor.
+        full_path = os.path.normpath(os.path.join(root_dir, ref))
+        if not os.path.isfile(full_path):
+            aday = os.path.normpath(os.path.join(base_dir, ref))
+            if os.path.isfile(aday):
+                full_path = aday
+        # Path traversal koruması — kök dizine göre (çocuğa göre değil)
         try:
-            Path(full_path).resolve().relative_to(base_resolved)
+            Path(full_path).resolve().relative_to(root_resolved)
         except ValueError:
-            _logger.warning("Path traversal engellendi: %s (base: %s)", full_path, base_resolved)
+            _logger.warning("Path traversal engellendi: %s (kök: %s)", full_path, root_resolved)
             continue
         if full_path in visited or not os.path.isfile(full_path):
             continue
@@ -41,7 +60,8 @@ def parse_inputs(content: str, base_dir: str, visited: set | None = None) -> lis
         try:
             with open(full_path, 'r', encoding='utf-8', errors='replace') as f:
                 child_content = f.read()
-            children = parse_inputs(child_content, os.path.dirname(full_path), visited)
+            children = parse_inputs(child_content, os.path.dirname(full_path),
+                                    visited, root_dir)
         except Exception as e:
             _logger.warning("Input dosyası okunamadı: %s — %s", full_path, e)
 

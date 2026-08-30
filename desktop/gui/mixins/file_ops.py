@@ -194,7 +194,12 @@ class FileOpsMixin:
         if path:
             try:
                 old_path = editor.file_path
-                editor.save_file_as(path)
+                # Yazma başarısızsa sekme adını/izlemeyi DEĞİŞTİRME: editör
+                # eski dosyaya bağlı kaldı, save_file zaten hata diyaloğunu
+                # gösterdi. Eskiden dönüş yok sayılıyor, sekme yeni adı alıyor
+                # ve hâlâ var olan eski dosya izlemeden düşüyordu.
+                if not editor.save_file_as(path):
+                    return
                 self._editor_tabs.setTabText(self._editor_tabs.currentIndex(), editor.display_name)
                 if old_path:
                     self._file_watch_remove(old_path)

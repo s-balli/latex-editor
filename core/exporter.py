@@ -382,7 +382,19 @@ def _fix_md_image_paths(tex_path: str, md_path: str):
             path = m.group(2)
             if os.path.isabs(path) or path.startswith(("http://", "https://")):
                 return f"![{alt}]({path})"
-            # Önce graphicspath öneki (varsa), sonra .tex dizinine göre mutlak yap.
+            # Adayları SIRAYLA dene ve diskte var olanı seç. Eskiden koşulsuz
+            # graphics_paths[0] ekleniyordu: ikinci \graphicspath dizini hiç
+            # denenmiyor, tam yol yazılmış görsel de 'media/media/logo.png'
+            # oluyordu. Sonuç sessizce kırık bağlantıydı — yanlış yol istisna
+            # üretmediği için aşağıdaki except da yakalamıyordu.
+            adaylar = [gp + path for gp in graphics_paths] + [path]
+            for aday in adaylar:
+                for ek in ("", ".png", ".pdf", ".jpg", ".jpeg", ".eps"):
+                    tam = os.path.normpath(os.path.join(tex_dir, aday + ek))
+                    if os.path.isfile(tam):
+                        return f"![{alt}]({tam.replace(os.sep, '/')})"
+            # Hiçbiri diskte yok: eski davranışa düş (pandoc uzantısız yol
+            # üretebiliyor; mutlaklaştırmak yine de bağıldan iyi).
             rel = (graphics_paths[0] + path) if graphics_paths else path
             abs_path = os.path.normpath(os.path.join(tex_dir, rel)).replace(os.sep, '/')
             return f"![{alt}]({abs_path})"
