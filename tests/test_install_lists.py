@@ -153,3 +153,18 @@ def test_landing_page_yeni_ozellikleri_iceriyor():
     for beklenen in ("Ctrl+Shift+F", "Find in project", "Projede ara",
                      "Crash recovery", "Çökme kurtarma"):
         assert beklenen in sayfa, f"tanıtım sayfasında yok: {beklenen}"
+
+
+def test_landing_page_em_dash_kullanmiyor():
+    """Tanıtım sayfasında em dash (—) yok; üslup kısa cümle ve noktalı virgül.
+
+    Sayfanın 33 kartında hiç em dash yoktu; v1.0.18 kartlarını eklerken iki
+    tane sokup üslubu bozdum, kullanıcı fark etti. Kapı yalnız docs/ için:
+    README ve kod yorumları bu kuralın dışında.
+    """
+    with open(os.path.join(_ROOT, "docs", "index.html"), encoding="utf-8") as f:
+        sayfa = f.read()
+    assert "\u2014" not in sayfa, (
+        "tanıtım sayfasında em dash (—) var; kısa cümle ya da noktalı virgül kullan"
+    )
+    assert "\u2013" not in sayfa, "tanıtım sayfasında en dash (–) var"
