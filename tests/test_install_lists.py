@@ -1,7 +1,8 @@
 """Kurulum listesi tutarlılık testi.
 
 TeX Live kurulum komutu dört yüzeyde elle yaşar: README (TR/EN),
-release.yml'in gömülü notları ve landing page (docs/index.html). v1.0.12'de
+yayın notu şablonu (scripts/release_notes.sh) ve landing page
+(docs/index.html). v1.0.12'de
 python3-pygments README'lere eklenmiş ama diğer kopyalar sürüklenmişti;
 release sayfası eski listeyle yayınlandı. Bu test sapmayı CI'da yakalar:
 'tam kurulum' bloklarının (texlive-latex-extra içerenler; minimum kurulum
@@ -35,7 +36,9 @@ _CONT = re.compile(r'\\\s*"?\s*$')
 _SURFACES = {
     "README.tr.md": "README.tr.md",
     "README.md": "README.md",
-    "release.yml": os.path.join(".github", "workflows", "release.yml"),
+    # release.yml'in gömülü ~100 satırlık notu scripts/release_notes.sh'e
+    # taşındı (iki job'da kopyaydı). Yüzey artık o betik.
+    "release_notes.sh": os.path.join("scripts", "release_notes.sh"),
     "landing page": os.path.join("docs", "index.html"),
 }
 
@@ -80,7 +83,7 @@ def test_tam_kurulum_listesi_tutarli(name):
         missing = FULL_PKGS - c
         assert not missing, (
             f"{name}: tam kurulum listesinde eksik paketler: {sorted(missing)} "
-            "(README/landing/release.yml kopyalarından biri sürüklendi; dört "
+            "(README/landing/yayın notu kopyalarından biri sürüklendi; dört "
             "yüzeyi de güncelle)"
         )
 

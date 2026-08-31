@@ -1,10 +1,20 @@
 # -*- mode: python ; coding: utf-8 -*-
 import os
 
-# CI'da strip kapalı — Windows'ta strip python312.dll'i bozuyor
-# ("LoadLibrary: Bellek konumuna geçersiz erişim" hatası).
-# Lokalde strip+upx aktif (UPX desktop/upx/ altında kurulu).
+# BU DOSYA PAKETLEMENİN TEK KAYNAĞIDIR. Neyin exe'ye gireceği (datas,
+# excludes, hiddenimports, ikon, ad) yalnız burada tanımlı; "Exe Olustur.bat"
+# ve "Sikistirilmis Exe Olustur.bat" argümanları TEKRARLAMAZ, bu spec'i
+# çağırır. Eskiden üç ayrı tanım vardı ve üçü de farklı exe üretiyordu —
+# yayınlanan sürümle yerelde denenen sürüm aynı şey değildi.
+#
+# strip/upx: CI'da KAPALI — Windows'ta strip python312.dll'i bozuyor
+# ("LoadLibrary: Bellek konumuna geçersiz erişim" hatası). Yerelde varsayılan
+# AÇIK (UPX desktop/upx/ altında kurulu); LE_HIZLI=1 ile kapatılabilir —
+# "Exe Olustur.bat" onu kullanır, böylece yayınlanan exe'nin birebir aynısını
+# yerelde üretir.
 _CI = os.environ.get("CI", "").lower() in ("true", "1")
+_HIZLI = os.environ.get("LE_HIZLI", "").lower() in ("true", "1")
+_sikistir = not (_CI or _HIZLI)
 
 def _collect(src, dst):
     result = []
@@ -35,6 +45,11 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
+    # email HARİÇ TUTULAMAZ: urllib.request -> http.client -> email zinciriyle
+    # 15 email alt modülü yükleniyor. Hariç tutulunca core.updater import
+    # edilemiyor, main_window'daki try/except onu "ağ hatası" sanıp bildiriyor
+    # ve kullanıcı güncellemelerden sonsuza dek habersiz kalıyordu
+    # (2026-08-30, E6). Bu not eskiden .bat'ta duruyordu — listenin yanında.
     excludes=['tkinter', 'unittest', 'test', 'html', 'xmlrpc', 'pydoc', 'curses', 'lib2to3', 'idlelib', 'pip', 'setuptools'],
     noarchive=False,
     optimize=0,
@@ -51,8 +66,8 @@ exe = EXE(
     debug=False,
     icon='linux\\latex-editor.ico',
     bootloader_ignore_signals=False,
-    strip=not _CI,
-    upx=not _CI,
+    strip=_sikistir,
+    upx=_sikistir,
     upx_exclude=[],
     runtime_tmpdir=None,
     console=False,

@@ -88,105 +88,18 @@ jobs:
       - name: Generate release notes
         shell: bash
         run: |
-          # actions/checkout tag push'ta refs/tags/<tag>'i dogrudan commit SHA'si ile
-          # yazar (annotated tag hafifletilir, %(contents) commit mesajini verir);
-          # gercek tag objesini cekip sonra oku.
+          # Gövde TEK KAYNAKTA: scripts/release_notes.sh. Eskiden bu adım
+          # build-windows ve build-linux'ta ~100 satır olarak KOPYALANMIŞTI;
+          # ikisi birebir aynıydı ama aynı kalmalarını hiçbir şey güvence
+          # altına almıyordu (kurulum listesi bir kez sürüklenmişti bile).
+          #
+          # actions/checkout tag push'ta refs/tags/<tag>'i doğrudan commit
+          # SHA'sı ile yazar (annotated tag hafifletilir, %(contents) commit
+          # mesajını verir); gerçek tag objesini çekip sonra oku.
           git fetch --no-tags --force origin "+refs/tags/${{ github.ref_name }}:refs/tags/${{ github.ref_name }}"
-          TAG_MSG=$(git tag -l --format='%(contents)' ${{ github.ref_name }})
-          TAG_MSG=$(echo "$TAG_MSG" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')
-          V="${{ steps.ver.outputs.VERSION }}"
-          {
-            echo "## What's Changed"
-            echo ""
-            echo "$TAG_MSG"
-            echo ""
-            echo "---"
-            echo ""
-            echo "## Installation"
-            echo ""
-            echo "> Warning: The app only includes the GUI. The LaTeX compiler (\`lualatex\`/\`pdflatex\`/\`xelatex\`) must be installed separately via **TeX Live**."
-            echo ""
-            echo "### Windows"
-            echo "1. **Install WSL** (PowerShell, as administrator):"
-            echo '   ```'
-            echo "   wsl --install"
-            echo '   ```'
-            echo "2. **Install TeX Live in WSL:**"
-            echo '   ```'
-            echo "   sudo apt-get update"
-            echo "   sudo apt-get install texlive-base texlive-binaries texlive-latex-base \\"
-            echo "     texlive-latex-extra texlive-latex-recommended texlive-lang-european \\"
-            echo "     texlive-luatex texlive-xetex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
-            echo "     texlive-font-utils texlive-extra-utils biber texlive-publishers \\"
-            echo "     texlive-humanities texlive-pstricks python3-pygments pandoc"
-            echo '   ```'
-            echo "3. Download \`LaTeX_Editor_v${V}_Windows.exe\` and run."
-            echo ""
-            echo "### Linux"
-            echo "**Install TeX Live:**"
-            echo '   ```'
-            echo "   sudo apt-get update"
-            echo "   sudo apt-get install texlive-base texlive-binaries texlive-latex-base \\"
-            echo "     texlive-latex-extra texlive-latex-recommended texlive-lang-european \\"
-            echo "     texlive-luatex texlive-xetex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
-            echo "     texlive-font-utils texlive-extra-utils biber texlive-publishers \\"
-            echo "     texlive-humanities texlive-pstricks libxcb-cursor0 python3-pygments pandoc"
-            echo '   ```'
-            echo "Download \`LaTeX_Editor_v${V}_Linux_x86_64.AppImage\`, \`chmod +x\` and run."
-            echo ""
-            echo "### Minimum installation (basic compilation only)"
-            echo '   ```'
-            echo "   sudo apt-get update"
-            echo "   sudo apt-get install texlive-base texlive-binaries texlive-latex-base \\"
-            echo "     texlive-latex-recommended texlive-luatex texlive-xetex libxcb-cursor0"
-            echo '   ```'
-            echo ""
-            echo "---"
-            echo ""
-            echo "## Kurulum"
-            echo ""
-            echo "> Önemli: Uygulama yalnızca GUI'yi içerir. LaTeX derleyicisi (\`lualatex\`/\`pdflatex\`/\`xelatex\`) ayrıca **TeX Live** ile kurulmalıdır."
-            echo ""
-            echo "### Windows"
-            echo "1. **WSL kur** (PowerShell, yönetici olarak):"
-            echo '   ```'
-            echo "   wsl --install"
-            echo '   ```'
-            echo "2. **WSL içinde TeX Live kur:**"
-            echo '   ```'
-            echo "   sudo apt-get update"
-            echo "   sudo apt-get install texlive-base texlive-binaries texlive-latex-base \\"
-            echo "     texlive-latex-extra texlive-latex-recommended texlive-lang-european \\"
-            echo "     texlive-luatex texlive-xetex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
-            echo "     texlive-font-utils texlive-extra-utils biber texlive-publishers \\"
-            echo "     texlive-humanities texlive-pstricks python3-pygments pandoc"
-            echo '   ```'
-            echo "3. \`LaTeX_Editor_v${V}_Windows.exe\`'yi indir ve çalıştır."
-            echo ""
-            echo "### Linux"
-            echo "**TeX Live kur:**"
-            echo '   ```'
-            echo "   sudo apt-get update"
-            echo "   sudo apt-get install texlive-base texlive-binaries texlive-latex-base \\"
-            echo "     texlive-latex-extra texlive-latex-recommended texlive-lang-european \\"
-            echo "     texlive-luatex texlive-xetex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
-            echo "     texlive-font-utils texlive-extra-utils biber texlive-publishers \\"
-            echo "     texlive-humanities texlive-pstricks libxcb-cursor0 python3-pygments pandoc"
-            echo '   ```'
-            echo "\`LaTeX_Editor_v${V}_Linux_x86_64.AppImage\`'i indir, \`chmod +x\` yapip calistir."
-            echo ""
-            echo "### Minimum kurulum (sadece temel derleme)"
-            echo '   ```'
-            echo "   sudo apt-get update"
-            echo "   sudo apt-get install texlive-base texlive-binaries texlive-latex-base \\"
-            echo "     texlive-latex-recommended texlive-luatex texlive-xetex libxcb-cursor0"
-            echo '   ```'
-            echo ""
-            echo "---"
-            echo ""
-            echo "For detailed usage see [README](https://github.com/s-balli/latex-editor#readme)."
-            echo "Detaylı kullanım için [README.tr.md](https://github.com/s-balli/latex-editor/blob/main/README.tr.md)."
-          } > release-notes.md
+          git tag -l --format='%(contents)' "${{ github.ref_name }}" \
+            | bash scripts/release_notes.sh "${{ steps.ver.outputs.VERSION }}" \
+            > release-notes.md
 
       - name: Upload to release
         uses: softprops/action-gh-release@v2
@@ -222,105 +135,18 @@ jobs:
       - name: Generate release notes
         shell: bash
         run: |
-          # actions/checkout tag push'ta refs/tags/<tag>'i dogrudan commit SHA'si ile
-          # yazar (annotated tag hafifletilir, %(contents) commit mesajini verir);
-          # gercek tag objesini cekip sonra oku.
+          # Gövde TEK KAYNAKTA: scripts/release_notes.sh. Eskiden bu adım
+          # build-windows ve build-linux'ta ~100 satır olarak KOPYALANMIŞTI;
+          # ikisi birebir aynıydı ama aynı kalmalarını hiçbir şey güvence
+          # altına almıyordu (kurulum listesi bir kez sürüklenmişti bile).
+          #
+          # actions/checkout tag push'ta refs/tags/<tag>'i doğrudan commit
+          # SHA'sı ile yazar (annotated tag hafifletilir, %(contents) commit
+          # mesajını verir); gerçek tag objesini çekip sonra oku.
           git fetch --no-tags --force origin "+refs/tags/${{ github.ref_name }}:refs/tags/${{ github.ref_name }}"
-          TAG_MSG=$(git tag -l --format='%(contents)' ${{ github.ref_name }})
-          TAG_MSG=$(echo "$TAG_MSG" | sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g')
-          V="${{ steps.ver.outputs.VERSION }}"
-          {
-            echo "## What's Changed"
-            echo ""
-            echo "$TAG_MSG"
-            echo ""
-            echo "---"
-            echo ""
-            echo "## Installation"
-            echo ""
-            echo "> Warning: The app only includes the GUI. The LaTeX compiler (\`lualatex\`/\`pdflatex\`/\`xelatex\`) must be installed separately via **TeX Live**."
-            echo ""
-            echo "### Windows"
-            echo "1. **Install WSL** (PowerShell, as administrator):"
-            echo '   ```'
-            echo "   wsl --install"
-            echo '   ```'
-            echo "2. **Install TeX Live in WSL:**"
-            echo '   ```'
-            echo "   sudo apt-get update"
-            echo "   sudo apt-get install texlive-base texlive-binaries texlive-latex-base \\"
-            echo "     texlive-latex-extra texlive-latex-recommended texlive-lang-european \\"
-            echo "     texlive-luatex texlive-xetex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
-            echo "     texlive-font-utils texlive-extra-utils biber texlive-publishers \\"
-            echo "     texlive-humanities texlive-pstricks python3-pygments pandoc"
-            echo '   ```'
-            echo "3. Download \`LaTeX_Editor_v${V}_Windows.exe\` and run."
-            echo ""
-            echo "### Linux"
-            echo "**Install TeX Live:**"
-            echo '   ```'
-            echo "   sudo apt-get update"
-            echo "   sudo apt-get install texlive-base texlive-binaries texlive-latex-base \\"
-            echo "     texlive-latex-extra texlive-latex-recommended texlive-lang-european \\"
-            echo "     texlive-luatex texlive-xetex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
-            echo "     texlive-font-utils texlive-extra-utils biber texlive-publishers \\"
-            echo "     texlive-humanities texlive-pstricks libxcb-cursor0 python3-pygments pandoc"
-            echo '   ```'
-            echo "Download \`LaTeX_Editor_v${V}_Linux_x86_64.AppImage\`, \`chmod +x\` and run."
-            echo ""
-            echo "### Minimum installation (basic compilation only)"
-            echo '   ```'
-            echo "   sudo apt-get update"
-            echo "   sudo apt-get install texlive-base texlive-binaries texlive-latex-base \\"
-            echo "     texlive-latex-recommended texlive-luatex texlive-xetex libxcb-cursor0"
-            echo '   ```'
-            echo ""
-            echo "---"
-            echo ""
-            echo "## Kurulum"
-            echo ""
-            echo "> Önemli: Uygulama yalnızca GUI'yi içerir. LaTeX derleyicisi (\`lualatex\`/\`pdflatex\`/\`xelatex\`) ayrıca **TeX Live** ile kurulmalıdır."
-            echo ""
-            echo "### Windows"
-            echo "1. **WSL kur** (PowerShell, yönetici olarak):"
-            echo '   ```'
-            echo "   wsl --install"
-            echo '   ```'
-            echo "2. **WSL içinde TeX Live kur:**"
-            echo '   ```'
-            echo "   sudo apt-get update"
-            echo "   sudo apt-get install texlive-base texlive-binaries texlive-latex-base \\"
-            echo "     texlive-latex-extra texlive-latex-recommended texlive-lang-european \\"
-            echo "     texlive-luatex texlive-xetex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
-            echo "     texlive-font-utils texlive-extra-utils biber texlive-publishers \\"
-            echo "     texlive-humanities texlive-pstricks python3-pygments pandoc"
-            echo '   ```'
-            echo "3. \`LaTeX_Editor_v${V}_Windows.exe\`'yi indir ve çalıştır."
-            echo ""
-            echo "### Linux"
-            echo "**TeX Live kur:**"
-            echo '   ```'
-            echo "   sudo apt-get update"
-            echo "   sudo apt-get install texlive-base texlive-binaries texlive-latex-base \\"
-            echo "     texlive-latex-extra texlive-latex-recommended texlive-lang-european \\"
-            echo "     texlive-luatex texlive-xetex texlive-fonts-extra texlive-science texlive-bibtex-extra \\"
-            echo "     texlive-font-utils texlive-extra-utils biber texlive-publishers \\"
-            echo "     texlive-humanities texlive-pstricks libxcb-cursor0 python3-pygments pandoc"
-            echo '   ```'
-            echo "\`LaTeX_Editor_v${V}_Linux_x86_64.AppImage\`'i indir, \`chmod +x\` yapip calistir."
-            echo ""
-            echo "### Minimum kurulum (sadece temel derleme)"
-            echo '   ```'
-            echo "   sudo apt-get update"
-            echo "   sudo apt-get install texlive-base texlive-binaries texlive-latex-base \\"
-            echo "     texlive-latex-recommended texlive-luatex texlive-xetex libxcb-cursor0"
-            echo '   ```'
-            echo ""
-            echo "---"
-            echo ""
-            echo "For detailed usage see [README](https://github.com/s-balli/latex-editor#readme)."
-            echo "Detaylı kullanım için [README.tr.md](https://github.com/s-balli/latex-editor/blob/main/README.tr.md)."
-          } > release-notes.md
+          git tag -l --format='%(contents)' "${{ github.ref_name }}" \
+            | bash scripts/release_notes.sh "${{ steps.ver.outputs.VERSION }}" \
+            > release-notes.md
 
       - name: Upload to release
         uses: softprops/action-gh-release@v2

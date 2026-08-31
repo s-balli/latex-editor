@@ -116,33 +116,14 @@ def test_urun_subprocess_cagrilari_encoding_belirtir():
         + "\n".join(f"  {f}:{ln}  subprocess.{ne}(text=True)" for f, ln, ne in eksik))
 
 
-def test_paketleme_haric_listeleri_ayrismiyor():
-    """Sıkıştırılmış build ile yayın spec'i aynı modülleri hariç tutmalı.
-
-    İkisi ayrışınca yalnız YEREL build'de var olan, kullanıcıya ulaşmayan
-    hatalar doğuyor ve teşhisi zor oluyor. Gerçekten oldu (2026-08-30, E6):
-    .bat'ta `--exclude-module email` vardı, spec'te yoktu. urllib.request
-    zinciri email'e bağlı olduğundan core.updater import edilemiyor,
-    main_window'daki try/except onu "ağ hatası" sanıp bildiriyordu — yani
-    sıkıştırılmış exe kullanıcısı güncellemelerden hiç haberdar olmuyordu.
-    """
-    import re
-    spec_metin = (_REPO / "desktop" / "LaTeX Editor.spec").read_text(encoding="utf-8")
-    m = re.search(r"excludes=\[([^\]]*)\]", spec_metin)
-    assert m, "spec içinde excludes=[...] bulunamadı — kapı boşa düşmesin"
-    spec = set(re.findall(r"'([^']+)'", m.group(1)))
-
-    bat_metin = (_REPO / "desktop" / "Sikistirilmis Exe Olustur.bat").read_text(
-        encoding="utf-8")
-    bat = set(re.findall(r"--exclude-module\s+(\S+)", bat_metin))
-
-    assert spec, "spec exclude listesi boş okundu"
-    assert bat, "bat exclude listesi boş okundu"
-    fazla = sorted(bat - spec)
-    assert not fazla, (
-        "Sikistirilmis Exe Olustur.bat, spec'te olmayan modülleri hariç "
-        f"tutuyor: {fazla}\n"
-        "İkisi aynı olmalı; farklıysa yalnız yerel build'de görülen hatalar doğar.")
+# test_paketleme_haric_listeleri_ayrismiyor BURADAN KALKTI (2026-08-31).
+# Kural yok olmadı, GEREKSİZLEŞTİ: hariç tutma listesi artık yalnız
+# "LaTeX Editor.spec"te yaşıyor, .bat dosyaları spec'i çağırıyor — iki liste
+# olmadığı için ayrışma yapısal olarak imkânsız. E6 hikâyesi (email hariç
+# tutulunca core.updater import edilemiyor, kullanıcı güncellemelerden
+# habersiz kalıyor) spec'in yanında yorum olarak duruyor ve
+# tests/test_paketleme.py'de kapıya bağlı. Paketleme kapılarının tek sahibi
+# o dosya; burada ikinci bir kopya tutmak aynı hatanın kaynağı olurdu.
 
 
 def test_tex_gerektiren_testler_ci_derle_jobunda_kosuyor():
