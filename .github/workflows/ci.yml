@@ -123,6 +123,25 @@ jobs:
       - name: Bağımlılıklar gerçekten yüklenebiliyor mu
         run: python -c "import PyQt6.QtWidgets, PyQt6.Qsci, pypdfium2, PIL, send2trash, dulwich; print('ok')"
 
+      # BİLGİ AMAÇLI, kapı DEĞİL. Windows/WSL köprüsünün GERÇEK wsl.exe'ye
+      # karşı koştuğu bir job yok: ubuntu runner'da WSL kavramı yok, windows
+      # runner'ında da dağıtım kurulu değil. tests/test_wsl_koprusu.py bu
+      # yüzden ölçülmüş bir sözleşmeye karşı, PATH'e konan gerçek ama sahte
+      # bir `wsl` ile koşuyor (yalnız POSIX job'larında; Windows'ta
+      # CreateProcess uzantısız adı `.exe` diye arar, gölgelenemez).
+      # Bu adım boşluğu LOG'DA görünür tutuyor — runner imajına bir gün WSL
+      # gelirse burada fark edilir ve gerçek entegrasyon testi eklenebilir.
+      - name: WSL durumu (köprü testinin kapsam sınırı — bilgi)
+        shell: pwsh
+        run: |
+          $c = Get-Command wsl -ErrorAction SilentlyContinue
+          if ($null -eq $c) { Write-Host 'wsl.exe YOK'; exit 0 }
+          Write-Host "wsl.exe: $($c.Source)"
+          $liste = (& wsl -l -q) -join ', '
+          Write-Host "dagitimlar: [$liste] (exit=$LASTEXITCODE)"
+          Write-Host 'Gercek WSL entegrasyon testi hicbir CI jobunda KOSMUYOR.'
+          exit 0
+
       - name: Run tests
         env:
           QT_QPA_PLATFORM: offscreen
