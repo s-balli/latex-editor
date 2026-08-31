@@ -116,9 +116,15 @@ class OutputPanel(QWidget):
         self._psearch_case.setToolTip(_("Büyük/küçük harf duyarlı"))
         self._psearch_case.toggled.connect(self._on_project_search_return)
         self._psearch_status = QLabel("")
+        # Aranan KÖK görünür olmalı. Olmadığında "bulunamadı" açıklanamaz bir
+        # cevap: kullanıcı big.tex üzerinde çalışırken kök eski bir klasörde
+        # kalmıştı (QSettings'ten geri yüklenen template15), arama doğru
+        # çalışıp 0 döndü ve nerede aradığını söylemedi. Kullanıcı bildirdi.
+        self._psearch_kok = QLabel("")
         satir.addWidget(self._psearch_input, 1)
         satir.addWidget(self._psearch_case)
         satir.addWidget(self._psearch_status)
+        satir.addWidget(self._psearch_kok)
         arama_layout.addLayout(satir)
         self._psearch_list = QListWidget()
         self._psearch_list.itemClicked.connect(self._on_result_click)
@@ -280,6 +286,17 @@ class OutputPanel(QWidget):
             self._psearch_status.setText(_("Aranıyor..."))
             self.project_search_requested.emit(sorgu, self._psearch_case.isChecked())
 
+    def set_project_search_root(self, kok: str):
+        """Aranacak kökü göster — arama BAŞLAMADAN önce, aramadan bağımsız."""
+        import os
+
+        if kok:
+            self._psearch_kok.setText("⌂ " + os.path.basename(os.path.normpath(kok)))
+            self._psearch_kok.setToolTip(_("Aranan klasör: {yol}").format(yol=kok))
+        else:
+            self._psearch_kok.setText("⌂ " + _("klasör yok"))
+            self._psearch_kok.setToolTip(_("Ctrl+Shift+O ile bir klasör açın"))
+
     def focus_project_search(self, on_secili: str = ""):
         """Sekmeyi öne al ve kutuya odaklan (Ctrl+Shift+F).
 
@@ -292,7 +309,8 @@ class OutputPanel(QWidget):
         self._psearch_input.setFocus()
         self._psearch_input.selectAll()
 
-    def show_project_search(self, bulgular, kesildi: bool, kok: str = ""):
+    def show_project_search(self, bulgular, kesildi: bool, kok: str = "",
+                            uyari: str = ""):
         """Proje araması sonuçlarını göster.
 
         Öğe metni "yol:satır  içerik"; UserRole'de (mutlak yol, satır) durur,
@@ -301,6 +319,7 @@ class OutputPanel(QWidget):
         """
         import os
 
+        self.set_project_search_root(kok)
         self._psearch_list.clear()
         renk = QColor(self._theme.get("fg_primary", "#000000"))
         for b in bulgular:
@@ -317,7 +336,10 @@ class OutputPanel(QWidget):
 
         n = len(bulgular)
         if not n:
-            self._psearch_status.setText(_("bulunamadı"))
+            # "bulunamadı" tek başına yanıltıcı olabiliyor — nerede aranmadığı
+            # da söylenmeli (uyari, açık dosyanın kök dışında olduğu durumda
+            # dolu gelir).
+            self._psearch_status.setText(_("bulunamadı") + (f" — {uyari}" if uyari else ""))
         elif kesildi:
             # Kırpma SESSİZ OLMAZ: eksik listeyi tam sanmak yanlış sonuca
             # götürür ("bu komut yalnız 3 yerde geçiyormuş" gibi).
@@ -477,6 +499,7 @@ class OutputPanel(QWidget):
         )
         self._psearch_case.setStyleSheet(f"QCheckBox {{ color: {t['fg_muted']}; }}")
         self._psearch_status.setStyleSheet(f"color: {t['fg_muted']}; font-size: 11px;")
+        self._psearch_kok.setStyleSheet(f"color: {t['fg_muted']}; font-size: 11px;")
         for i in range(self._psearch_list.count()):
             self._psearch_list.item(i).setForeground(QColor(t["fg_primary"]))
         self._log_text.setStyleSheet(

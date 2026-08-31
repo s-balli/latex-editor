@@ -515,3 +515,90 @@ class TestKablolama:
         assert "self._cleanup_project_search()" in k, (
             "closeEvent işçiyi durdurmuyor — 'QThread destroyed while running'"
         )
+
+
+# --------------------------------------------------------------------------
+# "bulunamadı" AÇIKLANABİLİR olmalı — kök görünür, kök dışı söylenir
+# --------------------------------------------------------------------------
+
+class TestKokGorunurlugu:
+    """Kullanıcı bildirdi: big.tex'te 1800 kez geçen "paragraf" bulunamadı.
+
+    Arama doğru çalışıyordu — kök QSettings'ten geri yüklenen ESKİ bir
+    klasörde (template15, 2 dosya) kalmıştı ve açık dosya oranın dışındaydı.
+    Panel yalnız "bulunamadı" diyordu; nerede aradığını söylemiyordu.
+    """
+
+    def test_kok_etiketi_klasor_adini_gosteriyor(self, panel, proje):
+        panel.set_project_search_root(proje)
+        assert os.path.basename(proje) in panel._psearch_kok.text()
+        assert proje in panel._psearch_kok.toolTip()
+
+    def test_kok_yokken_de_bir_sey_yaziyor(self, panel):
+        panel.set_project_search_root("")
+        assert panel._psearch_kok.text().strip() not in ("", "⌂")
+
+    def test_sonuc_gosterirken_kok_da_guncelleniyor(self, panel, proje):
+        panel.set_project_search_root("/eski/kok")
+        panel.show_project_search([], False, proje)
+        assert os.path.basename(proje) in panel._psearch_kok.text()
+
+    def test_kok_disi_uyarisi_bulunamadiya_ekleniyor(self, panel, proje):
+        panel.show_project_search([], False, proje, "açık dosya dışarıda")
+        metin = panel._psearch_status.text()
+        assert "açık dosya dışarıda" in metin
+        # Sonuç VARKEN uyarı gösterilmez
+        panel.show_project_search([Bulgu("/x/a.tex", 1, 0, "s")], False, proje, "x")
+        assert "x" not in panel._psearch_status.text()
+
+
+class TestKokDisiTespiti:
+
+    def _stub(self, panel, kok, dosya_yolu):
+        from gui.mixins.project_search_ops import ProjectSearchMixin
+
+        class S(ProjectSearchMixin, _AramaStub):
+            def _current_editor(s):
+                return SimpleNamespace(file_path=dosya_yolu,
+                                       hasSelectedText=lambda: False)
+
+        return S(panel, kok)
+
+    def test_dosya_kok_icindeyse_uyari_yok(self, panel, proje):
+        s = self._stub(panel, proje, os.path.join(proje, "main.tex"))
+        assert s._kok_disinda_mi(proje) == ""
+
+    def test_dosya_kok_disindaysa_uyari_var(self, panel, tmp_path):
+        # İki AYRI klasör: kök birinde, açık dosya diğerinde.
+        kok = str(tmp_path / "kok")
+        os.makedirs(kok)
+        _yaz(kok, "icerideki.tex", "x\n")
+        disarida = str(tmp_path / "baska" / "disarida.tex")
+        os.makedirs(os.path.dirname(disarida))
+        _yaz(os.path.dirname(disarida), "disarida.tex", "x\n")
+
+        s = self._stub(panel, kok, disarida)
+        uyari = s._kok_disinda_mi(kok)
+        assert uyari and "disarida.tex" in uyari
+
+    def test_dosya_yokken_uyari_yok(self, panel, proje):
+        s = self._stub(panel, proje, "")
+        assert s._kok_disinda_mi(proje) == ""
+
+    def test_kullanicinin_yasadigi_durum(self, panel, tmp_path):
+        """Kök template15'te, açık dosya tmp/bigpdf/big.tex — tam o vaka."""
+        kok = str(tmp_path / "template15")
+        os.makedirs(kok)
+        _yaz(kok, "sablon.tex", "hicbir sey\n")
+        acik = str(tmp_path / "tmp" / "bigpdf" / "big.tex")
+        os.makedirs(os.path.dirname(acik))
+        _yaz(os.path.dirname(acik), "big.tex", "Bu paragraf 1. bolumun\n")
+
+        s = self._stub(panel, kok, acik)
+        s._on_project_search_requested("paragraf", False)
+        assert s.istekler == [(1, kok, "paragraf", False)]
+        # İşçi 0 döndürür (o kökte gerçekten yok); panel bunu AÇIKLAMALI
+        s._on_project_search_done(1, [], False)
+        durum = panel._psearch_status.text()
+        assert "big.tex" in durum, durum
+        assert "template15" in panel._psearch_kok.text()

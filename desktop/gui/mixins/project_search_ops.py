@@ -49,7 +49,32 @@ class ProjectSearchMixin:
             # Çok satırlı seçim sorgu olmaz (arama düz metin, satır içi)
             if "\n" not in metin and " " not in metin and len(metin) <= _SECIM_SINIRI:
                 secili = metin
+        # Kök ARAMADAN ÖNCE görünsün: kullanıcı yanlış klasörde arattığını
+        # sonuç beklemeden anlasın.
+        self._output_panel.set_project_search_root(self._file_tree._root)
         self._output_panel.focus_project_search(secili)
+
+    def _kok_disinda_mi(self, kok: str) -> str:
+        """Açık dosya kökün DIŞINDAysa açıklama metni, değilse boş dize.
+
+        "bulunamadı" tek başına yanıltıcıydı: kök QSettings'ten geri yüklenen
+        eski bir klasörde kalmışken (template15) kullanıcı bambaşka bir
+        dosyada (tmp/bigpdf/big.tex) 1800 kez geçen bir kelimeyi arayıp boş
+        sonuç aldı. Arama doğru çalışıyordu, YANLIŞ YERDE arıyordu.
+        """
+        ed = self._current_editor()
+        yol = getattr(ed, "file_path", "") if ed is not None else ""
+        if not yol or not kok:
+            return ""
+        try:
+            ortak = os.path.commonpath([os.path.abspath(yol), os.path.abspath(kok)])
+        except ValueError:      # farklı sürücü (Windows)
+            return _("açık dosya bu klasörün dışında ({ad})").format(
+                ad=os.path.basename(yol))
+        if ortak == os.path.abspath(kok):
+            return ""
+        return _("açık dosya bu klasörün dışında ({ad})").format(
+            ad=os.path.basename(yol))
 
     def _on_project_search_requested(self, sorgu: str, case_sensitive: bool):
         root = self._file_tree._root
@@ -57,6 +82,7 @@ class ProjectSearchMixin:
             # Ctrl+P ile aynı davranış: klasör açılmadan proje diye bir şey yok.
             self._output_panel.show_project_search([], False, "")
             self._status.showMessage(_("Önce bir klasör açın"))
+            _logger.info("Projede ara: klasör açık değil, arama yapılmadı")
             return
         self._psearch_id += 1
         self._psearch_root = root
@@ -66,9 +92,11 @@ class ProjectSearchMixin:
     def _on_project_search_done(self, search_id: int, bulgular: list, kesildi: bool):
         if search_id != self._psearch_id:
             return          # bayat sonuç: kullanıcı yeni sorgu yazmış
-        self._output_panel.show_project_search(bulgular, kesildi, self._psearch_root)
-        _logger.info("Projede ara: %d bulgu%s", len(bulgular),
-                     " (kırpıldı)" if kesildi else "")
+        uyari = self._kok_disinda_mi(self._psearch_root) if not bulgular else ""
+        self._output_panel.show_project_search(
+            bulgular, kesildi, self._psearch_root, uyari)
+        _logger.info("Projede ara: %d bulgu%s — kök: %s", len(bulgular),
+                     " (kırpıldı)" if kesildi else "", self._psearch_root)
 
     def _cleanup_project_search(self):
         """closeEvent'te çağrılır — işçiyi temiz durdur ve bekle."""
