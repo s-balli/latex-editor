@@ -313,3 +313,33 @@ class TestYayinNotu:
         r = subprocess.run([kabuk, _NOTLAR], input="x", capture_output=True,
                            text=True, encoding="utf-8", cwd=_KOK)
         assert r.returncode != 0, "sürümsüz çağrı sessizce geçmemeli"
+
+
+def test_appimage_gomulu_python_surumu_sabit():
+    """AppImage'a hangi yorumlayıcının gömüleceği TESADÜFE bırakılamaz.
+
+    `build_appimage.sh` sistemin `python3`'ünden venv kuruyor ve PyInstaller
+    onu AppImage'a gömüyor. `build-linux` job'ında `setup-python` YOKTU: yani
+    kullanıcıya giden Linux sürümü runner imajının sistem Python'unu
+    (ubuntu-22.04 → 3.10) taşıyordu. README ise "Python 3.12+" diyor ve
+    Windows exe'si 3.12 ile paketleniyor — üç yüzey birbirini tutmuyordu.
+
+    Ayrıca 3.10, CI'da tam suite koşusunun ~%25'inde segfault veren
+    yorumlayıcıydı (bkz. tests/test_qt_yasam_dongusu.py), yani bu tesadüf
+    kullanıcıyı da ilgilendiriyordu.
+    """
+    import re
+    yol = os.path.join(_KOK, ".github", "workflows", "release.yml")
+    kaynak = _oku(yol)
+    m = re.search(r"(?s)  build-linux:.*?(?=\n  \w|\Z)", kaynak)
+    assert m, "build-linux job'ı bulunamadı"
+    job = m.group(0)
+    assert "actions/setup-python" in job, (
+        "build-linux'ta setup-python yok — AppImage runner'ın sistem "
+        "python3'ünü gömer, sürüm tesadüfe kalır"
+    )
+    surumler = re.findall(r"python-version:\s*'([^']+)'", job)
+    assert surumler == ["3.12"], surumler
+    # Windows exe'siyle AYNI sürüm olmalı
+    mw = re.search(r"(?s)  build-windows:.*?(?=\n  \w|\Z)", kaynak)
+    assert re.findall(r"python-version:\s*'([^']+)'", mw.group(0)) == ["3.12"]

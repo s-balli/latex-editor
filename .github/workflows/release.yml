@@ -115,6 +115,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # AppImage'a GÖMÜLEN yorumlayıcı budur. Bu adım YOKKEN build_appimage.sh
+      # runner'ın sistem python3'ünü kullanıyordu — ubuntu-22.04'te 3.10 — yani
+      # kullanıcıya giden sürüm, runner imajının tesadüfüne bağlıydı. Oysa
+      # README "Python 3.12+" diyor, Windows exe'si de 3.12 ile paketleniyor.
+      # ubuntu-22.04 BİLEREK korunuyor: AppImage'ın glibc tabanını belirliyor
+      # (24.04'e geçmek eski dağıtımlarda çalışmamasına yol açar).
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Gömülecek yorumlayıcı
+        run: python3 --version
+
       - name: Get version
         id: ver
         shell: bash
