@@ -115,9 +115,12 @@ class OutputPanel(QWidget):
         # Etiket "Aa" idi — kullanıcı anlamadığını bildirdi. VS Code'da bu
         # simge bir düğmenin ÜSTÜNDE ve yanında ayrıca "match case" ipucu var;
         # yalnız başına bir onay kutusu etiketi olarak hiçbir şey anlatmıyor.
-        self._psearch_case = QCheckBox(_("Harf duyarlı"))
+        # "Harf duyarlı" da yetmedi: NEYE duyarlı olduğunu söylemiyor.
+        # Word/LibreOffice Türkçe arayüzünün yerleşik terimi kullanılıyor,
+        # kullanıcı zaten oradan tanıyor.
+        self._psearch_case = QCheckBox(_("Büyük/küçük harf eşleştir"))
         self._psearch_case.setToolTip(
-            _("İşaretliyse 'Sekil' ile 'şekil' ayrı sayılır"))
+            _("İşaretliyse 'Şekil' ile 'şekil' ayrı sayılır"))
         self._psearch_case.toggled.connect(self._on_project_search_return)
         self._psearch_status = QLabel("")
         # Aranan KÖK görünür olmalı. Olmadığında "bulunamadı" açıklanamaz bir
