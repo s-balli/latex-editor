@@ -37,6 +37,7 @@ from gui.mixins.image_ops import ImageOpsMixin
 from gui.mixins.table_ops import TableOpsMixin
 from gui.mixins.version_ops import VersionOpsMixin
 from gui.mixins.synctex_ops import SyncTexMixin
+from gui.mixins.recovery_ops import RecoveryOpsMixin
 
 
 class _PandocCheckSignal(QObject):
@@ -75,6 +76,7 @@ class MainWindow(
     TableOpsMixin,
     VersionOpsMixin,
     SyncTexMixin,
+    RecoveryOpsMixin,
     QMainWindow,
 ):
     def __init__(self, open_file: str = ""):
@@ -101,6 +103,7 @@ class MainWindow(
 
         self._init_synctex_worker()
         self._file_watch_init()
+        self._recovery_init()
         self._setup_ui()
         self._setup_menus()
         self._setup_toolbar()
@@ -129,6 +132,13 @@ class MainWindow(
         self._update_thread = None
         self._update_check_silent = True
         self._start_update_check(silent=True)
+
+        # Çökme kurtarma sorusu. singleShot(0) ŞART: doğrudan çağrılırsa modal
+        # dialog __init__ içinde, yani main.py'nin window.show()'undan ÖNCE
+        # açılır — kullanıcı boş masaüstünde tek başına duran bir soru görür ve
+        # pencere ancak yanıtladıktan sonra belirir. Kuyruğa alınca olay döngüsü
+        # başladıktan sonra, pencere görünürken çalışır.
+        QTimer.singleShot(0, self._recovery_prompt)
 
     def _set_window_icon(self):
         if getattr(sys, 'frozen', False):
@@ -1141,6 +1151,11 @@ class MainWindow(
         self._cleanup_synctex_worker()
         self._pdf_viewer.shutdown()
         shutil.rmtree(self._synctex_dir, ignore_errors=True)
+        # Buraya ancak TEMİZ kapanışta gelinir: yukarıdaki döngü her kirli
+        # sekmeyi sordu ve kullanıcı iptal etmedi. Kurtarılacak bir şey
+        # kalmadı; artıkları bırakmak bir sonraki açılışta boşuna "kaydedilmemiş
+        # değişiklik bulundu" sorusu üretirdi.
+        self._recovery_clear()
         self._save_state()
         super().closeEvent(event)
 

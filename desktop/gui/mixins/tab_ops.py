@@ -168,6 +168,10 @@ class TabOpsMixin:
         # Dosya izlemeyi kaldır
         if isinstance(editor, EditorWidget) and editor.file_path:
             self._file_watch_remove(editor.file_path)
+        # Çökme kurtarma artığını düşür: sekme bilinçli kapatıldı (kaydedildi
+        # ya da kullanıcı atmayı seçti), kurtarılacak bir şey kalmadı.
+        if hasattr(self, "_recovery_drop"):
+            self._recovery_drop(editor)
         # Kapatılan tab'ın ürettiği PDF açıksa temizle
         if (isinstance(editor, EditorWidget) and editor.file_path
                 and self._current_pdf):
