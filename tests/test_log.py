@@ -174,3 +174,32 @@ class TestLogPath:
         path = fresh_log.log_path()
         assert path == fresh_log.LOG_FILE
         assert path.endswith("test.log")
+
+
+class TestYolYazimi:
+    """Log yolu tek tip ayraç kullanmalı (karışık ayraç okunaksız)."""
+
+    def test_log_dir_karisik_ayrac_icermiyor(self):
+        """QStandardPaths eğik, os.path.join platform ayracı ekliyor.
+
+        Sarmalanmazsa Windows'ta "C:/Users/.../AppData/Local" + ters bölü +
+        "LatexEditor" çıkıyor ve log satırlarında böyle görünüyor. Zararsız
+        ama yol artık tek başına değil: çökme kurtarma dizini de buradan
+        türüyor (recovery_ops._recovery_dizini).
+        """
+        from core.log import LOG_DIR, LOG_FILE
+
+        assert LOG_DIR == os.path.normpath(LOG_DIR), \
+            f"karışık ayraç: {LOG_DIR!r}"
+        assert LOG_FILE == os.path.normpath(LOG_FILE), \
+            f"karışık ayraç: {LOG_FILE!r}"
+        if os.sep == "\\":
+            assert "/" not in LOG_DIR, f"Windows yolunda eğik bölü: {LOG_DIR!r}"
+
+    def test_kurtarma_dizini_de_tek_tip(self):
+        """Kurtarma dizini LOG_FILE'dan türüyor — o da temiz olmalı."""
+        pytest.importorskip("PyQt6")
+        from gui.mixins.recovery_ops import _recovery_dizini
+
+        d = _recovery_dizini()
+        assert d == os.path.normpath(d), f"karışık ayraç: {d!r}"

@@ -7,10 +7,17 @@ from logging.handlers import RotatingFileHandler
 
 from PyQt6.QtCore import QStandardPaths
 
-LOG_DIR = os.path.join(
+# normpath ŞART: QStandardPaths EĞİK bölü döndürüyor (Windows'ta bile:
+# "C:/Users/.../AppData/Local"), os.path.join ise platform ayracını ekliyor →
+# "C:/Users/secho/AppData/Local\LatexEditor" gibi karışık ayraçlı bir yol
+# çıkıyordu. İşlevsel olarak zararsız (Windows API ikisini de kabul eder) ama
+# log satırlarında ve hata mesajlarında görünüyor, üstelik bu yol tek başına
+# kalmadı: çökme kurtarma dizini de buradan türüyor
+# (gui/mixins/recovery_ops.py:_recovery_dizini). Aynı klasör, düzgün yazım.
+LOG_DIR = os.path.normpath(os.path.join(
     QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppLocalDataLocation),
     "LatexEditor",
-)
+))
 LOG_FILE = os.path.join(LOG_DIR, "latex-editor.log")
 
 _initialized = False
