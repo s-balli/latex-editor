@@ -4,7 +4,9 @@ _find_derle_sh() ve temel LatexCompiler davranışlarını test eder.
 QProcess gerçek derleme yapmaz (mock).
 """
 
+import os
 import sys
+import time
 from types import SimpleNamespace
 import pytest
 from unittest.mock import patch, MagicMock
@@ -304,3 +306,133 @@ class TestChunkCarryOver:
         c = LatexCompiler()
         self._feed(c, "Çıktı: başarılı — 0 hata\n".encode("utf-8"))
         assert c._output == "Çıktı: başarılı — 0 hata\n"
+
+
+class TestPdfTazelik:
+    """PDF'in "bu derlemenin ürünü mü" kararı — duvar saatinden bağımsız olmalı.
+
+    Gerçekte yaşandı (2026-08-31): kullanıcının log'u "[basarili] big.pdf → ..."
+    diyor, PDF diskte duruyor, ama panel "Derleme başarısız — 0 hata" yazıp
+    motor değiştirme önerisi gösteriyor ve önizleme temizleniyordu; tekrar
+    derleyince bazen düzeliyordu.
+
+    Sebep: ölçüt `os.path.getmtime(pdf) >= self._start_time` idi ve İKİ FARKLI
+    SAATİ karşılaştırıyordu — _start_time Windows'un saatinden, mtime ise
+    dosyayı yazan WSL'in saatinden. WSL2'nin saati ana makineye göre kayıyor.
+    Ölçüldü (25 tur, ~1 sn'lik derleme): mtime - start_time farkı +1.67 sn ile
+    -0.30 sn arasında geziniyor; eski ölçütle 11/25 tur düşüyordu.
+
+    Buradaki testler saat farkını AÇIKÇA kuruyor (mtime'ı geçmişe çekerek),
+    yani sürüklenmenin o an olup olmamasına bağlı değiller.
+    """
+
+    @staticmethod
+    def _kur(tmp_path, mtime_kaymasi: float):
+        """tex + pdf hazırla; pdf'in mtime'ını _start_time'a göre kaydır."""
+        tex = tmp_path / "belge.tex"
+        tex.write_text("\\documentclass{article}\\begin{document}x\\end{document}",
+                       encoding="utf-8")
+        pdf = tmp_path / "belge.pdf"
+        pdf.write_bytes(b"%PDF-1.5 sahte")
+
+        c = LatexCompiler()
+        c._tex_dir = str(tmp_path)
+        c._tex_name = "belge"
+        c._tex_path = str(tex)
+        c._output = ""
+        c._start_time = time.time()
+        c._pdf_damgasi_once = c._pdf_damgasi(str(pdf))
+        return c, pdf
+
+    def test_wsl_saati_geride_olsa_da_taze_pdf_kabul_edilir(self, tmp_path):
+        """Asıl hata: WSL saati geride → mtime start_time'dan ÖNCE görünüyor."""
+        c, pdf = self._kur(tmp_path, 0)
+
+        # Derleme PDF'i yeniden yazdı ama damgayı GERİDEKİ saat bastı
+        pdf.write_bytes(b"%PDF-1.5 yeni icerik, daha uzun")
+        eski = c._start_time - 2.0            # 2 sn geriden damga
+        os.utime(pdf, (eski, eski))
+
+        sonuclar = []
+        c.compilation_finished.connect(sonuclar.append)
+        c._on_finished(0, QProcess.ExitStatus.NormalExit)
+
+        assert sonuclar, "sonuç yayılmadı"
+        r = sonuclar[0]
+        assert r.pdf_path == str(pdf), (
+            "WSL saati geride diye taze PDF bayat sayıldı — kullanıcı "
+            "'başarısız, 0 hata' görür ve önizleme temizlenir")
+        assert r.success is True
+
+    def test_exit_sifir_pdf_degismese_bile_kabul_edilir(self, tmp_path):
+        """derle.sh sıfırı YALNIZCA taze PDF'i taşıdıktan sonra döndürür.
+
+        Aynı içerik üretildiğinde damga değişmeyebilir (kaba mtime çözünürlüklü
+        dosya sistemi); exit 0 tek başına yeterli kanıttır.
+        """
+        c, pdf = self._kur(tmp_path, 0)
+        sonuclar = []
+        c.compilation_finished.connect(sonuclar.append)
+        c._on_finished(0, QProcess.ExitStatus.NormalExit)
+        assert sonuclar[0].pdf_path == str(pdf)
+
+    def test_basarisiz_derlemede_degismemis_pdf_bayat_sayilir(self, tmp_path):
+        """exit != 0 ve dosya hiç değişmediyse: önceki derlemeden kalmadır."""
+        c, pdf = self._kur(tmp_path, 0)
+        sonuclar = []
+        c.compilation_finished.connect(sonuclar.append)
+        c._on_finished(1, QProcess.ExitStatus.NormalExit)
+
+        r = sonuclar[0]
+        assert r.pdf_path == "", "bayat PDF bu derlemenin çıktısı gibi sunuldu"
+        assert r.success is False
+
+    def test_basarisiz_derlemede_degismis_pdf_kismi_onizleme_olur(self, tmp_path):
+        """exit != 0 ama dosya değiştiyse: nonstopmode'un kurtardığı kısmi çıktı."""
+        c, pdf = self._kur(tmp_path, 0)
+        pdf.write_bytes(b"%PDF-1.5 kismi cikti, farkli boyut")
+        eski = c._start_time - 2.0            # saat farkı burada da olabilir
+        os.utime(pdf, (eski, eski))
+
+        sonuclar = []
+        c.compilation_finished.connect(sonuclar.append)
+        c._on_finished(1, QProcess.ExitStatus.NormalExit)
+
+        r = sonuclar[0]
+        assert r.pdf_path == str(pdf), "kısmi önizleme kaybedildi"
+        assert r.success is False             # yine de başarısız derleme
+
+    def test_pdf_hic_yoksa_yol_bos(self, tmp_path):
+        tex = tmp_path / "belge.tex"
+        tex.write_text("x", encoding="utf-8")
+        c = LatexCompiler()
+        c._tex_dir = str(tmp_path)
+        c._tex_name = "belge"
+        c._tex_path = str(tex)
+        c._output = ""
+        c._start_time = time.time()
+        c._pdf_damgasi_once = None
+
+        sonuclar = []
+        c.compilation_finished.connect(sonuclar.append)
+        c._on_finished(0, QProcess.ExitStatus.NormalExit)
+        assert sonuclar[0].pdf_path == ""
+        assert sonuclar[0].success is False
+
+    def test_tazelik_karari_duvar_saatini_okumuyor(self):
+        """Kapı: _on_finished'de _start_time YALNIZCA süre hesabında geçmeli.
+
+        Ölçütün yeniden duvar saatine bağlanması testlerden geçer (sürüklenme o
+        an yoksa) ama kullanıcının makinesinde aralıklı olarak patlar — bu
+        maddenin tam olarak başına gelen şey. Sayım tabanlı kapı bunu yakalar:
+        eski kodda _start_time iki kez geçiyordu (süre + tazelik), şimdi bir.
+        """
+        import inspect
+        kaynak = inspect.getsource(LatexCompiler._on_finished)
+        kod = [s for s in kaynak.splitlines() if not s.strip().startswith("#")]
+        sayi = sum(s.count("_start_time") for s in kod)
+        assert sayi == 1, (
+            f"_on_finished içinde _start_time {sayi} kez geçiyor; beklenen 1 "
+            "(yalnız result.duration). Tazelik kararı duvar saatine bağlanmış "
+            "olabilir — WSL/Windows saat farkı yüzünden aralıklı 'başarısız' "
+            "üretir.")

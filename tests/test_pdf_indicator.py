@@ -2,8 +2,12 @@
 
 İki katman:
 - core.compiler.LatexCompiler._on_finished: result.pdf_path yalnızca bu derlemenin
-  ürettiği TAZE PDF (mtime >= başlangıç) için set edilir. exit != 0 olsa bile taze
-  kısmi PDF iletilir; önceki derlemeden kalan eski PDF iletilmez.
+  ürettiği TAZE PDF için set edilir. exit != 0 olsa bile taze kısmi PDF iletilir;
+  önceki derlemeden kalan eski PDF iletilmez. Tazelik ölçütü DUVAR SAATİ DEĞİL:
+  dosyanın derleme öncesi/sonrası damgası (mtime_ns, boyut) karşılaştırılır,
+  exit 0 ise derle.sh'nin sözleşmesine güvenilir. Eski ölçüt (mtime >= başlangıç)
+  Windows'un saatiyle WSL'in saatini karşılaştırıyordu ve saat farkında taze
+  PDF'i bayat sayıyordu (bkz. test_compiler.TestPdfTazelik).
 - gui.mixins.compile_ops._on_compile_finished: taze PDF yoksa ve derleme başarısızsa
   viewer temizlenir (eski/tutarsız PDF ekranda kalmaz).
 """
@@ -34,17 +38,29 @@ def qapp():
 # =====================================================================
 
 
-def _compiler(tex_dir, tex_name, start_offset):
-    """start_offset: _start_time'nın şimdiki zamana göre offseti (saniye).
-    Negatif = derleme geç başladı (PDF taze); pozitif = derleme gelecekte başladı (PDF bayat)."""
+def _compiler(tex_dir, tex_name, *, onceki_pdf_vardi=False):
+    """Derlemeye BAŞLAMIŞ bir compiler kur.
+
+    ``onceki_pdf_vardi``: derleme başlarken o adda bir PDF diskte miydi?
+    Tazelik kararı artık duvar saatiyle değil, dosyanın derleme ÖNCESİ
+    damgasıyla (mtime_ns, boyut) karşılaştırılarak veriliyor — compile()
+    bu damgayı alır, burada onu taklit ediyoruz.
+    """
     c = LatexCompiler()
     c._tex_dir = str(tex_dir)
     c._tex_name = tex_name
     c._tex_path = os.path.join(str(tex_dir), tex_name + ".tex")
-    c._start_time = time.time() + start_offset
+    c._start_time = time.time()
+    pdf = os.path.join(str(tex_dir), tex_name + ".pdf")
+    c._pdf_damgasi_once = c._pdf_damgasi(pdf) if onceki_pdf_vardi else None
     c._output = ""
     c._finished_emitted = False
     return c
+
+
+def _pdf_yaz(tmp_path, ad, icerik):
+    """PDF'i yaz ve damgasının kesin değişmesini garantile (boyut farklı)."""
+    (tmp_path / (ad + ".pdf")).write_bytes(icerik)
 
 
 def _finish(compiler, exit_code):
@@ -55,42 +71,63 @@ def _finish(compiler, exit_code):
 
 
 def test_fresh_pdf_success(tmp_path, qapp):
-    """exit 0 + taze PDF → başarılı, pdf_path set."""
-    (tmp_path / "doc.pdf").write_bytes(b"%PDF-1.4 fresh")
-    r = _finish(_compiler(tmp_path, "doc", start_offset=-2), 0)
+    """exit 0 + derlemenin ürettiği PDF → başarılı, pdf_path set."""
+    c = _compiler(tmp_path, "doc")                 # başlarken PDF yoktu
+    _pdf_yaz(tmp_path, "doc", b"%PDF-1.4 fresh")   # derleme üretti
+    r = _finish(c, 0)
     assert r.success is True
     assert r.pdf_path.endswith("doc.pdf")
 
 
 def test_partial_pdf_on_error(tmp_path, qapp):
-    """exit != 0 ama taze (kısmi) PDF var → başarısız AMA pdf_path set (önizleme için)."""
-    (tmp_path / "doc.pdf").write_bytes(b"%PDF partial")
-    r = _finish(_compiler(tmp_path, "doc", start_offset=-2), 1)
+    """exit != 0 ama derleme PDF'i DEĞİŞTİRDİ → başarısız AMA pdf_path set."""
+    (tmp_path / "doc.pdf").write_bytes(b"%PDF onceki")
+    c = _compiler(tmp_path, "doc", onceki_pdf_vardi=True)
+    _pdf_yaz(tmp_path, "doc", b"%PDF partial, farkli boyut")   # kısmi çıktı
+    r = _finish(c, 1)
     assert r.success is False
     assert r.pdf_path.endswith("doc.pdf")
 
 
 def test_stale_pdf_not_communicated(tmp_path, qapp):
-    """PDF derleme başlangıcından ÖNCE yazılmış (bayat) → pdf_path set EDİLMEZ."""
+    """Başarısız derleme PDF'e DOKUNMADI → önceki derlemeden kalmadır, iletilmez.
+
+    Ölçüt eskiden "mtime derleme başlangıcından sonra mı" idi; artık dosyanın
+    derleme öncesi/sonrası damgası karşılaştırılıyor. Değişmemiş dosya bayattır.
+    """
     (tmp_path / "doc.pdf").write_bytes(b"%PDF old from previous compile")
-    r = _finish(_compiler(tmp_path, "doc", start_offset=+2), 1)
+    c = _compiler(tmp_path, "doc", onceki_pdf_vardi=True)
+    r = _finish(c, 1)                              # dosyaya dokunulmadı
     assert r.success is False
-    assert r.pdf_path == ""  # bayat PDF sonuç olarak iletilmez
+    assert r.pdf_path == ""
 
 
 def test_no_pdf(tmp_path, qapp):
     """PDF hiç yok → pdf_path boş."""
-    r = _finish(_compiler(tmp_path, "doc", start_offset=-2), 1)
+    r = _finish(_compiler(tmp_path, "doc"), 1)
     assert r.success is False
     assert r.pdf_path == ""
 
 
-def test_success_requires_fresh_pdf(tmp_path, qapp):
-    """exit 0 olsa bile PDF bayatsa başarısız sayılır."""
-    (tmp_path / "doc.pdf").write_bytes(b"%PDF old")
-    r = _finish(_compiler(tmp_path, "doc", start_offset=+2), 0)
-    assert r.success is False
-    assert r.pdf_path == ""
+def test_exit_sifir_derle_sh_sozlesmesiyle_kabul_edilir(tmp_path, qapp):
+    """exit 0 → PDF taze sayılır, damga değişmemiş görünse bile.
+
+    Bu, eski "exit 0 olsa bile PDF bayatsa başarısız" kuralının yerini aldı.
+    Gerekçe derle.sh'nin sözleşmesi: sıfır YALNIZCA `$TMPDIR/$ISIM.pdf`
+    bulunup `$KLASOR/$CIKTI_ISIM.pdf`e taşındıktan sonra dönüyor (PDF
+    üretilmediyse "PDF olusmadi" + return 1) ve CIKTI_ISIM her zaman ISIM,
+    yani compiler.py'nin baktığı yolun ta kendisi. Sıfır görüyorsak dosya bu
+    koşunun ürünüdür.
+
+    Eski kural pratikte ZARARLIYDI: tazeliği duvar saatiyle ölçtüğü için
+    WSL/Windows saat farkında taze PDF'i bayat sayıp kullanıcıya "başarısız —
+    0 hata" gösteriyordu (2026-08-31, gerçek hata raporu).
+    """
+    (tmp_path / "doc.pdf").write_bytes(b"%PDF")
+    c = _compiler(tmp_path, "doc", onceki_pdf_vardi=True)
+    r = _finish(c, 0)
+    assert r.success is True
+    assert r.pdf_path.endswith("doc.pdf")
 
 
 # =====================================================================

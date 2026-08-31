@@ -54,6 +54,7 @@ class LatexCompiler(QObject):
         self._ansi_tail = b""
         self._utf8_dec = codecs.getincrementaldecoder("utf-8")("replace")
         self._start_time = 0.0
+        self._pdf_damgasi_once = None
         self._tex_dir = ""
         self._tex_name = ""
         self._tex_path = ""
@@ -89,6 +90,12 @@ class LatexCompiler(QObject):
         self._ansi_tail = b""
         self._utf8_dec = codecs.getincrementaldecoder("utf-8")("replace")
         self._start_time = time.time()
+        # PDF'in derleme ÖNCESİ damgası — tazelik bunun DEĞİŞİP değişmediğine
+        # bakılarak anlaşılır (bkz. _pdf_damgasi). Duvar saatiyle karşılaştırma
+        # yapılmaz: derlemeyi WSL koşuyor, damgayı WSL'in saati basıyor, biz ise
+        # Windows'un saatiyle ölçüyoruz.
+        self._pdf_damgasi_once = self._pdf_damgasi(
+            os.path.join(self._tex_dir, f"{self._tex_name}.pdf"))
         self._finished_emitted = False
 
         # Önceki derlemenin QProcess'ini bırak: her derleme yeni nesne yaratır,
@@ -181,6 +188,21 @@ class LatexCompiler(QObject):
             self._output += text
             self.output_line.emit(text)
 
+    @staticmethod
+    def _pdf_damgasi(pdf_path: str) -> tuple[int, int] | None:
+        """Dosyanın kimlik damgası: (mtime_ns, boyut). Dosya yoksa None.
+
+        Yalnızca AYNI dosyanın iki okuması karşılaştırılır, bu yüzden damgayı
+        hangi saatin bastığı önemsizdir — WSL/Windows saat farkı sadeleşir.
+        Boyut ikinci ölçüt: mtime çözünürlüğü kaba olan dosya sistemlerinde
+        (bazı ağ sürücüleri 1 sn) aynı saniyedeki iki derlemeyi ayırt eder.
+        """
+        try:
+            st = os.stat(pdf_path)
+        except OSError:
+            return None
+        return (st.st_mtime_ns, st.st_size)
+
     def _on_finished(self, exit_code, exit_status):
         self._timeout_timer.stop()
         self._flush_output()
@@ -188,10 +210,29 @@ class LatexCompiler(QObject):
         result.duration = time.time() - self._start_time
 
         pdf_path = os.path.join(self._tex_dir, f"{self._tex_name}.pdf")
-        # PDF ancak bu derleme üretmişse geçerli (mtime >= derleme başlangıcı). Yoksa
-        # önceki başarılı bir derlemeden kalan eski PDF olabilir — bayat. exit != 0
-        # olsa bile taze PDF varsa yolunu bildir; GUI bunu kısmi önizleme için yükler.
-        if os.path.exists(pdf_path) and os.path.getmtime(pdf_path) >= self._start_time:
+        # PDF ancak BU derleme üretmişse geçerli; yoksa önceki bir derlemeden
+        # kalan bayat dosya olabilir. exit != 0 olsa bile taze PDF varsa yolunu
+        # bildir — GUI bunu kısmi önizleme için yükler.
+        #
+        # İki ölçüt, ikisi de duvar saatinden BAĞIMSIZ:
+        #  - exit 0: derle.sh sıfırı YALNIZCA taze PDF'i yerine taşıdıktan sonra
+        #    döndürüyor (PDF üretilmediyse "PDF olusmadi" + return 1). Sıfır
+        #    görüyorsak dosya bu koşunun ürünüdür.
+        #  - exit != 0: dosyanın damgası derleme boyunca DEĞİŞTİYSE bu koşu
+        #    yazmıştır (nonstopmode'un kurtardığı kısmi çıktı).
+        #
+        # Eskiden ölçüt `os.path.getmtime(pdf) >= self._start_time` idi ve
+        # İKİ FARKLI SAATİ karşılaştırıyordu: _start_time Windows'un saatinden,
+        # mtime ise dosyayı yazan WSL'in saatinden geliyor. WSL2'nin saati ana
+        # makineye göre kayıyor ve periyodik olarak ~1 sn'lik sıçramayla
+        # senkronlanıyor; kayma derleme süresini aştığında taze PDF "bayat"
+        # sayılıyordu. Sonuç kullanıcıya şöyle görünüyordu: log "[basarili]"
+        # diyor, PDF diskte duruyor, ama panel "başarısız — 0 hata" yazıp motor
+        # değiştirme önerisi gösteriyor ve önizleme temizleniyor. Ölçüldü
+        # (25 tur, ~1 sn'lik derleme): 11 tur düştü, mtime-start_time farkı
+        # +1.67 sn ile -0.30 sn arasında geziniyordu.
+        damga = self._pdf_damgasi(pdf_path)
+        if damga is not None and (exit_code == 0 or damga != self._pdf_damgasi_once):
             result.pdf_path = pdf_path
 
         result.success = (exit_code == 0 and bool(result.pdf_path))
