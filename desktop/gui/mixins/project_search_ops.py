@@ -54,6 +54,18 @@ class ProjectSearchMixin:
         self._output_panel.set_project_search_root(self._file_tree._root)
         self._output_panel.focus_project_search(secili)
 
+    def _on_project_root_changed(self, kok: str):
+        """Klasör değişti — eski sonuçlar bayat, atılmalı.
+
+        İki iş birden: (1) uçuştaki taramayı geçersiz kıl, yoksa eski kökün
+        geç dönen sonucu yeni kökün paneline düşer; (2) listeyi boşalt ve
+        kök etiketini yenile. Sonuçlar eski klasörün dosyalarını gösteriyor
+        ve tıklanınca kullanıcıyı projenin DIŞINA götürüyordu.
+        """
+        self._psearch_id += 1
+        self._psearch_root = ""
+        self._output_panel.clear_project_search(kok)
+
     def _kok_disinda_mi(self, kok: str) -> str:
         """Açık dosya kökün DIŞINDAysa açıklama metni, değilse boş dize.
 

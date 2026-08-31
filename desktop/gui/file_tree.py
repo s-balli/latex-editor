@@ -57,6 +57,10 @@ class _DragTree(QTreeWidget):
 class FileTree(QWidget):
     file_open_requested = pyqtSignal(str)
     compile_requested = pyqtSignal(str)
+    # Kök GERÇEKTEN değiştiğinde (aynı klasör yeniden seçilince DEĞİL).
+    # Köke bağlı her şey bayatlar: proje araması sonuçları eski klasörün
+    # dosyalarını gösteriyordu ve tıklanınca proje dışına götürüyordu.
+    root_changed = pyqtSignal(str)
 
     def __init__(self, parent=None, *, theme: dict = None):
         super().__init__(parent)
@@ -170,6 +174,7 @@ class FileTree(QWidget):
         self._root = yeni
         self._root_label.setText(self._root)
         self.refresh()
+        self.root_changed.emit(self._root)
 
     def update_input_tree(self, file_path: str, content: str):
         """Aktif dosyanın \\input/\\include bağımlılıklarını göster."""

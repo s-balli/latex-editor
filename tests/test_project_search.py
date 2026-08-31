@@ -614,3 +614,68 @@ def test_harf_duyarlilik_etiketi_anlasilir(panel):
     assert etiket != "Aa"
     assert len(etiket) >= 5, etiket          # simge değil, sözcük
     assert panel._psearch_case.toolTip().strip(), "ipucu boş"
+
+
+# --------------------------------------------------------------------------
+# Klasör değişince sonuçlar bayat — atılmalı
+# --------------------------------------------------------------------------
+
+class TestKokDegisince:
+    """Kullanıcı bildirdi: klasör değiştirilince arama sekmesi ESKİ sonuçları
+    göstermeye devam ediyordu. Bunlar başka bir kökün dosyaları; tıklanınca
+    kullanıcıyı projenin DIŞINA götürüyorlar.
+    """
+
+    def test_file_tree_kok_degisince_sinyal_veriyor(self, qapp, tmp_path):
+        from gui.file_tree import FileTree
+        from gui.theme import THEMES
+        a = str(tmp_path / "a"); os.makedirs(a)
+        b = str(tmp_path / "b"); os.makedirs(b)
+        t = FileTree(theme=THEMES["dark"])
+        try:
+            gelen = []
+            t.root_changed.connect(gelen.append)
+            t.set_root(a)
+            t.set_root(b)
+            assert [os.path.normpath(x) for x in gelen] == \
+                [os.path.normpath(a), os.path.normpath(b)]
+            # AYNI kök yeniden verilince sinyal YOK (ağaç da yeniden taranmıyor)
+            t.set_root(b)
+            assert len(gelen) == 2
+        finally:
+            t.deleteLater()
+            qapp.processEvents()
+
+    def test_panel_temizleniyor_ama_SORGU_kaliyor(self, panel, proje):
+        bulgular, _ = search_project(proje, "benimKomut")
+        panel.show_project_search(bulgular, False, proje)
+        panel._psearch_input.setText("benimKomut")
+        assert panel._psearch_list.count() > 0
+
+        panel.clear_project_search("/yeni/kok")
+        assert panel._psearch_list.count() == 0
+        assert panel._psearch_status.text() == ""
+        assert "kok" in panel._psearch_kok.text()          # yeni kök yazıldı
+        assert panel._psearch_input.text() == "benimKomut"  # sorgu KORUNDU
+
+    def test_mixin_bayat_sonucu_engelliyor(self, panel, proje):
+        """Kök değişince uçuştaki tarama da geçersiz olmalı."""
+        from gui.mixins.project_search_ops import ProjectSearchMixin
+
+        class S(ProjectSearchMixin, _AramaStub):
+            pass
+
+        s = S(panel, proje)
+        s._on_project_search_requested("benimKomut", False)   # id 1
+        s._on_project_root_changed("/baska/kok")              # id 2 olur
+        # Eski kökün geç dönen sonucu panele DÜŞMEMELİ
+        s._on_project_search_done(1, [Bulgu("/eski/a.tex", 1, 0, "bayat")], False)
+        assert panel._psearch_list.count() == 0
+        assert "kok" in panel._psearch_kok.text()
+
+    def test_kablolama_main_window_da_bagli(self):
+        kok = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        with open(os.path.join(kok, "desktop", "gui", "main_window.py"),
+                  encoding="utf-8") as f:
+            k = f.read()
+        assert "root_changed.connect(self._on_project_root_changed)" in k

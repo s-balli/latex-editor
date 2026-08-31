@@ -469,6 +469,7 @@ class MainWindow(
         self._output_panel.env_check_requested.connect(self._open_env_doctor)
         self._output_panel.project_search_requested.connect(
             self._on_project_search_requested)
+        self._file_tree.root_changed.connect(self._on_project_root_changed)
 
         self._pdf_viewer.reverse_search_requested.connect(self._on_reverse_search)
 

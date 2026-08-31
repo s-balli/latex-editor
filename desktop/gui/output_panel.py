@@ -293,6 +293,18 @@ class OutputPanel(QWidget):
             self._psearch_status.setText(_("Aranıyor..."))
             self.project_search_requested.emit(sorgu, self._psearch_case.isChecked())
 
+    def clear_project_search(self, kok: str = ""):
+        """Arama sonuçlarını at, kök etiketini yenile — SORGU METNİ KALIR.
+
+        Klasör değişince eski sonuçlar bayat: başka bir kökün dosyalarını
+        gösteriyorlar ve tıklanınca kullanıcıyı projenin DIŞINA götürüyorlar
+        (kullanıcı bildirdi). Sorgu kutusundaki metin bilerek korunuyor —
+        çoğu zaman aynı şeyi yeni klasörde aramak isteniyor, Enter yeter.
+        """
+        self._psearch_list.clear()
+        self._psearch_status.setText("")
+        self.set_project_search_root(kok)
+
     def set_project_search_root(self, kok: str):
         """Aranacak kökü göster — arama BAŞLAMADAN önce, aramadan bağımsız."""
         import os
