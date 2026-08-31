@@ -82,6 +82,52 @@ jobs:
           QT_QPA_PLATFORM: offscreen
         run: python -m pytest tests/ -q
 
+  test-windows:
+    # Windows uygulamanın BİRİNCİL hedefi — release bir Windows exe'si üretiyor
+    # — ama test paketi 2026-08-31'e kadar Windows'ta HİÇ koşmadı: ci.yml
+    # ubuntu-only, release.yml'in windows job'ı yalnız exe derliyor, geliştirme
+    # araç zinciri WSL'de. Yani Windows'a özgü regresyonu hiçbir kapı tutmuyordu.
+    # Depoda bu sınıfın geçmişi yoğun: kodlama (cp1254 çözme hataları),
+    # wsl.exe'nin UTF-16 çıktısı, UNC/`\\wsl.localhost` yol çevirisi, pandoc'un
+    # yalnız WSL'de olması, satır sonu (CRLF) davranışı. Ubuntu CI bu sınıfı
+    # yapısal olarak göremez.
+    #
+    # KAPSAM: pandoc / TeX Live / POSIX bash KURULMUYOR. Onlara bağlı testler
+    # kendiliğinden skip olur — bu job yazılırken 55 tane (TeX 39, pandoc 12,
+    # bash 3, Windows'ta anlamsız olan 1) — geriye 1014 test kalıyor ve amaç
+    # zaten onlar: yol, kodlama, satır sonu, subprocess davranışı. TeX/pandoc
+    # kapsaması ubuntu job'larında var; Windows runner dakikası 2× sayıldığı
+    # için burada tekrarlanmıyor. Aynı sebeple tek Python sürümü ve lint/çeviri
+    # kapıları yok (platformdan bağımsız, matrix job'da koşuyor).
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          # release.yml'deki build-windows job'ı ile AYNI sürüm: exe hangi
+          # yorumlayıcıyla paketleniyorsa testler de onunla koşsun
+          python-version: '3.12'
+
+      - name: Install Python dependencies
+        run: pip install -r desktop/requirements.txt pytest
+
+      # derle job'ındaki "command -v synctex || exit 1" kapısının Windows
+      # karşılığı. pip kurulumu BAŞARILI görünüp Qt DLL'leri yüklenemeyebilir
+      # (bu depoda birebir yaşandı: bir Windows kurulumunda PyQt6 import
+      # edilebiliyor ama QtCore "DLL load failed" veriyor). O durumda GUI test
+      # modülleri toplu skip olur ve job hiçbir şey koşmadan YEŞİL geçer —
+      # D4'te öğrenilen ders. Import'u önden patlat.
+      - name: Bağımlılıklar gerçekten yüklenebiliyor mu
+        run: python -c "import PyQt6.QtWidgets, PyQt6.Qsci, pypdfium2, PIL, send2trash, dulwich; print('ok')"
+
+      - name: Run tests
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python -m pytest tests/ -q
+
   derle:
     # GERÇEK TeX gerektiren entegrasyon testleri: matrix job'da TeX
     # kurulmadığından ikisi de orada hep skip oluyor, yani yalnız

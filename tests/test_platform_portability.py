@@ -181,3 +181,27 @@ def test_tex_gerektiren_testler_ci_derle_jobunda_kosuyor():
         "TeX gerektiren şu test dosyaları derle job'ında çağrılmıyor, yani "
         f"HİÇBİR yerde koşmuyorlar: {eksik}\n"
         "ci.yml'deki derle adımının pytest satırına ekleyin.")
+
+
+def test_ci_testleri_windows_ta_da_kosuyor():
+    """CI'da testleri Windows'ta koşan bir job BULUNMALI.
+
+    Bu dosyanın başlığı "CI yalnız Linux'ta koşuyor, bu yüzden Windows'a özgü
+    kırılmalar sessizce birikiyor" diyor ve buradaki statik kapılar o boşluğu
+    dolaylı olarak kapatmaya çalışıyordu. Asıl çözüm testleri Windows'ta
+    koşmak; 2026-08-31'de eklendi (D1). O job silinirse depo eski hâline —
+    Windows kapsaması SIFIR — geri döner ve kimse fark etmez: bu kapı onu tutar.
+
+    Kapı, job'ın gerçekten pytest koştuğunu da doğrular; yalnız exe derleyen
+    bir Windows job'ı (release.yml'deki gibi) bu boşluğu KAPATMAZ.
+    """
+    import re
+    ci = (_REPO / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+    # Job'lar iki boşluk girintili; bir sonraki job'a kadar olan dilimi al
+    bloklar = re.split(r"\n  (?=\w[\w-]*:)", ci)
+    win = [b for b in bloklar if "windows-latest" in b]
+    assert win, ("ci.yml'de windows-latest üzerinde koşan job yok — testler "
+                 "Windows'ta hiç koşmuyor demektir (bkz. D1).")
+    assert any("pytest" in b for b in win), (
+        "ci.yml'deki Windows job'ı pytest koşmuyor; yalnız derleyen bir job "
+        "Windows test kapsaması sağlamaz.")
