@@ -768,3 +768,72 @@ def test_cok_satirli_math_blogunun_ic_satirlari_kaydediliyor(qapp):
     assert durumlar.get(2) == 1, f"satır 2: {durumlar.get(2)}"
     assert durumlar.get(3) == 1, f"satır 3: {durumlar.get(3)}"
     assert durumlar.get(5) == 0, f"satır 5: {durumlar.get(5)}"
+
+
+def test_kapanmamis_blokta_geri_yurumuyor(qapp):
+    """Kapanmamış blok varken artımlı tarama belgenin başına geri DÖNMEMELİ.
+
+    Güvenli-satır araması eskiden yalnız durum-0 satır kabul ediyordu. Belgenin
+    başında kapanmamış bir `$` varsa (math yazarken olağan ara durum) ondan
+    sonraki HER satır durum-1'dir, dolayısıyla her tuş vuruşu o `$`'a kadar
+    geri yürüyüp oradan itibaren yeniden tarıyordu. Ölçüldü: 3000 satırlık
+    belgede 12.9 ms/tuş (kapanmamış blok yokken 1.2 ms).
+
+    Artık satır durumuyla BİRLİKTE hangi bloğun açık olduğu da saklanıyor
+    (_block_ctx), böylece blok ortasındaki bir satırdan devam edilebiliyor.
+    """
+    satirlar = ["giris metni"]
+    satirlar.append("burada math acildi $x + y")     # KAPANMIYOR
+    satirlar += ["satir %d duz metin" % i for i in range(2, 400)]
+    buf = "\n".join(satirlar) + "\n"
+
+    editor = _make_editor()
+    editor.setText(buf)
+    lexer = editor.lexer()
+    lexer.styleText(0, len(buf.encode("utf-8")))
+
+    hedef = 380
+    basladigi = []
+    orig = lexer.startStyling
+
+    def spy(pos, *a, **k):
+        basladigi.append(pos)
+        return orig(pos, *a, **k)
+
+    lexer.startStyling = spy
+    try:
+        start = _byte_offset_of_line(buf, hedef)
+        lexer.styleText(start, start + 3)
+    finally:
+        lexer.startStyling = orig
+
+    acilis = _byte_offset_of_line(buf, 1)
+    assert basladigi, "startStyling çağrılmadı"
+    assert basladigi[0] > acilis, (
+        f"tarama byte {basladigi[0]}'dan başladı — kapanmamış $'ın bulunduğu "
+        f"satır 1'e ({acilis}) kadar geri yürümüş demektir")
+
+
+def test_blok_ortasindan_devam_dogru_stil_uretiyor(qapp):
+    """Blok ortasından başlayan tarama tam taramayla aynı stili vermeli.
+
+    Hız kazancı doğruluğu bozmamalı: devam yolu yepyeni bir kod yolu.
+    """
+    buf = ("giris\nacik $math basladi\n"
+           + "\n".join("icerik satiri %d" % i for i in range(2, 30)) + "\n")
+    editor = _make_editor()
+    editor.setText(buf)
+    lexer = editor.lexer()
+    data = buf.encode("utf-8")
+    lexer.styleText(0, len(data))
+
+    # Blok ORTASINDAKİ bir satırı artımlı stille
+    start = _byte_offset_of_line(buf, 20)
+    son = _byte_offset_of_line(buf, 21)
+    lexer.styleText(start, son)
+
+    ref = _make_editor()
+    ref.setText(buf)
+    ref.lexer().styleText(0, len(data))
+    assert _all_styles(editor, len(data)) == _all_styles(ref, len(data)), \
+        "blok ortasından devam eden tarama tam taramadan sapıyor"

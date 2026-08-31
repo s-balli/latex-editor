@@ -55,6 +55,12 @@ class LatexLexer(QsciLexerCustom):
         super().__init__(parent)
         self._line_states = {0: 0}
         self._offset_states = {0: 0}
+        # Satır no -> o satıra girilirken AÇIK olan bloğun kapanış anahtarı.
+        # math icin kapanis ayraci (b'$', b'$$', b'\\]', b'\\)'),
+        # verbatim icin ortam adi (str). _line_states 1/2 derken bu sozluk
+        # HANGI blok oldugunu soyler; ikisi birlikte blok ortasindan
+        # taramaya baslamayi mumkun kilar (bkz. styleText).
+        self._block_ctx: dict[int, object] = {}
         self._doc_len = None
         self._doc_lines = None
         # Belge baytları önbelleği: editor.text() tüm belgeyi Python'a çekip
@@ -82,6 +88,7 @@ class LatexLexer(QsciLexerCustom):
         eşleşip erken çıkışı suistimal edebilir."""
         self._line_states = {0: 0}
         self._offset_states = {0: 0}
+        self._block_ctx = {}
         self._doc_len = None
         self._doc_lines = None
         self._src_cache = None
@@ -160,14 +167,22 @@ class LatexLexer(QsciLexerCustom):
         line_start = source.rfind(b"\n", 0, start) + 1
         line_no = source.count(b"\n", 0, line_start)
 
-        # Cache'den state bul
         states = self._line_states
-        cached = states.get(line_no)
 
-        if cached is None or cached:
-            # math modunda veya cache yoksa — güvenli satır bul
+        # Blok ortasindan devam edebilmek icin duruma EK olarak baglam
+        # (hangi ayrac/ortam acik) gerekiyor; ikisi birden varsa o satirdan
+        # baslamak guvenli. Eskiden yalnizca durum-0 satirlar kabul
+        # ediliyordu: kapanmamis bir $ belgenin basindaysa her tus vurusu
+        # oradan itibaren yeniden taraniyordu (3000 satirda 12.9 ms/tus).
+        def _baslanabilir(ln):
+            d = states.get(ln)
+            if d is None:
+                return False
+            return d == 0 or ln in self._block_ctx
+
+        if not _baslanabilir(line_no):
             safe = line_no
-            while safe > 0 and states.get(safe, True):
+            while safe > 0 and not _baslanabilir(safe):
                 safe -= 1
             # safe satırının bayt offsetini bul
             line_start = 0
@@ -184,8 +199,15 @@ class LatexLexer(QsciLexerCustom):
         # güvenli satır araması bunu garanti eder) — kaydet.
         scan_line = line_no
         scan_start = line_start
-        new_states = {scan_line: 0}
-        new_offsets = {scan_start: 0}
+        # Baslangic durumu artik 0 olmak ZORUNDA degil: blok ortasindan
+        # basliyorsak giris durumu 1/2 ve baglam _block_ctx'te.
+        bas_durum = states.get(scan_line, 0)
+        bas_baglam = self._block_ctx.get(scan_line)
+        if bas_durum and bas_baglam is None:
+            bas_durum = 0            # baglam yoksa guvenli tarafta kal
+        new_states = {scan_line: bas_durum}
+        new_offsets = {scan_start: bas_durum}
+        new_ctx = {scan_line: bas_baglam} if bas_durum else {}
 
         # Erken çıkış hazırlığı. QScintilla stilleri idle-time'da koalese
         # ederek ister: start = en eski kirli pozisyon, end = en yeni kirli
@@ -225,6 +247,24 @@ class LatexLexer(QsciLexerCustom):
         in_verbatim = False
         i = line_start
 
+        # Blok ORTASINDAN basladiysak once acik blogu kapat.
+        if bas_durum == 1:
+            pos, closed = self._style_math_block(
+                source, i, n, bas_baglam, acilis_var=False)
+            line_no = self._blok_satirlari(
+                source, i, pos, 1, bas_baglam, line_no, new_states,
+                new_offsets, new_ctx)
+            in_math = not closed
+            i = pos
+        elif bas_durum == 2:
+            pos, closed = self._style_verbatim_block(
+                source, i, n, bas_baglam, acilis_var=False)
+            line_no = self._blok_satirlari(
+                source, i, pos, 2, bas_baglam, line_no, new_states,
+                new_offsets, new_ctx)
+            in_verbatim = not closed
+            i = pos
+
         # Eğer güvenli satırda değilsek (en baştan başlıyoruz demek)
         # line_no 0 ve line_start 0 olacak, zaten in_math=False
 
@@ -242,7 +282,8 @@ class LatexLexer(QsciLexerCustom):
                 if (i >= end and byte_delta is not None
                         and self._offset_states.get(i - byte_delta) == s):
                     self._commit(scan_line, scan_start, line_no, i,
-                                 new_states, new_offsets, total_lines, n)
+                                 new_states, new_offsets, total_lines, n,
+                                 new_ctx)
                     return
                 continue
 
@@ -260,7 +301,8 @@ class LatexLexer(QsciLexerCustom):
                 # $$...$$ çok satırlı olabilir; yutulan satırların
                 # durumu da kaydedilmeli (bkz. _blok_satirlari)
                 line_no = self._blok_satirlari(
-                    source, prev, i, 1, line_no, new_states, new_offsets)
+                    source, prev, i, 1, self._son_math_delim, line_no,
+                    new_states, new_offsets, new_ctx)
                 continue
 
             if ch == _BS:
@@ -270,7 +312,8 @@ class LatexLexer(QsciLexerCustom):
                 if verb_env is not None:
                     pos, closed = self._style_verbatim_block(source, i, n, verb_env)
                     line_no = self._blok_satirlari(
-                        source, i, pos, 2, line_no, new_states, new_offsets)
+                        source, i, pos, 2, verb_env, line_no,
+                        new_states, new_offsets, new_ctx)
                     in_verbatim = not closed
                     i = pos
                     continue
@@ -281,14 +324,16 @@ class LatexLexer(QsciLexerCustom):
                 if nxt == 0x5B:  # '['
                     pos, closed = self._style_math_block(source, i, n, b"\\]")
                     line_no = self._blok_satirlari(
-                        source, i, pos, 1, line_no, new_states, new_offsets)
+                        source, i, pos, 1, b"\\]", line_no,
+                        new_states, new_offsets, new_ctx)
                     in_math = not closed
                     i = pos
                     continue
                 if nxt == 0x28:  # '('
                     pos, closed = self._style_math_block(source, i, n, b"\\)")
                     line_no = self._blok_satirlari(
-                        source, i, pos, 1, line_no, new_states, new_offsets)
+                        source, i, pos, 1, b"\\)", line_no,
+                        new_states, new_offsets, new_ctx)
                     in_math = not closed
                     i = pos
                     continue
@@ -324,10 +369,10 @@ class LatexLexer(QsciLexerCustom):
         # yanlış renklendiriyordu (2026-08-31, seed 33354692582 adım 20→21).
         new_states.setdefault(line_no, self._state_val(in_math, in_verbatim))
         self._commit(scan_line, scan_start, line_no, n,
-                     new_states, new_offsets, total_lines, n)
+                     new_states, new_offsets, total_lines, n, new_ctx)
 
-    def _blok_satirlari(self, source, bas, son, durum, line_no,
-                        new_states, new_offsets):
+    def _blok_satirlari(self, source, bas, son, durum, baglam, line_no,
+                        new_states, new_offsets, new_ctx):
         """Blok tarayicisinin YUTTUGU satirlar icin durum kaydet.
 
         ``_style_*_block`` cok satirli bir blogu tek cagrida tuketiyor; bu
@@ -350,11 +395,12 @@ class LatexLexer(QsciLexerCustom):
             line_no += 1
             new_states[line_no] = durum
             new_offsets[k + 1] = durum
+            new_ctx[line_no] = baglam
             k = source.find(b"\n", k + 1, son)
         return line_no
 
     def _commit(self, scan_line, scan_start, exit_line, exit_offset,
-                new_states, new_offsets, total_lines, n):
+                new_states, new_offsets, total_lines, n, new_ctx=None):
         """Tarama bitti (erken çıkışta exit_offset < n, tam taramada == n).
 
         Taranan [scan_start, exit_offset) bölgesi yeni koordinatlarla yeniden
@@ -393,22 +439,44 @@ class LatexLexer(QsciLexerCustom):
             {k + line_delta: v for k, v in states.items() if k >= base})
         self._line_states.update(new_states)
 
+        # _block_ctx (blok ortasindan devam icin) _line_states ile AYNI
+        # kurala tabi: bolge icindekiler dusuruluyor, sonrakiler oteleniyor.
+        ctx = self._block_ctx
+        self._block_ctx = {k: v for k, v in ctx.items() if k < scan_line}
+        self._block_ctx.update(
+            {k + line_delta: v for k, v in ctx.items() if k >= base})
+        if new_ctx:
+            self._block_ctx.update(new_ctx)
+
         self._doc_len = n
         self._doc_lines = total_lines
 
     # --- Matematik ---
 
     def _style_math(self, source, i, n):
+        # Kullanilan ayrac _blok_satirlari'na baglam olarak gerekiyor;
+        # cagiran ayni ifadede ogrenemedigi icin burada saklaniyor.
         if i + 1 < n and source[i + 1] == _DLR:
+            self._son_math_delim = b"$$"
             pos, closed = self._style_math_block(source, i, n, b"$$")
             return pos, not closed
+        self._son_math_delim = b"$"
         pos, closed = self._style_math_block(source, i, n, b"$")
         return pos, not closed
 
-    def _style_math_block(self, source, i, n, delim):
+    def _style_math_block(self, source, i, n, delim, acilis_var=True):
+        """``acilis_var=False``: blok ORTASINDAN devam (acilis ayraci yok).
+
+        Ayri bir '_continue' kopyasi TUTULMUYOR: F1'de silinen iki tarayici
+        tam olarak o kopyaydi ve hicbir zaman cagrilmiyordu. Dogru sekil,
+        ayni tarayiciya 'acilisi atla' demek.
+        """
         dlen = len(delim)
-        j = i + dlen
-        self.setStyling(dlen, self.MATH)
+        if acilis_var:
+            j = i + dlen
+            self.setStyling(dlen, self.MATH)
+        else:
+            j = i
 
         while j + dlen - 1 < n:
             if source[j:j + dlen] == delim:
@@ -456,13 +524,14 @@ class LatexLexer(QsciLexerCustom):
                 return env
         return None
 
-    def _style_verbatim_block(self, source, i, n, env):
+    def _style_verbatim_block(self, source, i, n, env, acilis_var=True):
         """\\begin{env} ... \\end{env} arasını (sınırlar dahil) VERBATIM stiller.
 
         Kapanış bulunursa (end, True), bulunamazsa EOF'a kadar (n, False) döner.
         """
         close = b"\\end{" + env.encode() + b"}"
-        j = source.find(close, i + 1)
+        # acilis_var=False: blok ortasindan devam; kapanisi i'DEN itibaren ara
+        j = source.find(close, i + 1 if acilis_var else i)
         if j == -1:
             self.setStyling(n - i, self.VERBATIM)
             return n, False
