@@ -602,3 +602,15 @@ class TestKokDisiTespiti:
         durum = panel._psearch_status.text()
         assert "big.tex" in durum, durum
         assert "template15" in panel._psearch_kok.text()
+
+
+def test_harf_duyarlilik_etiketi_anlasilir(panel):
+    """Etiket "Aa" idi; kullanıcı ne olduğunu anlamadığını bildirdi.
+
+    VS Code'da o simge bir düğmenin üstünde ve yanında ayrıca açıklama var;
+    tek başına onay kutusu etiketi olarak hiçbir şey anlatmıyor.
+    """
+    etiket = panel._psearch_case.text()
+    assert etiket != "Aa"
+    assert len(etiket) >= 5, etiket          # simge değil, sözcük
+    assert panel._psearch_case.toolTip().strip(), "ipucu boş"
