@@ -604,3 +604,117 @@ class TestSourceCache:
         assert f.pointSize() == 13
         assert f.family() in ("Consolas", "DejaVu Sans Mono", "Menlo",
                               "Courier New", "monospace")
+
+
+# --- Kapanmamış bloklar ---
+#
+# F1'de (2026-08-31) ölü "blok ortasından devam" tarayıcıları kaldırılırken
+# in_math / in_verbatim bilerek KORUNDU. Etki alanları dar ve ölçüldü: blok
+# tarayıcıları newline'ları kendi içlerinde yuttuğu için blok ortasındaki
+# satırlar _line_states'e HİÇ girmez; güvenli-satır geri yürüyüşünü tetikleyen
+# şey girdinin yokluğudur, değeri değil. Bayrakların gerçekten belirlediği tek
+# şey EOF'ta AÇIK kalan bloğun SON satır durumudur.
+#
+# Bu yüzden aşağıdaki iki test farklı şeyler koruyor ve karıştırılmamalı:
+#   - test_kapanmamis_blok_son_satir_durumunu_kaydediyor
+#       in_math/in_verbatim'in TEK gerçek görevi. Bayraklar silinse bu düşer
+#       (deneyle doğrulandı: _state_val hep 0 döndürülünce kırmızı).
+#   - test_acik_blogun_ICINDEN_...
+#       artımlı taramanın kapanmamış bloklu belgede doğruluğu. Mekanizması
+#       eksik-önbellek-girdisi olduğu için bayraklardan BAĞIMSIZ; _state_val
+#       bozulsa bile geçer. Yine de gerçek bir boşluğu kapatıyor: mevcut
+#       artımlı/tam karşılaştırmaları yalnız KAPALI bloklu _DOC üzerindeydi.
+
+@pytest.mark.parametrize("belge,beklenen_durum", [
+    ("Metin $a + b\n", 1),                              # kapanmamış $
+    ("Metin $$a + b\nikinci\n", 1),                     # kapanmamış $$
+    ("Metin\n\\[\n  a = b\n", 1),                       # kapanmamış \[
+    ("Metin \\( a+b\ndevam\n", 1),                      # kapanmamış \(
+    ("Once\n\\begin{verbatim}\nkod\n", 2),              # kapanmamış verbatim
+    ("Once\n\\begin{lstlisting}\nint x;\n", 2),         # kapanmamış lstlisting
+    ("Metin $a+b$ kapali\n", 0),                        # kapalı: durum sıfırlanır
+    ("\\begin{verbatim}\nk\n\\end{verbatim}\n", 0),     # kapalı verbatim
+])
+def test_kapanmamis_blok_son_satir_durumunu_kaydediyor(qapp, belge, beklenen_durum):
+    """Blok EOF'ta açık kalırsa son satırın durumu 1 (math) / 2 (verbatim) olmalı."""
+    editor, data = _style_text(belge)
+    durumlar = editor.lexer()._line_states
+    son = max(durumlar)
+    assert durumlar[son] == beklenen_durum, (
+        f"son satır durumu {durumlar[son]}, beklenen {beklenen_durum} — "
+        f"belge: {belge!r}")
+
+
+_ACIK_DOC = "\n".join([
+    r"\documentclass{article} ğüşıöç",
+    r"\begin{document}",
+    r"Normal paragraf ve \emph{vurgu}.",
+    r"$inline \alpha$ kapali",
+    r"Burada kapanmayan bir dolar: $a + b",
+    r"devam eden satir, hala math",
+    r"bir satir daha",
+    r"\begin{verbatim}",
+    r"raw $x$ \notcommand",
+    r"kapanis YOK",
+] * 4) + "\n"
+
+
+def test_acik_blogun_ICINDEN_artimli_tarama_tam_taramayla_ayni(qapp):
+    """Kapanmamış bloğun İÇİNDEKİ bir satırdan artımlı tarama doğru olmalı.
+
+    O satırdan taramaya başlamak ancak güvenli-satır geri yürüyüşü `$`'ı açan
+    satıra kadar inerse doğru sonuç verir. Mevcut artımlı/tam karşılaştırmaları
+    yalnız KAPALI bloklu _DOC üzerinde koşuyordu; bu yol hiç
+    karşılaştırılmıyordu (2026-08-31, F1).
+
+    NOT: bu test in_math/in_verbatim'i GATE ETMEZ — geri yürüyüş eksik önbellek
+    girdisiyle tetikleniyor, durum değeriyle değil (bkz. yukarıdaki blok yorumu).
+    """
+    hedef = "devam eden satir, hala math"       # kapanmamış $'ın İÇİNDE
+    assert hedef in _ACIK_DOC, "test belgesi değişmiş"
+
+    editor = _make_editor()
+    editor.setText(_ACIK_DOC)
+    lexer = editor.lexer()
+    veri = _ACIK_DOC.encode("utf-8")
+    lexer.styleText(0, len(veri))
+
+    # Blok gerçekten açık mı — testin önermesi
+    hedef_ofset = veri.index(hedef.encode("utf-8"))
+    assert _style_at(editor, hedef_ofset) == LatexLexer.MATH, \
+        "test belgesi kapanmamış math içermiyor"
+
+    # Aynı satırın BAŞINDAN artımlı stille (Scintilla'nın yaptığı gibi)
+    satir_basi = veri.rfind(b"\n", 0, hedef_ofset) + 1
+    satir_sonu = veri.find(b"\n", hedef_ofset)
+    lexer.styleText(satir_basi, satir_sonu)
+
+    got = _all_styles(editor, len(veri))
+    ref = _make_editor()
+    ref.setText(_ACIK_DOC)
+    ref.lexer().styleText(0, len(veri))
+    assert got == _all_styles(ref, len(veri)), \
+        "açık bloğun içinden artımlı tarama tam taramadan sapıyor"
+
+
+def test_kapanmamis_blokta_duzenleme_tam_taramayla_ayni(qapp):
+    """Kapanmamış bloklu belgede gerçek düzenleme akışı da sapmamalı."""
+    for ekleme in ("x", "\n", "$", "%yorum", "ğ"):
+        editor = _make_editor()
+        editor.setText(_ACIK_DOC)
+        lexer = editor.lexer()
+        lexer.styleText(0, len(_ACIK_DOC.encode("utf-8")))
+
+        pos = _ACIK_DOC.index("devam eden satir, hala math") + 5
+        line, idx = editor.lineIndexFromPosition(pos)
+        editor.setCursorPosition(line, idx)
+        editor.insert(ekleme)
+        data = editor.text().encode("utf-8")
+        lexer.styleText(pos, pos + len(ekleme.encode("utf-8")))
+
+        got = _all_styles(editor, len(data))
+        ref = _make_editor()
+        ref.setText(editor.text())
+        ref.lexer().styleText(0, len(data))
+        assert got == _all_styles(ref, len(data)), (
+            f"kapanmamış bloklu belgede artımlı stil sapması, eklenen: {ekleme!r}")

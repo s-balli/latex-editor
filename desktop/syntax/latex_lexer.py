@@ -200,11 +200,29 @@ class LatexLexer(QsciLexerCustom):
         total_lines = source.count(b"\n") + 1
         byte_delta = None if self._doc_len is None else n - self._doc_len
 
-        # Tarama — satır başlarında state kaydet
+        # Tarama — satır başlarında state kaydet.
+        #
+        # in_math / in_verbatim yalnız DURUM KAYDI için var ve etki alanı DAR:
+        # blok tarayıcıları kapanış bulamazsa EOF'a kadar gidip bayrağı True
+        # bırakır, bu da yalnızca SON satırın _line_states değeri olarak yazılır
+        # (1=math, 2=verbatim). Döngü içindeki `\n` dalında bayraklar her zaman
+        # False'tur — blok tarayıcıları newline'ları kendi içlerinde yuttuğu için
+        # blok ORTASINDAKİ satırlar önbelleğe hiç girmez ve güvenli-satır geri
+        # yürüyüşünü tetikleyen şey de zaten girdinin YOKLUĞUdur
+        # (`states.get(line_no)` -> None), değeri değil.
+        #
+        # "Açık bloğun ortasından devam et" YOLU YOK — bilerek. _style_*_block
+        # kapanışı bulamadığında n döndürüyor, yani bayrağı True yapan her yol
+        # aynı anda i'yi n yapıyor ve `while i < n` orada bitiyor. Bir zamanlar
+        # burada iki `if in_math:` / `if in_verbatim:` dalı ve onların çağırdığı
+        # _style_math_continue / _style_verbatim_continue vardı; yapısal olarak
+        # ULAŞILAMAZDILAR (üç yolda da 0 çağrı ölçüldü) ve kaldırıldılar
+        # (2026-08-31, F1). Blok ortasından tarama başlatmak, güvenli-satır
+        # kısıtını kaldıran yeniden tasarımın işi (BACKLOG teknik borç 2):
+        # o zaman doğru şekil, ayrı bir kopya değil, _style_*_block'a
+        # "açılışı atla" parametresi eklemektir.
         in_math = False
         in_verbatim = False
-        math_delim = None
-        verb_name = None
         i = line_start
 
         # Eğer güvenli satırda değilsek (en baştan başlıyoruz demek)
@@ -228,18 +246,6 @@ class LatexLexer(QsciLexerCustom):
                     return
                 continue
 
-            if in_verbatim:
-                prev = i
-                i, in_verbatim = self._style_verbatim_continue(source, i, n, verb_name)
-                line_no += source.count(b"\n", prev, i)  # çok satırlı blok: satır no senkron
-                continue
-
-            if in_math:
-                prev = i
-                i, in_math = self._style_math_continue(source, i, n, math_delim)
-                line_no += source.count(b"\n", prev, i)
-                continue
-
             if ch == _PCT:
                 j = i + 1
                 while j < n and source[j] != _NL:
@@ -252,8 +258,6 @@ class LatexLexer(QsciLexerCustom):
                 prev = i
                 i, in_math = self._style_math(source, i, n)
                 line_no += source.count(b"\n", prev, i)  # $$...$$ çok satırlı olabilir
-                if in_math:
-                    math_delim = b"$"
                 continue
 
             if ch == _BS:
@@ -264,8 +268,6 @@ class LatexLexer(QsciLexerCustom):
                     pos, closed = self._style_verbatim_block(source, i, n, verb_env)
                     line_no += source.count(b"\n", i, pos)  # çok satırlı blok: satır no senkron
                     in_verbatim = not closed
-                    if in_verbatim:
-                        verb_name = verb_env
                     i = pos
                     continue
                 nxt = source[i + 1] if i + 1 < n else 0
@@ -276,16 +278,12 @@ class LatexLexer(QsciLexerCustom):
                     pos, closed = self._style_math_block(source, i, n, b"\\]")
                     line_no += source.count(b"\n", i, pos)  # çok satırlı blok: satır no senkron
                     in_math = not closed
-                    if in_math:
-                        math_delim = b"\\]"
                     i = pos
                     continue
                 if nxt == 0x28:  # '('
                     pos, closed = self._style_math_block(source, i, n, b"\\)")
                     line_no += source.count(b"\n", i, pos)
                     in_math = not closed
-                    if in_math:
-                        math_delim = b"\\)"
                     i = pos
                     continue
                 i = self._style_command(source, i, n)
@@ -402,38 +400,6 @@ class LatexLexer(QsciLexerCustom):
             self.setStyling(n - j, self.MATH)
         return n, False
 
-    def _style_math_continue(self, source, i, n, delim):
-        dlen = len(delim)
-        j = i
-
-        while j + dlen - 1 < n:
-            if source[j:j + dlen] == delim:
-                end = j + dlen
-                self.setStyling(end - i, self.MATH)
-                return end, False
-
-            if source[j] == _BS:
-                k = j + 1
-                if k < n and _is_alpha(source[k]):
-                    while k < n and _is_alpha(source[k]):
-                        k += 1
-                    self.setStyling(k - j, self.MATH_CMD)
-                else:
-                    k = min(j + 2, n)
-                    self.setStyling(k - j, self.MATH_CMD)
-                j = k
-                continue
-
-            k = j + 1
-            while k + dlen - 1 < n and source[k] not in b"\\$":
-                k += 1
-            self.setStyling(min(k, n) - j, self.MATH)
-            j = min(k, n)
-
-        if j < n:
-            self.setStyling(n - j, self.MATH)
-        return n, True
-
     # --- Verbatim (C.8) ---
 
     @staticmethod
@@ -465,17 +431,6 @@ class LatexLexer(QsciLexerCustom):
         end = j + len(close)
         self.setStyling(end - i, self.VERBATIM)
         return end, True
-
-    def _style_verbatim_continue(self, source, i, n, env):
-        """Açık verbatim bloğunun devamı (artımlı tarama için, math_continue gibi)."""
-        close = b"\\end{" + env.encode() + b"}"
-        j = source.find(close, i)
-        if j == -1:
-            self.setStyling(n - i, self.VERBATIM)
-            return n, True
-        end = j + len(close)
-        self.setStyling(end - i, self.VERBATIM)
-        return end, False
 
     # --- Komutlar ---
 
