@@ -492,3 +492,21 @@ def test_diskle_ayni_goruntu_sorulmadan_atiliyor(qapp, tmp_path, monkeypatch):
 
     assert m._editor_tabs.count() == 0
     assert recovery.oku(str(kayit)) == [], "kayıpsız görüntü temizlenmedi"
+
+
+@pytestmark_gui
+def test_kurtarma_dizini_log_ile_ayni_yerde():
+    """Kurtarma klasörü log dosyasının YANINDA olmalı.
+
+    Eskiden yol QStandardPaths'ten çalışma anında hesaplanıyordu; core.log ise
+    import anında hesaplıyor. Arada main.py'nin setApplicationName'i çalıştığı
+    için ikisi farklı klasöre düşüyordu. Kendi başına çökme değil ama kurtarmanın
+    yeri "uygulama adının ne zaman ayarlandığına" bağlı kalıyordu — başlatma
+    sırası değişirse çökme öncesi ve sonrası farklı dizine bakılır ve kurtarma
+    SESSİZCE hiçbir şey bulamaz.
+    """
+    from core.log import LOG_FILE
+    from gui.mixins.recovery_ops import _recovery_dizini
+
+    assert os.path.dirname(_recovery_dizini()) == os.path.dirname(LOG_FILE)
+    assert os.path.basename(_recovery_dizini()) == "recovery"

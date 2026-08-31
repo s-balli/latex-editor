@@ -16,11 +16,11 @@ değişiklik bulundu" diye sorar ve kullanıcı her açılışta aynı soruyu g�
 import os
 import uuid
 
-from PyQt6.QtCore import QCoreApplication, QStandardPaths, QTimer
+from PyQt6.QtCore import QCoreApplication, QTimer
 from PyQt6.QtWidgets import QMessageBox
 
 from core import recovery
-from core.log import get_logger
+from core.log import LOG_FILE, get_logger
 from gui.editor import EditorWidget
 
 _ = lambda s: QCoreApplication.translate("RecoveryOpsMixin", s)
@@ -177,8 +177,21 @@ def _snap_id(editor: EditorWidget) -> str:
 
 
 def _recovery_dizini() -> str:
-    """Uygulama veri dizini altındaki kurtarma klasörü (log ile aynı kök)."""
-    return os.path.join(
-        QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppLocalDataLocation),
-        "LatexEditor", "recovery",
-    )
+    """Kurtarma klasörü — log dosyasının YANINDA.
+
+    Yol doğrudan QStandardPaths'ten değil, ``core.log``'un çoktan hesapladığı
+    dizinden türetiliyor. Sebep: ``writableLocation`` uygulama ADINA bağlı ve
+    ad ``main.py``'de QApplication kurulduktan SONRA veriliyor
+    (``setApplicationName``, main.py:135). ``core.log`` yolu import anında
+    (ad verilmeden ÖNCE) sabitliyor, buradaki çağrı ise çalışma anında (ad
+    verildikten SONRA) yapılıyordu — ikisi farklı klasöre düşüyordu:
+
+        LOG_DIR            .../AppData/Local/LatexEditor
+        eski _recovery_...  .../AppData/Local/LaTeX Editor/LatexEditor/recovery
+
+    Bu kendi başına çökme değil ama kurtarmanın yeri "adın ne zaman
+    ayarlandığına" bağlı kalıyordu; başlatma sırası değişirse çökme öncesi ve
+    sonrası farklı dizine bakılır ve kurtarma SESSİZCE hiçbir şey bulamaz.
+    Tek karara indirildi: log neredeyse kurtarma da orada.
+    """
+    return os.path.join(os.path.dirname(LOG_FILE), "recovery")
