@@ -82,6 +82,73 @@ jobs:
           QT_QPA_PLATFORM: offscreen
         run: python -m pytest tests/ -q
 
+
+  # ---------------------------------------------------------------------
+  # GEÇİCİ — v1.0.18 tag'lenmeden ÖNCE AppImage'ın gerçekten derlendiğini
+  # görmek için. Kanıt alınınca SİLİNECEK (PR birleştirilmeyecek).
+  #
+  # NEDEN: release.yml YALNIZ tag push'unda koşuyor. `build-linux`a bugün
+  # `setup-python: 3.12` eklendi (öncesinde runner'ın sistem python3'ü,
+  # yani 3.10 kullanılıyordu) — yani bu yol HİÇ ÇALIŞMADI. Bozuksa ancak
+  # tag attıktan sonra öğrenilirdi. Bu turda tam olarak bu sınıftan üç hata
+  # çıktı: sıkıştırılmış exe betiği, Ctrl+G, Ctrl+Shift+F — üçü de
+  # "hiç koşmamış yol"du.
+  #
+  # release.yml'in build-linux adımlarının AYNISI; yalnız yayınlama yok.
+  # ---------------------------------------------------------------------
+  appimage-on-ucus:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Gömülecek yorumlayıcı
+        run: |
+          python3 --version
+          which python3
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            python3-venv inkscape \
+            libxcb-cursor0 libgl1 libegl1 libglib2.0-0 \
+            libdbus-1-3 libxkbcommon0 libfontconfig1
+
+      - name: Build AppImage
+        working-directory: desktop
+        run: bash build_appimage.sh
+
+      - name: Üretilen dosyalar ve GÖMÜLEN Python
+        run: |
+          ls -la desktop/dist/*.AppImage* || { echo "AppImage ÜRETİLMEDİ"; exit 1; }
+          echo "--- venv'in Python sürümü ---"
+          desktop/.venv-build/bin/python --version
+          echo "--- AppDir içindeki libpython ---"
+          find desktop/dist -name "libpython3*" -printf "%f\n" 2>/dev/null | sort -u
+          find desktop/dist -maxdepth 3 -name "python3.*" -type d -printf "%f\n" 2>/dev/null | sort -u
+
+      - name: AppImage gerçekten ÇALIŞIYOR mu (--version)
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          APP=$(ls desktop/dist/*.AppImage | head -1)
+          chmod +x "$APP"
+          # AppImage FUSE isteyebilir; runner'da yoksa çıkarıp doğrudan koş
+          if ! "$APP" --appimage-extract > /dev/null 2>&1; then
+            echo "appimage-extract başarısız — FUSE yok olabilir"
+          fi
+          if [ -d squashfs-root ]; then
+            echo "içerik çıkarıldı:"
+            ls squashfs-root | head
+            find squashfs-root -maxdepth 4 -name "python3*" -printf "%p\n" | head -5
+          fi
+
   test-windows:
     # Windows uygulamanın BİRİNCİL hedefi — release bir Windows exe'si üretiyor
     # — ama test paketi 2026-08-31'e kadar Windows'ta HİÇ koşmadı: ci.yml
