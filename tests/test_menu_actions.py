@@ -145,3 +145,62 @@ def test_ortam_denetimi_metinleri_katalogda(dizge):
     en = _en_katalog()
     assert dizge in en, f"Ortam Denetimi metni EN kataloğunda yok: {dizge!r}"
     assert en[dizge] != dizge, f"EN çevirisi Türkçe kalmış: {dizge!r}"
+
+
+@pytest.fixture(scope="session")
+def qapp():
+    """QApplication REFERANSI TUTULMALI: `QApplication([])` sonucu bir yere
+    bağlanmazsa hemen toplanıyor ve sonraki widget kurulumu süreci
+    'Fatal Python error: Aborted' ile düşürüyor."""
+    from PyQt6.QtWidgets import QApplication
+    app = QApplication.instance() or QApplication([])
+    yield app
+
+
+def test_satira_git_dialogu_gercekten_aciliyor(qapp, monkeypatch):
+    """Ctrl+G / Düzenle→Satıra Git ÇAĞRILDIĞINDA patlamamalı.
+
+    Gerçekten patlıyordu (2026-08-31): `line, _ = editor.getCursorPosition()`
+    modüldeki `_` çeviri fonksiyonunu yerel bir int'le gölgeliyor, hemen
+    ardından gelen `_("Satıra Git")` "TypeError: 'int' object is not callable"
+    veriyordu. Statik kapı tests/test_i18n.py'de; bu test davranışı tutuyor:
+    imza değişip gölgeleme başka biçimde geri gelirse burası düşer.
+    """
+    pytest.importorskip("PyQt6")
+    from PyQt6.QtWidgets import QWidget
+    from gui.editor import EditorWidget
+    from gui.mixins.edit_ops import EditOpsMixin
+    import gui.mixins.edit_ops as eo
+
+    class _Stub(EditOpsMixin, QWidget):
+        def __init__(self, ed):
+            super().__init__()
+            self._ed = ed
+
+        def _current_editor(self):
+            return self._ed
+
+    ed = EditorWidget()
+    ed.setText("bir\niki\nuc\ndort\n")
+    ed.setCursorPosition(2, 1)
+
+    yakalanan = {}
+
+    def _sahte_getInt(parent, baslik, etiket, deger, alt, ust):
+        yakalanan.update(baslik=baslik, etiket=etiket, deger=deger,
+                         alt=alt, ust=ust)
+        return (4, True)
+
+    monkeypatch.setattr(eo.QInputDialog, "getInt", staticmethod(_sahte_getInt))
+
+    stub = _Stub(ed)
+    stub._goto_line_dialog()
+
+    # Dialog açıldı ve imleç satırıyla kuruldu (0-tabanlı 2 → gösterilen 3)
+    assert yakalanan["deger"] == 3
+    assert yakalanan["alt"] == 1 and yakalanan["ust"] == ed.lines()
+    assert yakalanan["baslik"] and yakalanan["etiket"]
+    # Seçilen satıra gerçekten gidildi (4 → 0-tabanlı 3)
+    assert ed.getCursorPosition()[0] == 3
+    ed.deleteLater()
+    stub.deleteLater()

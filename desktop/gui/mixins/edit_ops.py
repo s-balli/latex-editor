@@ -90,7 +90,11 @@ class EditOpsMixin:
         editor = self._current_editor()
         if not editor:
             return
-        line, _ = editor.getCursorPosition()
+        # `_` OLAMAZ: bu modülde `_` çeviri fonksiyonu ve Python'da fonksiyon
+        # içinde bir kez atanan ad TÜM gövde boyunca yereldir — aşağıdaki
+        # _("Satıra Git") bu int'i çağırmaya kalkıyordu ve Ctrl+G
+        # "TypeError: 'int' object is not callable" ile HİÇ AÇILMIYORDU.
+        line, _sutun = editor.getCursorPosition()
         max_line = editor.lines()
         num, ok = QInputDialog.getInt(
             self, _("Satıra Git"), _("Satır numarası") + f" (1-{max_line}):", line + 1, 1, max_line

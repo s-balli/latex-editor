@@ -402,3 +402,99 @@ class TestMainStartup:
         assert lambda_line < mainwindow_line, (
             f"_() lambda (satır {lambda_line}) MainWindow importundan (satır {mainwindow_line}) önce olmalı"
         )
+
+
+# --- `_` çeviri fonksiyonunu gölgeleyen yerel adlar ---
+
+class TestCeviriAdiGolgelenmiyor:
+    """`_` hem çeviri fonksiyonu hem de "umursamıyorum" adı — ikisi çarpışıyor.
+
+    GERÇEK HATA (2026-08-31): edit_ops._goto_line_dialog
+
+        line, _ = editor.getCursorPosition()
+        ...
+        QInputDialog.getInt(self, _("Satıra Git"), ...)
+
+    Python'da fonksiyon içinde BİR KEZ atanan ad tüm gövde boyunca yereldir,
+    yani `_` artık modüldeki çeviri fonksiyonu değil bir int. Ctrl+G ve
+    Düzenle→Satıra Git "TypeError: 'int' object is not callable" ile HİÇ
+    AÇILMIYORDU (deneyle üretildi). Aynı sınıf projede ara eklenirken bir kez
+    daha çıktı (`def _on_project_search_return(self, *_)`), o yüzden kapı.
+
+    Sessiz kalması da mümkündü: hata bir Qt slot'unda oluşuyor.
+    """
+
+    @staticmethod
+    def _bulgular(kok: str):
+        import ast
+        import os
+
+        def yerel_baglamalar(fn):
+            a = fn.args
+            args = (list(a.posonlyargs) + list(a.args) + list(a.kwonlyargs)
+                    + ([a.vararg] if a.vararg else [])
+                    + ([a.kwarg] if a.kwarg else []))
+            if any(x.arg == "_" for x in args):
+                yield "parametre"
+            for node in ast.walk(fn):
+                if (isinstance(node, ast.Name) and node.id == "_"
+                        and isinstance(node.ctx, ast.Store)):
+                    yield "atama"
+
+        def ceviri_cagiriyor(fn):
+            return any(isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+                       and n.func.id == "_" for n in ast.walk(fn))
+
+        bulgular = []
+        for dizin, dirs, files in os.walk(kok):
+            dirs[:] = [d for d in dirs if d not in ("__pycache__", ".venv-build")]
+            for fn_ad in files:
+                if not fn_ad.endswith(".py"):
+                    continue
+                yol = os.path.join(dizin, fn_ad)
+                with open(yol, encoding="utf-8") as f:
+                    kaynak = f.read()
+                if "QCoreApplication.translate" not in kaynak:
+                    continue        # bu modülde `_` çeviri değil
+                for node in ast.walk(ast.parse(kaynak)):
+                    if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                        continue
+                    sebep = sorted(set(yerel_baglamalar(node)))
+                    if sebep and ceviri_cagiriyor(node):
+                        bulgular.append((yol, node.lineno, node.name, sebep))
+        return bulgular
+
+    def test_gui_de_golgeleme_yok(self):
+        import os
+        kok = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                           "desktop")
+        bulgular = self._bulgular(kok)
+        assert not bulgular, (
+            "`_` çeviri fonksiyonunu gölgeleyen yerel ad var; gövdedeki "
+            "_(\"...\") çağrısı çalışma zamanında patlar:\n"
+            + "\n".join(f"  {y}:{ln}  {ad}()  [{', '.join(s)}]"
+                        for y, ln, ad, s in bulgular)
+        )
+
+    def test_ayiklayici_bilinen_hatayi_goruyor(self, tmp_path):
+        """Kapının kapısı: gerçek hatanın kalıbı verilince ısırmalı."""
+        bozuk = tmp_path / "bozuk.py"
+        bozuk.write_text(
+            "from PyQt6.QtCore import QCoreApplication\n"
+            "_ = lambda s: QCoreApplication.translate('X', s)\n"
+            "def f(editor):\n"
+            "    line, _ = editor.getCursorPosition()\n"
+            "    return _('Satıra Git'), line\n",
+            encoding="utf-8")
+        assert self._bulgular(str(tmp_path))
+
+        saglam = tmp_path / "saglam.py"
+        saglam.write_text(
+            "from PyQt6.QtCore import QCoreApplication\n"
+            "_ = lambda s: QCoreApplication.translate('X', s)\n"
+            "def f(editor):\n"
+            "    line, _sutun = editor.getCursorPosition()\n"
+            "    return _('Satıra Git'), line\n",
+            encoding="utf-8")
+        bozuk.unlink()
+        assert not self._bulgular(str(tmp_path))
