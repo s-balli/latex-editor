@@ -141,8 +141,8 @@ def test_sahte_wsl_gercekten_calisiyor(sahte_wsl):
     Bulunmazsa aşağıdaki testler FileNotFoundError'ı yutup None'a düşer ve
     hiçbir şey sınamadan yeşil kalırdı.
     """
-    r = subprocess.run(["wsl", "-e", "echo", "merhaba"],
-                       capture_output=True, text=True)
+    r = subprocess.run(["wsl", "-e", "echo", "merhaba"], capture_output=True,
+                       text=True, encoding="utf-8", errors="replace")
     assert r.returncode == 0
     assert r.stdout.strip() == "merhaba"
     assert sahte_wsl.argv_listesi() == [["-e", "echo", "merhaba"]]

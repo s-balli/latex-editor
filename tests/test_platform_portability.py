@@ -27,11 +27,28 @@ _METIN_METOTLARI = {"write_text", "read_text"}
 _SUREC_METOTLARI = {"run", "check_output", "Popen"}
 
 
+def _git_dosyalari(*dizinler: str) -> list[pathlib.Path]:
+    """İzlenen VE henüz izlenmeyen (ama yoksayılmayan) .py dosyaları.
+
+    `--others --exclude-standard` ŞART. Yalnız `git ls-files` kullanılınca
+    kapı YENİ dosyaları göremiyor: dosya commit edilene kadar listede yok,
+    yani yazarken koşulan tam suite yeşil geçiyor ve ihlal ancak commit
+    SONRASINDA, CI'da ortaya çıkıyor. Gerçekten oldu (2026-08-31,
+    run 33375251338): tests/test_wsl_koprusu.py encoding= vermeyen bir
+    subprocess.run ile eklendi, yerelde 1192 test yeşil geçti, CI kırmızı
+    döndü. `__pycache__` ve gitignore'lananlar yine dışarıda kalıyor.
+    """
+    yollar = []
+    for arg in (["ls-files", *dizinler],
+                ["ls-files", "--others", "--exclude-standard", *dizinler]):
+        cikti = subprocess.run(["git", *arg], cwd=_REPO, capture_output=True,
+                               text=True, encoding="utf-8", check=True).stdout
+        yollar += [r for r in cikti.split() if r.endswith(".py")]
+    return [_REPO / r for r in dict.fromkeys(yollar)]
+
+
 def _test_dosyalari() -> list[pathlib.Path]:
-    ciktilar = subprocess.run(["git", "ls-files", "tests"], cwd=_REPO,
-                              capture_output=True, text=True,
-                              encoding="utf-8", check=True).stdout.split()
-    return [_REPO / r for r in ciktilar if r.endswith(".py")]
+    return _git_dosyalari("tests")
 
 
 def _ikili_mod(node: ast.Call) -> bool:
@@ -80,10 +97,24 @@ def test_dosya_cagrilari_encoding_belirtir():
         + "\n".join(f"  {f}:{ln}  {ne}" for f, ln, ne in eksik))
 
 
+def test_kapi_henuz_commitlenmemis_dosyayi_da_goruyor():
+    """Kapının kapısı: yeni yazılan bir test dosyası da taranmalı.
+
+    Yalnız `git ls-files` kullanılırken ihlal ancak commit'ten SONRA
+    görünüyordu — yani yazarken koşulan suite yeşil, CI kırmızı.
+    """
+    gecici = _REPO / "tests" / "_kapi_denemesi_gecici.py"
+    gecici.write_text("# gecici\n", encoding="utf-8")
+    try:
+        assert gecici in _test_dosyalari(), (
+            "izlenmeyen dosya taranmıyor — `--others --exclude-standard` düşmüş"
+        )
+    finally:
+        gecici.unlink()
+
+
 def _urun_dosyalari() -> list[pathlib.Path]:
-    ciktilar = subprocess.run(["git", "ls-files", "core", "desktop"], cwd=_REPO,
-                              capture_output=True, text=True, encoding="utf-8").stdout
-    return [_REPO / s for s in ciktilar.split() if s.endswith(".py")]
+    return _git_dosyalari("core", "desktop")
 
 
 def test_urun_subprocess_cagrilari_encoding_belirtir():
