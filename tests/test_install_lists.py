@@ -96,3 +96,60 @@ def test_ayiklayici_devam_satirlarini_birlestirir():
     cmds = _install_commands(text)
     assert cmds[0] == {"a-pkg", "b-pkg", "c-pkg", "d-pkg"}
     assert cmds[1] == {"x-pkg"}
+
+
+# --- Landing page: vaat edilen kısayollar gerçekten var mı ---
+
+_KISAYOL = re.compile(
+    r'\b(?:Ctrl\+(?:Shift\+)?[A-Za-z0-9/]|Alt\+[A-Za-z]|F\d{1,2})\b')
+
+
+def _kaynak_metni() -> str:
+    """Kısayolların tanımlandığı tüm GUI kaynağı, tek dize."""
+    parcalar = []
+    for rel in ("desktop/gui/main_window.py", "desktop/gui/editor.py",
+                "desktop/gui/find_replace.py", "desktop/gui/pdf_viewer.py"):
+        with open(os.path.join(_ROOT, rel), encoding="utf-8") as f:
+            parcalar.append(f.read())
+    for d in ("desktop/gui/mixins", "desktop/gui/pdf_viewer_mixins"):
+        tam = os.path.join(_ROOT, d)
+        for fn in sorted(os.listdir(tam)):
+            if fn.endswith(".py"):
+                with open(os.path.join(tam, fn), encoding="utf-8") as f:
+                    parcalar.append(f.read())
+    return "\n".join(parcalar)
+
+
+def test_landing_page_var_olmayan_kisayol_vaat_etmiyor():
+    """Tanıtım sayfası herkese açık: orada yazan kısayol gerçekten çalışmalı.
+
+    Sayfa kod tabanından bağımsız yaşıyor ve sürükleniyor — `6ebb892` "var
+    olan altı özellik sayfada görünmüyordu" diyor, yani drift yönü ikisi de
+    olabiliyor. Bu kapı TERS yönü tutuyor: sayfada vaat edilip kodda
+    OLMAYAN bir kısayol kalmasın. (Eksik özellik kapıya bağlanamıyor:
+    "özellik listesi" diye tek bir doğruluk kaynağı yok.)
+    """
+    with open(os.path.join(_ROOT, "docs", "index.html"), encoding="utf-8") as f:
+        sayfa = f.read()
+    metin = re.sub(r"<[^>]+>", " ", sayfa)          # etiketleri at
+    sayfada = sorted(set(_KISAYOL.findall(metin)))
+    assert len(sayfada) >= 8, f"kapı boş koşuyor, bulunan: {sayfada}"
+
+    kaynak = _kaynak_metni()
+    eksik = [k for k in sayfada if k not in kaynak]
+    assert not eksik, (
+        f"tanıtım sayfası olmayan kısayol(lar) vaat ediyor: {eksik}"
+    )
+
+
+def test_landing_page_yeni_ozellikleri_iceriyor():
+    """v1.0.18'in iki özelliği sayfada görünmeli.
+
+    Sayfa güncellenmeden yayınlanan bir sürüm, kullanıcının haberi olmayan
+    bir özellik demek — bu depoda bir kez oldu (`6ebb892`).
+    """
+    with open(os.path.join(_ROOT, "docs", "index.html"), encoding="utf-8") as f:
+        sayfa = f.read()
+    for beklenen in ("Ctrl+Shift+F", "Find in project", "Projede ara",
+                     "Crash recovery", "Çökme kurtarma"):
+        assert beklenen in sayfa, f"tanıtım sayfasında yok: {beklenen}"
