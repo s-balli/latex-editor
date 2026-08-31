@@ -4,7 +4,7 @@
   <context>
     <name>App</name>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/main.py" line="157" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/main.py" line="157" />
         <source>Uygulama zaten çalışıyor ama yanıt vermiyor.
 Açık pencereyi kullanın ya da uygulamayı kapatıp yeniden başlatın.</source>
         <translation>The application is already running but is not responding.
@@ -19,144 +19,144 @@ Only one instance can run at a time.</translation>
 </context><context>
     <name>CompileOpsMixin</name>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="90" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="58" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="90" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="58" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="90" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="58" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="90" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="58" />
         <source>Derleme sürüyor; bitmesini bekleyin veya Esc ile durdurun</source>
         <translation>Compilation in progress; wait for it to finish or stop it with Esc</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="63" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="63" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="63" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="63" />
         <source>Derlenecek dosya yok</source>
         <translation>No file to compile</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="101" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="72" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="101" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="72" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="101" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="72" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="101" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="72" />
         <source>Kayıt başarısız — derleme iptal</source>
         <translation>Save failed — compilation cancelled</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="121" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="121" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="121" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="121" />
         <source>Derleme durduruldu</source>
         <translation>Compilation stopped</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="141" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="141" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="141" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="141" />
         <source>Derleniyor...</source>
         <translation>Compiling...</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="173" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="173" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="173" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="173" />
         <source>PDF açılamadı — motoru değiştirip tekrar deneyin</source>
         <translation>Could not open PDF — change the engine and try again</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="187" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="187" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="187" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="187" />
         <source>PDF oluşturuldu ama boş — motoru değiştirip tekrar deneyin</source>
         <translation>PDF created but empty — try changing the engine</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="197" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="197" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="197" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="197" />
         <source>hata</source>
         <translation>error(s)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="197" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="197" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="197" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="197" />
         <source>Basarisiz</source>
         <translation>Failed</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="199" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="199" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="199" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="199" />
         <source>Basarili</source>
         <translation>Successful</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="201" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="201" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="201" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="201" />
         <source>uyari</source>
         <translation>warning(s)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="248" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="248" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="248" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="248" />
         <source>Derleme sonrası referans denetimi açıldı</source>
         <translation>Post-compile reference audit enabled</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="249" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="249" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="249" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="249" />
         <source>Derleme sonrası referans denetimi kapatıldı</source>
         <translation>Post-compile reference audit disabled</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="284" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="284" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="284" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="284" />
         <source>{n} tanımsız ref</source>
         <translation>{n} undefined refs</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="286" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="286" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="286" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="286" />
         <source>{n} tanımsız cite</source>
         <translation>{n} undefined cites</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="288" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="288" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="288" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="288" />
         <source>{n} kullanılmayan .bib</source>
         <translation>{n} unused .bib</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="290" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="290" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="290" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="290" />
         <source>{n} kullanılmayan label</source>
         <translation>{n} unused labels</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="291" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="291" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="291" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="291" />
         <source>Denetim: </source>
         <translation>Audit: </translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="316" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="316" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="316" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="316" />
         <source>Hata yok</source>
         <translation>No errors</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="325" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="325" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="325" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="325" />
         <source>Hata konumu bulunamadı</source>
         <translation>Error location not found</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="329" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="329" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="329" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="329" />
         <source>Satır</source>
         <translation>Line</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="344" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="344" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="344" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="344" />
         <source>Otomatik Derle</source>
         <translation>Auto Compile</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="350" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/compile_ops.py" line="350" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="350" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/compile_ops.py" line="350" />
         <source>Manuel</source>
         <translation>Manual</translation>
     </message>
@@ -167,68 +167,68 @@ Only one instance can run at a time.</translation>
 </context><context>
     <name>EditOpsMixin</name>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="96" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="96" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="96" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="96" />
         <source>Satıra Git</source>
         <translation>Go to Line</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="96" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="96" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="96" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="96" />
         <source>Satır numarası</source>
         <translation>Line number</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="145" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="145" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="145" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="145" />
         <source>Tanımsız \ref</source>
         <translation>Undefined \ref</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="147" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="147" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="147" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="147" />
         <source>Tanımsız \cite</source>
         <translation>Undefined \cite</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="151" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="151" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="151" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="151" />
         <source>Kullanılmayan .bib girdisi</source>
         <translation>Unused .bib entry</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="154" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="154" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="154" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="154" />
         <source>Kullanılmayan label</source>
         <translation>Unused label</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="167" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="167" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="167" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="167" />
         <source>Önce bir .tex dosyası açın</source>
         <translation>Open a .tex file first</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="172" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="172" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="172" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="172" />
         <source>Referans denetimi: sorun yok</source>
         <translation>Reference audit: no issues</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="175" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="175" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="175" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="175" />
         <source>Referans denetimi: {r} tanımsız ref, {c} tanımsız cite, {b} kullanılmayan .bib, {l} kullanılmayan label</source>
         <translation>Reference audit: {r} undefined refs, {c} undefined cites, {b} unused .bib entries, {l} unused labels</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="258" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="258" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="258" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="258" />
         <source>Yeniden Adlandırma</source>
         <translation>Rename</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="259" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="259" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="259" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="259" />
         <source>'{o}' → '{n}': {c} dosya değiştirildi, {f} dosya değiştirilemedi.
 
 {liste}
@@ -241,125 +241,121 @@ Referanslar tutarsız kaldı. Bu dosyalara yazma izni verip işlemi tekrarlayın
 References are now inconsistent. Grant write permission to these files and retry, or fix them by hand.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="270" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="270" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="270" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="270" />
         <source>Değişiklik yok: {k}</source>
         <translation>No changes: {k}</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="301" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="287" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="301" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="287" />
-        <source>Etiketi Yeniden Adlandır</source>
-        <translation>Rename Label</translation>
-    </message>
-    <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="404" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="335" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="288" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="404" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="335" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="288" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="296" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="296" />
         <source>yeni ad:</source>
         <translation>new name:</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="296" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="296" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="323" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="315" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="323" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="315" />
+        <source>Etiketi Yeniden Adlandır</source>
+        <translation>Rename Label</translation>
+    </message>
+    <message>
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="316" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="316" />
         <source>Geçersiz etiket adı (harf, rakam, : . _ - kullanın)</source>
         <translation>Invalid label name (use letters, digits, : . _ -)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="417" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="302" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="417" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="302" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="415" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="324" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="415" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="324" />
         <source>'{k}' adlı etiket projede zaten var.</source>
         <translation>A label named '{k}' already exists in the project.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="312" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="312" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="334" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="334" />
         <source>Etiket yeniden adlandırıldı: {o} → {n} ({c} dosya)</source>
         <translation>Label renamed: {o} → {n} ({c} files)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="403" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="334" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="403" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="334" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="406" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="349" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="406" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="349" />
         <source>Kaynakça Anahtarını Yeniden Adlandır</source>
         <translation>Rename Bibliography Key</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="411" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="342" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="411" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="342" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="408" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="351" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="408" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="351" />
         <source>Geçersiz anahtar adı (harf, rakam, : . _ - kullanın)</source>
         <translation>Invalid key name (use letters, digits, : . _ -)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="361" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="361" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="371" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="371" />
         <source>'{k}' anahtarı .bib'te zaten var.</source>
         <translation>A key named '{k}' already exists in the .bib file.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="429" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="383" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="429" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/edit_ops.py" line="383" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="427" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="393" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="427" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/edit_ops.py" line="393" />
         <source>Kaynakça anahtarı yeniden adlandırıldı: {o} → {n} ({c} dosya)</source>
         <translation>Bibliography key renamed: {o} → {n} ({c} files)</translation>
     </message>
 </context><context>
     <name>EditorSettingsDialog</name>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/settings_dialog.py" line="18" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/settings_dialog.py" line="18" />
         <source>Editör Ayarları</source>
         <translation>Editor Settings</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/settings_dialog.py" line="26" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/settings_dialog.py" line="26" />
         <source>Tab genişliği</source>
         <translation>Tab width</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/settings_dialog.py" line="32" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/settings_dialog.py" line="32" />
         <source>Font boyutu</source>
         <translation>Font size</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/settings_dialog.py" line="34" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/settings_dialog.py" line="34" />
         <source>Uzun satırları kaydır</source>
         <translation>Wrap long lines</translation>
     </message>
 </context><context>
     <name>EditorWidget</name>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/editor.py" line="768" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/editor.py" line="768" />
         <source>İkili (binary) dosya; metin editöründe açılamaz.</source>
         <translation>Binary file; cannot be opened in the text editor.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/editor.py" line="786" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/editor.py" line="786" />
         <source>Kodlama Uyarısı</source>
         <translation>Encoding Warning</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/editor.py" line="787" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/editor.py" line="787" />
         <source>Bu dosya UTF-8 değil ({enc}). {enc} olarak açıldı ve aynı kodlamayla kaydedilecek. Sorunsuz derleme için UTF-8'e dönüştürmeniz önerilir.</source>
         <translation>This file is not UTF-8 ({enc}). It was opened as {enc} and will be saved with the same encoding. Converting it to UTF-8 is recommended for trouble-free compilation.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/editor.py" line="794" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/editor.py" line="794" />
         <source>Dosya Açma Hatası</source>
         <translation>File Open Error</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/editor.py" line="794" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/editor.py" line="794" />
         <source>Dosya açılamadı:
 {path}
 
@@ -370,12 +366,12 @@ References are now inconsistent. Grant write permission to these files and retry
 {e}</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/editor.py" line="852" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/editor.py" line="852" />
         <source>Kaydetme Hatası</source>
         <translation>Save Error</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/editor.py" line="852" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/editor.py" line="852" />
         <source>Dosya kaydedilemedi:
 {path}
 
@@ -386,148 +382,148 @@ References are now inconsistent. Grant write permission to these files and retry
 {e}</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/editor.py" line="877" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/editor.py" line="877" />
         <source>Yeni Dosya</source>
         <translation>New File</translation>
     </message>
 </context><context>
     <name>EnvDoctor</name>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/env_doctor.py" line="38" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/env_doctor.py" line="38" />
         <source>kurulu değil</source>
         <translation>not installed</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/env_doctor.py" line="39" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/env_doctor.py" line="39" />
         <source>çalışıyor</source>
         <translation>running</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/env_doctor.py" line="40" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/env_doctor.py" line="40" />
         <source>wsl bulunamadı</source>
         <translation>wsl not found</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/env_doctor.py" line="41" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/env_doctor.py" line="41" />
         <source>WSL olmadığından denetlenemedi</source>
         <translation>could not be checked — WSL is missing</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/env_doctor.py" line="42" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/env_doctor.py" line="42" />
         <source>WSL çalışmadığından denetlenemedi</source>
         <translation>could not be checked — WSL is not running</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/env_doctor.py" line="44" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/env_doctor.py" line="44" />
         <source>çalıştırılamadı (dağıtım kurulu olmayabilir)</source>
         <translation>could not be started (no distribution installed?)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/env_doctor.py" line="45" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/env_doctor.py" line="45" />
         <source>minted belgeleri için gerekli</source>
         <translation>required for minted documents</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/env_doctor.py" line="48" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/env_doctor.py" line="48" />
         <source>hiç motor kurulu değil; eksik paketleri tek tek kurmak yerine README'nin tam kurulumu önerilir</source>
         <translation>no engine installed at all; rather than installing the missing packages one by one, the full installation in the README is recommended</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/env_doctor.py" line="50" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/env_doctor.py" line="50" />
         <source>TeX Live kurulumu</source>
         <translation>TeX Live installation</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/env_doctor.py" line="75" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/env_doctor.py" line="75" />
         <source>Ortam Denetimi</source>
         <translation>Environment Check</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/env_doctor.py" line="99" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/env_doctor.py" line="99" />
         <source>Yeniden Denetle</source>
         <translation>Check Again</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/env_doctor.py" line="102" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/env_doctor.py" line="102" />
         <source>Raporu Kopyala</source>
         <translation>Copy Report</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/env_doctor.py" line="105" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/env_doctor.py" line="105" />
         <source>Kapat</source>
         <translation>Close</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/env_doctor.py" line="120" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/env_doctor.py" line="120" />
         <source>Denetleniyor: WSL, TeX motorları, biber, pandoc, synctex ...</source>
         <translation>Checking: WSL, TeX engines, biber, pandoc, synctex ...</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/env_doctor.py" line="162" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/env_doctor.py" line="162" />
         <source>Rapor panoya kopyalandı</source>
         <translation>Report copied to clipboard</translation>
     </message>
 </context><context>
     <name>FileOpsMixin</name>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="56" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="56" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="56" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="56" />
         <source>Klasör Aç</source>
         <translation>Open Folder</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="87" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="87" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="87" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="87" />
         <source>Yeni Dosya</source>
         <translation>New File</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="189" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="87" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="189" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="87" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="189" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="87" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="189" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="87" />
         <source>LaTeX Dosyaları (*.tex);;Tüm Dosyalar (*)</source>
         <translation>LaTeX Files (*.tex);;All Files (*)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="111" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="111" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="111" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="111" />
         <source>Dosya Aç</source>
         <translation>Open File</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="112" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="112" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="112" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="112" />
         <source>LaTeX Dosyaları (*.tex *.cls *.sty *.bib);;Tüm Dosyalar (*)</source>
         <translation>LaTeX Files (*.tex *.cls *.sty *.bib);;All Files (*)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="172" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="172" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="172" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="172" />
         <source>Motor algılandı</source>
         <translation>Engine detected</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="188" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="188" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="188" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="188" />
         <source>Farklı Kaydet</source>
         <translation>Save As</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="238" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="238" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="238" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="238" />
         <source>(boş)</source>
         <translation>(empty)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="252" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="252" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="252" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="252" />
         <source>Dışa Aktarma</source>
         <translation>Export</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="257" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="257" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="257" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="257" />
         <source>pandoc yüklü değil.
 
 Kurmak için:
@@ -540,56 +536,56 @@ Linux: sudo apt install pandoc
 Windows: run 'sudo apt install pandoc' inside WSL</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="263" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="263" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="263" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="263" />
         <source>Dışa aktarılacak dosya yok</source>
         <translation>No file to export</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="269" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="269" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="269" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="269" />
         <source>Dışa aktarma zaten sürüyor — bitmesini bekleyin</source>
         <translation>An export is already running — wait for it to finish</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="274" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="274" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="274" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="274" />
         <source>Dışa Aktar</source>
         <translation>Export</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="275" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="275" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="275" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="275" />
         <source>Tüm Dosyalar (*)</source>
         <translation>All Files (*)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="286" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="286" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="286" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="286" />
         <source>Kayıt başarısız — dışa aktarma iptal edildi</source>
         <translation>Save failed — export cancelled</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="295" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="295" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="295" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="295" />
         <source>Dışa aktarılıyor</source>
         <translation>Exporting</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="303" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="303" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="303" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="303" />
         <source>Dışa aktarıldı</source>
         <translation>Exported</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="306" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="306" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="306" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="306" />
         <source>Dışa aktarma başarısız</source>
         <translation>Export failed</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="314" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_ops.py" line="314" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="314" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_ops.py" line="314" />
         <source>Önce bir klasör açın</source>
         <translation>Open a folder first</translation>
     </message>
@@ -605,85 +601,85 @@ Windows: pandoc.org</source>
 </context><context>
     <name>FileTree</name>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/file_tree.py" line="87" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/file_tree.py" line="87" />
         <source>DOSYALAR</source>
         <translation>FILES</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/file_tree.py" line="91" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/file_tree.py" line="90" />
         <source>Yenile</source>
         <translation>Refresh</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/file_tree.py" line="140" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/file_tree.py" line="120" />
         <source> BAĞLANTILI DOSYALAR</source>
         <translation> LINKED FILES</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/file_tree.py" line="431" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/file_tree.py" line="412" />
         <source>▶ Derle</source>
         <translation>▶ Compile</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/file_tree.py" line="435" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/file_tree.py" line="416" />
         <source>📂 Düzenle</source>
         <translation>📂 Edit</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/file_tree.py" line="438" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/file_tree.py" line="419" />
         <source>📁 Klasörde Aç</source>
         <translation>📁 Open in Folder</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/file_tree.py" line="443" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/file_tree.py" line="424" />
         <source>🗑 Sil</source>
         <translation>🗑 Delete</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/file_tree.py" line="471" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/file_tree.py" line="452" />
         <source>Sil</source>
         <translation>Delete</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/file_tree.py" line="472" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/file_tree.py" line="453" />
         <source>'{name}' dosyasını silmek istediğinize emin misiniz?
 (Geri dönüşüm kutusuna taşınır)</source>
         <translation>Are you sure you want to delete '{name}'?
 (Moved to recycle bin)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/file_tree.py" line="474" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/file_tree.py" line="455" />
         <source>Evet</source>
         <translation>Yes</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/file_tree.py" line="475" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/file_tree.py" line="456" />
         <source>Hayır</source>
         <translation>No</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/file_tree.py" line="483" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/file_tree.py" line="464" />
         <source>Hata</source>
         <translation>Error</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/file_tree.py" line="483" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/file_tree.py" line="464" />
         <source>Dosya silinemedi: {e}</source>
         <translation>Could not delete file: {e}</translation>
     </message>
 </context><context>
     <name>FileWatchMixin</name>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_watch.py" line="196" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_watch.py" line="157" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_watch.py" line="196" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_watch.py" line="157" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_watch.py" line="196" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_watch.py" line="157" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_watch.py" line="196" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_watch.py" line="157" />
         <source>Dosya Silindi</source>
         <translation>File Deleted</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_watch.py" line="159" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_watch.py" line="159" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_watch.py" line="159" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_watch.py" line="159" />
         <source>{fname} dosyası diskten silindi.
 
 Bu dosyada kaydedilmemiş değişiklikleriniz var; sekmeyi kapatırsanız kaybolur.</source>
@@ -692,34 +688,34 @@ Bu dosyada kaydedilmemiş değişiklikleriniz var; sekmeyi kapatırsanız kaybol
 You have unsaved changes in this file; they will be lost if you close the tab.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_watch.py" line="164" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_watch.py" line="164" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_watch.py" line="164" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_watch.py" line="164" />
         <source>Farklı Kaydet...</source>
         <translation>Save As...</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_watch.py" line="165" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_watch.py" line="165" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_watch.py" line="165" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_watch.py" line="165" />
         <source>Sekmede Tut</source>
         <translation>Keep in Tab</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_watch.py" line="166" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_watch.py" line="166" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_watch.py" line="166" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_watch.py" line="166" />
         <source>Sekmeyi Kapat</source>
         <translation>Close Tab</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_watch.py" line="197" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_watch.py" line="197" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_watch.py" line="197" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_watch.py" line="197" />
         <source>{fname} dosyası diskten silindi.
 İlgili sekme kapatılacak.</source>
         <translation>{fname} has been deleted from disk.
 The tab will be closed.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_watch.py" line="210" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_watch.py" line="210" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_watch.py" line="210" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_watch.py" line="210" />
         <source>{fname} dosyası diskte değiştirildi.
 
 Kaydedilmemiş yerel değişiklikleriniz var.
@@ -730,77 +726,77 @@ You have unsaved local changes.
 Reloading from disk will discard your changes.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_watch.py" line="215" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_watch.py" line="215" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_watch.py" line="215" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_watch.py" line="215" />
         <source>Diskten Yükle</source>
         <translation>Reload from Disk</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_watch.py" line="216" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_watch.py" line="216" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_watch.py" line="216" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_watch.py" line="216" />
         <source>Kendiminkini Koru</source>
         <translation>Keep Mine</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_watch.py" line="218" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_watch.py" line="218" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_watch.py" line="218" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_watch.py" line="218" />
         <source>{fname} dosyası diskte başka bir program tarafından değiştirildi.</source>
         <translation>{fname} has been modified by another program.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_watch.py" line="221" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_watch.py" line="221" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_watch.py" line="221" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_watch.py" line="221" />
         <source>Yeniden Yükle</source>
         <translation>Reload</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_watch.py" line="222" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_watch.py" line="222" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_watch.py" line="222" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_watch.py" line="222" />
         <source>Yoksay</source>
         <translation>Ignore</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_watch.py" line="225" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/file_watch.py" line="225" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_watch.py" line="225" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/file_watch.py" line="225" />
         <source>Dosya Değiştirildi</source>
         <translation>File Changed</translation>
     </message>
 </context><context>
     <name>FindReplaceBar</name>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/find_replace.py" line="39" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/find_replace.py" line="39" />
         <source>Bul</source>
         <translation>Find</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/find_replace.py" line="66" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/find_replace.py" line="61" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/find_replace.py" line="66" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/find_replace.py" line="61" />
         <source>Değiştir</source>
         <translation>Replace</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/find_replace.py" line="271" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/find_replace.py" line="70" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/find_replace.py" line="280" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/find_replace.py" line="70" />
         <source>Tümünü Değiştir</source>
         <translation>Replace All</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/find_replace.py" line="194" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/find_replace.py" line="203" />
         <source>Sonuç yok</source>
         <translation>No results</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/find_replace.py" line="196" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/find_replace.py" line="205" />
         <source>{n} sonuç</source>
         <translation>{n} results</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/find_replace.py" line="264" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/find_replace.py" line="273" />
         <source>{n} değişiklik</source>
         <translation>{n} changes</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/find_replace.py" line="272" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/find_replace.py" line="281" />
         <source>{n} değişiklik yapıldı ve güvenlik sınırına ulaşıldı.
 
 Belgede değiştirilmemiş eşleşmeler kalmış olabilir; işlemi tekrarlayarak kaldığı yerden sürdürebilirsiniz.</source>
@@ -811,1097 +807,1113 @@ Some matches in the document may be unchanged; run the command again to continue
 </context><context>
     <name>ImageOpsMixin</name>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/image_ops.py" line="27" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/image_ops.py" line="27" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/image_ops.py" line="27" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/image_ops.py" line="27" />
         <source>Standart (\begin{figure})</source>
         <translation>Standard (\begin{figure})</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/image_ops.py" line="28" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/image_ops.py" line="28" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/image_ops.py" line="28" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/image_ops.py" line="28" />
         <source>İki sütun (\begin{figure*})</source>
         <translation>Two columns (\begin{figure*})</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/image_ops.py" line="29" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/image_ops.py" line="29" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/image_ops.py" line="29" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/image_ops.py" line="29" />
         <source>IEEE Access (\Figure)</source>
         <translation>IEEE Access (\Figure)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/image_ops.py" line="30" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/image_ops.py" line="30" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/image_ops.py" line="30" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/image_ops.py" line="30" />
         <source>MNRAS (\columnwidth)</source>
         <translation>MNRAS (\columnwidth)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/image_ops.py" line="31" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/image_ops.py" line="31" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/image_ops.py" line="31" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/image_ops.py" line="31" />
         <source>Elsevier CAS</source>
         <translation>Elsevier CAS</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/image_ops.py" line="32" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/image_ops.py" line="32" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/image_ops.py" line="32" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/image_ops.py" line="32" />
         <source>Frontiers</source>
         <translation>Frontiers</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/image_ops.py" line="33" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/image_ops.py" line="33" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/image_ops.py" line="33" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/image_ops.py" line="33" />
         <source>Alt şekil (subfloat)</source>
         <translation>Subfigure (subfloat)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/image_ops.py" line="34" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/image_ops.py" line="34" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/image_ops.py" line="34" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/image_ops.py" line="34" />
         <source>Sadece \includegraphics</source>
         <translation>Only \includegraphics</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/image_ops.py" line="247" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/image_ops.py" line="143" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/image_ops.py" line="247" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/image_ops.py" line="143" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/image_ops.py" line="247" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/image_ops.py" line="143" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/image_ops.py" line="247" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/image_ops.py" line="143" />
         <source>Önce bir .tex dosyası açın</source>
         <translation>Open a .tex file first</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/image_ops.py" line="192" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/image_ops.py" line="192" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/image_ops.py" line="192" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/image_ops.py" line="192" />
         <source>Görsel Ekle</source>
         <translation>Insert Image</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/image_ops.py" line="205" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/image_ops.py" line="205" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/image_ops.py" line="205" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/image_ops.py" line="205" />
         <source>Şablon:</source>
         <translation>Template:</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/image_ops.py" line="208" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/image_ops.py" line="208" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/image_ops.py" line="208" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/image_ops.py" line="208" />
         <source>Genişlik:</source>
         <translation>Width:</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/image_ops.py" line="211" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/image_ops.py" line="211" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/image_ops.py" line="211" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/image_ops.py" line="211" />
         <source>Caption:</source>
         <translation>Caption:</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/image_ops.py" line="214" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/image_ops.py" line="214" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/image_ops.py" line="214" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/image_ops.py" line="214" />
         <source>Label:</source>
         <translation>Label:</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/image_ops.py" line="262" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/image_ops.py" line="262" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/image_ops.py" line="262" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/image_ops.py" line="262" />
         <source>Panodaki resim kaydedilemedi</source>
         <translation>Could not save the clipboard image</translation>
     </message>
 </context><context>
     <name>MainWindow</name>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="217" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="220" />
         <source>&amp;Dosya</source>
         <translation>&amp;File</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="218" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="221" />
         <source>Yeni &amp;Dosya</source>
         <translation>New &amp;File</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="220" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="223" />
         <source>&amp;Klasör Aç...</source>
         <translation>&amp;Open Folder...</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="221" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="224" />
         <source>D&amp;osya Aç...</source>
         <translation>Open Fil&amp;e...</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="230" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="233" />
         <source>Ka&amp;ydet</source>
         <translation>&amp;Save</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="232" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="235" />
         <source>Farklı Kayde&amp;t...</source>
         <translation>Save &amp;As...</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="234" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="237" />
         <source>Sürümle</source>
         <translation>Snapshot</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="235" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="238" />
         <source>Sürüm &amp;Geçmişi</source>
         <translation>Version &amp;History</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="238" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="241" />
         <source>Son Açılanlar</source>
         <translation>Recent Files</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="243" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="246" />
         <source>Dışa Akta&amp;r</source>
         <translation>E&amp;xport</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="336" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="267" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="341" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="270" />
         <source>pandoc gerekli: apt install pandoc</source>
         <translation>pandoc required: apt install pandoc</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="268" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="271" />
         <source>Çıkı&amp;ş</source>
         <translation>&amp;Quit</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="271" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="274" />
         <source>Dü&amp;zenle</source>
         <translation>&amp;Edit</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="272" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="275" />
         <source>&amp;Geri Al</source>
         <translation>&amp;Undo</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="273" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="276" />
         <source>&amp;Yinele</source>
         <translation>&amp;Redo</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="275" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="278" />
         <source>&amp;Bul...</source>
         <translation>&amp;Find...</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="276" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="279" />
         <source>Bul &amp;Değiştir...</source>
         <translation>Find Rep&amp;lace...</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="278" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="280" />
+        <source>&amp;Projede Ara...</source>
+        <translation>Find in Pro&amp;ject...</translation>
+    </message>
+    <message>
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="283" />
         <source>Yorum &amp;Toggle</source>
         <translation>&amp;Toggle Comment</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="279" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="284" />
         <source>Satıra G&amp;it...</source>
         <translation>&amp;Go to Line...</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="281" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="286" />
         <source>Tablo &amp;Sihirbazı...</source>
         <translation>Table &amp;Wizard...</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="282" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="287" />
         <source>Tabloyu &amp;Hizala</source>
         <translation>&amp;Align Table</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="284" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="289" />
         <source>&amp;Referansları Denetle</source>
         <translation>&amp;Check References</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="286" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="291" />
         <source>S&amp;onraki Hata</source>
         <translation>&amp;Next Error</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="287" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="292" />
         <source>Ö&amp;nceki Hata</source>
         <translation>&amp;Previous Error</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="290" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="295" />
         <source>De&amp;rle</source>
         <translation>&amp;Compile</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="291" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="296" />
         <source>&amp;Derle</source>
         <translation>&amp;Compile</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="292" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="297" />
         <source>D&amp;urdur</source>
         <translation>&amp;Stop</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="297" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="302" />
         <source>&amp;Otomatik Derle</source>
         <translation>A&amp;uto Compile</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="301" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="306" />
         <source>Derleme Sonrası &amp;Referans Denetimi</source>
         <translation>Post-Compile &amp;Reference Audit</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="307" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="312" />
         <source>&amp;Görünüm</source>
         <translation>&amp;View</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="308" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="313" />
         <source>&amp;Sunum Modu</source>
         <translation>&amp;Presentation Mode</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="310" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="315" />
         <source>&amp;Tema</source>
         <translation>&amp;Theme</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="319" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="324" />
         <source>Editör A&amp;yarları...</source>
         <translation>Editor &amp;Settings...</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="322" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="327" />
         <source>&amp;Yardım</source>
         <translation>&amp;Help</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="323" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="328" />
         <source>&amp;Klavye Kısayolları</source>
         <translation>&amp;Keyboard Shortcuts</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="324" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="329" />
         <source>Ö&amp;zellikler</source>
         <translation>&amp;Features</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="326" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="331" />
         <source>&amp;Güncellemeleri Kontrol Et</source>
         <translation>&amp;Check for Updates</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="328" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="333" />
         <source>Ortam &amp;Denetimi...</source>
         <translation>&amp;Environment Check...</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="329" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="334" />
         <source>&amp;Log Klasörünü Aç</source>
         <translation>Open &amp;Log Folder</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="331" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="336" />
         <source>&amp;Hakkında</source>
         <translation>&amp;About</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="353" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="358" />
         <source>Araç Çubuğu</source>
         <translation>Toolbar</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="359" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="364" />
         <source>📂 Klasör Aç</source>
         <translation>📂 Open Folder</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="360" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="365" />
         <source>📄 Dosya Aç</source>
         <translation>📄 Open File</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="362" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="367" />
         <source>💾 Kaydet</source>
         <translation>💾 Save</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="363" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="368" />
         <source>✔ Sürümle</source>
         <translation>✔ Snapshot</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="364" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="369" />
         <source>▶ Derle</source>
         <translation>▶ Compile</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="368" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="373" />
         <source> Derleyici: </source>
         <translation> Compiler: </translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="373" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="378" />
         <source>Derleme motoru</source>
         <translation>Compiler engine</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="377" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="382" />
         <source>  ● Otomatik Derle  </source>
         <translation>  ● Auto Compile  </translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="382" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="387" />
         <source>Kaydederken otomatik derle — açmak/kapatmak için tıklayın (Derle menüsü)</source>
         <translation>Compile automatically on save — click to toggle (Compile menu)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="389" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="394" />
         <source> Tema: </source>
         <translation> Theme: </translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="404" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="409" />
         <source>Dil</source>
         <translation>Language</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="424" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="429" />
         <source>Hazır</source>
         <translation>Ready</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="437" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="442" />
         <source>Satır 1, Sütun 1</source>
         <translation>Row 1, Column 1</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="533" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="546" />
         <source>Dil değişikliği yeniden başlatma gerektirir.</source>
         <translation>Language change requires a restart.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="566" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="579" />
         <source>Editör ayarları kaydedildi</source>
         <translation>Editor settings saved</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="576" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="589" />
         <source>Kaydet</source>
         <translation>Save</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="577" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="590" />
         <source>değiştirildi.</source>
         <translation>modified.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="578" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="591" />
         <source>Kaydetmek ister misiniz?</source>
         <translation>Do you want to save?</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="579" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="592" />
         <source>&amp;Kaydet</source>
         <translation>&amp;Save</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="580" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="593" />
         <source>&amp;Kaydetme</source>
         <translation>Do&amp;n't Save</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="581" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="594" />
         <source>İ&amp;ptal</source>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="595" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="608" />
         <source>Dosya</source>
         <translation>File</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="596" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="609" />
         <source>Kaydet + Derle (Otomatik modda)</source>
         <translation>Save + Compile (Auto mode)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="597" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="610" />
         <source>Derle (Manuel modda veya yeniden derle)</source>
         <translation>Compile (Manual mode or recompile)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="598" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="611" />
         <source>Klasör Aç</source>
         <translation>Open Folder</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="599" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="612" />
         <source>Dosya Aç</source>
         <translation>Open File</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="725" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="600" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="742" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="613" />
         <source>Farklı Kaydet</source>
         <translation>Save As</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="601" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="614" />
         <source>Sürümle (tüm değişiklikleri tek kayda al)</source>
         <translation>Snapshot (save all changes into one named snapshot)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="651" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="602" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="668" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="615" />
         <source>Hızlı Dosya Aç</source>
         <translation>Quick Open</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="603" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="616" />
         <source>Çıkış</source>
         <translation>Exit</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="604" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="617" />
         <source>Düzenle</source>
         <translation>Edit</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="605" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="618" />
         <source>Geri Al</source>
         <translation>Undo</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="606" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="619" />
         <source>Yinele</source>
         <translation>Redo</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="607" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="620" />
         <source>Bul</source>
         <translation>Find</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="608" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="665" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="621" />
+        <source>Projede Ara</source>
+        <translation>Find in Project</translation>
+    </message>
+    <message>
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="622" />
         <source>Bul ve Değiştir</source>
         <translation>Find and Replace</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="654" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="609" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="671" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="623" />
         <source>Yorum Toggle</source>
         <translation>Toggle Comment</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="763" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="610" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="780" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="624" />
         <source>Satıra Git</source>
         <translation>Go to Line</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="657" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="611" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="674" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="625" />
         <source>Tablo Sihirbazı</source>
         <translation>Table Wizard</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="612" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="626" />
         <source>Etiketi/Kaynakça Anahtarını Yeniden Adlandır (imleç \label/\ref/\cite/\bibitem veya .bib girdisi üzerinde)</source>
         <translation>Rename Label / Bibliography Key (cursor on a \label/\ref/\cite/\bibitem or a .bib entry)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="613" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="627" />
         <source>Sonraki Hata</source>
         <translation>Next Error</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="614" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="628" />
         <source>Önceki Hata</source>
         <translation>Previous Error</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="615" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="629" />
         <source>Diğer</source>
         <translation>Other</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="616" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="630" />
         <source>Derlemeyi Durdur</source>
         <translation>Stop Compilation</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="719" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="617" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="736" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="631" />
         <source>Sunum Modu</source>
         <translation>Presentation Mode</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="618" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="632" />
         <source>PDF Yakınlaştır</source>
         <translation>PDF Zoom</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="618" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="632" />
         <source>Fare Tekerleği</source>
         <translation>Mouse Wheel</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="636" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="619" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="650" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="633" />
         <source>Kaynak</source>
         <translation>Source</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="620" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="634" />
         <source>PDF'te konumu göster</source>
         <translation>Show position in PDF</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="769" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="620" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="786" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="634" />
         <source>Editör</source>
         <translation>Editor</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="675" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="623" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="621" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="620" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="692" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="637" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="635" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="634" />
         <source>Tıklama</source>
         <translation>Click</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="621" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="635" />
         <source>Kaynak koda git</source>
         <translation>Go to source code</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="675" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="622" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="692" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="636" />
         <source>Tanıma Git</source>
         <translation>Go to Definition</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="623" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="637" />
         <source>\ref/\cite tanıma git (\label veya .bib girişi)</source>
         <translation>Go to \ref/\cite definition (\label or .bib entry)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="625" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="639" />
         <source>Klavye Kısayolları</source>
         <translation>Keyboard Shortcuts</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="633" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="647" />
         <source>Sözdizimi Renklendirme</source>
         <translation>Syntax Highlighting</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="634" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="648" />
         <source>Komutlar, matematik, ortamlar — Notepad++ tarzı renklendirme.</source>
         <translation>Commands, math, environments — Notepad++-style highlighting.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="637" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="651" />
         <source>Ctrl+tıkla → PDF/kaynak arasında geçiş. Önce derleyin.</source>
         <translation>Ctrl+click → switch between PDF/source. Compile first.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="639" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="653" />
         <source>Otomatik Parantezleme</source>
         <translation>Auto Pairing</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="640" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="654" />
         <source>(, [, {, $ yazınca kapanışı eklenir. \begin{ad}'a \end{ad} otomatik kapanır.</source>
         <translation>(, [, {, $ auto-close when typed. \begin{name} auto-closes with \end{name}.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="642" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="656" />
         <source>Otomatik Tamamlama</source>
         <translation>Autocomplete</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="643" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="657" />
         <source>\ komutları, ortam adları; \ref{/\eqref{/\cite{ vb. için \label'lar ve .bib anahtarları; \input{/\include{ için .tex dosyaları, \includegraphics{ için resimler önerilir.</source>
         <translation>\ commands, environment names; \label keys and .bib keys for \ref{/\eqref{/\cite{ etc.; .tex files for \input{/\include{, images for \includegraphics{.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="645" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="659" />
         <source>Belge Anahattı</source>
         <translation>Document Outline</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="646" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="660" />
         <source>\section, \chapter gibi bölümleri ağaç yapısında gösterir.</source>
         <translation>Shows \section, \chapter hierarchy in tree structure.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="648" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="662" />
         <source>Bul / Değiştir</source>
         <translation>Find / Replace</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="649" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="663" />
         <source>VS Code tarzı inline panel, büyük/küçük harf duyarsız.</source>
         <translation>VS Code-style inline panel, case-insensitive.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="652" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="666" />
+        <source>Klasör ağacındaki TÜM .tex/.bib/.cls/.sty dosyalarının İÇİNDE arar — sekmede açık olmayanlar dahil. Ctrl+F yalnız açık sekmede arar. Sonuca tıklayınca o dosyanın o satırına gidilir.</source>
+        <translation>Searches INSIDE every .tex/.bib/.cls/.sty file in the folder tree — including files not open in a tab. Ctrl+F searches only the open tab. Clicking a result jumps to that file and line.</translation>
+    </message>
+    <message>
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="669" />
         <source>Dosya adını yaz, bulanık filtreyle bul, Enter ile aç. Klasör ağacındaki .tex/.bib/.cls/.sty dosyaları.</source>
         <translation>Type a file name, find it with fuzzy filtering, open with Enter. Covers .tex/.bib/.cls/.sty files in the folder tree.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="655" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="672" />
         <source>Seçili satırları % ile yorum yapar/kaldırır.</source>
         <translation>Comment/uncomment selected lines with %.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="658" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="675" />
         <source>Hücrelere yazarak veya CSV yükleyerek tabular tablosu üret; booktabs, hizalama, caption/label dahil. İmleç tablonun içindeyse mevcut tabloyu düzenler; Tabloyu Hizala ile kolonları hizalar.</source>
         <translation>Build a tabular table by typing cells or loading CSV (booktabs, alignment, caption/label included). If the cursor is inside a table, it edits that table; use Align Table to align columns.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="660" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="677" />
         <source>Görsel Sürükle-Bırak</source>
         <translation>Image Drag &amp; Drop</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="661" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="678" />
         <source>PNG, JPG, PDF, EPS → otomatik \begin{figure} bloğu.</source>
         <translation>PNG, JPG, PDF, EPS → auto \begin{figure} block.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="663" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="680" />
         <source>Panodan Resim Yapıştır</source>
         <translation>Paste Image from Clipboard</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="664" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="681" />
         <source>Panodaki resmi media/'a kaydeder, \begin{figure} bloğu ekler.</source>
         <translation>Saves the clipboard image to media/ and inserts a \begin{figure} block.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="666" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="683" />
         <source>Dosya Sürükle-Bırak</source>
         <translation>File Drag &amp; Drop</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="667" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="684" />
         <source>.tex, .cls, .sty, .bib dosyalarını sürükleyerek açın.</source>
         <translation>Drag .tex, .cls, .sty, .bib files to open.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="669" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="686" />
         <source>Yeni Dosya</source>
         <translation>New File</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="670" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="687" />
         <source>Otomatik \documentclass şablonu ile yeni .tex dosyası.</source>
         <translation>New .tex file with auto \documentclass template.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="672" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="689" />
         <source>Hata İşareti + F4</source>
         <translation>Error Markers + F4</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="673" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="690" />
         <source>Derleyince hata satırları gutter'da kırmızı işaretlenir. F4/Shift+F4 ile hatalar arasında dolaşın.</source>
         <translation>After compiling, error lines are flagged red in the gutter. Use F4/Shift+F4 to jump between errors.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="676" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="693" />
         <source>\ref/\cite üzerine Alt basılı tıkla → \label, .bib veya \bibitem girişine atlar. .bib girdisine tıklayınca makaledeki \cite yerine gider. Çok dosyalı (\input) ve çok anahtarlı \cite destekli.</source>
         <translation>Alt-click a \ref/\cite → jumps to its \label, .bib or \bibitem entry. Clicking a .bib entry jumps to where it is cited in the article. Multi-file (\input) and multi-key \cite supported.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="678" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="695" />
         <source>Yeniden Adlandır</source>
         <translation>Rename</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="679" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="696" />
         <source>\label/\ref/\cite/\bibitem veya .bib girdisi üzerinde F2 → anahtar doküman, \input zinciri ve .bib'te toplu değişir. Açık sekmeler tek undo adımı alır; çift isim engellenir.</source>
         <translation>F2 on a \label/\ref/\cite/\bibitem or a .bib entry → the key is renamed across the document, the \input chain and the .bib. Open tabs get a single undo step; duplicates are blocked.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="681" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="698" />
         <source>Referans Denetimi (Düzenle menüsü)</source>
         <translation>Reference Audit (Edit menu)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="682" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="699" />
         <source>Tanımsız \ref/\cite, kullanılmayan .bib girdisi ve label'ları derlemeden bulur; bulguya tıkla, yerine atla. Derle menüsünden her derleme sonrası otomatik çalışacak şekilde açılabilir.</source>
         <translation>Finds undefined \ref/\cite, unused .bib entries and labels without compiling; click a finding to jump. Can be enabled from the Build menu to run automatically after each compile.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="684" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="701" />
         <source>Editör Ayarları (Görünüm menüsü)</source>
         <translation>Editor Settings (View menu)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="685" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="702" />
         <source>Tab genişliği, font boyutu ve satır kaydırma; kalıcıdır, tüm sekmelere uygulanır. Ctrl+tekerlek ile anlık zoom da vardır.</source>
         <translation>Tab width, font size and word wrap; persistent, applied to all tabs. Ctrl+wheel zoom is also available.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="687" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="704" />
         <source>Otomatik Derleme</source>
         <translation>Auto Compile</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="688" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="705" />
         <source>Ctrl+S ile kaydederken otomatik derler. Toolbar'dan kapatıp Manuel mod'a geçebilirsiniz — büyük belgelerde her kayıtta derleme yapmak yavaşlatır, o durumda Ctrl+B ile derleyin.</source>
         <translation>Automatically compiles on Ctrl+S save. Toggle off from toolbar to switch to Manual mode — for large documents, compiling on every save is slow; use Ctrl+B to compile instead.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="691" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="708" />
         <source>Çok dosyalı projelerde alt dosyanın başına '% !TEX root = ana.tex' yazın; derleme otomatik olarak kök belgeye yönlendirilir, motor kökün içeriğinden algılanır.</source>
         <translation>In multi-file projects, add '% !TEX root = main.tex' at the top of a child file; compilation is redirected to the root document and the engine is detected from the root's content.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="693" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="710" />
         <source>Sekme Yönetimi</source>
         <translation>Tab Management</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="694" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="711" />
         <source>Sağ tık → kapat, diğerlerini kapat, yol kopyala. Orta tık ile kapat.</source>
         <translation>Right-click → close, close others, copy path. Middle-click to close.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="696" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="713" />
         <source>Kelime Sayacı</source>
         <translation>Word Counter</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="697" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="714" />
         <source>Durum çubuğunda anlık kelime/karakter sayısı. Matematik içeriği sayılmaz.</source>
         <translation>Live word/character count in status bar. Math content excluded.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="701" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="718" />
         <source>Derleme Sonrası Otomatik Atlama</source>
         <translation>Auto-Jump After Compile</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="702" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="719" />
         <source>Başarılı derleme bitince PDF, imlecin olduğu yere SyncTeX ile otomatik kaydırılır.</source>
         <translation>After a successful compile, the PDF auto-scrolls to the cursor position via SyncTeX.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="704" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="721" />
         <source>PDF Yer İmleri</source>
         <translation>PDF Bookmarks</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="705" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="722" />
         <source>PDF bölüm/başlık yapısına erişin, tıklayarak sayfaya gidin.</source>
         <translation>Access PDF section/heading structure, click to go to page.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="707" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="724" />
         <source>PDF Arama</source>
         <translation>PDF Search</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="708" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="725" />
         <source>Metin arayın, Enter ile sonraki eşleşmeye geçin.</source>
         <translation>Search text, Enter to go to next match.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="710" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="727" />
         <source>PDF Metin Seçme</source>
         <translation>PDF Text Selection</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="711" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="728" />
         <source>Sürükleyerek metin seçin, Ctrl+C ile kopyalayın. Çift tık → kelime seç.</source>
         <translation>Drag to select text, Ctrl+C to copy. Double-click → select word.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="713" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="730" />
         <source>Sayfaya Sığdır</source>
         <translation>Fit to Page</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="714" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="731" />
         <source>Genişliğe veya tam sayfaya sığdırma düğmeleri.</source>
         <translation>Fit to width or full page buttons.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="716" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="733" />
         <source>Çift Sayfa Görünümü</source>
         <translation>Two-Page View</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="717" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="734" />
         <source>Sayfaları yan yana ikişerli gösterin.</source>
         <translation>Show pages side by side in pairs.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="720" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="737" />
         <source>Tam ekran sunum. Sol/sağ tık veya ok tuşları ile gezin.</source>
         <translation>Fullscreen presentation. Left/right click or arrow keys to navigate.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="722" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="739" />
         <source>PDF Renk Tersi</source>
         <translation>PDF Color Invert</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="723" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="740" />
         <source>PDF renklerini ters çevirerek koyu modda görüntüleyin.</source>
         <translation>Invert PDF colors for dark mode viewing.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="726" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="743" />
         <source>PDF'i başka bir konuma kopyalayın.</source>
         <translation>Copy PDF to another location.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="730" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="747" />
         <source>Tema</source>
         <translation>Theme</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="731" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="748" />
         <source>7 tema: Koyu, Açık, Solarized, Dracula, Monokai, Nord, Gruvbox.</source>
         <translation>7 themes: Dark, Light, Solarized, Dracula, Monokai, Nord, Gruvbox.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="733" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="750" />
         <source>Çoklu Dil</source>
         <translation>Multi-language</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="734" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="751" />
         <source>Türkçe ve İngilizce arayüz. Toolbar'dan dil değiştirin.</source>
         <translation>Turkish and English interface. Switch language from toolbar.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="736" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="753" />
         <source>Akıllı Motor Algılama</source>
         <translation>Smart Engine Detection</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="737" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="754" />
         <source>fontspec → lualatex, inputenc → pdflatex otomatik seçilir.</source>
         <translation>fontspec → lualatex, inputenc → pdflatex auto-selected.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="739" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="756" />
         <source>Eksik Paket Tespiti</source>
         <translation>Missing Package Detection</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="740" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="757" />
         <source>Derleme hatasında eksik .sty/.cls dosyasını yakalar, kurulum komutunu önerir.</source>
         <translation>Catches missing .sty/.cls on compile error, suggests install command.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="742" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="759" />
         <source>Ortam Denetimi</source>
         <translation>Environment Check</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="743" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="760" />
         <source>WSL, TeX motorları, biber, pandoc ve synctex hazır mı tek ekranda gösterir; eksik olana kurulum komutu önerir (Yardım menüsü).</source>
         <translation>Shows in one dialog whether WSL, the TeX engines, biber, pandoc and synctex are ready, and suggests an install command for whatever is missing (Help menu).</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="745" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="762" />
         <source>Dışa Aktarma</source>
         <translation>Export</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="746" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="763" />
         <source>Pandoc ile HTML, DOCX, Markdown, TXT formatlarına dışa aktarın.</source>
         <translation>Export to HTML, DOCX, Markdown, TXT via pandoc.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="748" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="765" />
         <source>Dosya İzleme</source>
         <translation>File Watching</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="749" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="766" />
         <source>Açık dosyaların diskte değişmesini algılar, yeniden yükleme sunar.</source>
         <translation>Detects external changes to open files, offers reload.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="751" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="768" />
         <source>Otomatik Güncelleme Kontrolü</source>
         <translation>Auto Update Check</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="752" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="769" />
         <source>Açılışta veya Yardım menüsünden yeni sürüm kontrolü.</source>
         <translation>Check for new version on startup or via Help menu.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="754" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="771" />
         <source>Tek Instance Koruması</source>
         <translation>Single Instance Protection</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="755" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="772" />
         <source>Aynı anda tek pencere. İkinci kez açılan dosya (ör. 'Birlikte Aç') yeni pencere yerine çalışan uygulamada sekme olarak açılır.</source>
         <translation>One window at a time. A file opened again (e.g. via 'Open With') becomes a tab in the running application instead of a new window.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="757" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="774" />
         <source>Geri Al / Yinele</source>
         <translation>Undo / Redo</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="758" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="775" />
         <source>Sınırsız geri al ve yinele.</source>
         <translation>Unlimited undo and redo.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="760" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="777" />
         <source>Sürümleme</source>
         <translation>Versioning</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="761" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="778" />
         <source>Ctrl+K ile tüm değişiklikleri adlandırılmış bir sürüme kaydedin; Sürüm Geçmişi sekmesinden farkları görün veya dosyayı eski sürümden geri yükleyin. Git bilgisine gerek yok; klasörde standart .git oluşur.</source>
         <translation>Save all changes into a named version with Ctrl+K; view diffs in the Version History tab or restore the file from an older version. No git knowledge needed; a standard .git is created in the folder.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="764" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="781" />
         <source>Belirli bir satır numarasına hızlıca gidin.</source>
         <translation>Quickly jump to a specific line number.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="772" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="789" />
         <source>PDF Görüntüleyici</source>
         <translation>PDF Viewer</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="775" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="792" />
         <source>Genel</source>
         <translation>General</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="781" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="798" />
         <source>Özellikler</source>
         <translation>Features</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="797" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="814" />
         <source>LaTeX editörü ve derleyici</source>
         <translation>LaTeX editor and compiler</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="798" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="815" />
         <source>Geliştirici:</source>
         <translation>Developer:</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="799" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="816" />
         <source>E-posta:</source>
         <translation>Email:</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="802" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="819" />
         <source>LaTeX Editor</source>
         <translation>LaTeX Editor</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="850" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="867" />
         <source>Tanım</source>
         <translation>Definition</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="852" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="869" />
         <source>Tanım bulunamadı</source>
         <translation>Definition not found</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="884" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="876" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="901" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="893" />
         <source>Panoya kopyalandı — terminalde cd ile geçin:</source>
         <translation>Copied to clipboard — use cd in terminal:</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="898" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="894" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="915" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="911" />
         <source>Güncellemeler kontrol ediliyor...</source>
         <translation>Checking for updates...</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="924" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="941" />
         <source>Güncelleme Mevcut</source>
         <translation>Update Available</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="928" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="945" />
         <source>Yeni sürüm</source>
         <translation>New version</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="928" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="945" />
         <source>mevcut</source>
         <translation>available</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="929" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="946" />
         <source>Kullandığınız sürüm</source>
         <translation>Your version</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="931" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="948" />
         <source>Sürüm notları</source>
         <translation>Release notes</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="932" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="949" />
         <source>İndirmek için Releases sayfasını aç</source>
         <translation>Open Releases page to download</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="935" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="952" />
         <source>Şimdi indirip kurmak ister misiniz?</source>
         <translation>Would you like to download and install it now?</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="936" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="953" />
         <source>Tarayıcıda Aç</source>
         <translation>Open in Browser</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="937" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="954" />
         <source>Daha Sonra</source>
         <translation>Later</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="957" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="949" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="974" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="966" />
         <source>Güncellemeleri Kontrol Et</source>
         <translation>Check for Updates</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="950" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="967" />
         <source>En güncel sürümü kullanıyorsunuz</source>
         <translation>You are using the latest version</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="958" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="975" />
         <source>Güncelleme kontrol edilemedi — bağlantı kurulamadı.</source>
         <translation>Update check failed — connection could not be established.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="1088" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="1105" />
         <source>Bu dosya türü açılamıyor: {name}</source>
         <translation>Cannot open this file type: {name}</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/main_window.py" line="1093" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/main_window.py" line="1110" />
         <source>Dosya bulunamadı: {name}</source>
         <translation>File not found: {name}</translation>
     </message>
@@ -2016,230 +2028,270 @@ Some matches in the document may be unchanged; run the command again to continue
 </context><context>
     <name>OutlinePanel</name>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/outline.py" line="62" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/outline.py" line="92" />
         <source>ANAHAT</source>
         <translation>OUTLINE</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/outline.py" line="70" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/outline.py" line="100" />
         <source>Tümünü Daralt</source>
         <translation>Collapse All</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/outline.py" line="82" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/outline.py" line="112" />
         <source>Tümünü Genişlet</source>
         <translation>Expand All</translation>
     </message>
 </context><context>
     <name>OutputPanel</name>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="24" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="25" />
         <source>Tanımsız komut{cmd}: yazım hatası olabilir ya da komutu sağlayan paket yüklenmemiş (\usepackage gerekebilir)</source>
         <translation>Unknown command{cmd}: possible typo, or the package providing it is not loaded (\usepackage may be needed)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="25" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="26" />
         <source>Matematik modu dışında _ ^ veya özel karakter kullanılmış; $...$ veya \[...\] içine alın</source>
         <translation>_ ^ or a special character used outside math mode; wrap in $...$ or \[...\]</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="26" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="27" />
         <source>Geçersiz karakter — genelde Word'den kopyalanan akıllı tırnak/tire; düz " ve - kullanın</source>
         <translation>Invalid character — usually smart quotes/dashes pasted from Word; use plain " and -</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="27" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="28" />
         <source>Eksik/fazla süslü parantez; bu satırdan geriye doğru { } eşleşmesini kontrol edin</source>
         <translation>Missing/extra brace; check the { } pairing backwards from this line</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="28" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="29" />
         <source>Aynı terimde iki alt/üst simge; a_{bc} gibi gruplayın</source>
         <translation>Two sub/superscripts on the same term; group them like a_{bc}</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="29" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="30" />
         <source>Tanımsız ortam {env}: \newenvironment ile tanımlanmamış ya da paketi yüklenmemiş</source>
         <translation>Unknown environment {env}: not defined with \newenvironment, or its package is not loaded</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="30" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="31" />
         <source>Bir komut/ortam kapanmamış (eksik } veya \end{...}); dosyanın sonuna doğru kontrol edin</source>
         <translation>A command/environment is left open (missing } or \end{...}); check towards the end of the file</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="31" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="32" />
         <source>Derleyici beklenmedik durdu; genelde eksik dosya veya kapanmamış blok. Log sekmesindeki son satırlara bakın</source>
         <translation>The compiler stopped unexpectedly; usually a missing file or an unclosed block. See the last lines in the Log tab</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="32" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="33" />
         <source>Sayaç sınırı aşıldı (çok sayıda dipnot/liste öğesi); enumitem paketini kullanın</source>
         <translation>Counter limit exceeded (many footnotes/list items); use the enumitem package</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="33" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="34" />
         <source>tabular komutu yanlış yerde; \toprule/\midrule yalnız tabular içinde satır başında kullanılır</source>
         <translation>tabular command in the wrong place; \toprule/\midrule only work at the start of a row inside tabular</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="34" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="35" />
         <source>Kaynakça anahtarı çözülmedi: tekrar derleyin (iki geçe gerekir) veya Düzenle &gt; Referansları Denetle ile anahtarı kontrol edin</source>
         <translation>Citation key unresolved: compile again (two passes needed) or check the key via Edit &gt; Check References</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="35" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="36" />
         <source>Çapraz referans çözülmedi: tekrar derleyin; \label tanımlı mı diye Referansları Denetle'ye bakın</source>
         <translation>Cross reference unresolved: compile again; use Check References to see whether the \label exists</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="36" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="37" />
         <source>Tekrar derleyin: çapraz referanslar ve kaynakça iki derleme geçesinde çözülür</source>
         <translation>Compile again: cross references and the bibliography resolve over two passes</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="37" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="38" />
         <source>Aynı \label iki kez kullanılmış; F2 ile birini yeniden adlandırın</source>
         <translation>The same \label is used twice; rename one with F2</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="38" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="39" />
         <source>Listings dili yüklenemedi. \usepackage[turkish]{babel} kullanıyorsanız bu bilinen bir çakışmadır: language=C yerine language={[ANSI]C} yazın. Değilse dil adını kontrol edin (C, Python, Pascal, Java...)</source>
         <translation>Could not load the Listings language. If you use \usepackage[turkish]{babel} this is a known conflict: write language={[ANSI]C} instead of language=C. Otherwise check the language name (C, Python, Pascal, Java...)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="130" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="87" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="144" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="74" />
         <source>Hatalar</source>
         <translation>Errors</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="131" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="95" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="145" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="81" />
         <source>Uyarılar</source>
         <translation>Warnings</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="132" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="103" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="146" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="88" />
         <source>Öneriler</source>
         <translation>Suggestions</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="120" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="100" />
         <source>Sürüm Geçmişi</source>
         <translation>Version History</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="157" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="113" />
+        <source>Projede ara (Enter)</source>
+        <translation>Find in project (Enter)</translation>
+    </message>
+    <message>
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="115" />
+        <source>Aa</source>
+        <translation>Aa</translation>
+    </message>
+    <message>
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="116" />
+        <source>Büyük/küçük harf duyarlı</source>
+        <translation>Case sensitive</translation>
+    </message>
+    <message>
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="128" />
+        <source>Projede Ara</source>
+        <translation>Find in Project</translation>
+    </message>
+    <message>
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="171" />
         <source>Satır {n}: {msg}</source>
         <translation>Line {n}: {msg}</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="166" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="180" />
         <source>Hatalar ({n})</source>
         <translation>Errors ({n})</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="170" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="184" />
         <source>Satır {n}: </source>
         <translation>Line {n}: </translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="254" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="234" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="180" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="268" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="248" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="194" />
         <source>Uyarılar ({n})</source>
         <translation>Warnings ({n})</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="193" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="207" />
         <source>Ortam Denetimi'ni Aç...</source>
         <translation>Open Environment Check...</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="318" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="310" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="255" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="235" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="197" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="388" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="380" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="269" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="249" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="211" />
         <source>Öneriler ({n})</source>
         <translation>Suggestions ({n})</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="233" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="247" />
         <source>Sorun bulunamadı — tüm \ref/\cite anahtarları tanımlı.</source>
         <translation>No issues found — all \ref/\cite keys are defined.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="268" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="276" />
+        <source>Aranıyor...</source>
+        <translation>Searching...</translation>
+    </message>
+    <message>
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="316" />
+        <source>bulunamadı</source>
+        <translation>not found</translation>
+    </message>
+    <message>
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="320" />
+        <source>ilk {n} sonuç (kırpıldı)</source>
+        <translation>first {n} results (truncated)</translation>
+    </message>
+    <message>
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="324" />
+        <source>{n} sonuç · {d} dosya</source>
+        <translation>{n} results · {d} files</translation>
+    </message>
+    <message>
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="338" />
         <source>dosya</source>
         <translation>file(s)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="279" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="349" />
         <source>Açık dosyayı bu sürümden geri yükle</source>
         <translation>Restore open file from this snapshot</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="280" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="350" />
         <source>Açık dosyanın farklarını göster</source>
         <translation>Show diff of the open file</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="281" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="351" />
         <source>Açık dosyanın bu sürümdeki hâlini kopyala</source>
         <translation>Copy the open file as of this snapshot</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="285" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="355" />
         <source>Bu sürümü sil (en yeni)</source>
         <translation>Delete this snapshot (latest)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="287" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="357" />
         <source>Tüm geçmişi sil</source>
         <translation>Delete all history</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="303" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="373" />
         <source>Derleme başarısız oldu. Şu an {current} kullanılıyor.
     → Araç çubuğundan motoru {other} olarak değiştirip tekrar deneyin.</source>
         <translation>Compilation failed. Currently using {current}.
     → Try changing the engine to {other} from the toolbar and try again.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="328" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="398" />
         <source>derleniyor</source>
         <translation>compiling</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="329" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="399" />
         <source>basarili</source>
         <translation>successful</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="330" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="400" />
         <source>basarisiz</source>
         <translation>failed</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="331" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="401" />
         <source>uyari</source>
         <translation>warning(s)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="332" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="402" />
         <source>hata</source>
         <translation>error(s)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="333" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="403" />
         <source>bilgi</source>
         <translation>info</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/output_panel.py" line="372" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/output_panel.py" line="442" />
         <source>Kopyala</source>
         <translation>Copy</translation>
     </message>
@@ -2250,122 +2302,122 @@ Some matches in the document may be unchanged; run the command again to continue
 </context><context>
     <name>PdfViewer</name>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_selection.py" line="150" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_selection.py" line="150" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_selection.py" line="150" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_selection.py" line="150" />
         <source>Kopyala</source>
         <translation>Copy</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="32" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="32" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="32" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="32" />
         <source>Sayfa 0 / 0</source>
         <translation>Page 0 / 0</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="69" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="69" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="69" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="69" />
         <source>Genişliğe Sığdır</source>
         <translation>Fit to Width</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="91" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="91" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="91" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="91" />
         <source>Sayfaya Sığdır</source>
         <translation>Fit to Page</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="98" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="98" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="98" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="98" />
         <source>💾 Farklı Kaydet</source>
         <translation>💾 Save As</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="111" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="111" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="111" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="111" />
         <source>PDF renklerini ters çevir</source>
         <translation>Invert PDF colors</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="114" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="114" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="114" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="114" />
         <source>⛶ Sunum</source>
         <translation>⛶ Present</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="116" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="116" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="116" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="116" />
         <source>Sunum modu (F5)</source>
         <translation>Presentation mode (F5)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="136" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="136" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="136" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="136" />
         <source>Yer İmleri</source>
         <translation>Bookmarks</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="174" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="174" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="174" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="174" />
         <source>Çift Sayfa</source>
         <translation>Two Pages</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="186" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="186" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="186" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="186" />
         <source>PDF'te Ara (Ctrl+F)</source>
         <translation>Search in PDF (Ctrl+F)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="205" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="205" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="205" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="205" />
         <source>PDF'te ara...</source>
         <translation>Search in PDF...</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="234" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="234" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="234" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="234" />
         <source>Önceki</source>
         <translation>Previous</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="243" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="243" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="243" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="243" />
         <source>Sonraki</source>
         <translation>Next</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="431" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="431" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="431" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="431" />
         <source>PDF'i Farklı Kaydet</source>
         <translation>Save PDF As</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="431" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="431" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="431" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_ui_setup.py" line="431" />
         <source>PDF Dosyaları (*.pdf)</source>
         <translation>PDF Files (*.pdf)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_render.py" line="89" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_render.py" line="89" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_render.py" line="90" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_render.py" line="90" />
         <source>PDF açılamadı — derleme başarısız olmuş veya dosya bozuk olabilir.</source>
         <translation>Could not open PDF — compilation may have failed or the file may be corrupted.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_search.py" line="38" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_search.py" line="38" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_search.py" line="40" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_search.py" line="40" />
         <source>Aranıyor...</source>
         <translation>Searching...</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_search.py" line="175" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_search.py" line="175" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_search.py" line="198" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_search.py" line="198" />
         <source>bulunamadı</source>
         <translation>not found</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_navigation.py" line="16" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/pdf_viewer_mixins/_navigation.py" line="16" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_navigation.py" line="16" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/pdf_viewer_mixins/_navigation.py" line="16" />
         <source>Sayfa {cur} / {total}</source>
         <translation>Page {cur} / {total}</translation>
     </message>
@@ -2374,28 +2426,36 @@ Some matches in the document may be unchanged; run the command again to continue
         <translation type="vanished">Invert</translation>
     </message>
 </context><context>
+    <name>ProjectSearchMixin</name>
+    <message>
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/project_search_ops.py" line="59" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/project_search_ops.py" line="59" />
+        <source>Önce bir klasör açın</source>
+        <translation>Open a folder first</translation>
+    </message>
+</context><context>
     <name>QuickOpenDialog</name>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/quick_open.py" line="73" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/quick_open.py" line="73" />
         <source>Hızlı Dosya Aç</source>
         <translation>Quick Open</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/quick_open.py" line="80" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/quick_open.py" line="80" />
         <source>Dosya adı yazın — Enter açar, Esc kapatır</source>
         <translation>Type a file name — Enter opens, Esc closes</translation>
     </message>
 </context><context>
     <name>RecoveryOpsMixin</name>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/recovery_ops.py" line="76" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/recovery_ops.py" line="76" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/recovery_ops.py" line="76" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/recovery_ops.py" line="76" />
         <source>Kurtarma</source>
         <translation>Recovery</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/recovery_ops.py" line="78" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/recovery_ops.py" line="78" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/recovery_ops.py" line="78" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/recovery_ops.py" line="78" />
         <source>Uygulama düzgün kapanmamış. {n} dosyada kaydedilmemiş değişiklik bulundu:
 
 {adlar}
@@ -2408,315 +2468,315 @@ Geri yüklensin mi? (Geri yüklenen içerik sekmede açılır; siz kaydedene kad
 Restore them? (Restored content opens in a tab; the file on disk is NOT touched until you save.)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/recovery_ops.py" line="84" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/recovery_ops.py" line="84" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/recovery_ops.py" line="84" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/recovery_ops.py" line="84" />
         <source>Geri Yükle</source>
         <translation>Restore</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/recovery_ops.py" line="85" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/recovery_ops.py" line="85" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/recovery_ops.py" line="85" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/recovery_ops.py" line="85" />
         <source>At</source>
         <translation>Discard</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/recovery_ops.py" line="104" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/recovery_ops.py" line="104" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/recovery_ops.py" line="104" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/recovery_ops.py" line="104" />
         <source>{n} dosya kurtarıldı — kaydetmek için Ctrl+S</source>
         <translation>{n} file(s) recovered — press Ctrl+S to save</translation>
     </message>
 </context><context>
     <name>SyncTexMixin</name>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/synctex_ops.py" line="43" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/synctex_ops.py" line="43" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/synctex_ops.py" line="43" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/synctex_ops.py" line="43" />
         <source>SyncTeX: Önce derleyin</source>
         <translation>SyncTeX: Compile first</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/synctex_ops.py" line="49" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/synctex_ops.py" line="49" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/synctex_ops.py" line="49" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/synctex_ops.py" line="49" />
         <source>SyncTeX: .synctex.gz bulunamadı, yeniden derleyin</source>
         <translation>SyncTeX: .synctex.gz not found, recompile</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/synctex_ops.py" line="86" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/synctex_ops.py" line="66" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/synctex_ops.py" line="86" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/synctex_ops.py" line="66" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/synctex_ops.py" line="86" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/synctex_ops.py" line="66" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/synctex_ops.py" line="86" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/synctex_ops.py" line="66" />
         <source>Sayfa</source>
         <translation>Page</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/synctex_ops.py" line="66" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/synctex_ops.py" line="66" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/synctex_ops.py" line="66" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/synctex_ops.py" line="66" />
         <source>Satır</source>
         <translation>Row</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/synctex_ops.py" line="90" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/synctex_ops.py" line="70" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/synctex_ops.py" line="90" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/synctex_ops.py" line="70" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/synctex_ops.py" line="90" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/synctex_ops.py" line="70" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/synctex_ops.py" line="90" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/synctex_ops.py" line="70" />
         <source>SyncTeX: Eşleşme bulunamadı</source>
         <translation>SyncTeX: No match found</translation>
     </message>
 </context><context>
     <name>TabOpsMixin</name>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/tab_ops.py" line="204" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/tab_ops.py" line="137" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/tab_ops.py" line="204" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/tab_ops.py" line="137" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/tab_ops.py" line="204" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/tab_ops.py" line="137" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/tab_ops.py" line="204" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/tab_ops.py" line="137" />
         <source>Kapat</source>
         <translation>Close</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/tab_ops.py" line="205" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/tab_ops.py" line="205" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/tab_ops.py" line="205" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/tab_ops.py" line="205" />
         <source>Diğer Sekmeleri Kapat</source>
         <translation>Close Other Tabs</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/tab_ops.py" line="206" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/tab_ops.py" line="206" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/tab_ops.py" line="206" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/tab_ops.py" line="206" />
         <source>Tümünü Kapat</source>
         <translation>Close All</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/tab_ops.py" line="208" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/tab_ops.py" line="208" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/tab_ops.py" line="208" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/tab_ops.py" line="208" />
         <source>Dosya Yolunu Kopyala</source>
         <translation>Copy File Path</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/tab_ops.py" line="268" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/tab_ops.py" line="268" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/tab_ops.py" line="268" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/tab_ops.py" line="268" />
         <source>Sütun</source>
         <translation>Column</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/tab_ops.py" line="268" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/tab_ops.py" line="268" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/tab_ops.py" line="268" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/tab_ops.py" line="268" />
         <source>Satır</source>
         <translation>Row</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/tab_ops.py" line="278" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/tab_ops.py" line="278" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/tab_ops.py" line="278" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/tab_ops.py" line="278" />
         <source>karakter</source>
         <translation>characters</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/tab_ops.py" line="278" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/tab_ops.py" line="278" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/tab_ops.py" line="278" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/tab_ops.py" line="278" />
         <source>kelime</source>
         <translation>words</translation>
     </message>
 </context><context>
     <name>TableOpsMixin</name>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/table_ops.py" line="68" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/table_ops.py" line="68" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/table_ops.py" line="68" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/table_ops.py" line="68" />
         <source>Önce bir dosya açın</source>
         <translation>Open a file first</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/table_ops.py" line="94" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/table_ops.py" line="94" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/table_ops.py" line="94" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/table_ops.py" line="94" />
         <source>Mevcut tablo düzenleniyor — Ekle ile değiştirilir</source>
         <translation>Editing the existing table — it is replaced when you press Add</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/table_ops.py" line="104" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/table_ops.py" line="104" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/table_ops.py" line="104" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/table_ops.py" line="104" />
         <source>Tablo eklendi</source>
         <translation>Table inserted</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/table_ops.py" line="116" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/table_ops.py" line="116" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/table_ops.py" line="116" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/table_ops.py" line="116" />
         <source>İmleç bir tablo içinde değil</source>
         <translation>Cursor is not inside a table</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/table_ops.py" line="120" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/table_ops.py" line="120" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/table_ops.py" line="120" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/table_ops.py" line="120" />
         <source>Tabloda hizalanacak satır yok</source>
         <translation>No rows to align in this table</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/table_ops.py" line="131" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/table_ops.py" line="131" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/table_ops.py" line="131" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/table_ops.py" line="131" />
         <source>Tablo hizalanamadı</source>
         <translation>Could not align table</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/table_ops.py" line="137" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/table_ops.py" line="137" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/table_ops.py" line="137" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/table_ops.py" line="137" />
         <source>Tablo hizalandı</source>
         <translation>Table aligned</translation>
     </message>
 </context><context>
     <name>TableWizardDialog</name>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/table_wizard.py" line="27" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/table_wizard.py" line="27" />
         <source>Sol (l)</source>
         <translation>Left (l)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/table_wizard.py" line="28" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/table_wizard.py" line="28" />
         <source>Orta (c)</source>
         <translation>Center (c)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/table_wizard.py" line="29" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/table_wizard.py" line="29" />
         <source>Sağ (r)</source>
         <translation>Right (r)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/table_wizard.py" line="30" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/table_wizard.py" line="30" />
         <source>Paragraf (p{3cm})</source>
         <translation>Paragraph (p{3cm})</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/table_wizard.py" line="41" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/table_wizard.py" line="41" />
         <source>Tablo Sihirbazı</source>
         <translation>Table Wizard</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/table_wizard.py" line="56" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/table_wizard.py" line="56" />
         <source>Satır</source>
         <translation>Row</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/table_wizard.py" line="65" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/table_wizard.py" line="65" />
         <source>Sütun</source>
         <translation>Column</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/table_wizard.py" line="71" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/table_wizard.py" line="71" />
         <source>Ortam</source>
         <translation>Environment</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/table_wizard.py" line="76" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/table_wizard.py" line="76" />
         <source>CSV Yükle...</source>
         <translation>Load CSV...</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/table_wizard.py" line="78" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/table_wizard.py" line="78" />
         <source>Koddan Yükle...</source>
         <translation>Load from Code...</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/table_wizard.py" line="88" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/table_wizard.py" line="88" />
         <source>Hizalama:</source>
         <translation>Alignment:</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/table_wizard.py" line="96" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/table_wizard.py" line="96" />
         <source>booktabs kuralları (toprule/midrule)</source>
         <translation>booktabs rules (toprule/midrule)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/table_wizard.py" line="98" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/table_wizard.py" line="98" />
         <source>İlk satır başlık</source>
         <translation>First row is header</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/table_wizard.py" line="100" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/table_wizard.py" line="100" />
         <source>Dikey çizgiler (|)</source>
         <translation>Vertical lines (|)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/table_wizard.py" line="101" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/table_wizard.py" line="101" />
         <source>table kılıfı (caption + label)</source>
         <translation>table wrapper (caption + label)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/table_wizard.py" line="112" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/table_wizard.py" line="112" />
         <source>Tablo başlığı (caption)</source>
         <translation>Table caption</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/table_wizard.py" line="115" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/table_wizard.py" line="115" />
         <source>Başlık</source>
         <translation>Caption</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/table_wizard.py" line="116" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/table_wizard.py" line="116" />
         <source>Etiket</source>
         <translation>Label</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/table_wizard.py" line="127" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/table_wizard.py" line="127" />
         <source>Ekle</source>
         <translation>Add</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/table_wizard.py" line="213" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/table_wizard.py" line="213" />
         <source>CSV Yükle</source>
         <translation>Load CSV</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/table_wizard.py" line="213" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/table_wizard.py" line="213" />
         <source>CSV dosyaları (*.csv *.txt);;Tüm Dosyalar (*)</source>
         <translation>CSV files (*.csv *.txt);;All Files (*)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/table_wizard.py" line="219" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/table_wizard.py" line="219" />
         <source>CSV okunamadı</source>
         <translation>Could not read the CSV</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/table_wizard.py" line="222" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/table_wizard.py" line="222" />
         <source>CSV boş görünüyor</source>
         <translation>CSV appears to be empty</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/table_wizard.py" line="269" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/table_wizard.py" line="250" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/table_wizard.py" line="269" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/table_wizard.py" line="250" />
         <source>Koddan Yükle</source>
         <translation>Load from Code</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/table_wizard.py" line="255" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/table_wizard.py" line="255" />
         <source>LaTeX tablo kodunu yapıştırın (\begin{tabular} ... \end{tabular})</source>
         <translation>Paste LaTeX table code (\begin{tabular} ... \end{tabular})</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/table_wizard.py" line="259" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/table_wizard.py" line="259" />
         <source>Yükle</source>
         <translation>Load</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/table_wizard.py" line="270" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/table_wizard.py" line="270" />
         <source>Yapıştırdığınız kodda tabular ortamı bulunamadı</source>
         <translation>No tabular environment found in the pasted code</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/table_wizard.py" line="326" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/table_wizard.py" line="326" />
         <source>Hücrelere veri yazın veya CSV yükleyin</source>
         <translation>Type data into the cells or load a CSV</translation>
     </message>
 </context><context>
     <name>ThemeManager</name>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/theme.py" line="599" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/theme.py" line="599" />
         <source>Koyu</source>
         <translation>Dark</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/theme.py" line="599" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/theme.py" line="599" />
         <source>Açık</source>
         <translation>Light</translation>
     </message>
 </context><context>
     <name>VersionOpsMixin</name>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="159" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="159" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="159" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="159" />
         <source>Bu klasör, '{parent}' git deposunun içinde.
 
 Sürümleme burada İÇ İÇE bir depo (.git) oluşturur; üst depo bu klasörü tek bir girdi olarak görür ve içeriği izlenmez.</source>
@@ -2725,24 +2785,24 @@ Sürümleme burada İÇ İÇE bir depo (.git) oluşturur; üst depo bu klasörü
 Versioning will create a NESTED repository (.git) here; the parent repository will see this folder as a single entry and will not track its contents.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="391" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="350" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="165" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="391" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="350" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="165" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="391" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="350" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="165" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="391" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="350" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="165" />
         <source>Uzak bağlantılar: </source>
         <translation>Remotes: </translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="166" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="166" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="166" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="166" />
         <source>Bu depo bu editör tarafından oluşturulmamış.</source>
         <translation>This repository was not created by this editor.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="167" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="167" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="167" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="167" />
         <source>Bu klasör zaten bir git deposu.
 
 Sürümleme AYRI bir geçmiş tutmaz: kayıtlar mevcut deponuza, bulunduğunuz dala işlenir. 'Sürüm Geçmişi' sekmesindeki silme işlemleri de bu gerçek depoyu etkiler.
@@ -2755,184 +2815,184 @@ Versioning does not keep a SEPARATE history: snapshots are committed to your exi
 {nerede}</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="175" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="175" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="175" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="175" />
         <source>Sürümleme — Mevcut Git Deposu</source>
         <translation>Versioning — Existing Git Repository</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="178" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="178" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="178" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="178" />
         <source>Anladım, Devam Et</source>
         <translation>I Understand, Continue</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="179" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="179" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="179" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="179" />
         <source>Vazgeç</source>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="183" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="183" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="183" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="183" />
         <source>Sürümleme iptal edildi</source>
         <translation>Versioning cancelled</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="271" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="250" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="195" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="271" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="250" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="195" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="271" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="250" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="195" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="271" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="250" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="195" />
         <source>Önce bir klasör açın</source>
         <translation>Open a folder first</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="199" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="199" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="199" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="199" />
         <source>Sürümleme için 'dulwich' paketi gerekli</source>
         <translation>Versioning requires the 'dulwich' package</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="208" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="208" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="208" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="208" />
         <source>Kayıt başarısız — sürümleme iptal</source>
         <translation>Save failed — snapshot cancelled</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="216" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="212" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="216" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="212" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="216" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="212" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="216" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="212" />
         <source>Başlangıç sürümü</source>
         <translation>Initial snapshot</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="213" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="213" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="213" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="213" />
         <source>Sürümle</source>
         <translation>Snapshot</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="213" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="213" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="213" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="213" />
         <source>Sürüm adı:</source>
         <translation>Snapshot name:</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="216" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="216" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="216" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="216" />
         <source>Güncelleme</source>
         <translation>Update</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="222" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="222" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="222" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="222" />
         <source>Sürüm alınıyor; bitmesini bekleyin</source>
         <translation>A snapshot is in progress; wait for it to finish</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="228" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="228" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="228" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="228" />
         <source>Sürüm alınıyor</source>
         <translation>Taking a snapshot</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="235" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="235" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="235" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="235" />
         <source>Sürüm kaydı başarısız</source>
         <translation>Snapshot failed</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="238" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="238" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="238" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="238" />
         <source>Değişiklik yok — sürüm atlandı</source>
         <translation>No changes — snapshot skipped</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="241" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="241" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="241" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="241" />
         <source>dosya</source>
         <translation>file(s)</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="241" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="241" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="241" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="241" />
         <source>Sürüm kaydedildi</source>
         <translation>Snapshot saved</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="279" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="279" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="279" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="279" />
         <source>Açık dosya yok</source>
         <translation>No open file</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="298" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="298" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="298" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="298" />
         <source>Fark okunamadı</source>
         <translation>Could not read the diff</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="301" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="301" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="301" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="301" />
         <source>Bu sürümle arasında fark yok</source>
         <translation>No difference from this snapshot</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="306" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="306" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="306" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="306" />
         <source>Fark</source>
         <translation>Diff</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="427" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="331" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="427" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="331" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="427" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="331" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="427" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="331" />
         <source>Dosya bu sürümde bulunamadı</source>
         <translation>File not found in this snapshot</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="340" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="340" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="340" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="340" />
         <source>Bu sürümdeki içerik panoya kopyalandı</source>
         <translation>Content of this snapshot copied to clipboard</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="348" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="348" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="348" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="348" />
         <source>DİKKAT: Bu, editörün değil sizin git deponuz.</source>
         <translation>WARNING: This is your own git repository, not the editor's.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="356" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="356" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="356" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="356" />
         <source>Sürümü Sil</source>
         <translation>Delete Snapshot</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="357" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="357" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="357" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="357" />
         <source>En yeni sürüm geçmişten silinir; dosyalarınız değişmez. Devam?</source>
         <translation>The latest snapshot is removed from history; your files stay unchanged. Continue?</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="369" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="369" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="369" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="369" />
         <source>Silinemedi — tek sürüm kaldı ya da sürümleme kapalı</source>
         <translation>Could not delete — only one snapshot left, or versioning is off</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="371" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="371" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="371" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="371" />
         <source>En yeni sürüm silindi</source>
         <translation>Latest snapshot deleted</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="384" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="384" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="384" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="384" />
         <source>Bu klasördeki .git klasörü — yani SİZİN git deponuz — çöp kutusuna taşınacak.
 
 Tüm dallar, etiketler ve uzak bağlantı ayarları gider; proje dosyalarınız yerinde kalır. Geri almak için çöp kutusundan kurtarmanız gerekir.</source>
@@ -2941,50 +3001,50 @@ Tüm dallar, etiketler ve uzak bağlantı ayarları gider; proje dosyalarınız 
 All branches, tags and remote settings will be gone; your project files stay in place. To undo this you must restore the folder from the recycle bin.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="392" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="392" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="392" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="392" />
         <source>Devam etmek istediğinize emin misiniz?</source>
         <translation>Are you sure you want to continue?</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="394" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="394" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="394" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="394" />
         <source>TÜM sürüm geçmişi silinecek (dosyalarınız silinmez). Devam etmek istediğinize emin misiniz?</source>
         <translation>ALL version history will be deleted (your files are not deleted). Are you sure you want to continue?</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="397" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="397" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="397" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="397" />
         <source>Tüm Geçmişi Sil</source>
         <translation>Delete All History</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="404" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="404" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="404" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="404" />
         <source>Silinecek geçmiş yok</source>
         <translation>No history to delete</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="407" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="407" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="407" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="407" />
         <source>Tüm geçmiş silindi — yeni sürümlemede yeniden başlar</source>
         <translation>All history deleted — versioning starts fresh on the next snapshot</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="415" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="415" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="415" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="415" />
         <source>Sürümden Geri Yükle</source>
         <translation>Restore from Snapshot</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="416" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="416" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="416" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="416" />
         <source>{f} dosyası seçilen sürüme döndürülecek. Kaydedilmemiş değişiklikler kaybolur.</source>
         <translation>{f} will be reverted to the selected version. Unsaved changes will be lost.</translation>
     </message>
     <message>
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="446" />
-        <location filename="../../../../../../../../tmp/tmp.ZKzUoFZxQm/desktop/gui/mixins/version_ops.py" line="446" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="446" />
+        <location filename="../../../../../../../../tmp/tmp.2ydhYlyeeh/desktop/gui/mixins/version_ops.py" line="446" />
         <source>Geri yüklendi</source>
         <translation>Restored</translation>
     </message>

@@ -3,8 +3,9 @@
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QTextCursor
 from PyQt6.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QTabWidget,
+    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QTabWidget,
     QListWidget, QListWidgetItem, QPlainTextEdit, QMenu,
+    QLineEdit, QCheckBox, QLabel,
 )
 
 from core.error_hints import get_hint
@@ -45,6 +46,8 @@ class OutputPanel(QWidget):
     version_action = pyqtSignal(str, str)
     # Ortam Denetimi satırına tıklandı (bağlamsal tetik)
     env_check_requested = pyqtSignal()
+    # Projede ara: (sorgu, büyük/küçük harf duyarlı)
+    project_search_requested = pyqtSignal(str, bool)
 
     # Doktor satırının UserRole işareti: (dosya, satır) demetiyle karışmasın
     _ENV_DOCTOR_TAG = "__env_doctor__"
@@ -95,6 +98,34 @@ class OutputPanel(QWidget):
         self._history_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self._history_list.customContextMenuRequested.connect(self._on_history_menu)
         self._history_tab_index = self._tabs.addTab(self._history_list, _("Sürüm Geçmişi"))
+
+        # Projede Ara sekmesi (Ctrl+Shift+F). Sorgu kutusu sekmenin İÇİNDE:
+        # ayrı bir dialog açmak, her yeni aramada dialogu yeniden açtırıp
+        # sonucu başka bir yerde göstermek olurdu. Derleme çıktısı değildir —
+        # clear() temizlemez.
+        arama = QWidget()
+        arama_layout = QVBoxLayout(arama)
+        arama_layout.setContentsMargins(6, 6, 6, 0)
+        arama_layout.setSpacing(4)
+        satir = QHBoxLayout()
+        satir.setSpacing(6)
+        self._psearch_input = QLineEdit()
+        self._psearch_input.setPlaceholderText(_("Projede ara (Enter)"))
+        self._psearch_input.returnPressed.connect(self._on_project_search_return)
+        self._psearch_case = QCheckBox(_("Aa"))
+        self._psearch_case.setToolTip(_("Büyük/küçük harf duyarlı"))
+        self._psearch_case.toggled.connect(self._on_project_search_return)
+        self._psearch_status = QLabel("")
+        satir.addWidget(self._psearch_input, 1)
+        satir.addWidget(self._psearch_case)
+        satir.addWidget(self._psearch_status)
+        arama_layout.addLayout(satir)
+        self._psearch_list = QListWidget()
+        self._psearch_list.itemClicked.connect(self._on_result_click)
+        self._psearch_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self._psearch_list.customContextMenuRequested.connect(self._on_list_context_menu)
+        arama_layout.addWidget(self._psearch_list)
+        self._psearch_tab_index = self._tabs.addTab(arama, _("Projede Ara"))
 
         layout.addWidget(self._tabs)
         self.setMaximumHeight(200)
@@ -236,6 +267,66 @@ class OutputPanel(QWidget):
             self._suggest_list.addItem(item)
         self._tabs.setTabText(self._warn_tab_index, _("Uyarılar ({n})").format(n=self._warn_list.count()))
         self._tabs.setTabText(self._suggest_tab_index, _("Öneriler ({n})").format(n=self._suggest_list.count()))
+
+    # --- Projede Ara ---
+
+    # Parametre adı `_` OLAMAZ: bu modülde `_` çeviri fonksiyonu ve yerel ad
+    # onu gölgeler — gövdedeki her _("...") "tuple object is not callable"
+    # ile patlardı (testte yakalandı, kullanıcıya her Enter'da çökme olurdu).
+    # QCheckBox.toggled bir bool geçirdiği için imza yine de argüman yutmalı.
+    def _on_project_search_return(self, *_args):
+        sorgu = self._psearch_input.text().strip()
+        if sorgu:
+            self._psearch_status.setText(_("Aranıyor..."))
+            self.project_search_requested.emit(sorgu, self._psearch_case.isChecked())
+
+    def focus_project_search(self, on_secili: str = ""):
+        """Sekmeyi öne al ve kutuya odaklan (Ctrl+Shift+F).
+
+        `on_secili` verilirse (editördeki seçili metin) kutuya yazılır ve
+        seçili gelir: kullanıcı ya Enter'a basar ya da üstüne yazar.
+        """
+        self._tabs.setCurrentIndex(self._psearch_tab_index)
+        if on_secili:
+            self._psearch_input.setText(on_secili)
+        self._psearch_input.setFocus()
+        self._psearch_input.selectAll()
+
+    def show_project_search(self, bulgular, kesildi: bool, kok: str = ""):
+        """Proje araması sonuçlarını göster.
+
+        Öğe metni "yol:satır  içerik"; UserRole'de (mutlak yol, satır) durur,
+        yani tıklama mevcut error_clicked yoluna düşer ve _goto_line'a gider.
+        Yol KÖKE GÖRE gösterilir — mutlak yollar listeyi okunamaz yapıyor.
+        """
+        import os
+
+        self._psearch_list.clear()
+        renk = QColor(self._theme.get("fg_primary", "#000000"))
+        for b in bulgular:
+            gosterilen = b.path
+            if kok:
+                try:
+                    gosterilen = os.path.relpath(b.path, kok).replace(os.sep, "/")
+                except ValueError:      # farklı sürücü (Windows)
+                    pass
+            item = QListWidgetItem(f"{gosterilen}:{b.line}  {b.text}")
+            item.setData(Qt.ItemDataRole.UserRole, (b.path, b.line))
+            item.setForeground(renk)
+            self._psearch_list.addItem(item)
+
+        n = len(bulgular)
+        if not n:
+            self._psearch_status.setText(_("bulunamadı"))
+        elif kesildi:
+            # Kırpma SESSİZ OLMAZ: eksik listeyi tam sanmak yanlış sonuca
+            # götürür ("bu komut yalnız 3 yerde geçiyormuş" gibi).
+            self._psearch_status.setText(_("ilk {n} sonuç (kırpıldı)").format(n=n))
+        else:
+            dosya = len({b.path for b in bulgular})
+            self._psearch_status.setText(
+                _("{n} sonuç · {d} dosya").format(n=n, d=dosya))
+        self._tabs.setCurrentIndex(self._psearch_tab_index)
 
     def show_history(self, entries):
         """Sürüm geçmişi sekmesini doldur (core.versioning.VersionEntry listesi).
@@ -379,6 +470,15 @@ class OutputPanel(QWidget):
         # Sürüm Geçmişi: tema değişiminde UNUTULUYORDU (yalnız kurulumda
         # stilleniyordu). Kopyalar tek kaynağa indirilince ortaya çıktı.
         self._history_list.setStyleSheet(f"{list_base} color: {t['fg_primary']};")
+        self._psearch_list.setStyleSheet(f"{list_base} color: {t['fg_primary']};")
+        self._psearch_input.setStyleSheet(
+            f"QLineEdit {{ background: {t['bg_secondary']}; color: {t['fg_primary']};"
+            f" border: 1px solid {t['border_input']}; border-radius: 3px; padding: 3px 6px; }}"
+        )
+        self._psearch_case.setStyleSheet(f"QCheckBox {{ color: {t['fg_muted']}; }}")
+        self._psearch_status.setStyleSheet(f"color: {t['fg_muted']}; font-size: 11px;")
+        for i in range(self._psearch_list.count()):
+            self._psearch_list.item(i).setForeground(QColor(t["fg_primary"]))
         self._log_text.setStyleSheet(
             f"QPlainTextEdit {{ background: {t['bg_primary']}; color: {t['fg_primary']}; font-family: Consolas, 'DejaVu Sans Mono', Menlo, monospace; font-size: 11px; border: none; }}"
         )

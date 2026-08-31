@@ -1,14 +1,7 @@
 """Proje dosya ağacı — .tex/.cls/.sty/.bib dosyaları, alt klasör desteği."""
 
-# Taranmayacak klasörler (büyük / ilgisiz)
-_SKIP_DIRS = {
-    "node_modules", "__pycache__", ".git", ".svn",
-    "build", "dist", ".venv", "venv", ".env",
-    ".mypy_cache", ".pytest_cache",
-}
-_MAX_DEPTH = 5
-
 import os
+
 import send2trash
 
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QUrl
@@ -27,7 +20,14 @@ from core.engine_detector import (
     detect_root_from_head as _detect_root_head,
 )
 from core.log import get_logger
+# Taranmayacak klasörler TEK KAYNAKTAN. Aynı küme üç yerde kullanılıyor
+# (ağaç çizimi, Ctrl+P hızlı açma, Ctrl+Shift+F projede ara); kopyalanınca
+# sürükleniyor — bu depoda paketleme tanımlarında bilfiil yaşandı.
+from core.project_search import SKIP_DIRS as _SKIP_DIRS
 from PyQt6.QtCore import QCoreApplication
+
+# Ağaç çiziminde inilen en derin seviye (bu dosyaya özgü)
+_MAX_DEPTH = 5
 
 _ = lambda s: QCoreApplication.translate("FileTree", s)
 _logger = get_logger("file_tree")

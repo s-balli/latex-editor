@@ -126,6 +126,7 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 
 ### v1.0.7 — Quick Open, Rename & Auto Audit
 - **Editor**: quick open (Ctrl+P): fuzzy-filtered file picker over the project folder (.tex/.bib/.cls/.sty); type, navigate with arrow keys, Enter opens
+- **Find in project (Ctrl+Shift+F)**: searches INSIDE every .tex/.bib/.cls/.sty file under the project folder — including files not open in a tab (Ctrl+F only searches the open tab). Results list file:line with the matching text; click to jump there. Case-sensitivity toggle; Turkish dotted-İ folded correctly. Runs in a background thread, so large projects don't freeze the UI.
 - **Editor**: F2 on a `\cite` key or a `.bib` entry renames the bibliography key across the document, the `\input` chain and the `.bib` entry itself; `\bibitem` entries (manual thebibliography) are also supported (multi-key `\cite{a,b}` segments handled; single undo step in open tabs; duplicates blocked). F2 on labels keeps working as before
 - **Editor**: optional post-compile reference audit (Build menu toggle): findings are appended to the output panel after each compile without clearing compile errors; clickable as before; a one-line summary (zero categories omitted) is appended to the status bar next to the compile result
 - **656 unit tests**
@@ -448,6 +449,7 @@ Frontend runs at `http://localhost:5173`.
 | `Ctrl+Y` | Redo |
 | `Ctrl+F` | Find (Editor or PDF) |
 | `Ctrl+H` | Find and Replace |
+| `Ctrl+Shift+F` | Find in Project (searches inside every project file) |
 | `Ctrl+C` | Copy (if text selected in PDF) |
 | `Ctrl+/` | Toggle Comment |
 | `Ctrl+G` | Go to Line |

@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
     QApplication, QDialog, QLineEdit, QListWidget, QListWidgetItem, QVBoxLayout,
 )
 
-from gui.file_tree import _SKIP_DIRS
+from core.project_search import SKIP_DIRS as _SKIP_DIRS
 
 _ = lambda s: QCoreApplication.translate("QuickOpenDialog", s)
 

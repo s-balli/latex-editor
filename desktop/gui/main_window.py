@@ -38,6 +38,7 @@ from gui.mixins.table_ops import TableOpsMixin
 from gui.mixins.version_ops import VersionOpsMixin
 from gui.mixins.synctex_ops import SyncTexMixin
 from gui.mixins.recovery_ops import RecoveryOpsMixin
+from gui.mixins.project_search_ops import ProjectSearchMixin
 
 
 class _PandocCheckSignal(QObject):
@@ -77,6 +78,7 @@ class MainWindow(
     VersionOpsMixin,
     SyncTexMixin,
     RecoveryOpsMixin,
+    ProjectSearchMixin,
     QMainWindow,
 ):
     def __init__(self, open_file: str = ""):
@@ -102,6 +104,7 @@ class MainWindow(
         self._theme_mgr = ThemeManager(self._settings, self)
 
         self._init_synctex_worker()
+        self._init_project_search()
         self._file_watch_init()
         self._recovery_init()
         self._setup_ui()
@@ -274,6 +277,8 @@ class MainWindow(
         edit_menu.addSeparator()
         self._add_action(edit_menu, _("&Bul..."), self._show_find, "Ctrl+F")
         self._add_action(edit_menu, _("Bul &Değiştir..."), self._show_replace, "Ctrl+H")
+        self._add_action(edit_menu, _("&Projede Ara..."), self._project_search,
+                         "Ctrl+Shift+F", app_shortcut=True)
         edit_menu.addSeparator()
         self._add_action(edit_menu, _("Yorum &Toggle"), self._toggle_comment)
         self._add_action(edit_menu, _("Satıra G&it..."), self._goto_line_dialog, "Ctrl+G")
@@ -462,6 +467,8 @@ class MainWindow(
         self._output_panel.error_clicked.connect(self._goto_line)
         self._output_panel.version_action.connect(self._on_version_action)
         self._output_panel.env_check_requested.connect(self._open_env_doctor)
+        self._output_panel.project_search_requested.connect(
+            self._on_project_search_requested)
 
         self._pdf_viewer.reverse_search_requested.connect(self._on_reverse_search)
 
@@ -478,6 +485,12 @@ class MainWindow(
         quick_open = QShortcut(QKeySequence("Ctrl+P"), self)
         quick_open.setContext(Qt.ShortcutContext.ApplicationShortcut)
         quick_open.activated.connect(self._quick_open)
+
+        # Ctrl+Shift+F: Ctrl+F (açık sekmede bul) ile aynı ailede ama proje
+        # geneli. ApplicationShortcut, odak QScintilla'dayken de çalışsın diye.
+        proje_ara = QShortcut(QKeySequence("Ctrl+Shift+F"), self)
+        proje_ara.setContext(Qt.ShortcutContext.ApplicationShortcut)
+        proje_ara.activated.connect(self._project_search)
 
     # --- Tema ---
 
@@ -605,6 +618,7 @@ class MainWindow(
         html += "Ctrl+Z — " + _("Geri Al") + "<br>"
         html += "Ctrl+Y — " + _("Yinele") + "<br>"
         html += "Ctrl+F — " + _("Bul") + "<br>"
+        html += "Ctrl+Shift+F — " + _("Projede Ara") + "<br>"
         html += "Ctrl+H — " + _("Bul ve Değiştir") + "<br>"
         html += "Ctrl+/ — " + _("Yorum Toggle") + "<br>"
         html += "Ctrl+G — " + _("Satıra Git") + "<br>"
@@ -647,6 +661,9 @@ class MainWindow(
         left += "<br><br>"
         left += "<b>" + _("Bul / Değiştir") + " (Ctrl+F / Ctrl+H)</b><br>"
         left += "<span style='color:" + dim + "'>" + _("VS Code tarzı inline panel, büyük/küçük harf duyarsız.") + "</span>"
+        left += "<br><br>"
+        left += "<b>" + _("Projede Ara") + " (Ctrl+Shift+F)</b><br>"
+        left += "<span style='color:" + dim + "'>" + _("Klasör ağacındaki TÜM .tex/.bib/.cls/.sty dosyalarının İÇİNDE arar — sekmede açık olmayanlar dahil. Ctrl+F yalnız açık sekmede arar. Sonuca tıklayınca o dosyanın o satırına gidilir.") + "</span>"
         left += "<br><br>"
         left += "<b>" + _("Hızlı Dosya Aç") + " (Ctrl+P)</b><br>"
         left += "<span style='color:" + dim + "'>" + _("Dosya adını yaz, bulanık filtreyle bul, Enter ile aç. Klasör ağacındaki .tex/.bib/.cls/.sty dosyaları.") + "</span>"
@@ -1149,6 +1166,7 @@ class MainWindow(
                     return
                 # Discard → devam et
         self._cleanup_synctex_worker()
+        self._cleanup_project_search()
         self._pdf_viewer.shutdown()
         shutil.rmtree(self._synctex_dir, ignore_errors=True)
         # Buraya ancak TEMİZ kapanışta gelinir: yukarıdaki döngü her kirli

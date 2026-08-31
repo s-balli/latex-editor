@@ -127,6 +127,7 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 
 ### v1.0.7 — Hızlı Açma, Yeniden Adlandırma ve Otomatik Denetim
 - **Editör**: hızlı dosya açma (Ctrl+P): proje klasöründeki dosyalar (.tex/.bib/.cls/.sty) bulanık filtreyle; yaz, ok tuşlarıyla gez, Enter ile aç
+- **Projede ara (Ctrl+Shift+F)**: proje klasöründeki TÜM .tex/.bib/.cls/.sty dosyalarının İÇİNDE arar — sekmede açık olmayanlar dahil (Ctrl+F yalnız açık sekmede arar). Sonuçlar dosya:satır ve eşleşen metinle listelenir, tıklayınca oraya gidilir. Büyük/küçük harf duyarlılığı seçilebilir; Türkçe noktalı İ doğru eşleşir. Tarama arka planda koşar, büyük projede arayüz donmaz.
 - **Editör**: `\cite` anahtarı veya `.bib` girdisi üzerinde F2 ile kaynakça anahtarını doküman, `\input` zinciri ve `.bib` girdisinin kendisinde toplu yeniden adlandır; `\bibitem` (el ile kaynakça) girdileri de desteklenir (çoklu `\cite{a,b}` segmentleri destekli; açık sekmeler tek undo adımı alır; çift isim engellenir). Label'da F2 eskisi gibi çalışır
 - **Editör**: isteğe bağlı derleme sonrası referans denetimi (Derle menüsü anahtarı): her derlemeden sonra bulgular, derleme hatalarını silmeden panelin sonuna eklenir; eskisi gibi tıklanabilir; durum çubuğuna, derleme sonucunun yanına sıfır kategorileri atlayan tek satır özet düşer
 - **656 birim testi**
@@ -449,6 +450,7 @@ Frontend `http://localhost:5173` adresinde çalışır.
 | `Ctrl+Y` | Yinele |
 | `Ctrl+F` | Bul (Editör veya PDF) |
 | `Ctrl+H` | Bul ve Değiştir |
+| `Ctrl+Shift+F` | Projede Ara (tüm proje dosyalarının içinde arar) |
 | `Ctrl+C` | Kopyala (PDF'te metin seçiliyse) |
 | `Ctrl+/` | Yorum Toggle |
 | `Ctrl+G` | Satıra Git |
