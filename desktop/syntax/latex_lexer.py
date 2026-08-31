@@ -257,7 +257,10 @@ class LatexLexer(QsciLexerCustom):
             if ch == _DLR:
                 prev = i
                 i, in_math = self._style_math(source, i, n)
-                line_no += source.count(b"\n", prev, i)  # $$...$$ çok satırlı olabilir
+                # $$...$$ çok satırlı olabilir; yutulan satırların
+                # durumu da kaydedilmeli (bkz. _blok_satirlari)
+                line_no = self._blok_satirlari(
+                    source, prev, i, 1, line_no, new_states, new_offsets)
                 continue
 
             if ch == _BS:
@@ -266,7 +269,8 @@ class LatexLexer(QsciLexerCustom):
                 verb_env = self._match_verbatim_begin(source, i)
                 if verb_env is not None:
                     pos, closed = self._style_verbatim_block(source, i, n, verb_env)
-                    line_no += source.count(b"\n", i, pos)  # çok satırlı blok: satır no senkron
+                    line_no = self._blok_satirlari(
+                        source, i, pos, 2, line_no, new_states, new_offsets)
                     in_verbatim = not closed
                     i = pos
                     continue
@@ -276,13 +280,15 @@ class LatexLexer(QsciLexerCustom):
                 # kapanışı bulana (veya EOF'a) kadar tarayıp math modunu açar.
                 if nxt == 0x5B:  # '['
                     pos, closed = self._style_math_block(source, i, n, b"\\]")
-                    line_no += source.count(b"\n", i, pos)  # çok satırlı blok: satır no senkron
+                    line_no = self._blok_satirlari(
+                        source, i, pos, 1, line_no, new_states, new_offsets)
                     in_math = not closed
                     i = pos
                     continue
                 if nxt == 0x28:  # '('
                     pos, closed = self._style_math_block(source, i, n, b"\\)")
-                    line_no += source.count(b"\n", i, pos)
+                    line_no = self._blok_satirlari(
+                        source, i, pos, 1, line_no, new_states, new_offsets)
                     in_math = not closed
                     i = pos
                     continue
@@ -310,10 +316,42 @@ class LatexLexer(QsciLexerCustom):
             self.setStyling(j - i, self.DEFAULT)
             i = j
 
-        # Son satırın state'ini de kaydet
-        new_states[line_no] = self._state_val(in_math, in_verbatim)
+        # Son satır: girdisi YOKSA doldur. setdefault ŞART — düz atama
+        # taramanın ÇIKIŞ durumunu o satırın GİRİŞ durumu diye yazıyordu.
+        # Satır 'math içinden' girilip blok o satırda kapanırsa giriş 1'dir
+        # ama çıkış 0; düz atama 0 yazıp önbelleği BAYATLATIYORDU. Bir sonraki
+        # artımlı tarama o satırı 'güvenli' sanıp math dışında başlıyor ve
+        # yanlış renklendiriyordu (2026-08-31, seed 33354692582 adım 20→21).
+        new_states.setdefault(line_no, self._state_val(in_math, in_verbatim))
         self._commit(scan_line, scan_start, line_no, n,
                      new_states, new_offsets, total_lines, n)
+
+    def _blok_satirlari(self, source, bas, son, durum, line_no,
+                        new_states, new_offsets):
+        """Blok tarayicisinin YUTTUGU satirlar icin durum kaydet.
+
+        ``_style_*_block`` cok satirli bir blogu tek cagrida tuketiyor; bu
+        sirada ana dongunun ``\n`` dali hic calismiyor, dolayisiyla blok
+        ORTASINDAKI satirlar ``_line_states``'e girmiyordu. Girmeyince
+        ``states.get(satir)`` None donuyor ve guvenli-satir geri yuruyusu
+        devam ediyor — bu KENDI BASINA dogru. Sorun ``_commit``: taranan
+        bolgeden SONRAKI eski girdiler "icerik degismedi" gerekcesiyle
+        otelenerek KORUNUYOR. Bir duzenleme math paritesini degistirip
+        tarama erken cikinca, blok icinde kalan satirlarin ESKI 0 girdileri
+        yerinde kaliyor ve bir sonraki artimli tarama o satiri "guvenli"
+        sanip math disinda basliyordu (2026-08-31, seed 33354692582).
+
+        Burada her yutulan satira gercek durumu (1=math, 2=verbatim)
+        yaziliyor; boylece ``_commit`` bolgeyi yeniden yazarken bayat 0'lar
+        gercek degerleriyle EZILIYOR.
+        """
+        k = source.find(b"\n", bas, son)
+        while k != -1:
+            line_no += 1
+            new_states[line_no] = durum
+            new_offsets[k + 1] = durum
+            k = source.find(b"\n", k + 1, son)
+        return line_no
 
     def _commit(self, scan_line, scan_start, exit_line, exit_offset,
                 new_states, new_offsets, total_lines, n):

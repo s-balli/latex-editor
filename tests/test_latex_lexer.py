@@ -482,7 +482,14 @@ def test_random_edit_sequence_matches_full_scan(qapp):
     """
     import random
 
-    for seed in (1, 7, 42, _runtime_seed()):
+    # 33354692582: CI'da (run 33354692582) gerçekten düşen tohum. Adım 20→21'de
+    # satır 91'deki açık `$`, satır 92'ye eklenen `$` ile kapanıyor; satır 92'ye
+    # math'in İÇİNDEN giriliyor ama styleText son satıra taramanın ÇIKIŞ
+    # durumunu yazıyordu (0). Bayat 0, sonraki artımlı taramada "güvenli satır"
+    # sanılıp math dışında başlatıyordu. Sabit tohum olarak kalsın: rastgele
+    # tohumun bu vakayı yeniden üretme olasılığı %1'in altında (300 tohum
+    # denendi, 0 düşüş) — yani koruma tohuma bırakılamaz.
+    for seed in (1, 7, 42, 33354692582, _runtime_seed()):
         rng = random.Random(seed)
         editor = _make_editor()
         editor.setText(_DOC)
@@ -718,3 +725,46 @@ def test_kapanmamis_blokta_duzenleme_tam_taramayla_ayni(qapp):
         ref.lexer().styleText(0, len(data))
         assert got == _all_styles(ref, len(data)), (
             f"kapanmamış bloklu belgede artımlı stil sapması, eklenen: {ekleme!r}")
+
+
+# --- Satır durumu: GİRİŞ mi, ÇIKIŞ mı? ---
+
+def test_blok_icinden_girilen_satirin_durumu_giris_olmali(qapp):
+    """Bir satıra blok İÇİNDEN girilip blok o satırda kapanırsa giriş 1'dir.
+
+    styleText eskiden son satıra taramanın ÇIKIŞ durumunu yazıyordu. Aşağıdaki
+    belgede satır 1'e math'in içinden giriliyor (satır 0'daki `$` açık kalmış),
+    math satır 1'de kapanıyor: giriş 1, çıkış 0. Düz atama 0 yazıp önbelleği
+    bayatlatıyor, bir sonraki artımlı tarama o satırı 'güvenli' sanıyordu.
+    """
+    editor, data = _style_text("acik $math\n$ kapandi")
+    durumlar = editor.lexer()._line_states
+    assert durumlar.get(1) == 1, (
+        f"satır 1'in GİRİŞ durumu 1 (math) olmalı, {durumlar.get(1)} bulundu — "
+        "çıkış durumu kaydedilmiş olabilir")
+
+
+def test_cok_satirli_blogun_ic_satirlari_kaydediliyor(qapp):
+    """Blok tarayıcısının yuttuğu satırlar da önbelleğe girmeli.
+
+    `_style_*_block` çok satırlı bloğu tek çağrıda tüketiyor; ana döngünün
+    `\n` dalı çalışmadığı için blok ORTASINDAKİ satırlar hiç kaydedilmiyordu.
+    Kaydedilmeyince `_commit` bölgeyi yeniden yazarken bayat 0'lar yerinde
+    kalabiliyordu.
+    """
+    editor, data = _style_text(
+        "once\n\\begin{verbatim}\nbir\niki\n\\end{verbatim}\nsonra\n")
+    durumlar = editor.lexer()._line_states
+    # 2 ve 3 verbatim bloğunun İÇİ
+    assert durumlar.get(2) == 2, f"satır 2: {durumlar.get(2)}"
+    assert durumlar.get(3) == 2, f"satır 3: {durumlar.get(3)}"
+    # blok kapandıktan sonraki satır normal
+    assert durumlar.get(5) == 0, f"satır 5: {durumlar.get(5)}"
+
+
+def test_cok_satirli_math_blogunun_ic_satirlari_kaydediliyor(qapp):
+    editor, data = _style_text("once\n\\[\na = b\nc = d\n\\]\nsonra\n")
+    durumlar = editor.lexer()._line_states
+    assert durumlar.get(2) == 1, f"satır 2: {durumlar.get(2)}"
+    assert durumlar.get(3) == 1, f"satır 3: {durumlar.get(3)}"
+    assert durumlar.get(5) == 0, f"satır 5: {durumlar.get(5)}"
