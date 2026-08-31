@@ -85,42 +85,23 @@ class FileTree(QWidget):
         top_bar = QHBoxLayout()
         top_bar.setContentsMargins(8, 8, 8, 4)
         lbl = QLabel(_("DOSYALAR"))
-        lbl.setStyleSheet(f"color: {t['fg_muted']}; font-size: 11px; font-weight: bold; letter-spacing: 1px;")
         top_bar.addWidget(lbl)
 
         self._btn_refresh = QPushButton(_("Yenile"))
         self._btn_refresh.setFixedHeight(26)
         self._btn_refresh.clicked.connect(self.refresh)
-        self._btn_refresh.setStyleSheet(
-            f"QPushButton {{ background: {t['bg_button']}; color: {t['fg_primary']}; border: 1px solid {t['border_input']}; "
-            f"border-radius: 4px; font-size: 11px; padding: 2px 12px; }}"
-            f"QPushButton:hover {{ background: {t['bg_hover']}; border: 1px solid {t['accent']}; }}"
-            f"QPushButton:pressed {{ background: {t['bg_pressed']}; }}"
-        )
         top_bar.addStretch()
         top_bar.addWidget(self._btn_refresh)
 
         bar_widget = QWidget()
-        bar_widget.setStyleSheet(f"background: {t['bg_secondary']};")
         bar_widget.setLayout(top_bar)
         layout.addWidget(bar_widget)
         self._bar_widget = bar_widget
 
         # Klasör yolu
         self._root_label = QLabel("")
-        self._root_label.setStyleSheet(
-            f"color: {t['fg_dim']}; font-size: 10px; padding: 2px 10px; "
-            f"background: {t['bg_secondary']}; border-bottom: 1px solid {t['border_normal']};"
-        )
         self._root_label.setWordWrap(True)
         layout.addWidget(self._root_label)
-
-        tree_ss = (
-            f"QTreeWidget {{ background: {t['bg_secondary']}; color: {t['fg_primary']}; border: none; font-size: 12px; }}"
-            f"QTreeWidget::item {{ padding: 3px 4px; }}"
-            f"QTreeWidget::item:hover {{ background: {t['bg_hover']}; }}"
-            f"QTreeWidget::item:selected {{ background: {t['bg_pressed']}; }}"
-        )
 
         # Ağaç
         self._tree = _DragTree()
@@ -131,17 +112,12 @@ class FileTree(QWidget):
         self._tree.itemDoubleClicked.connect(self._on_double_click)
         self._tree.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self._tree.customContextMenuRequested.connect(self._on_context_menu)
-        self._tree.setStyleSheet(tree_ss)
         self._title_label = lbl
 
         layout.addWidget(self._tree)
 
         # Bağlantılı dosyalar bölümü
         self._input_header = QLabel(_(" BAĞLANTILI DOSYALAR"))
-        self._input_header.setStyleSheet(
-            f"color: {t['fg_muted']}; font-size: 11px; font-weight: bold; letter-spacing: 1px;"
-            f"background: {t['bg_secondary']}; padding: 6px 8px 4px 8px; border-top: 1px solid {t['border_normal']};"
-        )
         self._input_header.hide()
         layout.addWidget(self._input_header)
 
@@ -151,12 +127,17 @@ class FileTree(QWidget):
         self._input_tree.setDragEnabled(True)
         self._input_tree.setDragDropMode(QTreeWidget.DragDropMode.DragOnly)
         self._input_tree.itemDoubleClicked.connect(self._on_double_click)
-        self._input_tree.setStyleSheet(tree_ss)
         self._input_tree.hide()
         layout.addWidget(self._input_tree)
 
         self.setMinimumWidth(150)
         self.setMaximumWidth(300)
+
+        # Stiller TEK kaynaktan: kurulum kendi kopyasını kurmuyor,
+        # apply_theme'i çağırıyor. Eskiden yedi blok burada ve
+        # apply_theme'de birebir tekrarlanıyordu; tema değiştirilince
+        # ikisini birden güncellemek gerekiyordu.
+        self.apply_theme(t)
 
     def _setup_autorefresh(self):
         self._watcher = QFileSystemWatcher(self)

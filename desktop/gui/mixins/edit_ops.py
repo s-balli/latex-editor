@@ -269,31 +269,53 @@ class EditOpsMixin:
         else:
             self._status.showMessage(_("Değişiklik yok: {k}").format(k=key))
 
-    def _on_rename_label(self, key: str):
-        r"""F2 (label): \label anahtarını doküman + \input zincirinde değiştir.
+    # F2 rename üçlüsünün ortak girişi. Üç handler da aynı 18 satırı
+    # taşıyordu: editörü bul, yeni adı sor, boş/aynı/geçersiz olanı ele.
+    # Kopya olması yalnız uzunluk sorunu değildi — anahtar karakter kümesi
+    # ÜÇ ayrı regex'te duruyordu, biri değişirse diğerleri sessizce ayrışırdı.
+    _GECERLI_ANAHTAR = re.compile(r'[A-Za-z0-9_:.-]+')
 
-        Yeni ad projede zaten varsa engellenir.
+    def _rename_ister(self, key: str, baslik: str, gecersiz_msg: str,
+                      gosterim: str = ""):
+        """Editörü bul + yeni adı sor + doğrula.
+
+        Dönüş: ``(editor, yeni_ad)``. İptal, boş giriş, aynı ad ya da geçersiz
+        karakter durumunda ``(None, "")`` — çağıran sessizce dönmeli.
+        ``gosterim`` diyalogda anahtarın nasıl yazılacağı (label için
+        etiket komutuyla birlikte, diğerlerinde anahtarın kendisi).
         """
-        from core.latex_refs import collect_labels, input_chain_paths, label_rename_spans
         from gui.editor import EditorWidget
 
         ed = self.sender()
         if not isinstance(ed, EditorWidget):
             ed = self._current_editor()
         if not ed or not ed.file_path or not key:
-            return
+            return None, ""
 
-        new_key, ok = QInputDialog.getText(
-            self, _("Etiketi Yeniden Adlandır"),
-            f"\\label{{{key}}} → " + _("yeni ad:"),
-        )
+        yeni, ok = QInputDialog.getText(
+            self, baslik, (gosterim or key) + " → " + _("yeni ad:"))
         if not ok:
-            return
-        new_key = new_key.strip()
-        if not new_key or new_key == key:
-            return
-        if not re.fullmatch(r'[A-Za-z0-9_:.-]+', new_key):
-            self._status.showMessage(_("Geçersiz etiket adı (harf, rakam, : . _ - kullanın)"))
+            return None, ""
+        yeni = yeni.strip()
+        if not yeni or yeni == key:
+            return None, ""
+        if not self._GECERLI_ANAHTAR.fullmatch(yeni):
+            self._status.showMessage(gecersiz_msg)
+            return None, ""
+        return ed, yeni
+
+    def _on_rename_label(self, key: str):
+        r"""F2 (label): \label anahtarını doküman + \input zincirinde değiştir.
+
+        Yeni ad projede zaten varsa engellenir.
+        """
+        from core.latex_refs import collect_labels, input_chain_paths, label_rename_spans
+
+        ed, new_key = self._rename_ister(
+            key, _("Etiketi Yeniden Adlandır"),
+            _("Geçersiz etiket adı (harf, rakam, : . _ - kullanın)"),
+            gosterim=f"\\label{{{key}}}")
+        if ed is None:
             return
         content = ed.text()
         if new_key in collect_labels(content, ed.file_path):
@@ -319,27 +341,15 @@ class EditOpsMixin:
         (kullanım hiç yoksa yalnız .bib girdisi değişir). Çift anahtar
         engellenir.
         """
-        from gui.editor import EditorWidget
         from core.latex_refs import (
             bib_key_rename_spans, cite_rename_spans,
             find_bib_path, find_cite_usage, input_chain_paths,
         )
 
-        ed = self.sender()
-        if not isinstance(ed, EditorWidget):
-            ed = self._current_editor()
-        if not ed or not ed.file_path or not key:
-            return
-
         title = _("Kaynakça Anahtarını Yeniden Adlandır")
-        new_key, ok = QInputDialog.getText(self, title, f"{key} → " + _("yeni ad:"))
-        if not ok:
-            return
-        new_key = new_key.strip()
-        if not new_key or new_key == key:
-            return
-        if not re.fullmatch(r'[A-Za-z0-9_:.-]+', new_key):
-            self._status.showMessage(_("Geçersiz anahtar adı (harf, rakam, : . _ - kullanın)"))
+        ed, new_key = self._rename_ister(
+            key, title, _("Geçersiz anahtar adı (harf, rakam, : . _ - kullanın)"))
+        if ed is None:
             return
 
         if ed.file_path.endswith('.bib'):
@@ -392,23 +402,11 @@ class EditOpsMixin:
             bibitem_rename_spans, cite_rename_spans,
             find_bibitem_location, input_chain_paths,
         )
-        from gui.editor import EditorWidget
-
-        ed = self.sender()
-        if not isinstance(ed, EditorWidget):
-            ed = self._current_editor()
-        if not ed or not ed.file_path or not key:
-            return
 
         title = _("Kaynakça Anahtarını Yeniden Adlandır")
-        new_key, ok = QInputDialog.getText(self, title, f"{key} → " + _("yeni ad:"))
-        if not ok:
-            return
-        new_key = new_key.strip()
-        if not new_key or new_key == key:
-            return
-        if not re.fullmatch(r'[A-Za-z0-9_:.-]+', new_key):
-            self._status.showMessage(_("Geçersiz anahtar adı (harf, rakam, : . _ - kullanın)"))
+        ed, new_key = self._rename_ister(
+            key, title, _("Geçersiz anahtar adı (harf, rakam, : . _ - kullanın)"))
+        if ed is None:
             return
         content = ed.text()
         if find_bibitem_location(content, ed.file_path, new_key) is not None:

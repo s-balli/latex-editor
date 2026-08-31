@@ -62,25 +62,9 @@ class OutputPanel(QWidget):
         t = self._theme
 
         self._tabs = QTabWidget()
-        self._tabs.setStyleSheet(
-            f"QTabWidget::pane {{ border: 1px solid {t['border_normal']}; background: {t['bg_primary']}; border-top: 2px solid {t['tab_active_border']}; }}"
-            f"QTabBar::tab {{ background: {t['bg_toolbar']}; color: {t['fg_muted']}; padding: 5px 14px;"
-            f"border: 1px solid transparent; border-bottom: none;"
-            f"border-top-left-radius: 4px; border-top-right-radius: 4px; margin-right: 1px; }}"
-            f"QTabBar::tab:hover {{ color: {t['fg_label']}; background: {t['bg_hover_alt']}; }}"
-            f"QTabBar::tab:selected {{ background: {t['bg_primary']}; color: {t['fg_bright']}; border: 1px solid {t['border_normal']}; }}"
-        )
-
-        list_base = (
-            f"QListWidget {{ background: {t['bg_primary']}; font-family: Consolas, 'DejaVu Sans Mono', Menlo, monospace; font-size: 12px; border: none; }}"
-            f"QListWidget::item {{ padding: 4px 6px; border-bottom: 1px solid {t['bg_item_hover']}; }}"
-            f"QListWidget::item:hover {{ background: {t['bg_item_hover']}; }}"
-            f"QListWidget::item:selected {{ background: {t['bg_pressed']}; }}"
-        )
 
         # Hatalar sekmesi
         self._error_list = QListWidget()
-        self._error_list.setStyleSheet(f"{list_base} color: {t['sem_error']};")
         self._error_list.itemClicked.connect(self._on_error_click)
         self._error_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self._error_list.customContextMenuRequested.connect(self._on_list_context_menu)
@@ -88,7 +72,6 @@ class OutputPanel(QWidget):
 
         # Uyarılar sekmesi
         self._warn_list = QListWidget()
-        self._warn_list.setStyleSheet(f"{list_base} color: {t['sem_warning']};")
         self._warn_list.itemClicked.connect(self._on_result_click)
         self._warn_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self._warn_list.customContextMenuRequested.connect(self._on_list_context_menu)
@@ -96,7 +79,6 @@ class OutputPanel(QWidget):
 
         # Öneriler sekmesi
         self._suggest_list = QListWidget()
-        self._suggest_list.setStyleSheet(f"{list_base} color: {t['sem_suggestion']};")
         self._suggest_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self._suggest_list.customContextMenuRequested.connect(self._on_list_context_menu)
         self._suggest_list.itemClicked.connect(self._on_result_click)
@@ -105,22 +87,23 @@ class OutputPanel(QWidget):
         # Ham log sekmesi
         self._log_text = QPlainTextEdit()
         self._log_text.setReadOnly(True)
-        self._log_text.setStyleSheet(
-            f"QPlainTextEdit {{ background: {t['bg_primary']}; color: {t['fg_primary']}; font-family: Consolas, 'DejaVu Sans Mono', Menlo, monospace; font-size: 11px; border: none; }}"
-        )
         self._log_tab_index = self._tabs.addTab(self._log_text, "Log")
 
         # Sürüm geçmişi sekmesi (Sürümle/Ctrl+K; derleme çıktısı değildir,
         # clear() temizlemez — yalnız show_history yeniler)
         self._history_list = QListWidget()
-        self._history_list.setStyleSheet(
-            f"{list_base} color: {t['fg_primary']};")
         self._history_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self._history_list.customContextMenuRequested.connect(self._on_history_menu)
         self._history_tab_index = self._tabs.addTab(self._history_list, _("Sürüm Geçmişi"))
 
         layout.addWidget(self._tabs)
         self.setMaximumHeight(200)
+
+        # Stiller TEK kaynaktan (bkz. apply_theme). Eskiden altı blok hem
+        # burada hem apply_theme'de duruyordu ve ikisi AYRIŞMIŞTI:
+        # _history_list yalnız kurulumda stilleniyordu, yani tema
+        # değiştirilince Sürüm Geçmişi sekmesi eski renklerde kalıyordu.
+        self.apply_theme(t)
 
     def clear(self):
         self._error_list.clear()
@@ -393,6 +376,9 @@ class OutputPanel(QWidget):
         self._error_list.setStyleSheet(f"{list_base} color: {t['sem_error']};")
         self._warn_list.setStyleSheet(f"{list_base} color: {t['sem_warning']};")
         self._suggest_list.setStyleSheet(f"{list_base} color: {t['sem_suggestion']};")
+        # Sürüm Geçmişi: tema değişiminde UNUTULUYORDU (yalnız kurulumda
+        # stilleniyordu). Kopyalar tek kaynağa indirilince ortaya çıktı.
+        self._history_list.setStyleSheet(f"{list_base} color: {t['fg_primary']};")
         self._log_text.setStyleSheet(
             f"QPlainTextEdit {{ background: {t['bg_primary']}; color: {t['fg_primary']}; font-family: Consolas, 'DejaVu Sans Mono', Menlo, monospace; font-size: 11px; border: none; }}"
         )
