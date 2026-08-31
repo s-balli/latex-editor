@@ -62,8 +62,15 @@ class PdfNavigationMixin:
         """mode: 'width' veya 'page'"""
         if not self._pdf or self._page_count == 0:
             return
+        # Ölçü BAKILAN sayfadan alınır, 1. sayfadan değil. Karışık boyutlu
+        # belgeler istisna değil kural: tezlerde yatay (landscape) ek sayfalar,
+        # makalelerde tam sayfa şekil/tablo, ders notlarında araya konan slayt
+        # PDF'i. Sayfa 1'i ölçüt almak, o sayfalarda "Genişliğe Sığdır"ı
+        # yanlış yapıyordu — yatay bir sayfa görüntü alanının dışına taşıyor,
+        # kullanıcı elle zoom'a dönmek zorunda kalıyordu.
+        idx = max(0, min(self._current_page, self._page_count - 1))
         with pdfium_lock:
-            page = self._pdf[0]
+            page = self._pdf[idx]
             pw_ham = page.get_width()
             ph_ham = page.get_height()
         vp_w = self._scroll.viewport().width()

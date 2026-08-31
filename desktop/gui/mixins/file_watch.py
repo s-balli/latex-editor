@@ -239,7 +239,18 @@ class FileWatchMixin:
         if dlg.clickedButton() == btn_reload:
             # Cursor konumunu hatırla
             line, col = editor.getCursorPosition()
-            editor.open_file(path)
+            # open_file dönüşü YOK SAYILAMAZ. Okuma başarısız olabiliyor
+            # (dosya kilitli, izin yok, araya giren yazımdan dolayı ikili
+            # bayt) ve o durumda arabellek OLDUĞU GİBİ kalıyor — ama hash
+            # yine de diskin yeni değerine yazılıyordu. Sonuç: kullanıcı
+            # "Diskten Yükle" dedi, hata diyaloğunu gördü, içerik gelmedi,
+            # üstelik izleyici o disk durumunu "kullanıcıya soruldu" diye
+            # işaretlediği için bir daha SORMUYORDU. Log da "yeniden
+            # yüklendi" diyordu. Hash'e dokunmayınca dosya okunabilir hâle
+            # geldiğinde bir sonraki değişiklikte tekrar sorulur.
+            if not editor.open_file(path):
+                _logger.warning("Diskten yükleme başarısız, hash korunuyor: %s", path)
+                return
             editor.setCursorPosition(line, col)
             self._save_hashes[path] = new_hash
             self._detect_engine(path)

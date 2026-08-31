@@ -23,14 +23,16 @@ class PdfSearchMixin:
         self._search_index = 0
         self._search_highlights = []
         self._search_id = 0
+        self._search_atla = True
         self._search_worker = PdfSearchWorker()
         self._search_worker.found.connect(self._on_search_done)
         self._search_worker.start()
 
-    def _do_search(self, query: str):
+    def _do_search(self, query: str, *, atla: bool = True):
         self._clear_search_highlights()
         self._search_results = []
         self._search_id += 1          # uçuştaki arama da geçersizleşir
+        self._search_atla = atla
         if not query or not self._pdf:
             self._update_search_nav(0, 0)
             return
@@ -43,9 +45,30 @@ class PdfSearchMixin:
             return                      # bayat sonuç: yeni sorgu/nesil geldi
         self._search_results = results
         self._search_index = 0
-        if results:
+        if results and self._search_atla:
             self._show_search_result(0)
         self._update_search_nav(1 if results else 0, len(results))
+
+    def _restore_search(self):
+        """Belge yeniden yüklendikten sonra açık aramayı sessizce tekrarla.
+
+        load_pdf HER derlemede çağrılıyor ve `_clear_search` sonuçları siliyor.
+        Silmek ŞART (aşağıdaki docstring: eski dokümanın ofsetleri yeni belgeye
+        uygulanıyordu), ama kullanıcı açısından bedeli şuydu: arama çubuğu açık,
+        sorgu hâlâ kutuda, sayaç "bulunamadı". Yaz–derle–bak döngüsünde her
+        turda Enter'a basmak gerekiyordu.
+
+        KAYDIRMA YOK (atla=False). Derlemeden sonra compile_ops imleç
+        konumuna SyncTeX ileri-araması yapıyor; ikisi de asenkron döndüğü için
+        kaydıran bir geri yükleme o zıplamayı yarışta ezebilirdi. Geri gelen
+        şey sonuç listesi ve "N / M" sayacı: ileri/geri tuşları anında çalışır.
+        """
+        bar = getattr(self, "_search_bar_widget", None)
+        if bar is None or not bar.isVisible():
+            return
+        query = self._search_input.text().strip()
+        if query:
+            self._do_search(query, atla=False)
 
     def _show_search_result(self, idx):
         self._clear_search_highlights()

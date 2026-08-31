@@ -158,7 +158,16 @@ class FindReplaceBar(QWidget):
             text, False, False, False, wrap, forward, line, col
         )
         if not found:
-            self._lbl_count.setText("0/0")
+            # wrap=True ile bulunamadıysa belgede GERÇEKTEN eşleşme yok:
+            # sayaç 0'dır ve etiket panelin geri kalanıyla aynı dili konuşur.
+            # Burada `setText("0/0")` vardı — çeviri kataloğunda olmayan,
+            # başka hiçbir yerde kullanılmayan bir biçim. Yazarken 300 ms'lik
+            # debounce boyunca ekranda kalıp sonra "Sonuç yok"a dönüyordu
+            # (titreme), ileri/geri tuşlarında ise _update_current_match onu
+            # anında BAYAT _match_count ile eziyordu: eşleşme kalmamışken
+            # etiket hâlâ eski "{n} sonuç" değerini gösterebiliyordu.
+            self._match_count = 0
+            self._update_current_match()
 
     def _find_next(self):
         text = self._find_input.text()

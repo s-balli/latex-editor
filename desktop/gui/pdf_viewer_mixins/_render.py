@@ -74,6 +74,7 @@ class PdfRenderMixin:
             self._create_placeholders()
             self.update_bookmarks()
             self._clear_search()
+            self._restore_search()      # açık arama derlemeyi atlatsın
             self._update_nav()
             QTimer.singleShot(50, self._render_visible)
             self._btn_save.setEnabled(True)
@@ -228,13 +229,40 @@ class PdfRenderMixin:
             label.setPixmap(QPixmap.fromImage(image))
             label.setStyleSheet("")
 
+    def _ilk_gorunur_aday(self, scroll_y: int) -> int:
+        """Görünür pencerenin BAŞLADIĞI etiketi ikili aramayla bul.
+
+        Etiketler belge sırasında ve dikey yerleşimde, yani `label_y` azalmıyor;
+        `label_y + yükseklik >= scroll_y - 200` yordamı bu sırada tek yerde
+        False'tan True'ya dönüyor. Doğrusal tarama bunu sayfa 0'dan başlayarak
+        buluyordu: 500 sayfalık PDF'in sonunda scroll başına 500 mapTo çağrısı.
+
+        TEK İSTİSNA çift sayfa modu: bir satırdaki iki etiketin `label_y`si
+        EŞİT ama yükseklikleri farklı olabilir, dolayısıyla yordam o satırda
+        True→False dönebilir. Bu yüzden bulunan indisten bir geri gidilir —
+        satırda en çok iki etiket var. Fazladan bakılan etiket zararsız:
+        döngü görünürlüğü zaten yeniden sınıyor.
+        """
+        esik = scroll_y - 200
+        lo, hi = 0, min(len(self._page_labels), self._page_count)
+        while lo < hi:
+            mid = (lo + hi) // 2
+            lb = self._page_labels[mid]
+            if lb.mapTo(self._pages_widget, QPoint(0, 0)).y() + lb.height() >= esik:
+                hi = mid
+            else:
+                lo = mid + 1
+        return max(0, lo - 1)
+
     def _render_visible(self):
         if not self._page_labels:
             return
         viewport_height = self._scroll.viewport().rect().height()
         scroll_y = self._scroll.verticalScrollBar().value()
 
-        for i, label in enumerate(self._page_labels):
+        bas = self._ilk_gorunur_aday(scroll_y)
+        for i in range(bas, len(self._page_labels)):
+            label = self._page_labels[i]
             if i >= self._page_count:
                 break
             label_y = label.mapTo(self._pages_widget, QPoint(0, 0)).y()
@@ -249,9 +277,8 @@ class PdfRenderMixin:
 
             visible = label_bottom >= -200 and label_top <= viewport_height + 200
 
-            # Etiketler dikey sıralı: viewport altına düşen ilk etiketten
-            # sonrakiler de görünmez — büyük PDF'lerde döngü başına yüzlerce
-            # mapTo çağrısından kurtulur.
+            # Görünür pencerenin ALT ucu. Üst ucu _ilk_gorunur_aday hallediyor;
+            # ikisi birlikte döngüyü O(sayfa) yerine O(görünür sayfa) yapıyor.
             if label_top > viewport_height + 200:
                 break
 

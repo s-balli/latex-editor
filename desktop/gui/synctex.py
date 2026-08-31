@@ -11,6 +11,18 @@ _logger = get_logger("synctex")
 
 _PLATFORM = sys.platform
 
+# synctex çağrılarının zaman aşımı. 3 sn'ydi ve DAR bir bütçeydi: sıcak WSL'de
+# tüm çağrı ~85 ms sürüyor (ölçüldü — 181 sayfalık belgede de aynı, maliyetin
+# tamamı `wsl -e` süreç açılışı, synctex ayrıştırması ihmal edilebilir), yani
+# 3 sn aslında SOĞUK WSL başlangıcı için ayrılmış bir bütçe. Bu makinedeki
+# dağıtım systemd + snapd + unattended-upgrades ile açılıyor; soğuk başlangıç
+# saniyeler sürebiliyor ve bütçeyi aşarsa ileri-arama sessizce düşüyor
+# (yalnız log'a warning). Kullanıcının SyncTeX'i ilk denediği an ise tam da
+# bilgisayarı yeni açtığı andır — hatanın en olası olduğu yer en görünür yer.
+# Uzatmanın bedeli yok: bu çağrılar SyncTexWorker thread'inde koşuyor, UI
+# beklemiyor; 15 sn yalnızca gerçekten asılmış bir sürecin warning'ini geciktirir.
+_ZAMAN_ASIMI = 15
+
 # Windows'ta konsol penceresi açılmasını engelle
 _SUBPROCESS_FLAGS = 0
 _SI = None
@@ -115,7 +127,7 @@ def _forward_wsl(tex_path: str, line: int, col: int, pdf_path: str,
         cmd += ["-d", windows_to_wsl(synctex_dir)]
     try:
         r = subprocess.run(cmd, capture_output=True, text=True,
-                           encoding="utf-8", errors="replace", timeout=3,
+                           encoding="utf-8", errors="replace", timeout=_ZAMAN_ASIMI,
                            startupinfo=_SI, creationflags=_SUBPROCESS_FLAGS)
         if r.returncode != 0 or r.stdout is None:
             return None
@@ -135,7 +147,7 @@ def _forward_native(tex_path: str, line: int, col: int, pdf_path: str,
     try:
         r = subprocess.run(cmd, capture_output=True, text=True,
                            encoding="utf-8", errors="replace",
-                           timeout=3, env=clean_child_env())
+                           timeout=_ZAMAN_ASIMI, env=clean_child_env())
         if r.returncode != 0 or r.stdout is None:
             return None
         return _parse_forward(r.stdout)
@@ -153,7 +165,7 @@ def _reverse_wsl(page: int, x: float, y: float, pdf_path: str,
         cmd += ["-d", windows_to_wsl(synctex_dir)]
     try:
         r = subprocess.run(cmd, capture_output=True, text=True,
-                           encoding="utf-8", errors="replace", timeout=3,
+                           encoding="utf-8", errors="replace", timeout=_ZAMAN_ASIMI,
                            startupinfo=_SI, creationflags=_SUBPROCESS_FLAGS)
         if r.returncode != 0 or r.stdout is None:
             return None
@@ -175,7 +187,7 @@ def _reverse_native(page: int, x: float, y: float, pdf_path: str,
     try:
         r = subprocess.run(cmd, capture_output=True, text=True,
                            encoding="utf-8", errors="replace",
-                           timeout=3, env=clean_child_env())
+                           timeout=_ZAMAN_ASIMI, env=clean_child_env())
         if r.returncode != 0 or r.stdout is None:
             return None
         return _parse_reverse(r.stdout)

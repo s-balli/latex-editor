@@ -10,20 +10,50 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import QCoreApplication
 _ = lambda s: QCoreApplication.translate("OutlinePanel", s)
 
-# Bölüm başlığı. İki nokta bilinçli:
+# Bölüm başlığının YALNIZ AÇILIŞI. Başlığın kendisi regex'le değil
+# _baslik_oku ile okunur; gerekçesi orada.
 #   (?:\[[^\]]*\])?   — \chapter[Giriş]{Giriş ve Kapsam} biçimindeki KISA
 #                       başlık argümanı. Desende yokken bu satırlar hiç
 #                       eşleşmiyordu, yani uzun başlıklı tez bölümleri
 #                       anahatta HİÇ görünmüyordu (standart kullanım).
-#   ([^{}]|\{[^{}]*\})* — başlıkta tek düzey iç içe küme
-#                       (\section{Yöntem ve \emph{Materyal}}); düz [^}]*
-#                       başlığı ilk iç kümede kesiyordu.
-# İki düzey iç içe (\section{A \textbf{\emph{B}} C}) hâlâ kırpılır; regex ile
-# keyfi derinlik çözülemez, o kadarı için ayraç sayan bir tarayıcı gerekir.
-_RE_SECTION = re.compile(
+_RE_SECTION_BAS = re.compile(
     r'\\(part|chapter|section|subsection|subsubsection|paragraph|subparagraph)'
-    r'\*?\s*(?:\[[^\]]*\])?\s*\{((?:[^{}]|\{[^{}]*\})*)\}'
+    r'\*?\s*(?:\[[^\]]*\])?\s*\{'
 )
+
+
+def _baslik_oku(text: str, i: int) -> str | None:
+    r"""Açılış `{`sinden SONRAKİ i konumundan başlığı AYRAÇ SAYARAK oku.
+
+    Regex'in yapamadığını yapar: keyfi derinlikte iç içe küme. Önceki desen
+    `((?:[^{}]|\{[^{}]*\})*)` ile tek düzeye izin veriyordu ve
+    `\section{A \textbf{\emph{B}} C}` ikinci düzeyde kırpılıyordu — desene
+    bir düzey daha eklemek de sınırı bir kaydırmaktan başka işe yaramazdı.
+
+    Ters bölü kaçışları atlanır (`\{`, `\}`, `\\`); yoksa `\section{Küme
+    \{a,b\}}` ilk `\}`de kapanmış sayılır, başlık yanlış kesilirdi. İki
+    karakter atlamak komut adlarının ilk harfini de yutar (`\emph` → `mph`),
+    zararsız: sayılan tek şey ayraçlar.
+
+    Küme hiç kapanmazsa None döner — yarım yazılmış bölüm satırı anahata
+    girmez (eski desen de eşleşmiyordu, davranış aynı).
+    """
+    derinlik = 1
+    j = i
+    n = len(text)
+    while j < n:
+        c = text[j]
+        if c == '\\':
+            j += 2
+            continue
+        if c == '{':
+            derinlik += 1
+        elif c == '}':
+            derinlik -= 1
+            if derinlik == 0:
+                return text[i:j]
+        j += 1
+    return None
 
 _LEVEL = {
     'part': 0,
@@ -126,18 +156,22 @@ class OutlinePanel(QWidget):
         # kare maliyet üretiyordu; burada imleç konumundan devam edilir.
         line = 0
         line_pos = 0  # `line` numaralı satırın başlangıç offseti
-        for match in _RE_SECTION.finditer(text):
+        for match in _RE_SECTION_BAS.finditer(text):
             # Yorum içinde mi kontrol et
             line_start = text.rfind('\n', 0, match.start()) + 1
             line_text = text[line_start:match.start()]
             if '%' in line_text:
                 continue
 
+            ham_baslik = _baslik_oku(text, match.end())
+            if ham_baslik is None:
+                continue                # küme kapanmamış
+
             line += text.count('\n', line_pos, match.start())
             line_pos = match.start()
 
             cmd = match.group(1)
-            title = match.group(2).strip()
+            title = ham_baslik.strip()
             level = _LEVEL[cmd]
 
             prefix = _PREFIX.get(cmd, '')
