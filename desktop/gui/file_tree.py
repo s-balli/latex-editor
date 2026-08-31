@@ -168,7 +168,25 @@ class FileTree(QWidget):
         self._pending_refresh = False
 
     def set_root(self, path: str):
-        self._root = os.path.normpath(path)
+        """Ağacın kökünü değiştir. Kök zaten aynıysa yeniden TARAMAZ.
+
+        Açılışta iki kez çağrılabiliyor: `_restore_state()` kayıtlı kökü
+        kuruyor, hemen ardından komut satırından/"Birlikte Aç"tan bir dosya
+        geldiyse `main_window` onun dizinini kök yapıyor. İkisi genellikle
+        AYNI dizin — o hâlde ikinci çağrı ağacı boşaltıp baştan tarıyor ve
+        her .tex için `_can_compile` denetim kuyruğunu ikinci kez dolduruyordu.
+        Kökü gerçekten değiştiren çağrılar etkilenmez; yenileme isteyenler
+        zaten `refresh()` çağırıyor (dosya izleyici, elle yenileme).
+
+        "Klasör Aç" ile AYNI klasör seçilirse artık ağaç yeniden taranmaz.
+        Bu bilinçli: ağaç zaten o klasörü gösteriyor ve dosya izleyici +
+        `_do_deferred_refresh` onu güncel tutuyor. (Sekmelerin kapanması,
+        PDF'in temizlenmesi gibi diğer "Klasör Aç" etkileri değişmedi.)
+        """
+        yeni = os.path.normpath(path)
+        if yeni == self._root:
+            return
+        self._root = yeni
         self._root_label.setText(self._root)
         self.refresh()
 

@@ -20,11 +20,14 @@ _logger = get_logger("pdf_viewer")
 
 class PdfRenderMixin:
 
-    # Cache sınırları: sayfa görselleri paylaşımlı QPixmap (label ile aynı
-    # veri), ama yine de üst sınır şart: zoom 3.0'ta A4 ~40MB/sayfa; 20
-    # görsel ~800MB'a çıkardı. 256MB bayt sınırı bunu keser.
-    _CACHE_MAX_COUNT = 20
-    _CACHE_MAX_BYTES = 256 * 1024 * 1024
+    # Sayfa pixmap'lerinin saklayıcısı LABEL'lardır (QLabel.setPixmap).
+    # Burada ayrıca bir `self._cache` sözlüğü vardı: yazılıyor ve
+    # sıfırlanıyordu ama HİÇBİR YERDEN OKUNMUYORDU — 20 girdi / 256 MB
+    # sınırlı, ölü bir ikinci referans. Ölçüldü (2026-08-31, F2): normal
+    # scroll'da label'ların tuttuklarının aynısını tuttuğu için ek maliyeti
+    # sıfırdı, ama zoom sonrasında label'ın bıraktığı 7 pixmap'i tek başına
+    # ayakta tutuyordu — küçük bir A4 belgesinde 19.3 MB, zoom 3.0'ta sayfa
+    # başına ~40 MB'a çıkabilen görsellerde 256 MB tavanına kadar. Kaldırıldı.
 
     def _init_render_worker(self):
         """Arka plan render işçisini kur (PdfViewer.__init__ çağırır).
@@ -35,7 +38,6 @@ class PdfRenderMixin:
         pdf_render_worker docstring'i).
         """
         self._render_gen = 0
-        self._cache_bytes = 0
         # Parent'sız: viewer silinse bile işçi kayıt (pdf_render_worker)
         # tutar; ömrü shutdown()/stop() ile yönetilir
         self._render_worker = PdfRenderWorker()
@@ -66,7 +68,6 @@ class PdfRenderMixin:
             self._pdf_path = path
             self._current_page = 0
             self._render_gen += 1
-            self._cache_reset()
             self._pres_cache.clear()
             self._render_worker.open_document(path, self._render_gen)
             self._search_worker.open_document(path, self._render_gen)
@@ -95,7 +96,6 @@ class PdfRenderMixin:
     def _toggle_dual_page(self, checked: bool):
         self._dual_page = checked
         if self._pdf:
-            self._cache_reset()
             self._pres_cache.clear()
             self._create_placeholders()
             QTimer.singleShot(50, self._render_visible)
@@ -120,7 +120,6 @@ class PdfRenderMixin:
         self._render_gen += 1
         self._render_worker.open_document("", self._render_gen)
         self._search_worker.open_document("", self._render_gen)
-        self._cache_reset()
         self._pres_cache.clear()
         self._page_labels.clear()
         for i in reversed(range(self._pages_layout.count())):
@@ -224,33 +223,10 @@ class PdfRenderMixin:
             return                      # zoom/renk tercihi değişti: bayat sonuç
         if index >= len(self._page_labels):
             return
-        pixmap = QPixmap.fromImage(image)
-        self._cache_put(index, pixmap)
         label = self._page_labels[index]
         if label.pixmap() is None or label.pixmap().isNull():
-            label.setPixmap(pixmap)
+            label.setPixmap(QPixmap.fromImage(image))
             label.setStyleSheet("")
-
-    def _cache_put(self, index: int, pixmap: QPixmap):
-        """Cache'e koy; sayı VE bayt sınırını aşınca en eskisini at.
-
-        Label'lar pixmapi paylaşımlı tuttuğundan asıl saklayıcı onlardır;
-        bu cache yalnızca sınırlı bir ikinci referans tutar.
-        """
-        if index in self._cache:
-            del self._cache[index]
-        self._cache[index] = pixmap
-        self._cache_bytes += pixmap.width() * pixmap.height() * 4
-        while (len(self._cache) > self._CACHE_MAX_COUNT
-               or (self._cache_bytes > self._CACHE_MAX_BYTES
-                   and len(self._cache) > 1)):
-            oldest = next(iter(self._cache))
-            dropped = self._cache.pop(oldest)
-            self._cache_bytes -= dropped.width() * dropped.height() * 4
-
-    def _cache_reset(self):
-        self._cache.clear()
-        self._cache_bytes = 0
 
     def _render_visible(self):
         if not self._page_labels:

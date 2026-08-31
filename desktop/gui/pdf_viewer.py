@@ -52,8 +52,6 @@ class PdfViewer(
         self._current_page = 0
         self._zoom = 0.75
         self._page_labels: list[QLabel] = []
-        self._cache: dict[int, QPixmap] = {}
-        self._cache_bytes = 0
         self._render_gen = 0
         self._pres_cache: dict[tuple, QPixmap] = {}
         self._invert_colors = False

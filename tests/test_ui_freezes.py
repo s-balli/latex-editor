@@ -400,3 +400,65 @@ def test_on_pandoc_checked_updates_flag_and_tooltips(qapp):
     MainWindow._on_pandoc_checked(mw, True)
     assert mw._pandoc_available is True
     assert all("pandoc" not in a.toolTip() for a in acts)
+
+
+def test_ayni_kok_yeniden_taranmiyor(qapp, tmp_path):
+    """set_root aynı kökle tekrar çağrılırsa ağacı baştan taramamalı.
+
+    Açılışta iki kez çağrılıyordu: `_restore_state()` kayıtlı kökü kuruyor,
+    ardından komut satırından/"Birlikte Aç"tan dosya geldiyse `main_window`
+    onun dizinini kök yapıyor — genellikle AYNI dizin. İkinci çağrı ağacı
+    boşaltıp baştan tarıyor ve her .tex için `_can_compile` denetim kuyruğunu
+    ikinci kez dolduruyordu (2026-08-31, F4).
+    """
+    from gui.file_tree import FileTree
+
+    for ad in ("a.tex", "b.tex", "c.tex"):
+        (tmp_path / ad).write_text("\\begin{document}\\end{document}", encoding="utf-8")
+
+    tree = FileTree(theme=THEMES["dark"])
+    tarama = []
+    gercek = tree._scan_dir
+    tree._scan_dir = lambda *a, **kw: (tarama.append(1), gercek(*a, **kw))[1]
+
+    tree.set_root(str(tmp_path))
+    assert len(tarama) == 1, "ilk set_root taramalı"
+    kuyruk = len(tree._pending_checks)
+    assert kuyruk == 3
+
+    tree.set_root(str(tmp_path))                       # aynı kök
+    tree.set_root(str(tmp_path) + os.sep)              # normpath sonrası aynı
+    assert len(tarama) == 1, "aynı kök yeniden taranmamalı"
+    assert len(tree._pending_checks) == kuyruk, "denetim kuyruğu ikizlenmemeli"
+
+    # Kök GERÇEKTEN değişince yine taranmalı
+    alt = tmp_path / "alt"
+    alt.mkdir()
+    (alt / "d.tex").write_text("\\begin{document}\\end{document}", encoding="utf-8")
+    tree.set_root(str(alt))
+    assert len(tarama) == 2, "yeni kök taranmalı"
+    assert _spin(qapp, lambda: not tree._pending_checks)
+
+
+def test_render_edilen_pixmap_yalniz_label_da_tutuluyor(qapp, tmp_path):
+    """PdfViewer okunmayan bir ikinci pixmap referansı TUTMAMALI.
+
+    `self._cache` yazılıyor ve sıfırlanıyordu ama hiçbir yerden okunmuyordu.
+    Ölçüldü (2026-08-31, F2): zoom sonrasında label'ın bıraktığı pixmap'leri
+    tek başına ayakta tutuyordu — küçük bir belgede 19.3 MB, tavanı 256 MB.
+    Geri gelirse burası kırılır.
+    """
+    pytest.importorskip("pypdfium2")
+    from gui.pdf_viewer import PdfViewer
+
+    v = PdfViewer(theme=THEMES["dark"])
+    try:
+        assert not hasattr(v, "_cache"), "okunmayan sayfa önbelleği geri gelmiş"
+        assert not hasattr(v, "_cache_bytes")
+        assert not hasattr(v, "_cache_put")
+        # Sunum modu önbelleği AYRI ve gerçekten okunuyor — kalmalı
+        assert hasattr(v, "_pres_cache")
+    finally:
+        v.shutdown()
+        v.deleteLater()
+        qapp.processEvents()

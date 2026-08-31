@@ -46,7 +46,6 @@ class PdfNavigationMixin:
 
     def zoom_in(self):
         self._zoom = min(self._zoom + 0.05, 3.0)
-        self._cache_reset()
         self._pres_cache.clear()
         self._update_page_sizes()
         QTimer.singleShot(50, self._render_visible)
@@ -54,7 +53,6 @@ class PdfNavigationMixin:
 
     def zoom_out(self):
         self._zoom = max(self._zoom - 0.05, 0.05)
-        self._cache_reset()
         self._pres_cache.clear()
         self._update_page_sizes()
         QTimer.singleShot(50, self._render_visible)
@@ -85,7 +83,6 @@ class PdfNavigationMixin:
         else:
             self._zoom = min(fit_w, fit_h)
         self._zoom = max(0.05, min(self._zoom, 3.0))
-        self._cache_reset()
         self._pres_cache.clear()
         self._update_page_sizes()
         QTimer.singleShot(50, self._render_visible)

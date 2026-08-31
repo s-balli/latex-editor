@@ -142,7 +142,10 @@ def test_viewer_async_render_ve_bayat_zoom_dusurme(qapp, tmp_path):
             return pm is not None and not pm.isNull()
 
         assert _spin(qapp, _has_pixmap), "ilk render gelmedi"
-        assert v._cache_bytes > 0
+        # Eskiden burada `v._cache_bytes > 0` vardı; o sayaç yalnız hiç
+        # okunmayan bir sözlüğü besliyordu (2026-08-31, F2 ile kaldırıldı).
+        # "Render gerçekten oldu" iddiasını label'ın kendisi taşıyor.
+        assert v._page_labels[0].pixmap().width() > 0
 
         # Zoom: label temizlenir; eski ölçekli in-flight sonuç düşürülmeli,
         # yenisi gelmeli
