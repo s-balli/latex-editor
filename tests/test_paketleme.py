@@ -23,6 +23,7 @@ Bu dosya test_platform_portability.py'deki
 için kural "listeyi .bat'ta yeniden tanımlama"ya dönüştü.
 """
 
+import functools
 import os
 import re
 import shutil
@@ -47,6 +48,46 @@ def _oku(yol):
 def _bat_yollari():
     return [os.path.join(_MASAUSTU, ad)
             for ad in sorted(os.listdir(_MASAUSTU)) if ad.endswith(".bat")]
+
+
+def _bash_adaylari():
+    adaylar = []
+    bulunan = shutil.which("bash")
+    if bulunan:
+        adaylar.append(bulunan)
+    pf = os.environ.get("PROGRAMFILES", r"C:\Program Files")
+    adaylar += [os.path.join(pf, "Git", "bin", "bash.exe"),
+                os.path.join(pf, "Git", "usr", "bin", "bash.exe")]
+    return adaylar
+
+
+def _bash_calisiyor_mu(aday: str) -> bool:
+    if not aday or not os.path.exists(aday):
+        return False
+    try:
+        r = subprocess.run([aday, "-c", "echo ok"], capture_output=True,
+                           text=True, encoding="utf-8", errors="replace",
+                           timeout=60)
+    except OSError:
+        return False
+    return r.returncode == 0 and (r.stdout or "").strip() == "ok"
+
+
+@functools.lru_cache(maxsize=1)
+def _bash():
+    """GERÇEKTEN çalışan bir bash bul; yoksa None.
+
+    `shutil.which("bash")` Windows'ta System32'deki WSL SHIM'ini bulabiliyor.
+    Dağıtım kurulu değilse o shim UTF-16LE bir "wsl --install -d <Distro>"
+    mesajı basıp 1 döndürür — verilen betiği hiç çalıştırmadan. GitHub'ın
+    windows-latest runner'ında birebir bu oldu (2026-08-31, run 33374248471):
+    üç test "assert 1 == 0" ile düştü, hata metni NUL dolu geldi. Bu yüzden
+    adı bulmak yetmiyor, ÇALIŞTIĞI sınanıyor.
+    """
+    for aday in _bash_adaylari():
+        if _bash_calisiyor_mu(aday):
+            return aday
+    return None
 
 
 # --------------------------------------------------------------------------
@@ -210,9 +251,10 @@ class TestYayinNotu:
         assert metin.count("## Installation") == 0
 
     def test_betik_iki_dilde_ve_iki_artefaktla_uretiyor(self):
-        if shutil.which("bash") is None:
-            pytest.skip("bash yok")
-        r = subprocess.run(["bash", _NOTLAR, "9.9.9"], input="Deneme notu",
+        kabuk = _bash()
+        if kabuk is None:
+            pytest.skip("çalışan bash yok")
+        r = subprocess.run([kabuk, _NOTLAR, "9.9.9"], input="Deneme notu",
                            capture_output=True, text=True, encoding="utf-8",
                            cwd=_KOK)
         assert r.returncode == 0, r.stderr
@@ -225,9 +267,10 @@ class TestYayinNotu:
 
     def test_betik_tag_mesajini_HTML_kacisiyla_gomiyor(self):
         """Tag mesajı Release gövdesine HTML olarak giriyor."""
-        if shutil.which("bash") is None:
-            pytest.skip("bash yok")
-        r = subprocess.run(["bash", _NOTLAR, "1.0.0"],
+        kabuk = _bash()
+        if kabuk is None:
+            pytest.skip("çalışan bash yok")
+        r = subprocess.run([kabuk, _NOTLAR, "1.0.0"],
                            input="<b>kalin</b> & 3>2", capture_output=True,
                            text=True, encoding="utf-8", cwd=_KOK)
         assert r.returncode == 0, r.stderr
@@ -235,18 +278,38 @@ class TestYayinNotu:
         assert "<b>kalin</b>" not in r.stdout
 
     def test_betik_cok_satirli_mesaji_koruyor(self):
-        if shutil.which("bash") is None:
-            pytest.skip("bash yok")
-        r = subprocess.run(["bash", _NOTLAR, "1.0.0"],
+        kabuk = _bash()
+        if kabuk is None:
+            pytest.skip("çalışan bash yok")
+        r = subprocess.run([kabuk, _NOTLAR, "1.0.0"],
                            input="ilk satir\n- madde\n- madde2",
                            capture_output=True, text=True, encoding="utf-8",
                            cwd=_KOK)
         assert r.returncode == 0, r.stderr
         assert "ilk satir\n- madde\n- madde2" in r.stdout.replace("\r\n", "\n")
 
+    def test_bash_yoklamasi_calismayan_adayi_eliyor(self, tmp_path):
+        """Adı bulmak yetmiyor: WSL shim'i de `bash` adıyla PATH'te duruyor.
+
+        Burada shim taklit ediliyor — UTF-16LE mesaj + sıfır dışı çıkış.
+        Yoklama bunu elemezse betik testleri "assert 1 == 0" ile düşer.
+        """
+        sahte = tmp_path / ("bash.bat" if os.name == "nt" else "bash")
+        if os.name == "nt":
+            sahte.write_text("@echo off\r\nexit /b 1\r\n", encoding="ascii")
+        else:
+            sahte.write_text("#!/bin/sh\nprintf 'x' >&2\nexit 1\n", encoding="ascii")
+            sahte.chmod(0o755)
+        assert not _bash_calisiyor_mu(str(sahte))
+        # Gerçek bash varsa yoklama onu KABUL etmeli — kapı hep-False olmasın
+        gercek = _bash()
+        if gercek is not None:
+            assert _bash_calisiyor_mu(gercek)
+
     def test_surum_argumani_zorunlu(self):
-        if shutil.which("bash") is None:
-            pytest.skip("bash yok")
-        r = subprocess.run(["bash", _NOTLAR], input="x", capture_output=True,
+        kabuk = _bash()
+        if kabuk is None:
+            pytest.skip("çalışan bash yok")
+        r = subprocess.run([kabuk, _NOTLAR], input="x", capture_output=True,
                            text=True, encoding="utf-8", cwd=_KOK)
         assert r.returncode != 0, "sürümsüz çağrı sessizce geçmemeli"
