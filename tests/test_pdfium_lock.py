@@ -6,11 +6,20 @@ pdfium THREAD-SAFE DEĞİL ve bu uygulama ona üç thread'den dokunuyor
 ``get_textpage`` içindeydi. Ayrı PdfDocument nesneleri kullanmak yetmiyor,
 kütüphane küresel durum tutuyor.
 
-Buradaki iki test farklı şeyleri koruyor:
+Buradaki testler farklı şeyleri koruyor:
 - statik kapı: pdfium'a dokunan HER çağrı ``with pdfium_lock`` içinde mi
   (yeni bir çağrı eklenirken kilidi atlamak kolay)
+- kapının KENDİ kapsamı: tanıdığı çağrı biçimleri daralmasın
 - çalışma zamanı: üç thread aynı anda pdfium'a girince süreç ayakta kalıyor
   ve kilit gerçekten karşılıklı dışlama sağlıyor mu
+
+Kapsam notu (2026-08-31, G1/G2): kapı ilk hâlinde yalnız sabit bir metot ADI
+listesine bakıyordu ve üç gerçek çağrıyı göremiyordu — ``len(self._doc)``
+(FPDF_GetPageCount'a iner ama metot çağrısına benzemez) ile ham handle'ı
+pdfium'a ileten iki yardımcı (``resolve_link_action``,
+``get_dest_page_index``; ikisi de listeye alınmamıştı). Üçü de kilit dışında
+kalmış, kapı yeşil kalmıştı. Bu yüzden artık üç kural birden var: ad listesi,
+örtük çağrılar (``len``/``iter``/``list``) ve ``self._pdf.raw`` erişimi.
 """
 
 import ast
@@ -30,10 +39,17 @@ _PDFIUM_METOTLARI = {
     "get_textpage", "get_charbox", "get_text_range", "get_index",
     "count_chars", "get_width", "get_height", "get_toc", "get_next",
 }
+# pdfium'a giden fonksiyonların TAMAMI. gui/pdf_links.py'deki dördü de burada
+# olmalı: ikisi eksikti ve _events.py'deki iki korumasız çağrı kapıdan geçti
+# (2026-08-31, G1). Yeni bir yardımcı eklenirse adı buraya da eklenmeli.
 _PDFIUM_FONKSIYONLARI = {
-    "render_page_to_qimage", "render_page_to_pixmap",
-    "get_link_at_point", "resolve_dest_scroll_y", "PdfDocument",
+    "render_page_to_qimage", "render_page_to_pixmap", "PdfDocument",
+    "get_link_at_point", "resolve_link_action",
+    "resolve_dest_scroll_y", "get_dest_page_index",
 }
+# Belgeyi ARGÜMAN alan yerleşikler: len(doc) FPDF_GetPageCount'a iner, yani
+# metot çağrısı gibi görünmediği hâlde pdfium'a girer. Aynı sınıf: iter/list.
+_ORTUK_CAGRILAR = {"len", "iter", "list"}
 _BELGE_ALANLARI = {"_pdf", "_doc"}
 
 
@@ -55,8 +71,16 @@ def _pdfium_dokunuslari(tree):
     for n in ast.walk(tree):
         if isinstance(n, ast.Subscript) and _belge_mi(n.value):
             yield n.lineno, f"self.{n.value.attr}[...]"
+        # self._pdf.raw — ham C handle'ı dışarı veriliyor. Adı listede olmayan
+        # bir yardımcıya geçirilse bile bu kural yakalar (ikinci savunma).
+        elif isinstance(n, ast.Attribute) and n.attr == "raw" and _belge_mi(n.value):
+            yield n.lineno, f"self.{n.value.attr}.raw"
         elif isinstance(n, ast.Call):
             f = n.func
+            if isinstance(f, ast.Name) and f.id in _ORTUK_CAGRILAR:
+                for a in n.args:
+                    if _belge_mi(a):
+                        yield n.lineno, f"{f.id}(self.{a.attr})"
             if isinstance(f, ast.Attribute):
                 if f.attr in _PDFIUM_METOTLARI:
                     yield n.lineno, f".{f.attr}()"
@@ -86,9 +110,43 @@ def test_tum_pdfium_cagrilari_kilit_altinda():
             if not any(a <= ln <= b for a, b in araliklar):
                 korumasiz.append(f"  {y.relative_to(_REPO).as_posix()}:{ln}  {ne}")
 
-    assert denetlenen > 30, f"yalnız {denetlenen} çağrı görüldü — tarama bozuk olabilir"
+    assert denetlenen > 40, f"yalnız {denetlenen} çağrı görüldü — tarama bozuk olabilir"
     assert not korumasiz, (
         "pdfium çağrısı kilit dışında (segfault riski):\n" + "\n".join(korumasiz))
+
+
+# Kaynak: yukarıdaki kapının GÖRMESİ gereken üç biçim (G1'de üçü de kaçmıştı)
+# + görmemesi gereken iki kontrol satırı.
+_ORNEK_KAYNAK = '''
+class X:
+    def f(self):
+        n = len(self._doc)                        # örtük: FPDF_GetPageCount
+        a = resolve_link_action(self._pdf.raw, k) # ad listesi + ham handle
+        b = get_dest_page_index(self._pdf.raw, d) # ad listesi + ham handle
+        c = self._metin.count("x")                # KONTROL: pdfium değil
+        e = len(self._page_labels)                # KONTROL: pdfium değil
+        return n, a, b, c, e
+'''
+
+
+def test_kapi_kacan_uc_bicimi_taniyor():
+    """Kapının kapsamı daralmasın: üç biçim de tanınmaya devam etmeli.
+
+    G1'de kapı yeşilken üç gerçek pdfium çağrısı kilit dışındaydı; kapı
+    onları GÖREMİYORDU. Asıl kapı yalnız depodaki kodu tarar, yani biçim
+    tanıma yeteneği sessizce daralırsa kimse fark etmez. Bu test o yeteneği
+    doğrudan sınar.
+    """
+    bulunan = {ne for _ln, ne in _pdfium_dokunuslari(ast.parse(_ORNEK_KAYNAK))}
+    for beklenen in ("len(self._doc)", "resolve_link_action()",
+                     "get_dest_page_index()", "self._pdf.raw"):
+        assert beklenen in bulunan, (
+            f"kapı '{beklenen}' biçimini artık tanımıyor — kapsam daralmış. "
+            f"Gördükleri: {sorted(bulunan)}")
+    # Kontrol: pdfium'la ilgisi olmayan çağrılar işaretlenmemeli (kapı
+    # her şeyi işaretleseydi yukarıdaki assert'ler bedava geçerdi).
+    assert not any("_metin" in b or "_page_labels" in b for b in bulunan), (
+        f"kapı pdfium dışı çağrıları da işaretliyor: {sorted(bulunan)}")
 
 
 # --- Çalışma zamanı: üç thread aynı anda ---

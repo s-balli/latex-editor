@@ -107,7 +107,11 @@ class PdfEventsMixin:
         if not result:
             return
         _, link, _page_ref = result
-        resolved = resolve_link_action(self._pdf.raw, link)
+        # Kilit yalnız pdfium çağrısını sarar: webbrowser.open ve _goto_dest
+        # dışarıda kalmalı (ikisi de uzun sürebilir, _goto_dest ayrıca render
+        # işçisinin _cond'una dokunuyor — kilit sırası bozulmasın).
+        with pdfium_lock:
+            resolved = resolve_link_action(self._pdf.raw, link)
         if not resolved:
             return
         kind, data = resolved
@@ -117,7 +121,8 @@ class PdfEventsMixin:
             self._goto_dest(data)
 
     def _goto_dest(self, dest):
-        page_idx = get_dest_page_index(self._pdf.raw, dest)
+        with pdfium_lock:
+            page_idx = get_dest_page_index(self._pdf.raw, dest)
         if page_idx < 0 or page_idx >= self._page_count:
             return
         idx = page_idx

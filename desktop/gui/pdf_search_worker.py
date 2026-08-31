@@ -105,7 +105,12 @@ class PdfSearchWorker(QThread):
     def _search_all(self, query: str) -> list[tuple[int, int, int]] | None:
         """Tüm sayfalarda ara. Süren arama iptal edilirse None döner."""
         results: list[tuple[int, int, int]] = []
-        for i in range(len(self._doc)):
+        # len(doc) da bir pdfium çağrısıdır (FPDF_GetPageCount) — kilit ister.
+        # Döngü dışında bir kez alınıyor: içeride alınsa kilit, hemen ardından
+        # gelen `with self._cond` ile iç içe girer ve kilit sırasını bozardı.
+        with pdfium_lock:
+            sayfa_sayisi = len(self._doc)
+        for i in range(sayfa_sayisi):
             if self._stop:
                 return None
             with self._cond:
