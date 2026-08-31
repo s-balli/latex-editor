@@ -1,6 +1,7 @@
 """Görsel ekleme mixin — şablon tespiti, snippet üretimi, ekleme dialogu."""
 
 import os
+import re
 
 from PyQt6.QtWidgets import (
     QDialog, QFormLayout, QLineEdit, QDialogButtonBox,
@@ -10,6 +11,9 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import QCoreApplication
 
 _ = lambda s: QCoreApplication.translate("ImageOpsMixin", s)
+
+# \documentclass[seçenekler]{sınıf} — grup 1 seçenekler, grup 2 sınıf adı
+_RE_DOCCLASS = re.compile(r'\\documentclass\s*(\[[^\]]*\])?\s*\{([^}]*)\}')
 
 
 class ImageOpsMixin:
@@ -32,22 +36,30 @@ class ImageOpsMixin:
 
     @staticmethod
     def _detect_figure_template(content: str) -> str:
-        """Aktif .tex dosyasının içeriğinden figure şablonu tespit et."""
-        if "\\Figure[" in content or "\\documentclass{ieeeaccess}" in content:
+        """Aktif .tex dosyasının içeriğinden figure şablonu tespit et.
+
+        Sınıf/seçenek aramaları YALNIZ \\documentclass bildirimi üzerinde
+        yapılır, belgenin tamamında değil. Eskiden "\\documentclass geçiyor VE
+        metinde 'Frontiers' geçiyor" gibi denetimler vardı: kaynakçasında
+        "Frontiers in Neuroscience" geçen düz bir article, Frontiers şablonuyla
+        görsel ekliyordu. Aynı zayıflık 'twocolumn', 'cas-', 'mnras' için de
+        vardı. Belgede gerçekten kullanılan komutlara (\\Figure[, figure*,
+        \\subfloat) bakan denetimler yerinde: onlar niyeti doğrudan gösteriyor.
+        """
+        m = _RE_DOCCLASS.search(content)
+        bildirim = m.group(0) if m else ""
+        sinif = m.group(2).strip() if m else ""
+
+        if "\\Figure[" in content or sinif == "ieeeaccess":
             return "ieee_access"
-        if ("\\begin{figure*}" in content or
-                "\\documentclass{IEEEtran}" in content or
-                ("\\documentclass" in content and "twocolumn" in content)):
+        if ("\\begin{figure*}" in content or sinif == "IEEEtran"
+                or "twocolumn" in bildirim):
             return "two_column"
-        if "\\documentclass{mnras}" in content or ("\\documentclass[" in content and "mnras" in content):
+        if sinif == "mnras" or "mnras" in bildirim:
             return "mnras"
-        if ("\\documentclass{cas-dc}" in content or
-                "\\documentclass{cas-sc}" in content or
-                ("\\documentclass[" in content and "cas-" in content)):
+        if sinif in ("cas-dc", "cas-sc") or "cas-" in bildirim:
             return "elsevier"
-        if ("\\documentclass{Frontiersin" in content or
-                "\\documentclass{frontiers" in content or
-                ("\\documentclass" in content and "Frontiers" in content)):
+        if sinif.lower().startswith("frontiers") or "frontiers" in bildirim.lower():
             return "frontiers"
         if "\\subfloat" in content or "\\begin{subfigure}" in content:
             return "subfigure"
@@ -99,11 +111,16 @@ class ImageOpsMixin:
                 "\\end{figure}\n"
             )
         if template == "subfigure":
+            # \subfloat içinde AYRI bir \label YOK: eskiden aynı anahtar iki
+            # kez basılıyordu (biri burada, biri \caption'dan sonra) ve LaTeX
+            # her derlemede "Label multiply defined" uyarıyordu — üstelik
+            # uygulamanın kendi log_parser'ında bu uyarının deseni var, yani
+            # editör ürettiği kodu kendisi işaretliyordu. Etiket figürün
+            # tamamına ait; tek yerde, \caption'dan sonra duruyor.
             return (
                 "\\begin{figure}[htbp]\n"
                 "    \\centering\n"
-                f"    \\subfloat[{caption}]{{\\includegraphics[width={width}]{{{rel_path}}}%\n"
-                f"    \\label{{{label}}}}}\n"
+                f"    \\subfloat[{caption}]{{\\includegraphics[width={width}]{{{rel_path}}}}}\n"
                 f"    \\caption{{{caption}}}\n"
                 f"    \\label{{{label}}}\n"
                 "\\end{figure}\n"

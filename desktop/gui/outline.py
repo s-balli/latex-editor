@@ -10,9 +10,19 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import QCoreApplication
 _ = lambda s: QCoreApplication.translate("OutlinePanel", s)
 
+# Bölüm başlığı. İki nokta bilinçli:
+#   (?:\[[^\]]*\])?   — \chapter[Giriş]{Giriş ve Kapsam} biçimindeki KISA
+#                       başlık argümanı. Desende yokken bu satırlar hiç
+#                       eşleşmiyordu, yani uzun başlıklı tez bölümleri
+#                       anahatta HİÇ görünmüyordu (standart kullanım).
+#   ([^{}]|\{[^{}]*\})* — başlıkta tek düzey iç içe küme
+#                       (\section{Yöntem ve \emph{Materyal}}); düz [^}]*
+#                       başlığı ilk iç kümede kesiyordu.
+# İki düzey iç içe (\section{A \textbf{\emph{B}} C}) hâlâ kırpılır; regex ile
+# keyfi derinlik çözülemez, o kadarı için ayraç sayan bir tarayıcı gerekir.
 _RE_SECTION = re.compile(
     r'\\(part|chapter|section|subsection|subsubsection|paragraph|subparagraph)'
-    r'\*?\{([^}]*)\}'
+    r'\*?\s*(?:\[[^\]]*\])?\s*\{((?:[^{}]|\{[^{}]*\})*)\}'
 )
 
 _LEVEL = {

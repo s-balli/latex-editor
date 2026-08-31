@@ -125,24 +125,33 @@ class EditOpsMixin:
         kendi satırına atlar.
         """
         from core.latex_refs import (
-            audit_references, find_cite_location, find_key_usage, find_label_location,
+            audit_references, bib_key_locations, key_usage_locations, label_locations,
         )
         report = audit_references(content, base_path)
 
+        # Konumlar TOPLU çıkarılır. Eskiden her bulgu için ayrı arama yapılıyor,
+        # her arama \input zincirini diskten baştan okuyordu: 30 bölümlü bir
+        # tezde 495 arama = 1.7 sn ve bu süre boyunca UI donuyordu (derleme
+        # sonrası denetim açıksa her derlemede). Şimdi zincir bir kez okunuyor.
+        # Sözlükler yalnız o kolda bulgu VARSA kuruluyor — temiz belgede
+        # (olağan hâl) tek bir fazladan okuma bile yapılmıyor.
+        ref_kon = key_usage_locations(content, base_path, "ref") if report.undefined_refs else {}
+        cite_kon = key_usage_locations(content, base_path, "cite") if report.undefined_cites else {}
+        bib_kon = bib_key_locations(content, base_path) if report.unused_bib_keys else {}
+        label_kon = label_locations(content, base_path) if report.unused_labels else {}
+
         warnings = []
         for k in report.undefined_refs:
-            loc = find_key_usage(content, base_path, k, "ref")
-            warnings.append(EditOpsMixin._audit_item(_("Tanımsız \\ref"), k, loc))
+            warnings.append(EditOpsMixin._audit_item(_("Tanımsız \\ref"), k, ref_kon.get(k)))
         for k in report.undefined_cites:
-            loc = find_key_usage(content, base_path, k, "cite")
-            warnings.append(EditOpsMixin._audit_item(_("Tanımsız \\cite"), k, loc))
+            warnings.append(EditOpsMixin._audit_item(_("Tanımsız \\cite"), k, cite_kon.get(k)))
         suggestions = []
         for k in report.unused_bib_keys:
-            loc = find_cite_location(content, base_path, k)
-            suggestions.append(EditOpsMixin._audit_item(_("Kullanılmayan .bib girdisi"), k, loc))
+            suggestions.append(
+                EditOpsMixin._audit_item(_("Kullanılmayan .bib girdisi"), k, bib_kon.get(k)))
         for k in report.unused_labels:
-            loc = find_label_location(content, base_path, k)
-            suggestions.append(EditOpsMixin._audit_item(_("Kullanılmayan label"), k, loc))
+            suggestions.append(
+                EditOpsMixin._audit_item(_("Kullanılmayan label"), k, label_kon.get(k)))
         counts = {
             "r": len(report.undefined_refs),
             "c": len(report.undefined_cites),

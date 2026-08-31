@@ -381,7 +381,13 @@ def audit_references(content: str, base_path: str) -> RefAudit:
         for m in _RE_REFUSE.finditer(t):
             used_refs.update(k.strip() for k in m.group(1).split(',') if k.strip())
         for m in _RE_CITEUSE.finditer(t):
-            used_cites.update(k.strip() for k in m.group(1).split(',') if k.strip())
+            # '*' bir anahtar DEĞİL: \nocite{*} "hepsini kaynakçaya al" demek.
+            # _RE_CITEUSE \nocite'ı da kapsadığı için '*' used_cites'a giriyor,
+            # hiçbir .bib girdisiyle eşleşmiyor ve "Tanımsız \cite: *" diye
+            # kalıcı sahte uyarı üretiyordu (nocite_all bayrağı yalnız
+            # unused_bib_keys'i etkiliyor, bu kolu değil).
+            used_cites.update(k.strip() for k in m.group(1).split(',')
+                              if k.strip() and k.strip() != '*')
         if _RE_NOCITE_ALL.search(t):
             nocite_all = True
 
@@ -397,6 +403,68 @@ def audit_references(content: str, base_path: str) -> RefAudit:
         unused_bib_keys=[] if nocite_all else sorted(bib_keys - used_cites),
         unused_labels=sorted(defined_labels - used_refs),
     )
+
+
+# --- Toplu konum çıkarımı: denetim yüzlerce anahtar için konum istiyor ---
+#
+# Aşağıdaki üç fonksiyon, tekil karşılıklarının (find_label_location,
+# find_cite_location, find_key_usage) toplu hâlidir. Tekil olanlar TEK anahtar
+# için doğru ve ucuzdur (Alt+tık ile tanıma git) ama her çağrıda \input
+# zincirini / .bib'i diskten BAŞTAN okur. Referans denetimi bunları bulgu
+# başına çağırınca maliyet kareleniyordu — 30 bölümlü, 200 girdilik .bib'li bir
+# tezde ölçüldü:
+#
+#     audit_references            :   12.1 ms
+#     find_label_location  x300   : 1677.1 ms   (5.59 ms/çağrı, hepsi disk)
+#     TOPLAM (UI thread'i bloke)  : 1739.9 ms
+#
+# "Derleme Sonrası Referans Denetimi" açıkken bu her derlemeden sonra
+# yaşanıyordu. Toplu sürümler zinciri bir kez okuyup sözlük kurar; N arama N
+# sözlük erişimine iner. İlk kayıt kazanır — tekil sürümlerin "ilk eşleşmeyi
+# döndür" davranışıyla aynı sonuç.
+
+def label_locations(content: str, base_path: str) -> dict[str, tuple[str, int]]:
+    """Tüm \\label anahtarları → (dosya yolu, 1-bazlı satır). Zincir tek okuma."""
+    out: dict[str, tuple[str, int]] = {}
+    entries = [(base_path, strip_comments(content))] + _chain_texts(content, base_path)
+    for path, text in entries:
+        for i, ln in enumerate(text.split('\n'), start=1):
+            for m in _RE_LABEL.finditer(ln):
+                out.setdefault(m.group(1).strip(), (path, i))
+    return out
+
+
+def bib_key_locations(content: str, base_path: str) -> dict[str, tuple[str, int]]:
+    """.bib girdi anahtarları → (bib yolu, 1-bazlı satır). .bib tek okuma."""
+    bib_path = find_bib_path(content, base_path)
+    if not bib_path:
+        return {}
+    try:
+        with open(bib_path, 'r', encoding='utf-8', errors='replace') as f:
+            text = f.read()
+    except OSError:
+        return {}
+    out: dict[str, tuple[str, int]] = {}
+    for i, ln in enumerate(text.split('\n'), start=1):
+        for m in _RE_BIBENTRY.finditer(ln):
+            out.setdefault(m.group(1).strip(), (bib_path, i))
+    return out
+
+
+def key_usage_locations(content: str, base_path: str,
+                        family: str) -> dict[str, tuple[str, int]]:
+    """``family`` ('ref'|'cite') anahtarları → ilk kullanım (dosya, satır)."""
+    pat = _RE_REFUSE if family == "ref" else _RE_CITEUSE
+    out: dict[str, tuple[str, int]] = {}
+    entries = [(base_path, strip_comments(content))] + _chain_texts(content, base_path)
+    for path, t in entries:
+        for i, ln in enumerate(t.split('\n'), start=1):
+            for m in pat.finditer(ln):
+                for k in m.group(1).split(','):
+                    k = k.strip()
+                    if k:
+                        out.setdefault(k, (path, i))
+    return out
 
 
 def find_key_usage(content: str, base_path: str, key: str, family: str) -> tuple[str, int] | None:

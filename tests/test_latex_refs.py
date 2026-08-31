@@ -503,3 +503,107 @@ class TestCacheBounds:
         lr.collect_labels(ana.read_text(encoding="utf-8"), str(ana))
         assert len(lr._label_file_cache) <= lr._CACHE_MAX
         lr._label_file_cache.clear()
+
+
+# --- \nocite{*}: '*' anahtar değil ---
+
+def _nocite_projesi(tmp_path, govde):
+    (tmp_path / "k.bib").write_text(
+        "@article{einstein1905, title={X}}\n@book{bohr1913, title={Y}}\n",
+        encoding="utf-8")
+    icerik = ("\\documentclass{article}\n\\begin{document}\n"
+              + govde + "\\bibliography{k}\n\\end{document}\n")
+    ana = tmp_path / "main.tex"
+    ana.write_text(icerik, encoding="utf-8")
+    return icerik, str(ana)
+
+
+def test_nocite_yildizi_tanimsiz_cite_sayilmaz(tmp_path):
+    """\\nocite{*} 'hepsini al' demek; '*' bir kaynak anahtarı değil.
+
+    _RE_CITEUSE \\nocite'ı da kapsadığı için '*' kullanılan anahtarlar
+    kümesine giriyor, hiçbir .bib girdisiyle eşleşmiyor ve denetim panelinde
+    kalıcı "Tanımsız \\cite: *" uyarısı üretiyordu — \\nocite{*} kullanan HER
+    belgede, üstelik derleme sonrası denetim açıksa her derlemede.
+    """
+    icerik, ana = _nocite_projesi(tmp_path, "Metin \\cite{einstein1905}.\n\\nocite{*}\n")
+    rapor = latex_refs.audit_references(icerik, ana)
+    assert rapor.undefined_cites == []
+    # \nocite{*} her girdiyi kullanılmış sayar (eski davranış korunmalı)
+    assert rapor.unused_bib_keys == []
+
+
+def test_nocite_yildizsiz_denetim_bozulmadi(tmp_path):
+    """'*' filtresi gerçek bulguları elememeli."""
+    icerik, ana = _nocite_projesi(
+        tmp_path, "Metin \\cite{einstein1905,yokolan}.\n")
+    rapor = latex_refs.audit_references(icerik, ana)
+    assert rapor.undefined_cites == ["yokolan"]
+    assert rapor.unused_bib_keys == ["bohr1913"]
+
+
+# --- Toplu konum çıkarımı: tekil aramayla aynı sonuç, tek okuma ---
+
+def _zincir_projesi(tmp_path, n_bolum=4, n_etiket=3):
+    (tmp_path / "k.bib").write_text(
+        "".join("@article{a%d, title={T}}\n" % i for i in range(6)), encoding="utf-8")
+    ana = ["\\documentclass{book}", "\\bibliography{k}", "\\begin{document}",
+           "\\label{sec:ana}", "Atif \\cite{a0} ve \\ref{sec:b0-0}."]
+    for b in range(n_bolum):
+        satir = []
+        for j in range(n_etiket):
+            satir.append("Metin %d" % j)
+            satir.append("\\label{sec:b%d-%d}" % (b, j))
+        satir.append("\\ref{sec:ana} ve \\cite{a1}")
+        (tmp_path / ("b%d.tex" % b)).write_text("\n".join(satir), encoding="utf-8")
+        ana.append("\\input{b%d}" % b)
+    ana.append("\\end{document}")
+    icerik = "\n".join(ana)
+    yol = tmp_path / "main.tex"
+    yol.write_text(icerik, encoding="utf-8")
+    return icerik, str(yol)
+
+
+def test_toplu_konumlar_tekil_aramayla_ayni(tmp_path):
+    """label_locations/bib_key_locations/key_usage_locations = tekil karşılıkları.
+
+    Toplu sürümler hız için var; sonuç farklılaşırsa denetim panelindeki
+    'dosya:satır' bağlantıları yanlış yere atlar.
+    """
+    icerik, ana = _zincir_projesi(tmp_path)
+    latex_refs._label_file_cache.clear()
+
+    etiketler = latex_refs.label_locations(icerik, ana)
+    assert etiketler, "hiç label bulunamadı — proje kurulumu bozuk"
+    for k in etiketler:
+        assert etiketler[k] == latex_refs.find_label_location(icerik, ana, k), k
+
+    bibler = latex_refs.bib_key_locations(icerik, ana)
+    assert bibler
+    for k in bibler:
+        assert bibler[k] == latex_refs.find_cite_location(icerik, ana, k), k
+
+    for aile in ("ref", "cite"):
+        kullanim = latex_refs.key_usage_locations(icerik, ana, aile)
+        assert kullanim
+        for k in kullanim:
+            assert kullanim[k] == latex_refs.find_key_usage(icerik, ana, k, aile), k
+
+
+def test_toplu_konum_ilk_eslesmeyi_dondurur(tmp_path):
+    """Aynı anahtar iki dosyada varsa tekil arama gibi İLKİ kazanmalı."""
+    (tmp_path / "c.tex").write_text("\\label{ayni}\n", encoding="utf-8")
+    icerik = "\\label{ayni}\n\\input{c}\n"
+    ana = tmp_path / "main.tex"
+    ana.write_text(icerik, encoding="utf-8")
+    latex_refs._label_file_cache.clear()
+    assert latex_refs.label_locations(icerik, str(ana))["ayni"] == (str(ana), 1)
+
+
+def test_toplu_konum_yorumdaki_label_i_atlar(tmp_path):
+    icerik = "% \\label{yorumda}\n\\label{gercek}\n"
+    ana = tmp_path / "main.tex"
+    ana.write_text(icerik, encoding="utf-8")
+    konumlar = latex_refs.label_locations(icerik, str(ana))
+    assert "yorumda" not in konumlar
+    assert konumlar["gercek"] == (str(ana), 2)

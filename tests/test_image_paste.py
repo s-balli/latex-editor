@@ -1,5 +1,7 @@
 """Panodan resim yapıştırma testleri (Ctrl+V → media/'a kaydet + figure akışı)."""
 
+import re
+
 import pytest
 from types import SimpleNamespace
 
@@ -97,3 +99,64 @@ def test_ctrl_v_without_image_not_emitted(qapp):
     ed.keyPressEvent(QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_V,
                                Qt.KeyboardModifier.ControlModifier))
     assert received == []                   # resim yok → sinyal çıkmaz (metin yapıştırma akışı)
+
+
+# --- Üretilen figure kodu: hiçbir şablon aynı \label'ı iki kez basmamalı ---
+
+_SABLONLAR = ["standard", "two_column", "ieee_access", "mnras", "elsevier",
+              "frontiers", "subfigure", "minimal"]
+
+
+@pytest.mark.parametrize("sablon", _SABLONLAR)
+def test_sablon_ayni_etiketi_tekrarlamiyor(sablon):
+    """Aynı anahtarın iki kez basılması LaTeX'te 'multiply defined' uyarısıdır.
+
+    'subfigure' şablonu \\label'ı hem \\subfloat içinde hem \\caption sonrasında
+    basıyordu: editör, kendi log_parser'ının desenle yakaladığı bir uyarıyı
+    üreten kod çıkarıyordu (2026-08-31, G5).
+    """
+    kod = ImageOpsMixin._build_figure_snippet(
+        sablon, "media/g.png", "0.45\\textwidth", "Baslik", "fig:g")
+    etiketler = re.findall(r"\\label\{([^}]*)\}", kod)
+    assert len(etiketler) == len(set(etiketler)), f"{sablon}: tekrar eden \\label"
+
+
+@pytest.mark.parametrize("sablon", _SABLONLAR)
+def test_sablon_kume_dengesi(sablon):
+    """Etiket çıkarılırken \\subfloat argümanının kapanışı bozulmasın."""
+    kod = ImageOpsMixin._build_figure_snippet(
+        sablon, "media/g.png", "0.45\\textwidth", "Baslik", "fig:g")
+    assert kod.count("{") == kod.count("}"), f"{sablon}: küme dengesi bozuk"
+
+
+def test_subfigure_sablonu_beklenen_yapida():
+    kod = ImageOpsMixin._build_figure_snippet(
+        "subfigure", "media/g.png", "0.45\\textwidth", "Baslik", "fig:g")
+    assert ("\\subfloat[Baslik]{\\includegraphics[width=0.45\\textwidth]"
+            "{media/g.png}}") in kod
+    assert kod.count("\\label{fig:g}") == 1
+
+
+# --- Şablon tespiti: yalnız \documentclass bildirimine bakmalı ---
+
+@pytest.mark.parametrize("govde,beklenen", [
+    # Yanlış pozitifler: bunlar düz 'article', gövde metni şablonu değiştirmemeli
+    ("\\documentclass{article}\nKaynak: Frontiers in Neuroscience.\n", "standard"),
+    ("\\documentclass{article}\nBurada twocolumn secenegi tartisiliyor.\n", "standard"),
+    ("\\documentclass{article}\nmnras dergisine gonderildi.\n", "standard"),
+    ("\\documentclass{article}\nOrnek: cas-dc sinifi.\n", "standard"),
+    ("\\documentclass{article}\nDuz metin.\n", "standard"),
+    # Gerçek tespitler bozulmamalı
+    ("\\documentclass{frontiersinSCNS_ENG_HUMS}\n", "frontiers"),
+    ("\\documentclass{IEEEtran}\n", "two_column"),
+    ("\\documentclass[twocolumn]{article}\n", "two_column"),
+    ("\\documentclass{mnras}\n", "mnras"),
+    ("\\documentclass{cas-dc}\n", "elsevier"),
+    ("\\documentclass{ieeeaccess}\n", "ieee_access"),
+    # Belgede GERÇEKTEN kullanılan komutlar niyeti doğrudan gösterir: kalsın
+    ("\\documentclass{article}\n\\Figure[t!]{x}{y}\n", "ieee_access"),
+    ("\\documentclass{article}\n\\begin{figure*}\n", "two_column"),
+    ("\\documentclass{article}\n\\subfloat[a]{b}\n", "subfigure"),
+])
+def test_sablon_tespiti(govde, beklenen):
+    assert ImageOpsMixin._detect_figure_template(govde) == beklenen

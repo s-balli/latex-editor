@@ -5,6 +5,7 @@ from types import SimpleNamespace
 import pytest
 
 try:
+    from PyQt6.QtCore import Qt
     from PyQt6.QtWidgets import QApplication, QMessageBox, QTabWidget, QWidget
     from gui.editor import EditorWidget
     from gui.mixins.file_watch import FileWatchMixin
@@ -148,3 +149,49 @@ def test_ilk_kurulum_varsayilan_ust_seviye_acik(qapp):
     p.update_outline(BELGE)
     assert _bul(p, "Bir").isExpanded()
     assert not _bul(p, "Bir > Alt Bir").isExpanded()  # alt seviye kapalı
+
+
+# --- outline: bölüm başlığı deseni ---
+#
+# İki biçim eskiden yanlış işleniyordu (2026-08-31, G3):
+#   \chapter[Giriş]{Giriş ve Kapsam}  → hiç eşleşmiyordu, bölüm anahatta YOKTU
+#   \section{A \emph{B} C}            → başlık ilk iç kümede kırpılıyordu
+# İlki standart bir kullanım (uzun başlığın içindekiler/üstbilgi karşılığı),
+# yani uzun başlıklı tezlerde anahat sessizce eksikti.
+
+@pytest.mark.parametrize("kaynak,baslik", [
+    ("\\section{Giris}", "Giris"),
+    ("\\chapter[Kisa]{Uzun Bolum Basligi}", "Ch: Uzun Bolum Basligi"),
+    ("\\subsection[K]{Uzun}", "Uzun"),
+    ("\\section{Yontem ve \\emph{Materyal}}", "Yontem ve \\emph{Materyal}"),
+    ("\\subsection{A \\texttt{kod} B}", "A \\texttt{kod} B"),
+    ("\\section*{Yildizli}", "Yildizli"),
+    ("\\chapter{$E=mc^2$ uzerine}", "Ch: $E=mc^2$ uzerine"),
+    ("\\section {Bosluklu}", "Bosluklu"),
+])
+def test_bolum_basligi_deseni(qapp, kaynak, baslik):
+    p = OutlinePanel(theme=THEMES["dark"])
+    p.update_outline(kaynak + "\n")
+    assert len(p._items) == 1, f"bölüm anahatta görünmedi: {kaynak}"
+    assert p._items[0].text(0) == baslik
+
+
+def test_kisa_baslikli_bolum_hiyerarsiye_giriyor(qapp):
+    """Opsiyonel argüman seviye/satır bilgisini bozmamalı."""
+    belge = ("\\chapter[K]{Birinci Bolum}\n"
+             "metin\n"
+             "\\section[A]{Alt Baslik}\n")
+    p = OutlinePanel(theme=THEMES["dark"])
+    p.update_outline(belge)
+    assert [i.text(0) for i in p._items] == ["Ch: Birinci Bolum", "Alt Baslik"]
+    # alt başlık chapter'ın ÇOCUĞU olmalı, kardeşi değil
+    assert p._items[1].parent() is p._items[0]
+    # satır numarası (0-bazlı) korunuyor: goto_line bunu kullanıyor
+    assert p._items[0].data(0, Qt.ItemDataRole.UserRole) == 0
+    assert p._items[1].data(0, Qt.ItemDataRole.UserRole) == 2
+
+
+def test_yorumdaki_bolum_kisa_baslikliyken_de_atlaniyor(qapp):
+    p = OutlinePanel(theme=THEMES["dark"])
+    p.update_outline("% \\chapter[K]{Yorumda}\n\\section{Gercek}\n")
+    assert [i.text(0) for i in p._items] == ["Gercek"]
