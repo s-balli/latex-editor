@@ -131,8 +131,7 @@ def test_silinmis_dosya_kayip_sayilir(tmp_path):
 # =====================================================================
 
 try:
-    from PyQt6.QtCore import QObject
-    from PyQt6.QtWidgets import QApplication, QMessageBox
+    from PyQt6.QtWidgets import QApplication, QMessageBox, QWidget
     from gui.editor import EditorWidget
     from gui.mixins.recovery_ops import RecoveryOpsMixin, _snap_id
     from gui.theme import THEMES
@@ -153,15 +152,17 @@ def qapp():
     yield app
 
 
-class _StubMain(RecoveryOpsMixin, StubMain, QObject):
+class _StubMain(RecoveryOpsMixin, StubMain, QWidget):
     """MainWindow yerine: recovery_ops'ın dokunduğu minimum arayüz.
 
-    QObject ŞART: _recovery_init zamanlayıcıyı QTimer(self) ile kuruyor
-    (ömrü pencereye bağlansın diye) ve bu bir QObject ebeveyn istiyor.
+    QWidget ŞART: _recovery_init zamanlayıcıyı QTimer(self) ile kuruyor
+    (ömrü pencereye bağlansın diye) ve _recovery_prompt QMessageBox(self)
+    açıyor — ikincisi QWidget ebeveyn istiyor. Gerçekte MainWindow bir
+    QMainWindow, yani zaten QWidget.
     """
 
     def __init__(self, dizin, editors=()):
-        QObject.__init__(self)
+        QWidget.__init__(self)
         StubMain.__init__(self, editors=list(editors))
         self._theme_mgr = type("T", (), {"theme": THEMES["dark"]})()
         self._recovery_init(str(dizin))       # gerçek kurulum yolu
@@ -341,3 +342,153 @@ def test_main_window_kurtarmayi_bagliyor():
     kapanis = inspect.getsource(MainWindow.closeEvent)
     assert "_recovery_clear" in kapanis, \
         "temiz kapanışta artıklar silinmiyor — her açılışta kurtarma sorulur"
+
+
+# --- Doğrulama boşlukları (2026-08-31 ikinci kontrol) ---
+#
+# İlk turda üç yol hiç sınanmamıştı ve üçü de sessizce bozulabilirdi:
+#   - zamanlayıcı: testler hep _recovery_tick()'i ELLE çağırıyordu, yani
+#     30 sn'lik QTimer hiç kurulmamış olsa bile hepsi yeşil kalırdı
+#   - zaten açık sekmeye geri yükleme (_recovery_restore'un ilk dalı)
+#   - "At" (kurtarmayı reddet) yolu
+
+
+def _oto_box(secim):
+    """Modal dialogu otomatik yanıtlayan QMessageBox alt sınıfı.
+
+    ``secim``: "yukle" → ilk düğme, "at" → ikinci düğme (eklenme sırası
+    _recovery_prompt'ta Geri Yükle, At).
+    """
+    class Oto(QMessageBox):
+        def exec(self):
+            return 0
+
+        def clickedButton(self):
+            dugmeler = self.buttons()
+            return dugmeler[1] if secim == "at" else dugmeler[0]
+    return Oto
+
+
+@pytestmark_gui
+def test_zamanlayici_gercekten_yaziyor(qapp, tmp_path):
+    """QTimer kurulmuş VE tetiklendiğinde diske yazıyor olmalı.
+
+    Diğer testler _recovery_tick'i elle çağırıyor; zamanlayıcı hiç
+    bağlanmamış olsa bile geçerlerdi. Burada 30 sn beklemek yerine aralık
+    kısaltılıp olay döngüsü döndürülüyor — zincirin tamamı (timer → tick →
+    disk) gerçekten koşuyor.
+    """
+    from PyQt6.QtCore import QEventLoop, QTimer
+
+    kayit = tmp_path / "kayit"
+    kayit.mkdir()
+    ed, _ = _editor(tmp_path, "a.tex", "eski\n", "zamanlayıcı yazsın\n")
+    m = _StubMain(kayit, [ed])
+
+    assert m._recovery_timer.isActive(), "zamanlayıcı başlatılmamış"
+    assert m._recovery_timer.interval() == 30_000
+
+    m._recovery_timer.setInterval(20)      # 30 sn beklemeden aynı yolu koştur
+    dongu = QEventLoop()
+    QTimer.singleShot(400, dongu.quit)
+    dongu.exec()
+
+    snaplar = recovery.oku(str(kayit))
+    assert snaplar, "zamanlayıcı tetiklendi ama diske yazılmadı"
+    assert snaplar[0].content == "zamanlayıcı yazsın\n"
+
+
+@pytestmark_gui
+def test_zaten_acik_sekmeye_geri_yukleniyor(qapp, tmp_path, monkeypatch):
+    """Dosya zaten açıksa İKİNCİ sekme açılmamalı, mevcut sekme dolmalı.
+
+    Gerçek akışta olağan durum bu: önceki oturumun sekmeleri QSettings'ten
+    geri yüklenir, ardından kurtarma sorusu gelir.
+    """
+    import gui.mixins.recovery_ops as ro
+    monkeypatch.setattr(ro, "QMessageBox", _oto_box("yukle"))
+
+    kayit = tmp_path / "kayit"
+    kayit.mkdir()
+    yol = tmp_path / "a.tex"
+    yol.write_text("diskteki\n", encoding="utf-8")
+    ed = EditorWidget()
+    assert ed.open_file(str(yol))          # temiz sekme, oturumdan gelmiş gibi
+
+    recovery.yaz(str(kayit), "eski-oturum", file_path=str(yol),
+                 content="çökmeden önceki kirli hâl\n")
+
+    m = _StubMain(kayit, [ed])
+    m._recovery_prompt()
+
+    assert m._editor_tabs.count() == 1, "aynı dosya için ikinci sekme açıldı"
+    assert ed.text() == "çökmeden önceki kirli hâl\n"
+    assert ed.isModified() is True
+    assert yol.read_text(encoding="utf-8") == "diskteki\n", "disk ezildi"
+    assert recovery.oku(str(kayit)) == []
+
+
+@pytestmark_gui
+def test_at_secilirse_kurtarma_yapilmaz(qapp, tmp_path, monkeypatch):
+    """"At" → sekme açılmaz, anlık görüntüler silinir."""
+    import gui.mixins.recovery_ops as ro
+    monkeypatch.setattr(ro, "QMessageBox", _oto_box("at"))
+
+    kayit = tmp_path / "kayit"
+    kayit.mkdir()
+    yol = tmp_path / "a.tex"
+    yol.write_text("diskteki\n", encoding="utf-8")
+    recovery.yaz(str(kayit), "x", file_path=str(yol), content="atılacak\n")
+
+    m = _StubMain(kayit)
+    m._recovery_prompt()
+
+    assert m._editor_tabs.count() == 0, "reddedildiği hâlde sekme açıldı"
+    assert recovery.oku(str(kayit)) == [], "reddedilen görüntüler silinmedi"
+
+
+@pytestmark_gui
+def test_kaydedilmemis_belge_geri_yukleniyor(qapp, tmp_path, monkeypatch):
+    """Hiç kaydedilmemiş (yolu olmayan) arabellek de kurtarılmalı.
+
+    Bu içeriğin BAŞKA hiçbir kopyası yok — kurtarmanın en kritik vakası.
+    """
+    import gui.mixins.recovery_ops as ro
+    monkeypatch.setattr(ro, "QMessageBox", _oto_box("yukle"))
+
+    kayit = tmp_path / "kayit"
+    kayit.mkdir()
+    recovery.yaz(str(kayit), "adsiz", file_path="", content="hiç kaydedilmedi\n")
+
+    m = _StubMain(kayit)
+    m._recovery_prompt()
+
+    assert m._editor_tabs.count() == 1
+    ed = m._editor_tabs.widget(0)
+    assert ed.text() == "hiç kaydedilmedi\n"
+    assert ed.isModified() is True
+    assert ed.file_path == ""
+
+
+@pytestmark_gui
+def test_diskle_ayni_goruntu_sorulmadan_atiliyor(qapp, tmp_path, monkeypatch):
+    """Kayıp yoksa kullanıcı hiç rahatsız edilmemeli (dialog açılmamalı)."""
+    import gui.mixins.recovery_ops as ro
+
+    class Patlar(QMessageBox):
+        def exec(self):
+            raise AssertionError("kayıp yokken kurtarma sorusu açıldı")
+
+    monkeypatch.setattr(ro, "QMessageBox", Patlar)
+
+    kayit = tmp_path / "kayit"
+    kayit.mkdir()
+    yol = tmp_path / "a.tex"
+    yol.write_text("aynı\n", encoding="utf-8")
+    recovery.yaz(str(kayit), "x", file_path=str(yol), content="aynı\n")
+
+    m = _StubMain(kayit)
+    m._recovery_prompt()
+
+    assert m._editor_tabs.count() == 0
+    assert recovery.oku(str(kayit)) == [], "kayıpsız görüntü temizlenmedi"
