@@ -486,16 +486,23 @@ class TestKablolama:
                    "_cleanup_project_search"):
             assert hasattr(MainWindow, ad), ad
 
-    def test_kisayol_ve_menu_ayni_metoda_gidiyor(self):
+    def test_kisayol_TEK_yerden_kayitli(self):
+        """Ctrl+Shift+F yalnız menü QAction'ında olmalı, ayrıca QShortcut YOK.
+
+        İlk sürümde ikisi birden vardı ve Qt "Ambiguous shortcut overload"
+        deyip HİÇBİRİNİ tetiklemedi — kullanıcı "tepki vermedi" diye bildirdi.
+        `app_shortcut=True` şart: odak QScintilla'dayken de çalışması gerekiyor
+        (asıl kullanım anı editörde yazarken).
+        """
         import re
         k = self._kaynak()
         assert re.search(
-            r'QShortcut\(QKeySequence\("Ctrl\+Shift\+F"\)[^\n]*\n[^\n]*'
-            r'ApplicationShortcut[^\n]*\n\s*\w+\.activated\.connect\(self\._project_search\)',
-            k), "Ctrl+Shift+F kısayolu _project_search'e bağlı değil"
-        assert re.search(
-            r'_add_action\(edit_menu,\s*_\("&Projede Ara\.\.\."\),\s*self\._project_search',
-            k), "Düzenle menüsünde Projede Ara yok (yalnız kısayolla erişilir kalır)"
+            r'_add_action\(edit_menu,\s*_\("&Projede Ara\.\.\."\),\s*self\._project_search,\s*\n?\s*'
+            r'"Ctrl\+Shift\+F",\s*app_shortcut=True\)',
+            k), "menüdeki Projede Ara app_shortcut'lı Ctrl+Shift+F ile bağlı değil"
+        assert 'QShortcut(QKeySequence("Ctrl+Shift+F")' not in k, (
+            "Ctrl+Shift+F hem QAction hem QShortcut — Qt ikisini de tetiklemez"
+        )
 
     def test_panel_sinyali_bagli(self):
         k = self._kaynak()

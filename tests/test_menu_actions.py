@@ -204,3 +204,68 @@ def test_satira_git_dialogu_gercekten_aciliyor(qapp, monkeypatch):
     assert ed.getCursorPosition()[0] == 3
     ed.deleteLater()
     stub.deleteLater()
+
+
+def _kisayol_kayitlari(kaynak: str):
+    """main_window.py'deki tüm kısayol kayıtları: (QAction listesi, QShortcut listesi).
+
+    İki mekanizma var — `_add_action(..., "Ctrl+X", app_shortcut=True)` ve
+    `QShortcut(QKeySequence("Ctrl+X"), self)`. İkisi aynı diziyi aynı bağlamda
+    kaydederse Qt "Ambiguous shortcut overload" deyip HİÇBİRİNİ tetiklemiyor.
+    """
+    import ast
+
+    def _dizge(node):
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            return node.value
+        return None
+
+    eylemler, kisayollar = [], []
+    for node in ast.walk(ast.parse(kaynak)):
+        if not isinstance(node, ast.Call):
+            continue
+        f = node.func
+        if isinstance(f, ast.Attribute) and f.attr == "_add_action":
+            dizi = _dizge(node.args[3]) if len(node.args) >= 4 else None
+            for kw in node.keywords:
+                if kw.arg == "shortcut":
+                    dizi = _dizge(kw.value)
+            if dizi:
+                eylemler.append(dizi)
+        elif isinstance(f, ast.Name) and f.id == "QShortcut" and node.args:
+            ilk = node.args[0]
+            if (isinstance(ilk, ast.Call)
+                    and getattr(ilk.func, "id", "") == "QKeySequence" and ilk.args):
+                d = _dizge(ilk.args[0])
+                if d:
+                    kisayollar.append(d)
+    return eylemler, kisayollar
+
+
+def test_hicbir_kisayol_iki_kez_kaydedilmiyor():
+    """Aynı tuş dizisi hem QAction hem QShortcut olarak kaydedilemez.
+
+    Qt bunu görünce "QAction::event: Ambiguous shortcut overload" yazıp
+    İKİSİNİ DE tetiklemiyor; tuşa basmak sessizce hiçbir şey yapmıyor.
+
+    Gerçekten oldu İKİ KEZ:
+    - Ctrl+S (daha eski tur) — düzeltmesi test_kaydet_menu_toolbar_ve_ctrl_s...
+    - Ctrl+Shift+F (2026-08-31, projede ara) — KULLANICI BİLDİRDİ. Menüdeki
+      QAction app_shortcut=True idi, ayrıca bir QShortcut kurulmuştu; ölçüldü:
+      `_project_search` çağrı sayısı 0, Qt mesajı "Ambiguous shortcut
+      overload: Ctrl+Shift+F". Menü öğesi de çalışmıyordu.
+
+    Kapı tekil değil GENEL: bir sonraki kısayol da aynı tuzağa düşmesin.
+    """
+    kaynak = io.open(_MAIN, encoding="utf-8").read()
+    eylemler, kisayollar = _kisayol_kayitlari(kaynak)
+    assert eylemler and kisayollar, "kapı boşa düşmesin — kayıtlar okunamadı"
+
+    import collections
+    sayac = collections.Counter(eylemler + kisayollar)
+    cakisan = sorted(d for d, n in sayac.items() if n > 1)
+    assert not cakisan, (
+        "aynı tuş dizisi birden fazla kez kaydedilmiş — Qt ikisini de "
+        f"tetiklemez: {cakisan}. Menüdeki QAction'ı app_shortcut=True ile "
+        "bırakın, ayrı QShortcut'ı silin."
+    )

@@ -486,11 +486,13 @@ class MainWindow(
         quick_open.setContext(Qt.ShortcutContext.ApplicationShortcut)
         quick_open.activated.connect(self._quick_open)
 
-        # Ctrl+Shift+F: Ctrl+F (açık sekmede bul) ile aynı ailede ama proje
-        # geneli. ApplicationShortcut, odak QScintilla'dayken de çalışsın diye.
-        proje_ara = QShortcut(QKeySequence("Ctrl+Shift+F"), self)
-        proje_ara.setContext(Qt.ShortcutContext.ApplicationShortcut)
-        proje_ara.activated.connect(self._project_search)
+        # Ctrl+Shift+F BURAYA EKLENMEZ. Düzenle menüsündeki QAction zaten
+        # app_shortcut=True ile ApplicationShortcut olarak kayıtlı; ikinci bir
+        # QShortcut aynı diziyi aynı bağlamda kaydedince Qt "Ambiguous
+        # shortcut overload" deyip HİÇBİRİNİ tetiklemiyor — tuşa basmak
+        # sessizce hiçbir şey yapmıyordu (kullanıcı bildirdi, ölçümle
+        # doğrulandı). Aynı ders Ctrl+S için de yazılıydı; kapı artık
+        # test_menu_actions.py'de tüm diziler için genel.
 
     # --- Tema ---
 
