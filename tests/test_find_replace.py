@@ -158,3 +158,283 @@ class TestDegistirNext:
         bar._replace_next()
         bar._replace_next()
         assert ed.text() == "X iki X\n"
+
+
+# --- ARAMA SEÇENEKLERİ (harf duyarlılığı / tam kelime / düzenli ifade) ---
+#
+# Bu üç bayrak `findFirst(text, False, False, False, ...)` diye SABİT
+# geçiliyordu: altyapı hazırdı ama hiçbir arayüzü yoktu. LaTeX'te harf durumu
+# anlamlı (\Section != \section, etiket anahtarları) ve "fig" araması
+# "figure" içinde de eşleşiyordu.
+
+
+def _sec(bar, *, case=False, word=False, regex=False):
+    """Kutuları AYARLA: sinyal yolu dahil (setChecked toggled'ı tetikler)."""
+    bar._cb_case.setChecked(case)
+    bar._cb_regex.setChecked(regex)
+    bar._cb_word.setChecked(word)
+    return bar
+
+
+class TestHarfDuyarliligi:
+    def test_duyarsiz_hepsini_buluyor(self, qapp):
+        bar, _ed = _bar("fig FIG Fig\n", "fig")
+        _sec(bar, case=False)
+        bar._count_matches("fig")
+        assert bar._match_count == 3
+
+    def test_duyarli_yalniz_birebir(self, qapp):
+        bar, _ed = _bar("fig FIG Fig\n", "fig")
+        _sec(bar, case=True)
+        bar._count_matches("fig")
+        assert bar._match_count == 1
+
+    def test_latex_komutu_ayirt_ediliyor(self, qapp):
+        r"""\Section ile \section duyarlı kipte ayrı sayılmalı."""
+        bar, _ed = _bar("\\section{a}\n\\Section{b}\n\\section{c}\n", "\\section")
+        _sec(bar, case=True)
+        bar._count_matches("\\section")
+        assert bar._match_count == 2
+
+    def test_degistirme_de_duyarli(self, qapp):
+        bar, ed = _bar("fig FIG Fig\n", "fig", "X")
+        _sec(bar, case=True)
+        bar._replace_all()
+        assert ed.text() == "X FIG Fig\n"
+
+    def test_turkce_s_harfi(self, qapp):
+        bar, _ed = _bar("Şekil şekil ŞEKİL\n", "şekil")
+        _sec(bar, case=True)
+        bar._count_matches("şekil")
+        assert bar._match_count == 1
+
+
+class TestTamKelime:
+    def test_kapaliyken_ic_ice_eslesiyor(self, qapp):
+        bar, _ed = _bar("fig figure figs\n", "fig")
+        _sec(bar, word=False)
+        bar._count_matches("fig")
+        assert bar._match_count == 3
+
+    def test_acikken_yalniz_tam_kelime(self, qapp):
+        bar, _ed = _bar("fig figure figs\n", "fig")
+        _sec(bar, word=True)
+        bar._count_matches("fig")
+        assert bar._match_count == 1
+
+    def test_degistirme_de_tam_kelime(self, qapp):
+        bar, ed = _bar("fig figure fig\n", "fig", "X")
+        _sec(bar, word=True)
+        bar._replace_all()
+        assert ed.text() == "X figure X\n"
+
+    def test_duyarlilikla_birlikte(self, qapp):
+        bar, _ed = _bar("fig FIG figure\n", "fig")
+        _sec(bar, word=True, case=True)
+        bar._count_matches("fig")
+        assert bar._match_count == 1
+
+
+class TestDuzenliIfade:
+    def test_karakter_kumesi(self, qapp):
+        bar, _ed = _bar("a1 b2 c3 dd\n", "[a-z][0-9]")
+        _sec(bar, regex=True)
+        bar._count_matches("[a-z][0-9]")
+        assert bar._match_count == 3
+
+    def test_almasik_calisiyor(self, qapp):
+        r"""`|` ALMASIK olmalı, düz karakter değil.
+
+        Scintilla'nın ÖNTANIMLI lehçesinde `|` düz karakter ve `(` grup
+        açmıyor; `\section|\subsection` sessizce sıfır sonuç veriyordu. Bu
+        yüzden findFirst'e cxx11=True geçiliyor. Bayrak düşerse bu test 0
+        bulur.
+        """
+        bar, _ed = _bar("\\section{a}\n\\subsection{b}\n\\paragraph{c}\n",
+                        "section|subsection")
+        _sec(bar, regex=True)
+        bar._count_matches("section|subsection")
+        assert bar._match_count == 2
+
+    def test_grup_parantezi_grup(self, qapp):
+        """`(...)` grup olmalı, düz parantez değil (yine cxx11 kanıtı)."""
+        bar, _ed = _bar("fig1 fig2 sehir3\n", "(fig|sehir)[0-9]")
+        _sec(bar, regex=True)
+        bar._count_matches("(fig|sehir)[0-9]")
+        assert bar._match_count == 3
+
+    def test_geri_referans_ile_degistirme(self, qapp):
+        r"""\1 yakalanan gruba karşılık gelmeli.
+
+        `replaceSelectedText` geri referansı DÜZ METİN yazıyor; bu yüzden
+        `replace` kullanılıyor. Geri dönerse belgeye harfi harfine "kare\1"
+        yazılır ve bu test yakalar.
+        """
+        bar, ed = _bar("fig1 fig2 fig3\n", "fig([0-9])", "kare\\1")
+        _sec(bar, regex=True)
+        bar._replace_all()
+        assert ed.text() == "kare1 kare2 kare3\n"
+
+    def test_geri_referans_tek_tek_degistirmede_de(self, qapp):
+        """Aynı kural _replace_next için de geçerli (iki ayrı çağrı yeri)."""
+        bar, ed = _bar("fig1 fig2\n", "fig([0-9])", "kare\\1")
+        _sec(bar, regex=True)
+        ed.setCursorPosition(0, 0)
+        bar._replace_next()
+        assert ed.text().startswith("kare1"), ed.text()
+
+    def test_duz_kipte_geri_referans_harfi_harfine(self, qapp):
+        """Desen kipi KAPALIYKEN \\1 çözülmemeli."""
+        bar, ed = _bar("aa bb\n", "aa", "X\\1Y")
+        _sec(bar, regex=False)
+        bar._replace_all()
+        assert ed.text() == "X\\1Y bb\n"
+
+    def test_desen_kipi_kapaliyken_ozel_karakter_duz(self, qapp):
+        """Kutu işaretsizken `a.c` düz metin; 'abc' ile eşleşmemeli."""
+        bar, _ed = _bar("abc a.c\n", "a.c")
+        _sec(bar, regex=False)
+        bar._count_matches("a.c")
+        assert bar._match_count == 1
+
+    def test_tam_kelime_kutusu_desen_kipinde_kapali(self, qapp):
+        """Scintilla desen kipinde tam-kelime bayrağını yok sayıyor.
+
+        Etkisiz kutuyu tıklanabilir bırakmak kullanıcıya yalan söylemek olur.
+        """
+        bar, _ed = _bar("fig figure\n", "fig")
+        _sec(bar, regex=True)
+        assert not bar._cb_word.isEnabled()
+        _sec(bar, regex=False)
+        assert bar._cb_word.isEnabled()
+
+    def test_bozuk_desen_soyleniyor(self, qapp):
+        """Bozuk desen 'Sonuç yok' değil, nedenini söylemeli."""
+        bar, _ed = _bar("merhaba dunya\n", "[")
+        _sec(bar, regex=True)
+        bar._find_input.setText("[")
+        bar._do_find()
+        assert bar._gecersiz_desen
+        assert "Geçersiz" in bar._lbl_count.text()
+
+    def test_eslesen_desen_asla_gecersiz_denmiyor(self, qapp):
+        """Eşleşme varsa Python'ın `re`si ne derse desin desen geçerlidir."""
+        bar, _ed = _bar("fig1 fig2\n", "fig[0-9]")
+        _sec(bar, regex=True)
+        bar._find_input.setText("fig[0-9]")
+        bar._do_find()
+        assert not bar._gecersiz_desen
+        assert "Geçersiz" not in bar._lbl_count.text()
+
+    def test_duz_kipte_bozuk_desen_uyarisi_yok(self, qapp):
+        """Kutu kapalıyken `[` düz metindir; 'geçersiz' demek yanlış olur."""
+        bar, ed = _bar("a [ b\n", "[")
+        _sec(bar, regex=False)
+        bar._find_input.setText("[")
+        bar._do_find()
+        assert not bar._gecersiz_desen
+        assert ed.hasSelectedText()
+
+    def test_sifir_genislikli_desen_belgeyi_bozmuyor(self, qapp):
+        """`x*` her konumda eşleşir; tümünü değiştir askıda kalmamalı."""
+        bar, ed = _bar("abc\n", "x*", "-")
+        _sec(bar, regex=True)
+        bar._replace_all()
+        assert ed.text() == "abc\n"
+
+
+class TestSayacAramaylaAyniKurali:
+    """Sayaç ile aramanın AYRIŞMAMASI.
+
+    Sayaç eskiden `editor.text().lower().count(...)` ile ayrı bir yoldan
+    geçiyordu: seçeneklerden habersizdi. Duyarlı kipte etiket "3 sonuç" derken
+    ileri tuşu tek eşleşme bulurdu.
+    """
+
+    def test_duyarli_kipte_sayac_aramayla_uyusuyor(self, qapp):
+        bar, ed = _bar("fig FIG Fig fig\n", "fig")
+        _sec(bar, case=True)
+        bar._count_matches("fig")
+
+        ed.setCursorPosition(0, 0)
+        elle = 0
+        while bar._find_first("fig", wrap=False) and ed.hasSelectedText():
+            elle += 1
+            if elle > 20:
+                break
+        assert bar._match_count == elle == 2
+
+    def test_tam_kelime_kipinde_sayac_uyusuyor(self, qapp):
+        bar, ed = _bar("fig figure fig figs\n", "fig")
+        _sec(bar, word=True)
+        bar._count_matches("fig")
+        ed.setCursorPosition(0, 0)
+        elle = 0
+        while bar._find_first("fig", wrap=False) and ed.hasSelectedText():
+            elle += 1
+            if elle > 20:
+                break
+        assert bar._match_count == elle == 2
+
+    def test_sayac_imleci_oynatmiyor(self, qapp):
+        """Yazarken belge yerinde durmalı: sayım seçimi/imleci bozmamalı."""
+        bar, ed = _bar("bir iki bir uc bir\n", "bir")
+        ed.setCursorPosition(0, 12)
+        once = ed.getCursorPosition()
+        bar._count_matches("bir")
+        assert ed.getCursorPosition() == once
+        assert not ed.hasSelectedText()
+
+    def test_sayim_siniri_sessiz_kesmiyor(self, qapp, monkeypatch):
+        monkeypatch.setattr(FindReplaceBar, "_COUNT_LIMIT", 5)
+        bar, _ed = _bar("a " * 40 + "\n", "a")
+        bar._count_matches("a")
+        assert bar._match_count == 5
+        assert bar._sayim_kesildi
+        assert "+" in bar._lbl_count.text()
+
+
+class TestCubukBolmeyeSigiyor:
+    """Çubuk editör bölmesinden geniş olmamalı.
+
+    Sabit genişlikli parçalar (arama kutuları 250 px) daralamıyor: taşan çubuk
+    QSplitter'da editör bölmesini zorlar ve PDF görüntüleyiciyi ezer. Seçenek
+    kutuları önce TEK satıra kondu ve gerçek pencerede ölçüldü:
+
+        arama kipi   :  434 px  ->  1094 px   (bölme ~990 px, TAŞIYOR)
+
+    Bu yüzden seçenekler ikinci satıra alındı. Değiştir kipi 1000 px'de kalıyor;
+    bu değer seçeneklerden ÖNCE de aynıydı, yani bu değişiklik kötüleştirmedi.
+    """
+
+    def test_arama_kipi_bolmeye_sigiyor(self, qapp):
+        bar = FindReplaceBar()
+        bar.show_find()
+        assert bar.sizeHint().width() <= 900, bar.sizeHint().width()
+
+    def test_degistir_kipi_eski_haddini_asmiyor(self, qapp):
+        bar = FindReplaceBar()
+        bar.show_replace()
+        assert bar.sizeHint().width() <= 1010, bar.sizeHint().width()
+
+    def test_secenekler_iki_kipte_de_gorunur(self, qapp):
+        """Seçenekler ikinci satırda: Ctrl+F'te de Ctrl+H'de de görünmeli."""
+        bar = FindReplaceBar()
+        for goster in (bar.show_find, bar.show_replace):
+            goster()
+            for cb in (bar._cb_case, bar._cb_word, bar._cb_regex):
+                assert not cb.isHidden(), (goster.__name__, cb.text())
+
+
+class TestSeceneklerAramayiTazeliyor:
+    def test_kutu_degisince_sayac_guncelleniyor(self, qapp):
+        """Kutuyu işaretleyince ekranda bir şey değişmeli."""
+        bar, _ed = _bar("fig FIG Fig\n", "fig")
+        bar._find_input.setText("fig")
+        bar._do_find()
+        bar._count_matches("fig")
+        assert bar._match_count == 3
+
+        bar._cb_case.setChecked(True)      # toggled -> _on_option_toggled
+        bar._count_matches("fig")
+        assert bar._match_count == 1

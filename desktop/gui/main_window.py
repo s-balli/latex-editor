@@ -470,6 +470,7 @@ class MainWindow(
         self._output_panel.project_search_requested.connect(
             self._on_project_search_requested)
         self._file_tree.root_changed.connect(self._on_project_root_changed)
+        self._file_tree.file_renamed.connect(self._on_file_renamed)
 
         self._pdf_viewer.reverse_search_requested.connect(self._on_reverse_search)
 

@@ -759,6 +759,17 @@ class EditorWidget(QsciScintilla):
     def file_path(self) -> str:
         return self._file_path
 
+    def rebind_path(self, path: str):
+        """Editörü YENİ ada bağla; içeriğe, kodlamaya, kirliliğe dokunma.
+
+        Diskteki dosya dosya ağacından yeniden adlandırıldığında çağrılıyor:
+        içerik yerinde durduğu için `save_file_as` gibi yazma yapmak yanlış
+        olurdu (kirli sekmeyi zorla kaydeder, kodlamayı utf-8'e çevirirdi).
+        Sekmenin eski yola bağlı kalması ise Ctrl+S'te SİLİNMİŞ adı yeniden
+        yaratır, kullanıcı iki dosyayla baş başa kalırdı.
+        """
+        self._file_path = os.path.normpath(path)
+
     def open_file(self, path: str) -> bool:
         try:
             with open(path, "rb") as f:

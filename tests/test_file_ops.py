@@ -5,6 +5,7 @@ sahte yollu sekme, meşgul kontrolünün dialog'dan sonra gelmesi, oturum geri
 yüklemede Son Açılanlar'ın ezilmesi.
 """
 
+import os
 from types import SimpleNamespace
 
 import pytest
@@ -37,6 +38,7 @@ class _Stub(FileOpsMixin, TabOpsMixin, StubMain):
         self._file_tree.roots = roots
         self.recent_calls = []
         self.watch_added = []
+        self.watch_removed = []
         self.save_reply = "cancel"
         # TabOpsMixin._close_tab_safe'in dokunduğu durumlar
         self._wordcount_editor = None
@@ -57,6 +59,9 @@ class _Stub(FileOpsMixin, TabOpsMixin, StubMain):
         self.watch_added.append(path)
 
     def _file_watch_remove(self, path):
+        self.watch_removed.append(path)
+
+    def _refresh_recent_menu(self):
         pass
 
     def _detect_engine(self, path):
@@ -204,3 +209,69 @@ def test_open_file_add_recent_false(qapp, tmp_path):
     tex2 = _tex(tmp_path, "r2.tex")
     stub._open_file_in_editor(tex2)               # normal açış varsayılanı
     assert stub.recent_calls == [tex2]
+
+
+# --- _on_file_renamed: dosya ağacındaki yeniden adlandırmayı sekme takip etsin
+
+
+def test_yeniden_adlandirilan_dosya_sekmede_takip_ediliyor(qapp, tmp_path):
+    """Sekme eski yola bağlı kalırsa Ctrl+S SİLİNMİŞ adı yeniden yaratır.
+
+    Kullanıcı aynı içerikten iki dosyayla kalır ve hangisinin derlendiğini
+    bilemez. Ayrıca izleme eski yolda asılı kalıp bir daha hiçbir dış
+    değişikliği bildirmez.
+    """
+    eski = _tex(tmp_path, "eski.tex")
+    ed = _editor(eski)
+    stub = _Stub([ed])
+    yeni = str(tmp_path / "yeni.tex")
+    os.rename(eski, yeni)
+
+    stub._on_file_renamed(eski, yeni)
+
+    assert ed.file_path == os.path.normpath(yeni)
+    assert stub._editor_tabs.tabText(0) == "yeni.tex"
+    assert stub.watch_added == [yeni], stub.watch_added
+
+
+def test_kirli_sekme_kirli_kaliyor_diske_yazilmiyor(qapp, tmp_path):
+    """Yeniden adlandırma KAYDETME değildir.
+
+    `save_file_as` çağırmak kirli sekmeyi zorla kaydeder, kodlamayı utf-8'e
+    çevirir ve satır sonu stilini kaybederdi.
+    """
+    eski = _tex(tmp_path, "eski.tex")
+    ed = _editor(eski)
+    ed.insert("KAYDEDILMEMIS")
+    assert ed.isModified()
+    yeni = str(tmp_path / "yeni.tex")
+    os.rename(eski, yeni)
+
+    stub = _Stub([ed])
+    stub._on_file_renamed(eski, yeni)
+
+    assert ed.isModified(), "kirlilik yutuldu"
+    assert "KAYDEDILMEMIS" not in open(yeni, encoding="utf-8").read()
+    assert stub._editor_tabs.tabText(0) == "* yeni.tex"
+
+
+def test_acik_olmayan_dosya_sekmelere_dokunmuyor(qapp, tmp_path):
+    ed = _editor(_tex(tmp_path, "acik.tex"))
+    stub = _Stub([ed])
+    stub._on_file_renamed(str(tmp_path / "baska.tex"), str(tmp_path / "x.tex"))
+    assert ed.file_path == os.path.normpath(str(tmp_path / "acik.tex"))
+
+
+def test_son_acilanlar_guncelleniyor(qapp, tmp_path):
+    """Eski yol Son Açılanlar'da ölü bağlantı olarak kalmasın."""
+    eski = _tex(tmp_path, "eski.tex")
+    baska = _tex(tmp_path, "baska.tex")
+    ed = _editor(eski)
+    stub = _Stub([ed])
+    stub._settings.setValue("recent_files", [eski, baska])
+    yeni = str(tmp_path / "yeni.tex")
+    os.rename(eski, yeni)
+
+    stub._on_file_renamed(eski, yeni)
+
+    assert stub._settings.value("recent_files") == [yeni, baska]

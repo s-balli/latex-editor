@@ -269,3 +269,44 @@ def test_hicbir_kisayol_iki_kez_kaydedilmiyor():
         f"tetiklemez: {cakisan}. Menüdeki QAction'ı app_shortcut=True ile "
         "bırakın, ayrı QShortcut'ı silin."
     )
+
+
+# --- FileTree sinyalleri MainWindow'a bağlanmış mı ---
+
+_TREE = os.path.join(_ROOT, "desktop", "gui", "file_tree.py")
+
+
+def _tree_sinyalleri() -> set[str]:
+    """file_tree.FileTree'nin pyqtSignal olarak tanımladığı adlar."""
+    kaynak = io.open(_TREE, encoding="utf-8").read()
+    govde = kaynak.split("class FileTree(", 1)[-1].split("\n    def ", 1)[0]
+    return set(re.findall(r"^\s{4}(\w+)\s*=\s*pyqtSignal\(", govde, re.M))
+
+
+def _baglanan_sinyaller() -> set[str]:
+    """main_window'da `self._file_tree.<ad>.connect(` geçen adlar."""
+    kaynak = io.open(_MAIN, encoding="utf-8").read()
+    return set(re.findall(r"self\._file_tree\.(\w+)\.connect\(", kaynak))
+
+
+def test_tree_sinyalleri_okunabiliyor():
+    """Kapının kendisi: ayrıştırma bozulursa aşağıdaki test boşa düşmesin."""
+    sinyaller = _tree_sinyalleri()
+    assert {"file_open_requested", "compile_requested", "root_changed",
+            "file_renamed"} <= sinyaller, sinyaller
+
+
+def test_her_tree_sinyali_baglanmis():
+    """Bağlanmamış sinyal SESSİZCE hiçbir şey yapmaz.
+
+    Bu depoda aynı sınıftan iki hata çıktı ve ikisini de yalnız kullanıcı
+    fark etti (testler geçiyordu): Ctrl+Shift+F hiç tetiklenmiyordu, klasör
+    değişince arama sonuçları bayat kalıyordu. `file_renamed` de aynı
+    tuzağa açıktı: bağlanmazsa dosya diskte yeniden adlandırılır ama açık
+    sekme eski yola bağlı kalır ve Ctrl+S silinmiş adı yeniden yaratır.
+    """
+    eksik = sorted(_tree_sinyalleri() - _baglanan_sinyaller())
+    assert not eksik, (
+        f"FileTree sinyali tanımlanmış ama MainWindow'da bağlanmamış: {eksik}. "
+        "Sinyal sessizce hiçbir işe yaramaz."
+    )

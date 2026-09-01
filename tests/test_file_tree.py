@@ -79,3 +79,237 @@ def test_input_ref_ok_tek_okumayla_iki_denetim(qapp, tmp_path, monkeypatch):
     parcacik = tmp_path / "parca2.tex"
     parcacik.write_text("yalnızca parça\n", encoding="utf-8")
     assert tree._input_ref_ok(str(parcacik)) is False
+
+
+# ---------------------------------------------------------------------------
+# Bağlam menüsü işlemleri: yeni dosya / yeni klasör / yeniden adlandır
+#
+# Menüde yalnız "Derle / Düzenle / Klasörde Aç / Sil" vardı. Silme varken
+# yeniden adlandırmanın olmaması göze batıyordu; klasöre sağ tıklamak ise
+# HİÇBİR menü açmıyordu (`_on_context_menu` dosya değilse hemen dönüyordu).
+# ---------------------------------------------------------------------------
+
+from PyQt6.QtCore import QPoint, Qt  # noqa: E402
+from PyQt6.QtWidgets import (  # noqa: E402
+    QInputDialog, QMenu, QMessageBox, QTreeWidgetItem,
+)
+from core import fs_ops  # noqa: E402
+
+
+def _agac(qapp, kok):
+    t = FileTree(theme=THEMES["dark"])
+    t.set_root(str(kok))
+    return t
+
+
+def _oge_bul(tree, ad: str):
+    """Ağaçta metnine göre öğe bul (ikon öneki yok sayılır)."""
+    kok = tree._tree.invisibleRootItem()
+    yigin = [kok.child(i) for i in range(kok.childCount())]
+    while yigin:
+        oge = yigin.pop()
+        if oge.text(0).split(" ", 1)[-1] == ad:
+            return oge
+        yigin.extend(oge.child(i) for i in range(oge.childCount()))
+    return None
+
+
+def _menu_actionlari(tree, oge, monkeypatch):
+    """Bağlam menüsünü aç, eylem metinlerini topla, menüyü iptal et."""
+    toplanan = []
+
+    def sahte_exec(menu_self, *_a, **_k):
+        toplanan.extend(act.text() for act in menu_self.actions() if act.text())
+        return None
+
+    monkeypatch.setattr(QMenu, "exec", sahte_exec)
+    monkeypatch.setattr(type(tree._tree), "itemAt", lambda *_a: oge)
+    monkeypatch.setattr(type(tree._tree), "mapToGlobal", lambda _s, p: p)
+    tree._on_context_menu(QPoint(0, 0))
+    return toplanan
+
+
+class TestBaglamMenusu:
+    def test_klasore_sag_tik_menu_aciyor(self, qapp, tmp_path, monkeypatch):
+        """Eskiden klasörde menü HİÇ açılmıyordu (dosya değil diye dönülüyordu)."""
+        alt = tmp_path / "bolumler"
+        alt.mkdir()
+        (alt / "giris.tex").write_text("x", encoding="utf-8")
+        tree = _agac(qapp, tmp_path)
+
+        oge = _oge_bul(tree, "bolumler")
+        assert oge is not None, "klasör ağaçta yok"
+        metinler = _menu_actionlari(tree, oge, monkeypatch)
+
+        assert any("Yeni Dosya" in m for m in metinler), metinler
+        assert any("Yeni Klasör" in m for m in metinler), metinler
+        assert any("Yeniden Adlandır" in m for m in metinler), metinler
+
+    def test_klasor_ogesi_yolunu_tasiyor(self, qapp, tmp_path):
+        """Menünün hangi klasörde çalışacağını bu veriden öğreniyor."""
+        alt = tmp_path / "bolumler"
+        alt.mkdir()
+        (alt / "a.tex").write_text("x", encoding="utf-8")
+        tree = _agac(qapp, tmp_path)
+        oge = _oge_bul(tree, "bolumler")
+        assert oge.data(0, Qt.ItemDataRole.UserRole) == str(alt)
+
+    def test_dosyada_yeniden_adlandir_var(self, qapp, tmp_path, monkeypatch):
+        (tmp_path / "ana.tex").write_text("x", encoding="utf-8")
+        tree = _agac(qapp, tmp_path)
+        metinler = _menu_actionlari(tree, _oge_bul(tree, "ana.tex"), monkeypatch)
+        assert any("Yeniden Adlandır" in m for m in metinler), metinler
+        assert any("Sil" in m for m in metinler), metinler
+
+    def test_bos_alanda_kokte_yeni_oge(self, qapp, tmp_path, monkeypatch):
+        """Ağaç boşken de dosya yaratılabilmeli; tıklanacak öğe yok."""
+        tree = _agac(qapp, tmp_path)
+        metinler = _menu_actionlari(tree, None, monkeypatch)
+        assert any("Yeni Dosya" in m for m in metinler), metinler
+        # Kökün kendisi silinemez/adlandırılamaz
+        assert not any("Yeniden Adlandır" in m for m in metinler), metinler
+        assert not any("Sil" in m for m in metinler), metinler
+
+    def test_kok_klasor_silinemez(self, qapp, tmp_path, monkeypatch):
+        """Kök ağacın dayanağı: menüden silinirse ağaç ortada kalırdı."""
+        (tmp_path / "a.tex").write_text("x", encoding="utf-8")
+        tree = _agac(qapp, tmp_path)
+        # Kökü gösteren sahte öğe: itemAt kök yolunu döndürsün
+        sahte = QTreeWidgetItem(["kok"])
+        sahte.setData(0, Qt.ItemDataRole.UserRole, str(tmp_path))
+        metinler = _menu_actionlari(tree, sahte, monkeypatch)
+        assert not any("Sil" in m for m in metinler), metinler
+
+
+class TestYeniOge:
+    def test_dosya_yaratiliyor_ve_aciliyor(self, qapp, tmp_path, monkeypatch):
+        tree = _agac(qapp, tmp_path)
+        monkeypatch.setattr(QInputDialog, "getText",
+                            lambda *a, **k: ("bolum2.tex", True))
+        acilan = []
+        tree.file_open_requested.connect(acilan.append)
+
+        tree._yeni_oge(str(tmp_path), klasor=False)
+
+        assert (tmp_path / "bolum2.tex").is_file()
+        assert acilan == [str(tmp_path / "bolum2.tex")], acilan
+
+    def test_duzenlenemez_uzanti_acilmiyor(self, qapp, tmp_path, monkeypatch):
+        """.txt editörde açılamıyor; yaratılıyor ama sekme açılmıyor."""
+        tree = _agac(qapp, tmp_path)
+        monkeypatch.setattr(QInputDialog, "getText",
+                            lambda *a, **k: ("notlar.txt", True))
+        acilan = []
+        tree.file_open_requested.connect(acilan.append)
+        tree._yeni_oge(str(tmp_path), klasor=False)
+        assert (tmp_path / "notlar.txt").is_file()
+        assert acilan == []
+
+    def test_klasor_yaratiliyor(self, qapp, tmp_path, monkeypatch):
+        tree = _agac(qapp, tmp_path)
+        monkeypatch.setattr(QInputDialog, "getText",
+                            lambda *a, **k: ("gorseller", True))
+        tree._yeni_oge(str(tmp_path), klasor=True)
+        assert (tmp_path / "gorseller").is_dir()
+
+    def test_iptal_hicbir_sey_yaratmiyor(self, qapp, tmp_path, monkeypatch):
+        tree = _agac(qapp, tmp_path)
+        monkeypatch.setattr(QInputDialog, "getText", lambda *a, **k: ("x.tex", False))
+        tree._yeni_oge(str(tmp_path), klasor=False)
+        assert not (tmp_path / "x.tex").exists()
+
+    def test_var_olan_ad_uyariyor_uzerine_YAZMIYOR(self, qapp, tmp_path, monkeypatch):
+        p = tmp_path / "dolu.tex"
+        p.write_text("degerli", encoding="utf-8")
+        tree = _agac(qapp, tmp_path)
+        monkeypatch.setattr(QInputDialog, "getText", lambda *a, **k: ("dolu.tex", True))
+        uyarilar = []
+        monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: uyarilar.append(a))
+        tree._yeni_oge(str(tmp_path), klasor=False)
+        assert uyarilar, "var olan ad sessizce geçti"
+        assert p.read_text(encoding="utf-8") == "degerli"
+
+
+class TestAdDenetimiArayuzde:
+    def test_gecersiz_ad_uyariyor_ve_tekrar_soruyor(self, qapp, tmp_path, monkeypatch):
+        """Önce yasak karakterli ad, sonra geçerli: kutu ikinci kez açılmalı."""
+        tree = _agac(qapp, tmp_path)
+        cevaplar = [("a<b.tex", True), ("ab.tex", True)]
+        monkeypatch.setattr(QInputDialog, "getText", lambda *a, **k: cevaplar.pop(0))
+        uyarilar = []
+        monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: uyarilar.append(a))
+
+        tree._yeni_oge(str(tmp_path), klasor=False)
+
+        assert len(uyarilar) == 1, "geçersiz ad için uyarı çıkmadı"
+        assert (tmp_path / "ab.tex").is_file()
+
+    def test_bastaki_sondaki_bosluk_kirpiliyor(self, qapp, tmp_path, monkeypatch):
+        """Görünmez karakter yüzünden hata vermek anlamsız."""
+        tree = _agac(qapp, tmp_path)
+        monkeypatch.setattr(QInputDialog, "getText", lambda *a, **k: ("  a.tex  ", True))
+        monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: None)
+        tree._yeni_oge(str(tmp_path), klasor=False)
+        assert (tmp_path / "a.tex").is_file()
+
+    def test_her_gerekce_kodunun_metni_var(self, qapp):
+        """Yeni bir gerekçe eklenip metni unutulursa kullanıcı 'Ad geçersiz.' görür."""
+        kodlar = [v for k, v in vars(fs_ops).items()
+                  if k.isupper() and isinstance(v, str) and not k.startswith("_")]
+        assert len(kodlar) >= 6, kodlar
+        for kod in kodlar:
+            metin = FileTree._ad_hata_metni(kod)
+            assert metin and metin != "Ad geçersiz.", kod
+
+
+class TestYenidenAdlandir:
+    def test_dosya_adlandiriliyor_ve_sinyal_gidiyor(self, qapp, tmp_path, monkeypatch):
+        p = tmp_path / "eski.tex"
+        p.write_text("icerik", encoding="utf-8")
+        tree = _agac(qapp, tmp_path)
+        monkeypatch.setattr(QInputDialog, "getText", lambda *a, **k: ("yeni.tex", True))
+        sinyaller = []
+        tree.file_renamed.connect(lambda a, b: sinyaller.append((a, b)))
+
+        tree._yeniden_adlandir(str(p))
+
+        assert (tmp_path / "yeni.tex").read_text(encoding="utf-8") == "icerik"
+        assert not p.exists()
+        assert sinyaller == [(str(p), str(tmp_path / "yeni.tex"))], sinyaller
+
+    def test_ayni_ad_hicbir_sey_yapmiyor(self, qapp, tmp_path, monkeypatch):
+        p = tmp_path / "a.tex"
+        p.write_text("x", encoding="utf-8")
+        tree = _agac(qapp, tmp_path)
+        monkeypatch.setattr(QInputDialog, "getText", lambda *a, **k: ("a.tex", True))
+        sinyaller = []
+        tree.file_renamed.connect(lambda a, b: sinyaller.append((a, b)))
+        tree._yeniden_adlandir(str(p))
+        assert sinyaller == []
+
+    def test_var_olanin_uzerine_yazmiyor(self, qapp, tmp_path, monkeypatch):
+        a = tmp_path / "taslak.tex"
+        b = tmp_path / "ana.tex"
+        a.write_text("taslak", encoding="utf-8")
+        b.write_text("DEGERLI", encoding="utf-8")
+        tree = _agac(qapp, tmp_path)
+        monkeypatch.setattr(QInputDialog, "getText", lambda *a, **k: ("ana.tex", True))
+        uyarilar = []
+        monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: uyarilar.append(a))
+        sinyaller = []
+        tree.file_renamed.connect(lambda x, y: sinyaller.append((x, y)))
+
+        tree._yeniden_adlandir(str(a))
+
+        assert uyarilar, "çarpışma sessiz geçti"
+        assert b.read_text(encoding="utf-8") == "DEGERLI"
+        assert sinyaller == [], "başarısız işlem sinyal yaydı"
+
+    def test_klasor_adlandiriliyor(self, qapp, tmp_path, monkeypatch):
+        d = tmp_path / "eski"
+        d.mkdir()
+        (d / "ic.tex").write_text("x", encoding="utf-8")
+        tree = _agac(qapp, tmp_path)
+        monkeypatch.setattr(QInputDialog, "getText", lambda *a, **k: ("yeni", True))
+        tree._yeniden_adlandir(str(d))
+        assert (tmp_path / "yeni" / "ic.tex").is_file()

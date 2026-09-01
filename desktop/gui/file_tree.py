@@ -8,7 +8,7 @@ from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QUrl
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTreeWidget, QTreeWidgetItem,
-    QPushButton, QLabel, QMenu, QMessageBox,
+    QPushButton, QLabel, QMenu, QMessageBox, QInputDialog,
 )
 from PyQt6.QtCore import QFileSystemWatcher, QMimeData
 
@@ -24,6 +24,7 @@ from core.log import get_logger
 # (ağaç çizimi, Ctrl+P hızlı açma, Ctrl+Shift+F projede ara); kopyalanınca
 # sürükleniyor — bu depoda paketleme tanımlarında bilfiil yaşandı.
 from core.project_search import SKIP_DIRS as _SKIP_DIRS
+from core import fs_ops
 from PyQt6.QtCore import QCoreApplication
 
 # Ağaç çiziminde inilen en derin seviye (bu dosyaya özgü)
@@ -61,6 +62,10 @@ class FileTree(QWidget):
     # Köke bağlı her şey bayatlar: proje araması sonuçları eski klasörün
     # dosyalarını gösteriyordu ve tıklanınca proje dışına götürüyordu.
     root_changed = pyqtSignal(str)
+    # (eski_yol, yeni_yol): dosya ağacından yeniden adlandırma. Dosya açıksa
+    # sekmenin de takip etmesi gerekiyor: eski yola bağlı kalan bir sekme
+    # Ctrl+S'te silinmiş adı yeniden yaratır ve kullanıcı iki dosyayla kalır.
+    file_renamed = pyqtSignal(str, str)
 
     def __init__(self, parent=None, *, theme: dict = None):
         super().__init__(parent)
@@ -337,7 +342,12 @@ class FileTree(QWidget):
                     continue
                 # Önce alt klasörü tara; içinde dosya yoksa ağaçta gösterme
                 folder_item = QTreeWidgetItem([f"📁 {name}"])
-                folder_item.setData(0, Qt.ItemDataRole.UserRole, None)
+                # Klasörün de yolu taşınıyor: bağlam menüsündeki "Yeni Dosya /
+                # Yeni Klasör / Yeniden Adlandır" hangi klasörde çalışacağını
+                # buradan öğreniyor. Eskiden None'dı ve klasöre sağ tıklamak
+                # hiçbir menü açmıyordu. Yolu okuyan diğer iki yer (çift tık,
+                # sürükleme) zaten `os.path.isfile` ile eliyor.
+                folder_item.setData(0, Qt.ItemDataRole.UserRole, full)
                 folder_item.setForeground(0, QColor(self._theme["sem_folder"]))
                 self._scan_recursive(full, folder_item, depth + 1)
                 if folder_item.childCount() > 0:
@@ -392,10 +402,17 @@ class FileTree(QWidget):
 
     def _on_context_menu(self, pos):
         item = self._tree.itemAt(pos)
-        if not item:
+        path = item.data(0, Qt.ItemDataRole.UserRole) if item else ""
+        # Boş alana sağ tık = kök klasör. "Projede ilk dosyayı nasıl
+        # yaratacağım" sorusunun cevabı: ağaç boşken tıklanacak öğe yok.
+        if not path:
+            path = self._root
+        if not path:
             return
-        path = item.data(0, Qt.ItemDataRole.UserRole)
-        if not path or not os.path.isfile(path):
+
+        # Ağaç bayat olabilir (dosya dışarıdan silinmiş). Diske sor.
+        klasor_mu = os.path.isdir(path)
+        if not klasor_mu and not os.path.isfile(path):
             return
 
         menu = QMenu(self)
@@ -407,7 +424,7 @@ class FileTree(QWidget):
             f"QMenu::separator {{ height: 1px; background: {t['border_separator']}; margin: 4px 8px; }}"
         )
 
-        ext = os.path.splitext(path)[1].lower()
+        ext = "" if klasor_mu else os.path.splitext(path)[1].lower()
         editable = ext in _EDITABLE
 
         # Derle — derlenebilir .tex için (alt dosyaysa % !TEX root kökü derlenir)
@@ -420,22 +437,50 @@ class FileTree(QWidget):
         if editable:
             act_open = menu.addAction(_("📂 Düzenle"))
 
-        # Klasörde aç
-        act_folder = menu.addAction(_("📁 Klasörde Aç"))
+        if act_compile or act_open:
+            menu.addSeparator()
+
+        # Yeni öğeler: klasöre tıklandıysa İÇİNE, dosyaya tıklandıysa YANINA.
+        # (VS Code'un davranışı; kullanıcı kardeş dosya yaratmak için üstteki
+        # klasörü aramak zorunda kalmıyor.)
+        hedef_dizin = path if klasor_mu else os.path.dirname(path)
+        # Üç nokta bilinçli: Dosya menüsündeki "Yeni Dosya" (Ctrl+N) KAYDEDİLMEMİŞ
+        # bir sekme açıyor, buradaki ise diske gerçek bir dosya yaratıyor. Üç
+        # nokta "önce soracak" demek ve ikisini birbirinden ayırıyor.
+        act_new_file = menu.addAction(_("📄 Yeni Dosya..."))
+        act_new_dir = menu.addAction(_("📁 Yeni Klasör..."))
 
         menu.addSeparator()
 
-        # Sil
-        act_delete = menu.addAction(_("🗑 Sil"))
+        # Klasörde aç
+        act_folder = menu.addAction(_("📂 Klasörde Aç"))
+
+        # Kökün kendisi ağacın dayanağı: buradan adı değiştirilemez ve
+        # silinemez (klasörü değiştirmek "Klasör Aç" ile yapılıyor).
+        kok_mu = os.path.normpath(path) == os.path.normpath(self._root or "")
+        act_rename = None
+        act_delete = None
+        if not kok_mu:
+            act_rename = menu.addAction(_("✏ Yeniden Adlandır"))
+            menu.addSeparator()
+            act_delete = menu.addAction(_("🗑 Sil"))
 
         action = menu.exec(self._tree.mapToGlobal(pos))
 
+        if action is None:
+            return
         if action == act_compile:
             self.compile_requested.emit(path)
         elif action == act_open:
             self.file_open_requested.emit(path)
+        elif action == act_new_file:
+            self._yeni_oge(hedef_dizin, klasor=False)
+        elif action == act_new_dir:
+            self._yeni_oge(hedef_dizin, klasor=True)
         elif action == act_folder:
             self._open_in_explorer(path)
+        elif action == act_rename:
+            self._yeniden_adlandir(path)
         elif action == act_delete:
             self._delete_file(path)
 
@@ -450,12 +495,109 @@ class FileTree(QWidget):
         else:
             subprocess.Popen(["xdg-open", os.path.dirname(path)])
 
+    # ------------------------------------------------------------------
+    # Yeni dosya / yeni klasör / yeniden adlandır
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _ad_hata_metni(kod: str) -> str:
+        """Gerekçe kodunu kullanıcı diline çevir.
+
+        Sözlük fonksiyonun İÇİNDE kuruluyor: modül düzeyinde kurulsaydı
+        `_()` çağrıları import anında, yani çevirmen yüklenmeden önce
+        koşardı ve İngilizce arayüzde Türkçe kalırdı (aynı hata bu depoda
+        `error_hints` şablonlarında bilfiil yaşandı).
+        """
+        return {
+            fs_ops.BOS: _("Ad boş olamaz."),
+            fs_ops.NOKTA_ADI: _("'.' ve '..' ad olarak kullanılamaz."),
+            fs_ops.YASAK_KARAKTER: _(
+                "Ad şu karakterleri içeremez:  < > : \" / \\ | ? *"),
+            fs_ops.SONU_NOKTA_BOSLUK: _(
+                "Ad nokta veya boşlukla bitemez: Windows bunları sessizce "
+                "siler ve dosyayı adıyla bulamazsınız."),
+            fs_ops.AYGIT_ADI: _(
+                "Bu ad Windows'ta aygıt adı olarak ayrılmış (CON, PRN, AUX, "
+                "NUL, COM1-9, LPT1-9); uzantı eklense de kullanılamaz."),
+            fs_ops.COK_UZUN: _("Ad çok uzun (en fazla 255 karakter)."),
+        }.get(kod, _("Ad geçersiz."))
+
+    def _ad_iste(self, baslik: str, etiket: str, mevcut: str = "") -> str:
+        """Geçerli bir ad alınana kadar sor. İptal edilirse "" döner.
+
+        Hata çıkınca kutu yazılanı KORUYARAK yeniden açılıyor: uzun bir adın
+        tek karakteri yüzünden baştan yazdırmak gereksiz.
+        """
+        ad = mevcut
+        while True:
+            ad, ok = QInputDialog.getText(self, baslik, etiket, text=ad)
+            if not ok:
+                return ""
+            # Görünmez karakter yüzünden hata vermek anlamsız; baştaki/sondaki
+            # boşluk kırpılıyor. Sondaki NOKTA kırpılmıyor: o görünür bir
+            # karakter ve kullanıcının kastı olabilir, uyarmak doğrusu.
+            ad = ad.strip()
+            hata = fs_ops.ad_hatasi(ad)
+            if not hata:
+                return ad
+            QMessageBox.warning(self, baslik, self._ad_hata_metni(hata))
+
+    def _yeni_oge(self, dizin: str, *, klasor: bool):
+        baslik = _("Yeni Klasör") if klasor else _("Yeni Dosya")
+        etiket = _("Klasör adı:") if klasor else _("Dosya adı (örn. bolum2.tex):")
+        ad = self._ad_iste(baslik, etiket)
+        if not ad:
+            return
+        try:
+            yol = (fs_ops.yeni_klasor(dizin, ad) if klasor
+                   else fs_ops.yeni_dosya(dizin, ad))
+        except FileExistsError:
+            QMessageBox.warning(self, baslik, _("'{name}' zaten var.").format(name=ad))
+            return
+        except OSError as e:
+            _logger.error("Oluşturulamadı: %s/%s", dizin, ad, exc_info=True)
+            QMessageBox.warning(self, baslik, _("Oluşturulamadı: {e}").format(e=e))
+            return
+
+        self.refresh()
+        # Yeni .tex/.bib dosyası hemen düzenlenebilsin: kullanıcı yaratıp
+        # sonra ağaçta arayıp çift tıklamak zorunda kalmıyor.
+        if not klasor and os.path.splitext(ad)[1].lower() in _EDITABLE:
+            self.file_open_requested.emit(yol)
+
+    def _yeniden_adlandir(self, path: str):
+        baslik = _("Yeniden Adlandır")
+        eski_ad = os.path.basename(path)
+        yeni_ad = self._ad_iste(baslik, _("Yeni ad:"), eski_ad)
+        if not yeni_ad or yeni_ad == eski_ad:
+            return
+        try:
+            yeni_yol = fs_ops.yeniden_adlandir(path, yeni_ad)
+        except FileExistsError:
+            QMessageBox.warning(self, baslik,
+                                _("'{name}' zaten var.").format(name=yeni_ad))
+            return
+        except OSError as e:
+            _logger.error("Yeniden adlandırılamadı: %s → %s", path, yeni_ad, exc_info=True)
+            QMessageBox.warning(self, baslik,
+                                _("Yeniden adlandırılamadı: {e}").format(e=e))
+            return
+
+        # Sinyal ÖNCE: açık sekme yeni yola bağlansın, sonra ağaç tazelensin.
+        self.file_renamed.emit(path, yeni_yol)
+        self.refresh()
+
     def _delete_file(self, path: str):
-        """Dosyayı geri dönüşüm kutusuna gönder."""
+        """Dosyayı veya klasörü geri dönüşüm kutusuna gönder."""
         name = os.path.basename(path)
+        klasor_mu = os.path.isdir(path)
         msg = QMessageBox(self)
         msg.setWindowTitle(_("Sil"))
-        msg.setText(_("'{name}' dosyasını silmek istediğinize emin misiniz?\n(Geri dönüşüm kutusuna taşınır)").format(name=name))
+        soru = (_("'{name}' klasörünü ve İÇİNDEKİLERİ silmek istediğinize emin "
+                  "misiniz?\n(Geri dönüşüm kutusuna taşınır)") if klasor_mu else
+                _("'{name}' dosyasını silmek istediğinize emin misiniz?\n"
+                  "(Geri dönüşüm kutusuna taşınır)"))
+        msg.setText(soru.format(name=name))
         msg.setIcon(QMessageBox.Icon.Question)
         btn_yes = msg.addButton(_("Evet"), QMessageBox.ButtonRole.YesRole)
         msg.addButton(_("Hayır"), QMessageBox.ButtonRole.NoRole)
@@ -465,8 +607,8 @@ class FileTree(QWidget):
                 send2trash.send2trash(path)
                 self.refresh()
             except Exception as e:
-                _logger.error("Dosya silinemedi (send2trash): %s", path, exc_info=True)
-                QMessageBox.warning(self, _("Hata"), _("Dosya silinemedi: {e}").format(e=e))
+                _logger.error("Silinemedi (send2trash): %s", path, exc_info=True)
+                QMessageBox.warning(self, _("Hata"), _("Silinemedi: {e}").format(e=e))
 
     def apply_theme(self, t: dict):
         self._theme = t

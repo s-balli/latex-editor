@@ -208,6 +208,41 @@ class FileOpsMixin:
             except Exception as e:
                 _logger.error("Dosya kaydetme hatası: %s", e, exc_info=True)
 
+    def _on_file_renamed(self, eski: str, yeni: str):
+        """Dosya ağacından yeniden adlandırma: açık sekme yeni ada taşınsın.
+
+        Sekme eski yola bağlı kalsaydı Ctrl+S SİLİNMİŞ adı yeniden yaratır,
+        kullanıcı aynı içerikten iki dosyayla kalırdı. İzleme de eski yolda
+        asılı kalıp bir daha hiçbir dış değişikliği bildirmezdi.
+
+        Kaydetme YOK: diskteki içerik zaten aynı, kirli sekme kirli kalıyor.
+        (`save_file_as` burada yanlış olurdu; yazmaya çalışır, kodlamayı
+        utf-8'e çevirir ve satır sonu stilini kaybederdi.)
+        """
+        eski_n = os.path.normpath(eski)
+        for i in range(self._editor_tabs.count()):
+            ed = self._editor_tabs.widget(i)
+            if not isinstance(ed, EditorWidget) or not ed.file_path:
+                continue
+            if os.path.normpath(ed.file_path) != eski_n:
+                continue
+            ed.rebind_path(yeni)
+            self._update_tab_title(ed)
+            # add() hash'i diskten yeniden okuyor; içerik değişmediği için
+            # sahte "dosya diskte değişti" sorusu çıkmıyor.
+            self._file_watch_remove(eski)
+            self._file_watch_add(yeni)
+            break
+
+        # Son açılanlarda eski yol ölü bir bağlantı olarak kalmasın.
+        recent = self._settings.value("recent_files", [])
+        if isinstance(recent, str):
+            recent = [recent]
+        if eski_n in [os.path.normpath(p) for p in recent]:
+            recent = [yeni if os.path.normpath(p) == eski_n else p for p in recent]
+            self._settings.setValue("recent_files", recent)
+            self._refresh_recent_menu()
+
     def _update_tab_title(self, editor):
         index = self._editor_tabs.indexOf(editor)
         if index < 0:

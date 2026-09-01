@@ -1,8 +1,11 @@
 """VS Code tarzı bul/değiştir inline paneli."""
 
+import re as _re
+
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtWidgets import (
-    QWidget, QHBoxLayout, QLineEdit, QPushButton, QLabel, QMessageBox,
+    QWidget, QHBoxLayout, QVBoxLayout, QLineEdit, QPushButton, QLabel,
+    QMessageBox, QCheckBox,
 )
 from PyQt6.Qsci import QsciScintilla
 
@@ -19,10 +22,17 @@ class FindReplaceBar(QWidget):
     # değiştiğini ancak derleme hatasından anlıyordu (2026-08-30 denetimi, D5).
     _REPLACE_LIMIT = 10000
 
+    # Sayaç üst sınırı. Sıfır genişlikli düzenli ifadeler (`x*`, `^`) belgedeki
+    # HER konumda eşleşiyor: 5 MB'lık bir .tex için milyonlarca tur demek.
+    # Sınıra dayanınca etiket "N+ sonuç" diyor, sessizce yanlış sayı vermiyor.
+    _COUNT_LIMIT = 10000
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self._editor: QsciScintilla | None = None
         self._match_count = 0
+        self._sayim_kesildi = False
+        self._gecersiz_desen = False
         self._count_timer = QTimer(self)
         self._count_timer.setSingleShot(True)
         self._count_timer.setInterval(300)
@@ -31,9 +41,20 @@ class FindReplaceBar(QWidget):
         self._setup_ui()
 
     def _setup_ui(self):
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(4, 2, 4, 2)
+        # İKİ SATIR. Tek satırda ölçüldü: seçenek kutuları eklenince çubuk
+        # 434 px'den 1094 px'e çıkıyordu, tipik editör bölmesi ise ~990 px.
+        # Sabit genişlikli parçalar daralamadığı için taşan çubuk bölmeyi
+        # zorlar ve PDF görüntüleyiciyi ezerdi. Seçenekler alt satıra inince
+        # çubuk arama kipinde 680 px'de kalıyor (değiştir kipi 1000 px, bu
+        # değer seçeneklerden ÖNCE de aynıydı).
+        dis = QVBoxLayout(self)
+        dis.setContentsMargins(4, 2, 4, 2)
+        dis.setSpacing(2)
+
+        layout = QHBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(4)
+        dis.addLayout(layout)
 
         self._find_input = QLineEdit()
         self._find_input.setPlaceholderText(_("Bul"))
@@ -77,6 +98,35 @@ class FindReplaceBar(QWidget):
         self._btn_close.setFixedWidth(24)
         self._btn_close.clicked.connect(self.hide)
         layout.addWidget(self._btn_close)
+
+        # --- 2. satır: arama seçenekleri ---
+        # Etiketler "Aa" / ".*" gibi kısaltmalar DEĞİL: projede ara panelinde
+        # önce "Aa", sonra "Harf duyarlı" denendi, ikisi de anlaşılmadı;
+        # yerleşen terim "Büyük/küçük harf eşleştir" oldu (Word/LibreOffice).
+        # Aynı kavram iki panelde aynı kelimelerle anılıyor.
+        secenekler = QHBoxLayout()
+        secenekler.setContentsMargins(0, 0, 0, 0)
+        secenekler.setSpacing(12)
+        dis.addLayout(secenekler)
+
+        self._cb_case = QCheckBox(_("Büyük/küçük harf eşleştir"))
+        self._cb_case.setToolTip(_("İşaretliyse 'Şekil' ile 'şekil' ayrı sayılır"))
+        secenekler.addWidget(self._cb_case)
+
+        self._cb_word = QCheckBox(_("Tam kelime"))
+        self._cb_word.setToolTip(_("İşaretliyse 'fig' araması 'figure' içinde eşleşmez"))
+        secenekler.addWidget(self._cb_word)
+
+        self._cb_regex = QCheckBox(_("Düzenli ifade"))
+        self._cb_regex.setToolTip(
+            _("Desen araması: \\d rakam, [A-Z] harf kümesi, a|b almaşık, "
+              "(...) grup. Değiştirmede \\1 yakalanan gruba karşılık gelir."))
+        secenekler.addWidget(self._cb_regex)
+
+        secenekler.addStretch()
+
+        for cb in (self._cb_case, self._cb_word, self._cb_regex):
+            cb.toggled.connect(self._on_option_toggled)
 
         self._replace_input.hide()
         self._btn_replace.hide()
@@ -133,6 +183,54 @@ class FindReplaceBar(QWidget):
     def _on_find_text_changed(self):
         self._do_find()
 
+    def _on_option_toggled(self, _checked):
+        """Seçenek değişince arama BAŞTAN koşar.
+
+        Yeniden aramazsak imleç önceki kuralın bulduğu yerde kalır ve sayaç
+        eski kuralın sayısını gösterirdi: kullanıcı kutuyu işaretler, ekranda
+        hiçbir şey değişmezdi.
+        """
+        # Düzenli ifade kipinde Scintilla tam-kelime bayrağını yok sayıyor.
+        # Etkisiz bir kutuyu tıklanabilir bırakmak yalan olurdu; bu kipte
+        # karşılığı desenin kendisinde: \bfig\b.
+        self._cb_word.setEnabled(not self._cb_regex.isChecked())
+        self._do_find()
+
+    def _arama_bayraklari(self) -> tuple[bool, bool, bool]:
+        """(düzenli_ifade, harf_duyarlı, tam_kelime): üç yol için TEK kaynak.
+
+        Bul, sayaç ve değiştir aynı üçlüyü kullanıyor. Sayaç eskiden ayrı bir
+        yoldan geçiyordu (`text().lower().count()`) ve aramadan ayrışabiliyordu:
+        etiket "3 sonuç" derken ileri tuşu hiçbir şey bulamayabiliyordu.
+        """
+        re_ = self._cb_regex.isChecked()
+        # Tam kelime düzenli ifadeyle birlikte anlamsız (yukarıya bakın),
+        # bayrağı da göndermiyoruz ki sayaç ile arama aynı kuralı görsün.
+        return re_, self._cb_case.isChecked(), self._cb_word.isChecked() and not re_
+
+    @staticmethod
+    def _desen_derlenebilir(desen: str) -> bool:
+        try:
+            _re.compile(desen)
+            return True
+        except _re.error:
+            return False
+
+    def _find_first(self, text, *, wrap, forward=True, line=None, col=None):
+        """findFirst'ü seçenek bayraklarıyla çağır (imleçten ya da verilen yerden).
+
+        cxx11=True ŞART: Scintilla'nın öntanımlı lehçesinde `|` almaşık değil
+        düz karakter, `(` grup açmıyor (ölçüldü). Kullanıcı
+        `\\section|\\subsection` yazınca sessizce "Sonuç yok" alırdı. Bu bayrak
+        ECMAScript lehçesini açıyor; ipucu metni de onu anlatıyor.
+        """
+        re_, cs, wo = self._arama_bayraklari()
+        if line is None:
+            line, col = self._editor.getCursorPosition()
+        return self._editor.findFirst(
+            text, re_, cs, wo, wrap, forward, line, col, True, False, re_
+        )
+
     def _do_find(self):
         if not self._editor:
             return
@@ -140,23 +238,32 @@ class FindReplaceBar(QWidget):
         if not text:
             self._lbl_count.setText("")
             self._match_count = 0
+            self._gecersiz_desen = False
             return
 
+        self._gecersiz_desen = False
         # İlk eşleşmeyi bul
-        self._find_next_in_text(text, forward=True, wrap=True)
-        # Sayıyı debounce et — her tuş vuruşunda metin kopyalamasın
+        bulundu = self._find_next_in_text(text, forward=True, wrap=True)
+
+        # "Geçersiz desen" YALNIZ hiçbir şey bulunamayınca söyleniyor: Python'ın
+        # `re`si ile Scintilla'nın ECMAScript'i birebir aynı değil (adlandırılmış
+        # grup söz dizimi ayrışıyor). Eşleşme varsa desen zaten geçerlidir ve
+        # Python'ın itirazı kullanıcıyı ilgilendirmez.
+        if not bulundu and self._cb_regex.isChecked() and not self._desen_derlenebilir(text):
+            self._gecersiz_desen = True
+            self._match_count = 0
+            self._update_current_match()
+            return
+
+        # Sayıyı debounce et: her tuş vuruşunda belgeyi baştan taramasın
         self._count_text = text
         self._count_timer.start()
 
-    def _find_next_in_text(self, text, forward=True, wrap=True):
+    def _find_next_in_text(self, text, forward=True, wrap=True) -> bool:
         if not self._editor or not text:
-            return
-        line, col = self._editor.getCursorPosition()
+            return False
 
-        # QScintilla findFirst: (expr, re, cs, wo, wrap, forward, line, col)
-        found = self._editor.findFirst(
-            text, False, False, False, wrap, forward, line, col
-        )
+        found = self._find_first(text, wrap=wrap, forward=forward)
         if not found:
             # wrap=True ile bulunamadıysa belgede GERÇEKTEN eşleşme yok:
             # sayaç 0'dır ve etiket panelin geri kalanıyla aynı dili konuşur.
@@ -168,6 +275,7 @@ class FindReplaceBar(QWidget):
             # etiket hâlâ eski "{n} sonuç" değerini gösterebiliyordu.
             self._match_count = 0
             self._update_current_match()
+        return found
 
     def _find_next(self):
         text = self._find_input.text()
@@ -194,13 +302,54 @@ class FindReplaceBar(QWidget):
             self._lbl_count.setText("")
             return
 
-        content = self._editor.text().lower()
-        self._match_count = content.count(text.lower())
+        self._match_count, self._sayim_kesildi = self._say(text)
         self._update_current_match()
 
+    def _say(self, text) -> tuple[int, bool]:
+        """Eşleşmeleri ARAMANIN KENDİ MOTORUYLA say. (sayı, sınıra_dayandı).
+
+        Hedef aramasi (SCI_SEARCHINTARGET) imleci ve seçimi değiştirmiyor, bu
+        yüzden kullanıcı yazarken belge yerinde duruyor. Eski yol belgenin
+        tamamını Python'a kopyalayıp `str.count` çağırıyordu: hem seçenekleri
+        (harf duyarlılığı, tam kelime, desen) hiç bilmiyordu hem de büyük
+        .tex'lerde her tuş vuruşunda megabaytlarca kopyalama yapıyordu.
+        """
+        ed = self._editor
+        re_, cs, wo = self._arama_bayraklari()
+        bayrak = 0
+        if cs:
+            bayrak |= QsciScintilla.SCFIND_MATCHCASE
+        if wo:
+            bayrak |= QsciScintilla.SCFIND_WHOLEWORD
+        if re_:
+            bayrak |= QsciScintilla.SCFIND_REGEXP | QsciScintilla.SCFIND_CXX11REGEX
+        ed.SendScintilla(QsciScintilla.SCI_SETSEARCHFLAGS, bayrak)
+
+        # Scintilla konumları BAYT cinsinden; belge UTF-8 olduğu için sorgu da
+        # bayta çevriliyor. Sayım için karakter ofseti gerekmiyor.
+        ham = text.encode("utf-8")
+        son = ed.SendScintilla(QsciScintilla.SCI_GETLENGTH)
+        konum, n = 0, 0
+        while konum <= son and n < self._COUNT_LIMIT:
+            ed.SendScintilla(QsciScintilla.SCI_SETTARGETSTART, konum)
+            ed.SendScintilla(QsciScintilla.SCI_SETTARGETEND, son)
+            bas = ed.SendScintilla(QsciScintilla.SCI_SEARCHINTARGET, len(ham), ham)
+            if bas < 0:
+                break
+            bit = ed.SendScintilla(QsciScintilla.SCI_GETTARGETEND)
+            n += 1
+            # Sıfır genişlikli eşleşmede (bit == bas) bir bayt ilerle, yoksa
+            # aynı konumda sonsuza kadar dönerdik.
+            konum = bit if bit > bas else bas + 1
+        return n, n >= self._COUNT_LIMIT
+
     def _update_current_match(self):
-        if self._match_count == 0:
+        if self._gecersiz_desen:
+            self._lbl_count.setText(_("Geçersiz desen"))
+        elif self._match_count == 0:
             self._lbl_count.setText(_("Sonuç yok"))
+        elif self._sayim_kesildi:
+            self._lbl_count.setText(_("{n}+ sonuç").format(n=self._match_count))
         else:
             self._lbl_count.setText(_("{n} sonuç").format(n=self._match_count))
 
@@ -216,25 +365,21 @@ class FindReplaceBar(QWidget):
         self._editor.beginUndoAction()
 
         # İleriye doğru ara (wrap=False)
-        line, col = self._editor.getCursorPosition()
-        found = self._editor.findFirst(
-            find_text, False, False, False, False, True, line, col
-        )
+        found = self._find_first(find_text, wrap=False)
 
         # Bulunamazsa başa dönüp tekrar ara
         if not found or not self._editor.hasSelectedText():
-            found = self._editor.findFirst(
-                find_text, False, False, False, False, True, 0, 0
-            )
+            found = self._find_first(find_text, wrap=False, line=0, col=0)
 
         if found and self._editor.hasSelectedText():
-            self._editor.replaceSelectedText(replace_text)
+            # replaceSelectedText DEĞİL: geri referansları (\1) düz metin gibi
+            # yazıyor. `replace` desen kipinde onları çözüyor, düz kipte zaten
+            # harfi harfine bırakıyor (ikisi de ölçüldü).
+            self._editor.replace(replace_text)
 
             # Sonrakini bul ve göster
             line, col = self._editor.getCursorPosition()
-            self._editor.findFirst(
-                find_text, False, False, False, True, True, line, col
-            )
+            self._find_first(find_text, wrap=True, line=line, col=col)
 
         self._editor.endUndoAction()
         self._count_matches(find_text)
@@ -253,23 +398,24 @@ class FindReplaceBar(QWidget):
         # Başa dönüp tek tek bul ve değiştir
         self._editor.setCursorPosition(0, 0)
         count = 0
-        found = self._editor.findFirst(
-            find_text, False, False, False, False, True, 0, 0
-        )
+        found = self._find_first(find_text, wrap=False, line=0, col=0)
         sinira_ulasildi = False
+        # hasSelectedText koşulu sıfır genişlikli deseni de kesiyor: `x*` gibi
+        # bir desende findFirst True dönüp hiçbir şey seçmiyor (ölçüldü),
+        # döngü ilk turda çıkıyor ve belge bozulmuyor.
         while found and self._editor.hasSelectedText():
             if count >= self._REPLACE_LIMIT:
                 sinira_ulasildi = True
                 break
-            self._editor.replaceSelectedText(replace_text)
+            self._editor.replace(replace_text)
             count += 1
             line, col = self._editor.getCursorPosition()
-            found = self._editor.findFirst(
-                find_text, False, False, False, False, True, line, col
-            )
+            found = self._find_first(find_text, wrap=False, line=line, col=col)
 
         self._editor.endUndoAction()
         self._match_count = 0
+        self._sayim_kesildi = False
+        self._gecersiz_desen = False
         self._lbl_count.setText(_("{n} değişiklik").format(n=count))
 
         if sinira_ulasildi:
