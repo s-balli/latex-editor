@@ -41,12 +41,27 @@ class FindReplaceBar(QWidget):
         self._setup_ui()
 
     def _setup_ui(self):
-        # İKİ SATIR. Tek satırda ölçüldü: seçenek kutuları eklenince çubuk
-        # 434 px'den 1094 px'e çıkıyordu, tipik editör bölmesi ise ~990 px.
-        # Sabit genişlikli parçalar daralamadığı için taşan çubuk bölmeyi
-        # zorlar ve PDF görüntüleyiciyi ezerdi. Seçenekler alt satıra inince
-        # çubuk arama kipinde 680 px'de kalıyor (değiştir kipi 1000 px, bu
-        # değer seçeneklerden ÖNCE de aynıydı).
+        # ÜÇ SATIR: bul / değiştir / seçenekler. Hepsi tek satırdayken çubuk
+        # 1000 px istiyordu ve sabit genişlikli parçalar daralamadığı için
+        # fazlası görünmez oluyordu. ÖLÇÜLDÜ (bölme genişliğine göre değiştir
+        # alanının konumu):
+        #
+        #     bölme 1000 px -> tamam
+        #     bölme  900 px -> "Tümünü Değiştir" kesiliyor
+        #     bölme  600 px -> "Değiştir" kutusu da kesiliyor
+        #
+        # KULLANICI BİLDİRDİ (2026-09-01): "Ctrl+H'e basınca bir şey olmuyor".
+        # Aslında oluyordu; çubuk açılıyor, değiştir alanı bölmenin sağına
+        # taşıp görünmüyordu.
+        #
+        # Üç satırda değiştir alanı 525 px'de bitiyor, yani 540 px'lik bir
+        # bölmede bile görünür. Kutuları esneyebilir yapmayı da denedim;
+        # ÖLÇÜMDE HİÇBİR ŞEY DEĞİŞTİRMEDİ, çünkü çubuğun asgari genişliğini
+        # seçenek satırı (660 px) belirliyor ve kutular oraya kadar zaten
+        # daralmıyor. O yüzden sabit genişlikler duruyor.
+        #
+        # KALAN SINIR: çubuk açıkken editör bölmesi 680 px'in altına
+        # inemiyor (seçenek satırının asgarisi). Önce 1000 px'di.
         dis = QVBoxLayout(self)
         dis.setContentsMargins(4, 2, 4, 2)
         dis.setSpacing(2)
@@ -77,21 +92,6 @@ class FindReplaceBar(QWidget):
         self._lbl_count.setFixedWidth(80)
         layout.addWidget(self._lbl_count)
 
-        # Değiştir alanı
-        self._replace_input = QLineEdit()
-        self._replace_input.setPlaceholderText(_("Değiştir"))
-        self._replace_input.setFixedWidth(250)
-        self._replace_input.returnPressed.connect(self._replace_next)
-        layout.addWidget(self._replace_input)
-
-        self._btn_replace = QPushButton(_("Değiştir"))
-        self._btn_replace.clicked.connect(self._replace_next)
-        layout.addWidget(self._btn_replace)
-
-        self._btn_replace_all = QPushButton(_("Tümünü Değiştir"))
-        self._btn_replace_all.clicked.connect(self._replace_all)
-        layout.addWidget(self._btn_replace_all)
-
         layout.addStretch()
 
         self._btn_close = QPushButton("X")
@@ -99,7 +99,29 @@ class FindReplaceBar(QWidget):
         self._btn_close.clicked.connect(self.hide)
         layout.addWidget(self._btn_close)
 
-        # --- 2. satır: arama seçenekleri ---
+        # --- 2. satır: değiştir (yalnız Ctrl+H'de görünür) ---
+        degistir = QHBoxLayout()
+        degistir.setContentsMargins(0, 0, 0, 0)
+        degistir.setSpacing(4)
+        dis.addLayout(degistir)
+
+        self._replace_input = QLineEdit()
+        self._replace_input.setPlaceholderText(_("Değiştir"))
+        self._replace_input.setFixedWidth(250)
+        self._replace_input.returnPressed.connect(self._replace_next)
+        degistir.addWidget(self._replace_input)
+
+        self._btn_replace = QPushButton(_("Değiştir"))
+        self._btn_replace.clicked.connect(self._replace_next)
+        degistir.addWidget(self._btn_replace)
+
+        self._btn_replace_all = QPushButton(_("Tümünü Değiştir"))
+        self._btn_replace_all.clicked.connect(self._replace_all)
+        degistir.addWidget(self._btn_replace_all)
+
+        degistir.addStretch()
+
+        # --- 3. satır: arama seçenekleri (iki kipte de görünür) ---
         # Etiketler "Aa" / ".*" gibi kısaltmalar DEĞİL: projede ara panelinde
         # önce "Aa", sonra "Harf duyarlı" denendi, ikisi de anlaşılmadı;
         # yerleşen terim "Büyük/küçük harf eşleştir" oldu (Word/LibreOffice).

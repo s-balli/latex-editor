@@ -10,7 +10,9 @@ dokunulmadan kalıyor, etiket yine sayı yazıyor, hiçbir uyarı çıkmıyordu.
 import pytest
 
 try:
-    from PyQt6.QtWidgets import QApplication, QMessageBox
+    from PyQt6.QtWidgets import (
+        QApplication, QMessageBox, QWidget, QVBoxLayout,
+    )
     from PyQt6.Qsci import QsciScintilla
     from gui.find_replace import FindReplaceBar
 except ImportError:  # pragma: no cover
@@ -395,30 +397,76 @@ class TestSayacAramaylaAyniKurali:
 
 
 class TestCubukBolmeyeSigiyor:
-    """Çubuk editör bölmesinden geniş olmamalı.
+    """Çubuğun parçaları GÖRÜNÜR alanın içinde kalmalı.
 
-    Sabit genişlikli parçalar (arama kutuları 250 px) daralamıyor: taşan çubuk
-    QSplitter'da editör bölmesini zorlar ve PDF görüntüleyiciyi ezer. Seçenek
-    kutuları önce TEK satıra kondu ve gerçek pencerede ölçüldü:
+    Tek satırdayken parçalar sabit genişlikliydi (250 px kutular) ve
+    daralamıyordu; fazlası bölmenin sağına taşıp görünmez oluyordu. Bölme
+    genişliğine göre ölçüldü:
 
-        arama kipi   :  434 px  ->  1094 px   (bölme ~990 px, TAŞIYOR)
+        1000 px -> tamam
+         900 px -> "Tümünü Değiştir" kesiliyor
+         600 px -> "Değiştir" kutusu da kesiliyor
 
-    Bu yüzden seçenekler ikinci satıra alındı. Değiştir kipi 1000 px'de kalıyor;
-    bu değer seçeneklerden ÖNCE de aynıydı, yani bu değişiklik kötüleştirmedi.
+    KULLANICI BİLDİRDİ (2026-09-01): "Ctrl+H'e basınca bir şey olmuyor."
+    Aslında oluyordu, sadece görünmüyordu. Üç satıra ayrıldı (bul /
+    değiştir / seçenekler) ve kutular esneyebilir yapıldı.
     """
 
-    def test_arama_kipi_bolmeye_sigiyor(self, qapp):
+    _DAR_BOLME = 700   # üç bölmeli düzende gerçekçi bir editör genişliği
+
+    @staticmethod
+    def _yerlesik_cubuk(genislik: int, kip: str):
+        """Çubuğu gerçek bir kapsayıcıya koyup verilen genişliğe yerleştir.
+
+        Yerleştirme yapılmazsa tüm geometriler 0 kalır ve aşağıdaki
+        karşılaştırmalar boşa döner.
+        """
+        kap = QWidget()
+        kap.resize(genislik, 300)
+        lay = QVBoxLayout(kap)
+        lay.setContentsMargins(0, 0, 0, 0)
+        bar = FindReplaceBar()
+        bar.set_editor(QsciScintilla())
+        lay.addWidget(bar)
+        lay.addStretch()
+        kap.show()
+        getattr(bar, kip)()
+        QApplication.processEvents()
+        kap.resize(genislik, 300)
+        QApplication.processEvents()
+        return kap, bar
+
+    def test_dar_bolmede_degistir_alani_gorunuyor(self, qapp):
+        kap, bar = self._yerlesik_cubuk(self._DAR_BOLME, "show_replace")
+        try:
+            assert bar._replace_input.width() > 0, "yerleşim koşmadı, kapı boş"
+            for w, ad in ((bar._replace_input, "değiştir kutusu"),
+                          (bar._btn_replace, "Değiştir düğmesi"),
+                          (bar._btn_replace_all, "Tümünü Değiştir")):
+                assert w.geometry().right() <= self._DAR_BOLME, (
+                    f"{ad} görünür alanın dışında: sağ kenar "
+                    f"{w.geometry().right()} > {self._DAR_BOLME}")
+        finally:
+            kap.close()
+
+    def test_dar_bolmede_bul_alani_gorunuyor(self, qapp):
+        kap, bar = self._yerlesik_cubuk(self._DAR_BOLME, "show_find")
+        try:
+            assert bar._find_input.width() > 0, "yerleşim koşmadı, kapı boş"
+            assert bar._find_input.geometry().right() <= self._DAR_BOLME
+            assert bar._btn_close.geometry().right() <= self._DAR_BOLME
+        finally:
+            kap.close()
+
+    def test_degistir_satiri_bul_kipinde_gizli(self, qapp):
         bar = FindReplaceBar()
         bar.show_find()
-        assert bar.sizeHint().width() <= 900, bar.sizeHint().width()
-
-    def test_degistir_kipi_eski_haddini_asmiyor(self, qapp):
-        bar = FindReplaceBar()
+        assert bar._replace_input.isHidden()
         bar.show_replace()
-        assert bar.sizeHint().width() <= 1010, bar.sizeHint().width()
+        assert not bar._replace_input.isHidden()
 
     def test_secenekler_iki_kipte_de_gorunur(self, qapp):
-        """Seçenekler ikinci satırda: Ctrl+F'te de Ctrl+H'de de görünmeli."""
+        """Seçenekler üçüncü satırda: Ctrl+F'te de Ctrl+H'de de görünmeli."""
         bar = FindReplaceBar()
         for goster in (bar.show_find, bar.show_replace):
             goster()
