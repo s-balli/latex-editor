@@ -276,20 +276,6 @@ class CompileOpsMixin:
             summary = self._audit_summary(c)
             self._status.showMessage((base + "  ·  " + summary) if base else summary)
 
-    @staticmethod
-    def _audit_summary(c: dict) -> str:
-        """Denetim sayılarından sıfırları atlayan tek satır özet üret."""
-        parts = []
-        if c["r"]:
-            parts.append(_("{n} tanımsız ref").format(n=c["r"]))
-        if c["c"]:
-            parts.append(_("{n} tanımsız cite").format(n=c["c"]))
-        if c["b"]:
-            parts.append(_("{n} kullanılmayan .bib").format(n=c["b"]))
-        if c["l"]:
-            parts.append(_("{n} kullanılmayan label").format(n=c["l"]))
-        return _("Denetim: ") + ", ".join(parts)
-
     def _refresh_error_markers(self):
         """Mevcut editörün gutter'ına son derlemenin hata satırlarını koy.
 

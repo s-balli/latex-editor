@@ -129,9 +129,16 @@ class EditOpsMixin:
         kendi satırına atlar.
         """
         from core.latex_refs import (
-            audit_references, bib_key_locations, key_usage_locations, label_locations,
+            audit_references, bib_key_locations, find_bib_path,
+            key_usage_locations, label_locations,
         )
+        from core.bibtex import dosyayi_denetle
         report = audit_references(content, base_path)
+        # .bib dosyasının KENDİ tutarlılığı: yukarıdaki denetim .tex ile .bib
+        # arasındaki bağa bakıyor (tanımsız cite, kullanılmayan girdi), bu ise
+        # .bib'in içine. Yol bulunamazsa boş denetim döner.
+        bib_yolu = find_bib_path(content, base_path)
+        bib = dosyayi_denetle(bib_yolu)
 
         # Konumlar TOPLU çıkarılır. Eskiden her bulgu için ayrı arama yapılıyor,
         # her arama \input zincirini diskten baştan okuyordu: 30 bölümlü bir
@@ -149,7 +156,22 @@ class EditOpsMixin:
             warnings.append(EditOpsMixin._audit_item(_("Tanımsız \\ref"), k, ref_kon.get(k)))
         for k in report.undefined_cites:
             warnings.append(EditOpsMixin._audit_item(_("Tanımsız \\cite"), k, cite_kon.get(k)))
+        # Mükerrer anahtar UYARI, çünkü belgeyi sessizce BOZUYOR: BibTeX hiç
+        # şikâyet etmeden ilk tanımı alıyor, kullanıcı ikinciyi düzeltip
+        # çıktının değişmemesine anlam veremiyor. İlk satıra atlıyoruz;
+        # ötekiler metinde yazılı.
+        for anahtar, satirlar in bib.mukerrer:
+            warnings.append(EditOpsMixin._audit_item(
+                _("Mükerrer .bib anahtarı (satır {s})").format(
+                    s=", ".join(str(x) for x in satirlar)),
+                anahtar, (bib_yolu, satirlar[0])))
         suggestions = []
+        # Eksik zorunlu alan ÖNERİ: derleme durmuyor, kaynakça eksik basılıyor
+        # (ör. plain.bst "Warning--empty journal" deyip alanı atlıyor).
+        for anahtar, satir, alanlar in bib.eksik:
+            suggestions.append(EditOpsMixin._audit_item(
+                _("Eksik zorunlu alan ({a})").format(a=", ".join(alanlar)),
+                anahtar, (bib_yolu, satir)))
         for k in report.unused_bib_keys:
             suggestions.append(
                 EditOpsMixin._audit_item(_("Kullanılmayan .bib girdisi"), k, bib_kon.get(k)))
@@ -161,8 +183,37 @@ class EditOpsMixin:
             "c": len(report.undefined_cites),
             "b": len(report.unused_bib_keys),
             "l": len(report.unused_labels),
+            "m": len(bib.mukerrer),
+            "e": len(bib.eksik),
         }
         return warnings, suggestions, counts
+
+    @staticmethod
+    def _audit_summary(c: dict) -> str:
+        """Denetim sayılarından sıfırları atlayan tek satır özet üret.
+
+        Sayıları üreten `_collect_audit_items`in yanında duruyor. Önce
+        compile_ops'taydı ve edit_ops kendi kopyasını taşıyordu; kategori
+        eklenince ikisi ayrışıyor, üstelik edit_ops'un compile_ops'a
+        bağımlı olması test sahnelerini de kırıyordu.
+
+        Sıfırları atlamak şart: altı kategori her seferinde sıralanınca
+        gerçek bulgu sıfırların arasında kayboluyor.
+        """
+        parts = []
+        if c["r"]:
+            parts.append(_("{n} tanımsız ref").format(n=c["r"]))
+        if c["c"]:
+            parts.append(_("{n} tanımsız cite").format(n=c["c"]))
+        if c.get("m"):
+            parts.append(_("{n} mükerrer .bib anahtarı").format(n=c["m"]))
+        if c["b"]:
+            parts.append(_("{n} kullanılmayan .bib").format(n=c["b"]))
+        if c.get("e"):
+            parts.append(_("{n} eksik zorunlu alan").format(n=c["e"]))
+        if c["l"]:
+            parts.append(_("{n} kullanılmayan label").format(n=c["l"]))
+        return _("Denetim: ") + ", ".join(parts)
 
     def _audit_references(self):
         """Düzenle > Referansları Denetle — derlemeden bağımsız lokal analiz."""
@@ -175,9 +226,9 @@ class EditOpsMixin:
         if not warnings and not suggestions:
             self._status.showMessage(_("Referans denetimi: sorun yok"))
         else:
-            self._status.showMessage(
-                _("Referans denetimi: {r} tanımsız ref, {c} tanımsız cite, {b} kullanılmayan .bib, {l} kullanılmayan label").format(**c)
-            )
+            # Özet biçimi compile_ops._audit_summary'de, TEK kaynak: burada
+            # kendi kopyası vardı ve kategori eklenince ikisi ayrışıyordu.
+            self._status.showMessage(self._audit_summary(c))
 
     # --- F2: yeniden adlandırma (label + cite) — ortak altyapı ---
 

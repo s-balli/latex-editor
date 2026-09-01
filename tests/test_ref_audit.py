@@ -62,7 +62,11 @@ def test_handler_undefined_ref_clickable(qapp, tmp_path):
 
 def test_handler_unused_bib_clickable(qapp, tmp_path):
     bib = tmp_path / "refs.bib"
-    bib.write_text("@article{kullanilmayan,}\n", encoding="utf-8")
+    # Girdi TAM olmalı: eksik alan denetimi de aynı listeye yazıyor ve sahte
+    # yarım bırakılırsa bu test iki bulgu görüp neyi ölçtüğünü kaybediyor.
+    bib.write_text(
+        "@article{kullanilmayan, author={A}, title={T}, journal={J}, year={2020}}\n",
+        encoding="utf-8")
     main = tmp_path / "m.tex"
     main.write_text("\\label{a}\n\\ref{a}\n\\bibliography{refs}\n", encoding="utf-8")
     ed = EditorWidget()
@@ -258,3 +262,108 @@ def test_kullanilmayan_label_konumu_dogru_kaliyor(tmp_path):
     assert dosya.endswith("b1.tex")
     assert satir == 2                      # \section{S0} 1, \label 2
     assert "b1.tex:2" in hedef
+
+
+# --- .bib iç tutarlılığı: mükerrer anahtar + eksik zorunlu alan ---
+#
+# Bu iki denetim .tex ile .bib arasındaki bağa değil, .bib'in KENDİ içine
+# bakıyor. Mükerrer anahtar özellikle sinsi: BibTeX uyarmadan ilk tanımı
+# alıyor, kullanıcı ikinciyi düzeltip çıktının değişmemesine anlam veremiyor.
+
+
+def _proje(tmp_path, bib_icerik: str, tex_icerik: str = None):
+    bib = tmp_path / "refs.bib"
+    bib.write_text(bib_icerik, encoding="utf-8")
+    main = tmp_path / "m.tex"
+    main.write_text(tex_icerik or "\\cite{a}\n\\bibliography{refs}\n", encoding="utf-8")
+    ed = EditorWidget()
+    ed._file_path = str(main)
+    ed.setText(main.read_text(encoding="utf-8"))
+    return _StubMain(ed), bib
+
+
+def test_mukerrer_anahtar_uyari_olarak_cikiyor(qapp, tmp_path):
+    """Belgeyi sessizce bozduğu için ÖNERİ değil UYARI."""
+    stub, bib = _proje(tmp_path, (
+        "@article{a, author={A}, title={Ilk}, journal={J}, year={2020}}\n"
+        "@article{a, author={B}, title={Ikinci}, journal={J}, year={2021}}\n"))
+    MainWindow._audit_references(stub)
+
+    panel = stub._output_panel
+    metinler = [panel._warn_list.item(i).text() for i in range(panel._warn_list.count())]
+    assert any("Mükerrer" in m and "a" in m for m in metinler), metinler
+    # Her iki satır da metinde yazılı olmalı: kullanıcı ötekini arayabilsin
+    ilgili = [m for m in metinler if "Mükerrer" in m][0]
+    assert "1" in ilgili and "2" in ilgili, ilgili
+
+
+def test_mukerrer_ilk_tanima_tiklanabiliyor(qapp, tmp_path):
+    stub, bib = _proje(tmp_path, (
+        "@article{a, author={A}, title={T}, journal={J}, year={2020}}\n"
+        "@article{a, author={B}, title={T}, journal={J}, year={2021}}\n"))
+    MainWindow._audit_references(stub)
+    panel = stub._output_panel
+    for i in range(panel._warn_list.count()):
+        it = panel._warn_list.item(i)
+        if "Mükerrer" in it.text():
+            assert it.data(Qt.ItemDataRole.UserRole) == (str(bib), 1)
+            return
+    raise AssertionError("mükerrer bulgusu yok")
+
+
+def test_eksik_zorunlu_alan_oneri_olarak_cikiyor(qapp, tmp_path):
+    """Derleme durmuyor, kaynakça eksik basılıyor: uyarı değil öneri."""
+    stub, bib = _proje(tmp_path, "@article{a, title={T}}\n")
+    MainWindow._audit_references(stub)
+
+    panel = stub._output_panel
+    metinler = [panel._suggest_list.item(i).text()
+                for i in range(panel._suggest_list.count())]
+    ilgili = [m for m in metinler if "Eksik zorunlu alan" in m]
+    assert ilgili, metinler
+    assert "author" in ilgili[0] and "journal" in ilgili[0] and "year" in ilgili[0]
+
+
+def test_tam_bib_temiz_cikiyor(qapp, tmp_path):
+    """Kural gürültü üretmemeli: tam girdide iki denetim de susmalı."""
+    stub, _bib = _proje(
+        tmp_path,
+        "@article{a, author={A}, title={T}, journal={J}, year={2020}}\n")
+    MainWindow._audit_references(stub)
+    panel = stub._output_panel
+    hepsi = ([panel._warn_list.item(i).text() for i in range(panel._warn_list.count())]
+             + [panel._suggest_list.item(i).text()
+                for i in range(panel._suggest_list.count())])
+    assert not [m for m in hepsi if "Mükerrer" in m or "Eksik zorunlu" in m], hepsi
+
+
+def test_misc_girdisi_eksik_saymiyor(qapp, tmp_path):
+    """@misc'in zorunlu alanı yok; uydurma bulgu üretilmemeli."""
+    stub, _bib = _proje(tmp_path, "@misc{a, note={N}}\n")
+    MainWindow._audit_references(stub)
+    panel = stub._output_panel
+    metinler = [panel._suggest_list.item(i).text()
+                for i in range(panel._suggest_list.count())]
+    assert not [m for m in metinler if "Eksik zorunlu" in m], metinler
+
+
+def test_bib_yoksa_cokmuyor(qapp, tmp_path):
+    """\\bibliography yoksa denetim boş dönmeli, hata vermemeli."""
+    main = tmp_path / "m.tex"
+    main.write_text("\\label{a}\n\\ref{a}\n", encoding="utf-8")
+    ed = EditorWidget()
+    ed._file_path = str(main)
+    ed.setText(main.read_text(encoding="utf-8"))
+    MainWindow._audit_references(_StubMain(ed))   # istisna atmamalı
+
+
+def test_ozet_sifirlari_atliyor(qapp, tmp_path):
+    """Altı kategori her seferinde sıralanınca gerçek bulgu kayboluyordu."""
+    stub, _bib = _proje(tmp_path, (
+        "@article{a, author={A}, title={T}, journal={J}, year={2020}}\n"
+        "@article{a, author={B}, title={T}, journal={J}, year={2021}}\n"))
+    MainWindow._audit_references(stub)
+    msg = stub._status.msg
+    assert "mükerrer" in msg.lower(), msg
+    assert "tanımsız ref" not in msg, msg
+    assert "kullanılmayan label" not in msg, msg
