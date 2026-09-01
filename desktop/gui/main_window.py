@@ -993,6 +993,15 @@ class MainWindow(
         kuruludur ve dialog'a giden tuşları da görür. Tüketseydik Esc dialog'u
         kapatamaz, Ctrl+K/Ctrl+T sürüm-adı dialogu açıkken ikinci bir
         Sürümle/Sihirbaz penceresi açardı.
+
+        BU FİLTRE GLOBAL KISAYOL KAPMASINA KARŞI İŞE YARAMAZ. 2026-09-01'de
+        ölçüldü: kullanıcının makinesinde başka bir uygulama Ctrl+H ve Ctrl+T'yi
+        sistem genelinde kapıyordu; Ctrl+T ZATEN bu filtredeydi ve yine
+        çalışmıyordu (o uygulamanın kendi işlevi açılıyordu). Tuş işletim
+        sistemi seviyesinde tutulunca buraya hiç gelmiyor. "Kısayol hiç
+        tetiklenmiyor" raporu geldiğinde ÖNCE dışarısı elenmeli: uygulamayı
+        kapatıp açmak, çakışan programı kapatmak. Kısayolu buraya taşımak o
+        sınıftaki sorunu çözmez.
         """
         if QApplication.activeModalWidget() is not None:
             return False
