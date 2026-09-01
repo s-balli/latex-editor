@@ -181,6 +181,93 @@ class TestBaglamMenusu:
         assert not any("Sil" in m for m in metinler), metinler
 
 
+class TestPdfGorunurlugu:
+    r"""`.pdf` çift anlamlı: derleme çıktısı da olabilir, ŞEKİL de.
+
+    Tek kural ikisini ayırt etmiyordu, hepsi gizliydi. Tez yazarı kendi
+    `Figures/` klasörünü boş görüyordu. Üstelik uygulama ağaçtan editöre
+    sürükle-bırakta `.pdf` için `\includegraphics` bloğu üretiyor, yani
+    özellik yazılmış ama kullanılamıyordu.
+
+    39 şablonda ölçüldü, 84 dosyanın 84'ü doğru tarafta:
+      kökte 61 (hepsi main_pdflatex.pdf gibi çıktı),
+      alt klasörde 23 (hepsi Figures/logo/figs/Definitions içinde).
+    """
+
+    def test_ayni_adli_tex_varsa_cikti_sayiliyor(self, qapp, tmp_path):
+        (tmp_path / "ana.tex").write_text("x", encoding="utf-8")
+        (tmp_path / "ana.pdf").write_bytes(b"%PDF-1.4\n")
+        tree = _agac(qapp, tmp_path)
+        assert _oge_bul(tree, "ana.pdf") is None
+
+    def test_kokteki_esi_olmayan_pdf_de_gizli(self, qapp, tmp_path):
+        """main_pdflatex.pdf gibi: adı .tex'e uymuyor ama yine de çıktı."""
+        (tmp_path / "main.tex").write_text("x", encoding="utf-8")
+        (tmp_path / "main_pdflatex.pdf").write_bytes(b"%PDF-1.4\n")
+        tree = _agac(qapp, tmp_path)
+        assert _oge_bul(tree, "main_pdflatex.pdf") is None
+
+    def test_alt_klasordeki_pdf_gorunuyor(self, qapp, tmp_path):
+        (tmp_path / "ana.tex").write_text("x", encoding="utf-8")
+        fig = tmp_path / "Figures"
+        fig.mkdir()
+        (fig / "Sample.pdf").write_bytes(b"%PDF-1.4\n")
+        tree = _agac(qapp, tmp_path)
+        assert _oge_bul(tree, "Sample.pdf") is not None
+
+    def test_alt_klasorde_de_esi_varsa_gizli(self, qapp, tmp_path):
+        """bolum1.tex ile bolum1.pdf yan yanaysa, alt klasörde bile çıktıdır."""
+        (tmp_path / "ana.tex").write_text("x", encoding="utf-8")
+        alt = tmp_path / "bolumler"
+        alt.mkdir()
+        (alt / "bolum1.tex").write_text("x", encoding="utf-8")
+        (alt / "bolum1.pdf").write_bytes(b"%PDF-1.4\n")
+        (alt / "sekil.pdf").write_bytes(b"%PDF-1.4\n")
+        tree = _agac(qapp, tmp_path)
+        assert _oge_bul(tree, "bolum1.pdf") is None
+        assert _oge_bul(tree, "sekil.pdf") is not None
+
+    def test_diger_artiklar_her_yerde_gizli(self, qapp, tmp_path):
+        """.aux/.log/.toc'un tek kaynağı derleme; kural onlara dokunmadı."""
+        (tmp_path / "ana.tex").write_text("x", encoding="utf-8")
+        alt = tmp_path / "bolumler"
+        alt.mkdir()
+        for ad in ("ana.aux", "ana.log", "ana.toc", "ana.bbl", "ana.synctex.gz"):
+            (alt / ad).write_text("x", encoding="utf-8")
+        (alt / "gercek.tex").write_text("x", encoding="utf-8")
+        tree = _agac(qapp, tmp_path)
+        for ad in ("ana.aux", "ana.log", "ana.toc", "ana.bbl", "ana.synctex.gz"):
+            assert _oge_bul(tree, ad) is None, ad
+        assert _oge_bul(tree, "gercek.tex") is not None
+
+    def test_gorunur_pdf_duzenlenebilir_degil(self, qapp, tmp_path):
+        """Çift tıklayınca editörde açılmamalı; sürüklenebilir olması yeter."""
+        (tmp_path / "ana.tex").write_text("x", encoding="utf-8")
+        fig = tmp_path / "Figures"
+        fig.mkdir()
+        (fig / "Sample.pdf").write_bytes(b"%PDF-1.4\n")
+        tree = _agac(qapp, tmp_path)
+        oge = _oge_bul(tree, "Sample.pdf")
+        assert oge.data(0, Qt.ItemDataRole.UserRole + 1) is False
+
+    def test_anlik_goruntu_agacla_ayni_kurali_kullaniyor(self, qapp, tmp_path):
+        """_collect_files ile ağaç ayrışırsa yeni şekil kendiliğinden düşmez.
+
+        Ters yön de önemli: kökteki PDF anlık görüntüye girseydi her derleme
+        ağacı baştan taratırdı.
+        """
+        (tmp_path / "ana.tex").write_text("x", encoding="utf-8")
+        (tmp_path / "ana.pdf").write_bytes(b"%PDF-1.4\n")
+        fig = tmp_path / "Figures"
+        fig.mkdir()
+        (fig / "Sample.pdf").write_bytes(b"%PDF-1.4\n")
+        tree = _agac(qapp, tmp_path)
+
+        toplanan = {os.path.basename(p) for p in tree._collect_files(str(tmp_path))}
+        assert "Sample.pdf" in toplanan
+        assert "ana.pdf" not in toplanan
+
+
 class TestKlasorGorunurlugu:
     """Her klasör ağaçta görünmeli.
 

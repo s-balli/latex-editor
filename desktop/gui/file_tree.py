@@ -41,6 +41,48 @@ _EDITABLE = {".tex", ".cls", ".sty", ".bib"}
 _HIDDEN_EXT = {".pdf", ".log", ".aux", ".toc", ".bbl", ".bcf", ".blg", ".fdb_latexmk", ".fls", ".synctex.gz", ".gz", ".out", ".run.xml", ".idx", ".ilg", ".ind", ".lof", ".lot", ".nav", ".snm", ".vrb"}
 
 
+def _dosya_gizli_mi(ad: str, dizin: str, kok: str, tex_adlari: set) -> bool:
+    """Bu dosya ağaçta gizlensin mi.
+
+    `.pdf` DIŞINDAKİ uzantılar her zaman gizli: .aux/.log/.toc gibi dosyaların
+    tek kaynağı derleme.
+
+    `.pdf` ÇİFT ANLAMLI ve tek kural ikisini ayırt etmiyordu:
+      - `ana.tex` yanındaki `ana.pdf`  -> derleme çıktısı, gizlenmeli
+      - `Figures/Sample.pdf`           -> vektörel ŞEKİL, kaynak dosya
+
+    İkincisi de gizlendiği için tez yazarı kendi şekillerini ağaçta hiç
+    göremiyordu. Üstelik uygulama ağaçtan editöre sürükle-bırakta `.pdf`
+    için `\\includegraphics` bloğu üretiyor (main_window._handle_dropped_urls),
+    yani özellik yazılmış ama kullanılamıyordu.
+
+    AYRIM (39 şablonun tamamında ölçüldü, 84 dosyanın 84'ü doğru tarafta):
+      1. Aynı klasörde aynı adlı bir `.tex` varsa -> çıktı. Kesin bilgi.
+      2. Dosya proje KÖKÜNDEyse -> çıktı. Kökteki 61 PDF'in hepsi
+         `main_pdflatex.pdf`, `Sample.fallback.pdf` gibi çıktılardı.
+      3. Alt klasördeyse -> kaynak. 23 dosyanın hepsi Figures/logo/figs/
+         Definitions içindeydi, biri bile çıktı değildi.
+
+    2. madde sezgi, kesin bilgi değil: bölümlerini ayrı derleyip PDF'i alt
+    klasöra koyan biri o çıktıyı ağaçta görür. Şablonların hiçbirinde olmuyor.
+
+    Kök PDF'lerin gizli kalması ayrıca ŞART: `_collect_files` yenileme anlık
+    görüntüsünü buradan üretiyor ve derleme her koştuğunda kökteki PDF
+    değişiyor. Görünür olsalardı her derleme ağacı baştan taratırdı.
+    """
+    ext = os.path.splitext(ad)[1].lower()
+    if ext != ".pdf":
+        return ext in _HIDDEN_EXT
+    if os.path.splitext(ad)[0] in tex_adlari:
+        return True
+    return os.path.normpath(dizin) == os.path.normpath(kok)
+
+
+def _tex_adlari(girdiler) -> set:
+    """Bir klasördeki .tex dosyalarının uzantısız adları."""
+    return {os.path.splitext(a)[0] for a in girdiler if a.lower().endswith(".tex")}
+
+
 class _DragTree(QTreeWidget):
     """Dosya yollarını URL olarak taşıyan sürüklenebilir ağaç."""
 
@@ -333,6 +375,10 @@ class FileTree(QWidget):
             _logger.warning("Klasör taranamadı (tree): %s — %s", dir_path, e)
             return
 
+        # Aynı klasördeki .tex adları: `ana.pdf`i `ana.tex`in çıktısı diye
+        # ayırt etmek için gerekiyor (bkz. _dosya_gizli_mi).
+        tex_adlari = _tex_adlari(entries)
+
         for name in entries:
             if name.startswith('.'):
                 continue
@@ -363,7 +409,7 @@ class FileTree(QWidget):
                 parent_item.addChild(folder_item)
             elif os.path.isfile(full):
                 ext = os.path.splitext(name)[1].lower()
-                if ext in _HIDDEN_EXT:
+                if _dosya_gizli_mi(name, dir_path, self._root, tex_adlari):
                     continue
                 editable = ext in _EDITABLE
                 icon = "📄" if ext == ".tex" else "⚙" if ext in _EDITABLE else "🖼"
@@ -389,15 +435,20 @@ class FileTree(QWidget):
         if depth > _MAX_DEPTH:
             return files
         try:
-            for entry in os.listdir(dir_path):
+            girdiler = os.listdir(dir_path)
+            # Görünürlük kuralı ağaç çizimiyle AYNI olmak zorunda: burası
+            # "ağaçta bir değişiklik var mı" anlık görüntüsü. Ayrışırsa yeni
+            # eklenen bir şekil ağaca kendiliğinden düşmez (ya da tersi:
+            # kökteki PDF her derlemede değişip ağacı boşuna taratır).
+            tex_adlari = _tex_adlari(girdiler)
+            for entry in girdiler:
                 if entry.startswith('.') or entry in _SKIP_DIRS:
                     continue
                 full = os.path.join(dir_path, entry)
                 if os.path.isdir(full):
                     files |= self._collect_files(full, depth + 1)
                 elif os.path.isfile(full):
-                    ext = os.path.splitext(entry)[1].lower()
-                    if ext not in _HIDDEN_EXT:
+                    if not _dosya_gizli_mi(entry, dir_path, self._root, tex_adlari):
                         files.add(full)
         except (PermissionError, OSError) as e:
             _logger.warning("Dosya toplama başarısız: %s — %s", dir_path, e)
