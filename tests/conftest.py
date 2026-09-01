@@ -63,7 +63,7 @@ def _sahipsiz_qsci_temizle():
     Python sarmalayıcısı çoktan referanssız kalmış ama henüz toplanmamış
     widget'ları da görüyor; onları da burada yakalıyoruz. Bu yüzden ayrıca
     `gc.collect()` ÇAĞIRMIYORUZ — denendi, tam suite'i 57 sn'den 96 sn'ye
-    çıkarıyor ve hiçbir şey eklemiyor (kapılar onsuz da ısırıyor).
+    çıkarıyor ve hiçbir şey eklemiyor (kapılar onsuz da yakalıyor).
 
     Ebeveyni OLAN widget'lara dokunulmaz: onlar ebeveynleriyle birlikte
     Qt'nin kendi zincirinden ölüyor, sorun onlarda değil.

@@ -125,7 +125,7 @@ class TestBatchSatirDevami:
         )
 
     def test_ayiklayici_gercek_hatayi_yakaliyor(self):
-        """Kapının kendisi: bozuk kalıp verilince ısırmalı, sağlamda susmalı."""
+        """Kapının kendisi: bozuk kalıp verilince yakalamalı, sağlamda susmalı."""
         bozuk = (
             'python -m PyInstaller --onefile ^\r\n'
             '    --add-data "gui;gui" ^\r\n'

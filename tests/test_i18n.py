@@ -477,7 +477,7 @@ class TestCeviriAdiGolgelenmiyor:
         )
 
     def test_ayiklayici_bilinen_hatayi_goruyor(self, tmp_path):
-        """Kapının kapısı: gerçek hatanın kalıbı verilince ısırmalı."""
+        """Kapının kapısı: gerçek hatanın kalıbı verilince yakalamalı."""
         bozuk = tmp_path / "bozuk.py"
         bozuk.write_text(
             "from PyQt6.QtCore import QCoreApplication\n"
