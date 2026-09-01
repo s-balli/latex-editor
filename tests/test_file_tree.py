@@ -181,6 +181,55 @@ class TestBaglamMenusu:
         assert not any("Sil" in m for m in metinler), metinler
 
 
+class TestKlasorGorunurlugu:
+    """Her klasör ağaçta görünmeli.
+
+    Kural eskiden "görünür dosyası olmayan klasörü gizle" idi ve iki şeyi
+    birden bozuyordu:
+
+    - Menüden yaratılan klasör HİÇ görünmüyordu (boş olduğu için). Görünmeyen
+      klasörün içine dosya da eklenemiyor: kullanıcı Explorer'a gitmek
+      zorundaydı. KULLANICI BİLDİRDİ (2026-09-01).
+    - 39 şablonda ölçüldü: gizlenen 7 klasörün beşi `Figures` / `logo` gibi
+      KAYNAK klasörleri. İçlerindeki dosyalar .pdf olduğu ve .pdf
+      _HIDDEN_EXT'te bulunduğu için klasör "dosyasız" sayılıyordu.
+    """
+
+    def test_bos_klasor_gorunuyor(self, qapp, tmp_path):
+        (tmp_path / "ana.tex").write_text("x", encoding="utf-8")
+        (tmp_path / "yeni_bos").mkdir()
+        tree = _agac(qapp, tmp_path)
+        assert _oge_bul(tree, "yeni_bos") is not None
+
+    def test_yalniz_gizli_uzantili_klasor_gorunuyor(self, qapp, tmp_path):
+        """Figures/ içinde yalnız .pdf varsa bile klasör görünmeli."""
+        (tmp_path / "ana.tex").write_text("x", encoding="utf-8")
+        fig = tmp_path / "Figures"
+        fig.mkdir()
+        (fig / "Electron.pdf").write_bytes(b"%PDF-1.4\n")
+        tree = _agac(qapp, tmp_path)
+        assert _oge_bul(tree, "Figures") is not None
+
+    def test_yaratilan_klasor_hemen_agacta(self, qapp, tmp_path, monkeypatch):
+        """Menüden yarat -> refresh -> ağaçta görünmeli (uçtan uca)."""
+        (tmp_path / "ana.tex").write_text("x", encoding="utf-8")
+        tree = _agac(qapp, tmp_path)
+        monkeypatch.setattr(QInputDialog, "getText",
+                            lambda *a, **k: ("gorseller", True))
+        tree._yeni_oge(str(tmp_path), klasor=True)
+        assert _oge_bul(tree, "gorseller") is not None, \
+            "klasör diskte yaratıldı ama ağaçta yok"
+
+    def test_atlanan_klasorler_hala_gizli(self, qapp, tmp_path):
+        """Kural gevşedi ama _SKIP_DIRS ve nokta klasörleri kapsam dışı."""
+        (tmp_path / "ana.tex").write_text("x", encoding="utf-8")
+        for ad in ("node_modules", "__pycache__", ".git"):
+            (tmp_path / ad).mkdir()
+        tree = _agac(qapp, tmp_path)
+        for ad in ("node_modules", "__pycache__", ".git"):
+            assert _oge_bul(tree, ad) is None, ad
+
+
 class TestYeniOge:
     def test_dosya_yaratiliyor_ve_aciliyor(self, qapp, tmp_path, monkeypatch):
         tree = _agac(qapp, tmp_path)

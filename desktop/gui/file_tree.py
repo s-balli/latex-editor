@@ -340,7 +340,6 @@ class FileTree(QWidget):
             if os.path.isdir(full):
                 if name in _SKIP_DIRS:
                     continue
-                # Önce alt klasörü tara; içinde dosya yoksa ağaçta gösterme
                 folder_item = QTreeWidgetItem([f"📁 {name}"])
                 # Klasörün de yolu taşınıyor: bağlam menüsündeki "Yeni Dosya /
                 # Yeni Klasör / Yeniden Adlandır" hangi klasörde çalışacağını
@@ -350,8 +349,18 @@ class FileTree(QWidget):
                 folder_item.setData(0, Qt.ItemDataRole.UserRole, full)
                 folder_item.setForeground(0, QColor(self._theme["sem_folder"]))
                 self._scan_recursive(full, folder_item, depth + 1)
-                if folder_item.childCount() > 0:
-                    parent_item.addChild(folder_item)
+                # HER klasör gösteriliyor. Eskiden koşul `childCount() > 0`
+                # idi, yani "görünür dosyası olmayan klasörü gizle". İki şeyi
+                # birden bozuyordu:
+                #   - Menüden yaratılan klasör HİÇ görünmüyordu. Boş olduğu
+                #     için ağaca girmiyor, girmediği için içine dosya
+                #     eklenemiyor; kullanıcı Explorer'a gitmek zorundaydı.
+                #   - Şablonlarda ölçüldü (39 şablon, 56 klasör): gizlenen 7
+                #     klasörün beşi `Figures` ve `logo` gibi KAYNAK klasörleri.
+                #     İçlerindeki .pdf'ler _HIDDEN_EXT'te olduğu için klasör
+                #     "dosyasız" sayılıyordu; tez yazarı kendi şekil klasörünü
+                #     göremiyordu.
+                parent_item.addChild(folder_item)
             elif os.path.isfile(full):
                 ext = os.path.splitext(name)[1].lower()
                 if ext in _HIDDEN_EXT:
