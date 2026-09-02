@@ -56,6 +56,13 @@ for lang in $LANGS; do
     "$PYLUPDATE6" $SRC_FILES --ts "$TS_FILE"
 done
 
+# pylupdate6 location satirlarina OKUDUGU yolu yaziyor, o da her kosuda
+# degisen mktemp dizini: her ceviri guncellemesi ~1800 satirlik anlamsiz
+# diff uretiyordu. Yollar gercek kaynaga cevriliyor (gerekcesi betikte).
+echo ""
+echo "=== location yollari gercek kaynaga cevriliyor ==="
+python3 "$SCRIPT_DIR/ts_yollarini_duzelt.py" "$TS_DIR"/latexeditor_*.ts
+
 echo ""
 
 # Türkçe kaynak dil: unfinished çevirileri kaynak metinle doldur
