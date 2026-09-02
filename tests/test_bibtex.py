@@ -497,3 +497,114 @@ class TestBibeEkle:
         bibe_ekle(str(p), "@article{yeni,\n  title = {Ölçüm},\n}")
         ham = p.read_bytes()
         assert b"@article{yeni," in ham
+
+
+# --- DOI kullanıcıdan gelir: URL'e girmeden önce denetlenir ---
+#
+# DOI, URL'in YOL bileşenine giriyor. Denetimsiz bırakılınca istek istenen
+# uca GİTMİYOR (2026-09-02'de ölçüldü):
+#
+#   "10.1/x?callback=evil" -> .../works/10.1/x?callback=evil/transform/...
+#                             sorgu dizesi kalan yolu yutuyor
+#   "10.1/x#frag"          -> parçadan sonrası hiç gönderilmiyor
+#   "10.1/../../../admin"  -> yol geziniyor
+#   "10.1/x y"             -> boşluk geçersiz URL üretiyor
+
+
+def _yakalayan():
+    """Ağa çıkmadan istenen URL'i toplayan sahte açıcı."""
+    urller = []
+
+    def ac(url, kabul):
+        urller.append(url)
+        return "@article{k, title={T}}"
+
+    return ac, urller
+
+
+class TestDoiUrlGuvenligi:
+    def test_sorgu_dizesi_reddediliyor_ya_da_kaciriliyor(self):
+        ac, urller = _yakalayan()
+        try:
+            doi_getir("10.1/x?callback=evil", ac=ac)
+        except DoiHatasi:
+            return                      # reddetmek de kabul
+        assert urller, "hiç istek yapılmadı"
+        # Kaçırıldıysa `?` yol içinde kalmamalı; hedef uç korunmalı
+        assert urller[0].endswith("/transform/application/x-bibtex"), urller[0]
+        assert "?" not in urller[0].split("/works/", 1)[1].split("/transform")[0]
+
+    def test_parca_isareti_hedefi_kacirmiyor(self):
+        ac, urller = _yakalayan()
+        try:
+            doi_getir("10.1/x#frag", ac=ac)
+        except DoiHatasi:
+            return
+        assert urller[0].endswith("/transform/application/x-bibtex"), urller[0]
+        assert "#" not in urller[0]
+
+    def test_yol_gezinme_reddediliyor(self):
+        ac, urller = _yakalayan()
+        with pytest.raises(DoiHatasi):
+            doi_getir("10.1/../../../admin", ac=ac)
+        assert urller == [], "yol gezinen DOI ağa gitti"
+
+    def test_bosluklu_doi_reddediliyor(self):
+        ac, urller = _yakalayan()
+        with pytest.raises(DoiHatasi):
+            doi_getir("10.1/x y", ac=ac)
+        assert urller == []
+
+    def test_kontrol_karakteri_reddediliyor(self):
+        ac, urller = _yakalayan()
+        with pytest.raises(DoiHatasi):
+            doi_getir("10.1/x\ny", ac=ac)
+        assert urller == []
+
+    def test_asiri_uzun_doi_reddediliyor(self):
+        ac, urller = _yakalayan()
+        with pytest.raises(DoiHatasi):
+            doi_getir("10.1/" + "A" * 300, ac=ac)
+        assert urller == []
+
+    def test_gercek_doi_HALA_calisiyor(self):
+        """Denetim meşru DOI'leri engellememeli."""
+        for gecerli in ("10.1109/CVPR.2016.90", "10.17341/gazimmfd.416530",
+                        "10.1007/978-3-319-24574-4_28",
+                        "10.1016/j.patcog.2019.107079"):
+            ac, urller = _yakalayan()
+            doi_getir(gecerli, ac=ac)
+            assert urller and gecerli in urller[0], gecerli
+
+
+class TestAgYanitiSinirli:
+    """`read()` sınırsızdır: bozuk ya da ele geçirilmiş bir uç belleği tüketebilir."""
+
+    def test_dev_yanit_kirpiliyor(self):
+        from core import bibtex as B
+
+        class SahteYanit:
+            def read(self, n=-1):
+                # Sınırsız istenirse 200 MB üretirdi; sınırlı okuma bunu
+                # istemediği için burada n her zaman dolu gelmeli.
+                assert n is not None and n > 0, "sınırsız read() çağrıldı"
+                return b"@article{k, title={T}}" + b"A" * n
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+        eski = B.urllib.request.urlopen
+        B.urllib.request.urlopen = lambda *a, **k: SahteYanit()
+        try:
+            metin = B._iste("https://ornek/x")
+        finally:
+            B.urllib.request.urlopen = eski
+        assert len(metin) <= B._MAX_YANIT
+
+    def test_sinir_gercek_kayitlari_kesmiyor(self):
+        from core import bibtex as B
+        # Ölçülen gerçek yanıtlar 341-504 bayt.
+        assert B._MAX_YANIT > 100 * 1024

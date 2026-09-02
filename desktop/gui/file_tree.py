@@ -549,6 +549,12 @@ class FileTree(QWidget):
         import subprocess
         import sys
         if sys.platform == "win32":
+            # DİZGE biçimi bilinçli. Genel kural "listeyi tercih et" ama
+            # explorer `/select,"yol"` biçimini bekliyor; liste verilince
+            # Python boşluklu yolda TÜM argümanı tırnaklıyor
+            # (`"/select,C:\... adi.tex"`) ve seçim çalışmıyor.
+            # Enjeksiyon riski yok: Windows dosya adlarında `"` zaten yasak
+            # ve `fs_ops.ad_hatasi` da onu reddediyor.
             subprocess.Popen(f'explorer /select,"{path}"')
         elif sys.platform == "darwin":
             subprocess.Popen(["open", "-R", path])

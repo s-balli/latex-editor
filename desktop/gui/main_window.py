@@ -248,6 +248,12 @@ class MainWindow(
         file_menu.addSeparator()
 
         self._recent_menu = file_menu.addMenu(_("Son Açılanlar"))
+        # TEK bağlantı, öğe başına DEĞİL. `addAction(metin, lambda)` her
+        # yenilemede bir kapanış sızdırıyor: QMenu.clear() QAction'ı siliyor
+        # ama PyQt Python çağrılabilirini bırakmıyor. Ölçüldü: lambda'lı hâl
+        # +5,00 nesne/çağrı, lambda'sız hâl +0,00. Menü her dosya açılışında
+        # yenilendiği için sızıntı oturum boyunca birikiyordu.
+        self._recent_menu.triggered.connect(self._on_recent_triggered)
         self._refresh_recent_menu()
 
         file_menu.addSeparator()

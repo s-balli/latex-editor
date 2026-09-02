@@ -20,6 +20,7 @@ ve satır numarasıyla döndürdüğü için ikisi de görülebiliyor.
 import os
 import re
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
 
@@ -244,6 +245,8 @@ _UA = "latex-editor (https://github.com/s-balli/latex-editor)"
 _CROSSREF = "https://api.crossref.org/works/%s/transform/application/x-bibtex"
 _DOI_ORG = "https://doi.org/%s"
 GETIRME_ZAMAN_ASIMI = 8
+# Yanıt üst sınırı. Gerçek BibTeX kayıtları 341-504 bayt ölçüldü.
+_MAX_YANIT = 256 * 1024
 
 # Ayın üç harfli BibTeX makroları. Crossref bazen "June", bazen "Apr"
 # döndürüyor; "June" STANDART DEĞİL ve bibtex "Warning--string name 'june' is
@@ -288,7 +291,11 @@ def _iste(url: str, kabul: str = "") -> str:
         basliklar["Accept"] = kabul
     istek = urllib.request.Request(url, headers=basliklar)
     with urllib.request.urlopen(istek, timeout=GETIRME_ZAMAN_ASIMI) as r:
-        return r.read().decode("utf-8", "replace")
+        # SINIRLI okuma: `read()` sınırsızdır ve karşı taraf (ele geçirilmiş
+        # ya da yalnızca bozuk bir uç, araya giren bir vekil) gigabaytlarca
+        # veri gönderip belleği tüketebilir. Ölçülen gerçek yanıtlar 341-504
+        # bayt; 256 KB fazlasıyla geniş bir tavan.
+        return r.read(_MAX_YANIT + 1)[:_MAX_YANIT].decode("utf-8", "replace")
 
 
 def doi_getir(doi: str, *, ac=None) -> str:
@@ -299,10 +306,23 @@ def doi_getir(doi: str, *, ac=None) -> str:
     temiz = doi_temizle(doi)
     if not temiz or not temiz.startswith("10."):
         raise DoiHatasi("gecersiz")
+    # DOI kullanıcıdan geliyor ve URL'in YOL bileşenine giriyor. Denetimsiz
+    # bırakılınca istek istenen uca gitmiyor (ölçüldü):
+    #   "10.1/x?callback=evil" -> .../works/10.1/x?callback=evil/transform/...
+    #   "10.1/x#frag"          -> parçadan sonrası hiç gönderilmiyor
+    #   "10.1/../../../admin"  -> yol geziniyor
+    #   "10.1/x y"             -> boşluk geçersiz URL
+    # Uzunluk sınırı: gerçek DOI'ler 255 karakterin çok altında.
+    if len(temiz) > 255 or any(c.isspace() or ord(c) < 0x20 for c in temiz):
+        raise DoiHatasi("gecersiz")
+    if ".." in temiz.split("/"):
+        raise DoiHatasi("gecersiz")
+    # `/` DOI'nin parçası, korunuyor; `?`, `#`, `%` ve gerisi kaçırılıyor.
+    kodlu = urllib.parse.quote(temiz, safe="/")
     ac = ac or _iste
     son_hata = None
-    for url, kabul in ((_CROSSREF % temiz, ""),
-                       (_DOI_ORG % temiz, "application/x-bibtex")):
+    for url, kabul in ((_CROSSREF % kodlu, ""),
+                       (_DOI_ORG % kodlu, "application/x-bibtex")):
         try:
             govde = ac(url, kabul)
         except urllib.error.HTTPError as e:

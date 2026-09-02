@@ -275,3 +275,102 @@ def test_son_acilanlar_guncelleniyor(qapp, tmp_path):
     stub._on_file_renamed(eski, yeni)
 
     assert stub._settings.value("recent_files") == [yeni, baska]
+
+
+# --- Bellek sızıntısı: tekrar kurulan menü ---
+#
+# `addAction(metin, lambda)` her çağrıda bir KAPANIŞ sızdırıyor: QMenu.clear()
+# QAction'ı siliyor ama PyQt Python çağrılabilirini bırakmıyor. Ölçüldü
+# (2026-09-02, gerçek MainWindow):
+#
+#     clear + 5 addAction(lambda)     +5,00 nesne/çağrı
+#     clear + 5 addAction(lambda YOK) +0,00 nesne/çağrı
+#
+# Son Açılanlar menüsü HER dosya açılışında yenileniyor, yani sızıntı oturum
+# boyunca birikiyordu: 60 turda nesne sayısı hiç doymadan büyüyordu. Yol artık
+# öğenin verisinde taşınıyor ve menü TEK bir `triggered` sinyaline bağlı.
+
+
+class _RecentStub(_Stub):
+    """_Stub `_refresh_recent_menu`i no-op'a çeviriyor; burada GERÇEĞİ lazım."""
+
+    _refresh_recent_menu = FileOpsMixin._refresh_recent_menu
+    _on_recent_triggered = FileOpsMixin._on_recent_triggered
+
+
+def _menu_stub(qapp, tmp_path):
+    from PyQt6.QtWidgets import QMenu
+    dosya = tmp_path / "a.tex"
+    dosya.write_text("x", encoding="utf-8")
+    ed = EditorWidget()
+    stub = _RecentStub([ed])
+    stub._recent_menu = QMenu()
+    stub._settings.setValue("recent_files", [str(dosya)])
+    return stub, str(dosya)
+
+
+def test_recent_menu_yenilemesi_sizdirmiyor(qapp, tmp_path):
+    """Menüyü N kez yenile: Python nesne sayısı BÜYÜMEMELİ."""
+    import gc
+
+    stub, _yol = _menu_stub(qapp, tmp_path)
+    for _ in range(20):                      # ısınma
+        stub._refresh_recent_menu()
+    gc.collect()
+    once = len(gc.get_objects())
+
+    N = 100
+    for _ in range(N):
+        stub._refresh_recent_menu()
+    gc.collect()
+    artis = (len(gc.get_objects()) - once) / N
+
+    # Lambda'lı hâlde bu sayı girdi başına 1,00 idi. Eşik gevşek tutuldu:
+    # test kendi çöpünü de üretiyor, ölçülen şey DOĞRUSAL büyüme.
+    assert artis < 0.5, f"menü yenilemesi nesne sızdırıyor: {artis:.2f}/çağrı"
+
+
+def test_recent_menu_yolu_ogenin_verisinde(qapp, tmp_path):
+    """Yol lambda'da değil `QAction.data()` içinde taşınmalı."""
+    stub, yol = _menu_stub(qapp, tmp_path)
+    stub._refresh_recent_menu()
+    eylemler = [a for a in stub._recent_menu.actions() if a.isEnabled()]
+    assert eylemler, "menüde öğe yok"
+    assert eylemler[0].data() == yol
+
+
+def test_recent_menu_tiklama_dosyayi_aciyor(qapp, tmp_path):
+    """Veri taşımak işe yaramalı: tetiklenince dosya açılmalı."""
+    stub, yol = _menu_stub(qapp, tmp_path)
+    stub._refresh_recent_menu()
+    eylem = [a for a in stub._recent_menu.actions() if a.isEnabled()][0]
+    stub._on_recent_triggered(eylem)
+    acilan = [stub._editor_tabs.widget(i).file_path
+              for i in range(stub._editor_tabs.count())]
+    assert os.path.normpath(yol) in [os.path.normpath(x) for x in acilan if x]
+
+
+def test_recent_menu_bos_veride_cokmuyor(qapp, tmp_path):
+    """'(boş)' öğesinin verisi yok; tıklama sessizce geçmeli."""
+    from PyQt6.QtGui import QAction
+    stub, _yol = _menu_stub(qapp, tmp_path)
+    stub._on_recent_triggered(QAction("x"))          # data() None
+    assert stub._editor_tabs.count() == 1            # yeni sekme açılmadı
+
+
+def test_menu_tek_sinyale_bagli():
+    """Bağlantı KURULUM'da bir kez yapılmalı, öğe başına değil."""
+    kok = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    with open(os.path.join(kok, "desktop", "gui", "main_window.py"),
+              encoding="utf-8") as f:
+        mw = f.read()
+    assert "self._recent_menu.triggered.connect(self._on_recent_triggered)" in mw
+    with open(os.path.join(kok, "desktop", "gui", "mixins", "file_ops.py"),
+              encoding="utf-8") as f:
+        fo = f.read()
+    # Yenilenen menüde lambda kalmamalı
+    bolum = fo[fo.index("def _refresh_recent_menu"):fo.index("def _on_recent_triggered")]
+    # Yorumda geçen kelimeye değil GERÇEK çağrıya bak: kapanış yeniden
+    # eklenirse addAction ikinci bir argüman alır.
+    kod = [l for l in bolum.splitlines() if not l.strip().startswith("#")]
+    assert not [l for l in kod if "lambda" in l], "menü yenilemesinde lambda geri gelmiş"

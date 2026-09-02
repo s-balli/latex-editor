@@ -275,10 +275,17 @@ class FileOpsMixin:
             return
         for path in recent:
             if os.path.isfile(path):
-                self._recent_menu.addAction(
-                    os.path.basename(path),
-                    lambda p=path: self._open_file_in_editor(p),
-                )
+                # Yol lambda'da DEĞİL öğenin verisinde taşınıyor; menü tek bir
+                # `triggered` sinyaline bağlı (bkz. main_window._setup_menus).
+                # Öğe başına kapanış kurmak sızdırıyordu.
+                act = self._recent_menu.addAction(os.path.basename(path))
+                act.setData(path)
+
+    def _on_recent_triggered(self, action):
+        """Son Açılanlar'dan bir öğe seçildi; yol öğenin verisinde."""
+        yol = action.data()
+        if yol:
+            self._open_file_in_editor(yol)
 
     def _export_file(self, fmt_name: str, ext: str):
         if not getattr(self, '_pandoc_available', True):

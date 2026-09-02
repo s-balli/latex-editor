@@ -48,8 +48,14 @@ class _FileOpsStub(FileOpsMixin, StubMain):
         StubMain.__init__(self, editors=editors)
         self._pandoc_available = True
         self._theme_mgr = SimpleNamespace(theme=THEMES["dark"])
+        # addAction GERÇEK Qt'de QAction döndürür; sahte de döndürmeli.
+        # `None` döndüren eski sahte, menüyü yenilerken `act.setData(yol)`
+        # eklendiğinde patladı: sızıntı düzeltmesi yolu artık öğenin
+        # verisinde taşıyor (bkz. file_ops._refresh_recent_menu).
         self._recent_menu = SimpleNamespace(
-            clear=lambda: None, addAction=lambda *a, **k: None)
+            clear=lambda: None,
+            addAction=lambda *a, **k: SimpleNamespace(
+                setData=lambda v: None, setEnabled=lambda v: None))
         self._engine_combo = SimpleNamespace(
             currentText=lambda: "lualatex", findText=lambda t: -1,
             currentIndex=lambda: -1, setCurrentIndex=lambda i: None)

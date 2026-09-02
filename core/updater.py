@@ -22,6 +22,8 @@ GITHUB_OWNER = "s-balli"
 GITHUB_REPO = "latex-editor"
 API_URL = f"https://api.github.com/repos/{GITHUB_OWNER}/{GITHUB_REPO}/releases/latest"
 TIMEOUT = 5
+# Yanıt üst sınırı (bkz. fetch_latest_release).
+_MAX_YANIT = 1024 * 1024
 CACHE_INTERVAL = 86400  # 24 saat (saniye)
 
 # In-memory cache — process içinde tekrar tekrar API çağrısı yapma
@@ -73,7 +75,10 @@ def fetch_latest_release() -> Optional[dict]:
     )
     try:
         with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:
-            return json.loads(resp.read().decode("utf-8"))
+            # SINIRLI okuma: `read()` sınırsızdır. GitHub'ın release yanıtı
+            # birkaç KB; 1 MB tavan hem fazlasıyla geniş hem de ele geçirilmiş
+            # ya da yalnızca bozuk bir uca karşı belleği koruyor.
+            return json.loads(resp.read(_MAX_YANIT + 1)[:_MAX_YANIT].decode("utf-8"))
     except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, TimeoutError, OSError):
         return None
 
