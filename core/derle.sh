@@ -145,6 +145,7 @@ USE_PDFLATEX=false
 USE_XELATEX=false
 USE_WATCH=false
 FORCE_SHELL_ESCAPE=false
+DENY_SHELL_ESCAPE=false
 DOSYALAR=()
 
 for arg in "$@"; do
@@ -153,6 +154,11 @@ for arg in "$@"; do
         --xelatex) USE_XELATEX=true ;;
         --watch) USE_WATCH=true ;;
         --shell-escape) FORCE_SHELL_ESCAPE=true ;;
+        # Kararı ÇAĞIRAN veriyor: GUI kullanıcıya sorup burayı açıkça
+        # bildiriyor. Bayrak verilmezse eski davranış (minted görülünce
+        # kendiliğinden aç) sürüyor; komut satırından derleyenler
+        # etkilenmesin diye.
+        --no-shell-escape) DENY_SHELL_ESCAPE=true ;;
         *) DOSYALAR+=("$arg") ;;
     esac
 done
@@ -254,7 +260,14 @@ derle_dosya() {
     if minted_kontrol "$KLASOR"; then
         MINTED_VAR=true
     fi
-    if [ "$FORCE_SHELL_ESCAPE" = true ] || [ "$MINTED_VAR" = true ]; then
+    # -shell-escape .tex'e KEYFİ KOMUT çalıştırma izni veriyor. Kendiliğinden
+    # açılması ölçülmüş bir risk: proje klasöründe minted geçen kullanılmayan
+    # tek bir dosya bile ana belgedeki \write18'i çalıştırıyordu (2026-09-02,
+    # zararsız kanıtla doğrulandı). GUI artık kullanıcıya soruyor ve kararı
+    # --shell-escape / --no-shell-escape ile bildiriyor.
+    if [ "${DENY_SHELL_ESCAPE:-false}" = true ]; then
+        SHELL_ESCAPE_FLAG=""
+    elif [ "$FORCE_SHELL_ESCAPE" = true ] || [ "$MINTED_VAR" = true ]; then
         SHELL_ESCAPE_FLAG="-shell-escape"
     fi
 

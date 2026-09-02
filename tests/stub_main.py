@@ -57,7 +57,8 @@ class StubMain:
     """
 
     def __init__(self, *, editors=(), settings=None, panel=None, target="",
-                 pdf_viewer=None, engine="lualatex", last_errors=None):
+                 pdf_viewer=None, engine="lualatex", last_errors=None,
+                 root=""):
         self._editors = list(editors)
         self._editor_tabs = QTabWidget()
         for ed in self._editors:
@@ -73,6 +74,8 @@ class StubMain:
         self._synctex_dir = ""
         self._last_errors = last_errors or []
         self._err_index = -1
+        # shell-escape kararı proje köküne bakıyor; ağaç yoksa hedefin dizini
+        self._file_tree = SimpleNamespace(_root=root)
         self.goto_calls = []
 
     def _current_editor(self):

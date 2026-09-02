@@ -4,6 +4,7 @@ import os
 import shutil
 
 from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QMessageBox
 
 from gui.editor import EditorWidget
 from core.engine_detector import can_compile as _can_compile, detect_engine as _detect_engine, detect_root as _detect_root
@@ -49,6 +50,93 @@ class CompileOpsMixin:
             return root, ""
         return "", msg
 
+    # shell-escape kararını hatırlayan QSettings anahtarları. Yol doğrudan
+    # anahtar olarak KULLANILMIYOR: QSettings `/` karakterini grup ayracı
+    # sayıyor ve yollar bunu taşıyor.
+    _SE_IZINLI = "shell_escape/izinli"
+    _SE_RED = "shell_escape/reddedilen"
+
+    @staticmethod
+    def _se_liste(settings, anahtar) -> list:
+        v = settings.value(anahtar, [])
+        if isinstance(v, str):
+            v = [v]
+        return [os.path.normpath(x) for x in (v or [])]
+
+    def _shell_escape_karari(self, hedef: str) -> bool | None:
+        """Bu proje için shell-escape açılsın mı: sor, sonra hatırla.
+
+        `-shell-escape` belgeye KEYFİ KOMUT çalıştırma izni veriyor. Eskiden
+        `derle.sh` minted görünce kendiliğinden açıyordu ve bu ölçülmüş bir
+        riskti: proje klasöründe minted geçen KULLANILMAYAN tek bir dosya bile
+        ana belgedeki `\\write18`i çalıştırmaya yetiyordu. İndirilen bir
+        şablonu açıp derlemek yeterliydi.
+
+        Kayıtlı karar varsa TARAMA HİÇ YAPILMIYOR; tarama yalnız ilk seferde.
+
+        Üç durum döner:
+          True  -> `-shell-escape` (kullanıcı izin verdi)
+          False -> `--no-shell-escape` (kullanıcı reddetti)
+          None  -> bayrak yok, TeX Live'ın kendi kısıtlı kipi
+
+        None ile False'un farkı ölçüldü (2026-09-02): kısıtlı kip keyfi komutu
+        zaten engelliyor ama epstopdf gibi beyaz listedekileri geçiriyor.
+        `--no-shell-escape` göndermek minted'siz projeye güvenlik katmıyor,
+        yalnızca EPS şekil dönüşümünü bozuyordu.
+        """
+        from core.shell_escape import minted_kullaniliyor
+
+        kok = self._shell_escape_kok(hedef)
+        if kok in self._se_liste(self._settings, self._SE_IZINLI):
+            return True
+        if kok in self._se_liste(self._settings, self._SE_RED):
+            return False
+        if not minted_kullaniliyor(kok):
+            # Karar KAYDEDİLMİYOR: projeye sonradan minted eklenirse
+            # kullanıcıya yine sorulmalı.
+            return None
+
+        cevap = QMessageBox.question(
+            self, _("Kabuk Erişimi (shell-escape)"),
+            _("Bu proje 'minted' paketini kullanıyor ve derlemek için kabuk "
+              "erişimi (-shell-escape) gerekiyor.\n\n"
+              "Bu izin belgenin BİLGİSAYARINIZDA KOMUT ÇALIŞTIRMASINA olanak "
+              "verir. Yalnızca güvendiğiniz belgelerde açın.\n\n"
+              "'{k}' için açılsın mı?\n"
+              "(Cevabınız bu proje için hatırlanır.)").format(
+                  k=os.path.basename(kok) or kok),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No)
+
+        izin = cevap == QMessageBox.StandardButton.Yes
+        anahtar = self._SE_IZINLI if izin else self._SE_RED
+        liste = self._se_liste(self._settings, anahtar)
+        if kok not in liste:
+            liste.append(kok)
+            self._settings.setValue(anahtar, liste)
+        return izin
+
+    def _shell_escape_kok(self, hedef: str = "") -> str:
+        return os.path.normpath(
+            getattr(self._file_tree, "_root", "") or os.path.dirname(hedef))
+
+    def _reset_shell_escape(self):
+        """Bu proje için kayıtlı kabuk erişimi cevabını unut."""
+        kok = self._shell_escape_kok()
+        silindi = False
+        for anahtar in (self._SE_IZINLI, self._SE_RED):
+            liste = self._se_liste(self._settings, anahtar)
+            if kok in liste:
+                liste.remove(kok)
+                self._settings.setValue(anahtar, liste)
+                silindi = True
+        if silindi:
+            self._status.showMessage(
+                _("Kabuk erişimi izni sıfırlandı; sonraki derlemede sorulacak"))
+        else:
+            self._status.showMessage(
+                _("Bu proje için kayıtlı bir kabuk erişimi cevabı yok"))
+
     def _compile(self):
         # Meşgul guard'I durum değişikliklerinden ÖNCE: sürmekte olan derleme
         # varken paneli temizleyip hedefi/imleç bağlamını yenisiyle ezsek,
@@ -82,7 +170,8 @@ class CompileOpsMixin:
         self._output_panel.clear()
         _logger.info("Derleme başladı: %s (%s)", os.path.basename(target), engine)
         self._compile_target = target
-        self._compiler.compile(target, engine)
+        self._compiler.compile(target, engine,
+                               shell_escape=self._shell_escape_karari(target))
 
     def _compile_file(self, path: str):
         """Dosya ağacından sağ tıkla derle; alt dosyaysa % !TEX root köküne yönlendir."""
@@ -110,7 +199,8 @@ class CompileOpsMixin:
         self._output_panel.clear()
         _logger.info("Derleme başladı: %s (%s)", os.path.basename(target), engine)
         self._compile_target = target
-        self._compiler.compile(target, engine)
+        self._compiler.compile(target, engine,
+                               shell_escape=self._shell_escape_karari(target))
 
     def _stop_compile(self):
         self._compiler.stop()

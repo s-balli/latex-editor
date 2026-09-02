@@ -28,12 +28,14 @@ class _FakeCompiler:
     def __init__(self, busy):
         self._busy = busy
         self.calls = []
+        self.se = []
 
     def is_busy(self):
         return self._busy
 
-    def compile(self, path, engine):
+    def compile(self, path, engine, shell_escape=None):
         self.calls.append((path, engine))
+        self.se.append(shell_escape)
         return True
 
 
@@ -81,6 +83,8 @@ def test_compile_bos_iken_normal_akis(qapp, tmp_path):
     stub._compile()
 
     assert stub._compiler.calls == [(tex, "lualatex")]
+    # minted yok: bayrak hiç gönderilmiyor, kullanıcıya da sorulmuyor
+    assert stub._compiler.se == [None]
     assert stub._compile_target == tex
     assert stub._compile_cursor_ctx is not None
     assert "sürüyor" not in stub._status.msg

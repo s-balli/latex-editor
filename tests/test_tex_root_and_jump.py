@@ -32,12 +32,14 @@ def qapp():
 class _RecCompiler:
     def __init__(self):
         self.calls = []
+        self.se = []
 
     def is_busy(self):
         return False  # LatexCompiler dublörü: gerçek sınıfın meşgul guard API'si
 
-    def compile(self, path, engine):
+    def compile(self, path, engine, shell_escape=None):
         self.calls.append((os.path.normpath(path), engine))
+        self.se.append(shell_escape)
         return True
 
 

@@ -80,13 +80,24 @@ with open(ts_file, 'w', encoding='utf-8') as f:
 fi
 
 # .qm dosyalarını derle
-if command -v lrelease &>/dev/null; then
+# lrelease dağıtımlarda PATH'e konmuyor (Debian/Ubuntu /usr/lib/qt6/bin).
+# Sadece `command -v` bakılınca .qm derlemesi SESSİZCE atlanıyor ve git'te
+# izlenen .qm dosyaları .ts'lerin gerisinde kalıyordu: uygulama İngilizceye
+# alınsa bile yeni dizgeler Türkçe görünüyor.
+# `|| true`: set -e açık; lrelease yoksa atamanın kendisi hata döner
+# ve betik burada sessizce ölürdü.
+LRELEASE=$(command -v lrelease 2>/dev/null || true)
+for cand in /usr/lib/qt6/bin/lrelease /usr/lib/x86_64-linux-gnu/qt6/bin/lrelease; do
+    [ -n "$LRELEASE" ] && break
+    [ -x "$cand" ] && LRELEASE="$cand"
+done
+if [ -n "$LRELEASE" ]; then
     echo "=== .qm dosyaları derleniyor ==="
     for lang in $LANGS; do
         TS_FILE="$TS_DIR/latexeditor_${lang}.ts"
         if [ -f "$TS_FILE" ]; then
             echo "  $lang → ${TS_FILE%.ts}.qm"
-            lrelease "$TS_FILE" 2>/dev/null
+            "$LRELEASE" "$TS_FILE" 2>/dev/null
         fi
     done
 else

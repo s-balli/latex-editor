@@ -324,6 +324,11 @@ class MainWindow(
         act.setCheckable(True)
         act.setChecked(self._auto_audit_enabled(self._settings))
         self._auto_audit_action = act
+        build_menu.addSeparator()
+        # Kabuk erişimi kararı proje başına kalıcı; yanlışlıkla verilen cevabın
+        # geri alınacak bir yeri olmalı.
+        self._add_action(build_menu, _("&Kabuk Erişimi İznini Sıfırla"),
+                         self._reset_shell_escape)
 
         # Görünüm menüsü
         view_menu = menubar.addMenu(_("&Görünüm"))

@@ -59,6 +59,7 @@ class LatexCompiler(QObject):
         self._tex_name = ""
         self._tex_path = ""
         self._engine = "lualatex"
+        self._shell_escape = None
         self._finished_emitted = False
         self._timeout_ms = DEFAULT_TIMEOUT_MS
         self._timeout_timer = QTimer(self)
@@ -75,9 +76,20 @@ class LatexCompiler(QObject):
         return bool(self.process and
                     self.process.state() != QProcess.ProcessState.NotRunning)
 
-    def compile(self, tex_path: str, engine: str = "lualatex", timeout_ms: int | None = None) -> bool:
+    def compile(self, tex_path: str, engine: str = "lualatex",
+                timeout_ms: int | None = None,
+                shell_escape: bool | None = None) -> bool:
+        """`shell_escape`: True aç, False kapat, None karar verme.
+
+        None derle.sh'in eski davranışını bırakıyor (minted görünce
+        kendiliğinden aç); GUI bunu KULLANMIYOR, kullanıcıya sorup açıkça
+        True/False geçiyor. Sebep: bayrak belgeye keyfi komut çalıştırma
+        izni veriyor ve otomatik açılması ölçülmüş bir riskti
+        (bkz. core/shell_escape.py).
+        """
         if self.is_busy():
             return False
+        self._shell_escape = shell_escape
 
         if timeout_ms is not None:
             self._timeout_ms = timeout_ms
@@ -135,6 +147,10 @@ class LatexCompiler(QObject):
             args.append("--pdflatex")
         elif engine == "xelatex":
             args.append("--xelatex")
+        if self._shell_escape is True:
+            args.append("--shell-escape")
+        elif self._shell_escape is False:
+            args.append("--no-shell-escape")
         self.process.start("wsl", args)
 
     def _start_native(self, tex_path: str, engine: str):
@@ -147,6 +163,10 @@ class LatexCompiler(QObject):
         elif engine == "xelatex":
             args.append("--xelatex")
 
+        if self._shell_escape is True:
+            args.append("--shell-escape")
+        elif self._shell_escape is False:
+            args.append("--no-shell-escape")
         self.process.start("bash", args)
 
     def _on_output(self):
