@@ -18,6 +18,9 @@ ve satır numarasıyla döndürdüğü için ikisi de görülebiliyor.
 """
 
 import os
+import re
+import urllib.error
+import urllib.request
 from dataclasses import dataclass, field
 
 # Girdi olmayan @ blokları: makro tanımı, yorum, önsöz.
@@ -224,6 +227,193 @@ def ozet(girdi: BibGirdi) -> tuple[str, str, str, str, str]:
             yazar_kisalt(girdi.alanlar.get("author")
                          or girdi.alanlar.get("editor", "")),
             girdi.alanlar.get("year", ""), " ".join(baslik.split()))
+
+
+# --- DOI ile girdi getirme ---------------------------------------------
+#
+# İki uç, sırayla denenir:
+#   1. api.crossref.org/works/{doi}/transform/application/x-bibtex
+#      Ölçüldü: ~0.5 sn, geçersiz DOI'de temiz 404. Yalnız Crossref kayıtları.
+#   2. doi.org/{doi} + Accept: application/x-bibtex
+#      DataCite kayıtlarını da veriyor (arXiv gibi), biraz daha yavaş.
+#
+# Gelen BibTeX HAM HÂLİYLE kullanılamıyor; gerçek derlemeyle ölçülen üç kusur
+# `normallestir` içinde düzeltiliyor (gerekçeler orada).
+
+_UA = "latex-editor (https://github.com/s-balli/latex-editor)"
+_CROSSREF = "https://api.crossref.org/works/%s/transform/application/x-bibtex"
+_DOI_ORG = "https://doi.org/%s"
+GETIRME_ZAMAN_ASIMI = 8
+
+# Ayın üç harfli BibTeX makroları. Crossref bazen "June", bazen "Apr"
+# döndürüyor; "June" STANDART DEĞİL ve bibtex "Warning--string name 'june' is
+# undefined" deyip ayı SESSİZCE düşürüyor (gerçek derlemeyle ölçüldü).
+_AYLAR = {}
+for _i, _uzun in enumerate(
+        ["january", "february", "march", "april", "may", "june", "july",
+         "august", "september", "october", "november", "december"]):
+    _kisa = _uzun[:3]
+    _AYLAR[_uzun] = _kisa
+    _AYLAR[_kisa] = _kisa
+
+# BibTeX anahtarında güvenle kullanılabilecek karakterler. Crossref doi.org
+# yolunda anahtar olarak URL döndürebiliyor
+# (`@misc{https://doi.org/10.48550/arxiv...`), o geçerli bir anahtar değil.
+_ANAHTAR_GECERLI = re.compile(r"^[A-Za-z0-9_.+:-]+$")
+_RE_ALAN = re.compile(r"(\w+)\s*=\s*", re.I)
+
+
+class DoiHatasi(Exception):
+    """Getirme başarısız: ağ hatası ya da DOI bulunamadı."""
+
+
+def doi_temizle(girdi: str) -> str:
+    """Kullanıcının yapıştırdığından çıplak DOI'yi çıkar.
+
+    Yapıştırılan şey çoğu zaman tam URL oluyor; `10.` ile başlamasını
+    beklemek kullanıcıyı elle kırpmaya zorlardı.
+    """
+    s = (girdi or "").strip()
+    for onek in ("https://doi.org/", "http://doi.org/", "https://dx.doi.org/",
+                 "http://dx.doi.org/", "doi:", "DOI:"):
+        if s.lower().startswith(onek.lower()):
+            s = s[len(onek):]
+            break
+    return s.strip().strip("/")
+
+
+def _iste(url: str, kabul: str = "") -> str:
+    basliklar = {"User-Agent": _UA}
+    if kabul:
+        basliklar["Accept"] = kabul
+    istek = urllib.request.Request(url, headers=basliklar)
+    with urllib.request.urlopen(istek, timeout=GETIRME_ZAMAN_ASIMI) as r:
+        return r.read().decode("utf-8", "replace")
+
+
+def doi_getir(doi: str, *, ac=None) -> str:
+    """DOI'nin ham BibTeX'ini getir. Bulunamazsa/erişilemezse DoiHatasi.
+
+    `ac`: test için URL açıcı (url, kabul) -> metin.
+    """
+    temiz = doi_temizle(doi)
+    if not temiz or not temiz.startswith("10."):
+        raise DoiHatasi("gecersiz")
+    ac = ac or _iste
+    son_hata = None
+    for url, kabul in ((_CROSSREF % temiz, ""),
+                       (_DOI_ORG % temiz, "application/x-bibtex")):
+        try:
+            govde = ac(url, kabul)
+        except urllib.error.HTTPError as e:
+            son_hata = "bulunamadi" if e.code == 404 else "ag"
+            continue
+        except Exception:
+            son_hata = "ag"
+            continue
+        if govde and govde.lstrip().startswith("@"):
+            return govde
+        son_hata = "bulunamadi"
+    raise DoiHatasi(son_hata or "ag")
+
+
+def _anahtar_uret(alanlar: dict, eski: str) -> str:
+    """Geçersiz anahtar yerine `Soyad2020` biçiminde bir tane üret."""
+    soyad = yazar_kisalt(alanlar.get("author") or alanlar.get("editor", ""))
+    soyad = soyad.replace(" vd.", "")
+    soyad = re.sub(r"[^A-Za-zÀ-ÿ0-9]", "", soyad) or "kaynak"
+    yil = re.sub(r"[^0-9]", "", alanlar.get("year", ""))[:4]
+    uretilen = soyad + yil
+    return uretilen if uretilen.strip("0123456789") else (eski or uretilen)
+
+
+def benzersiz_anahtar(istenen: str, mevcut) -> str:
+    """Çakışıyorsa sonuna a, b, c ekle.
+
+    Mükerrer anahtar BibTeX'te sessiz bir hata: uyarı çıkmadan ilk tanım
+    alınıyor ve belgede yanlış kaynak basılıyor (bkz. mukerrer_anahtarlar).
+    """
+    mevcut = set(mevcut or ())
+    if istenen not in mevcut:
+        return istenen
+    for kod in range(ord("a"), ord("z") + 1):
+        aday = istenen + chr(kod)
+        if aday not in mevcut:
+            return aday
+    ek = 2
+    while (istenen + str(ek)) in mevcut:
+        ek += 1
+    return istenen + str(ek)
+
+
+def _deger_duzelt(ad: str, deger: str) -> str:
+    """Alan değerinin ölçülen kusurlarını gider."""
+    if ad == "pages":
+        # Crossref sayfa aralığını ORTA TİRE (U+2013) ile veriyor.
+        # plain.bst aralığı `--` ile tanıyor; tire kalınca çıktıya
+        # "page 770<U+2013>778" yazıyor (tekil!), "pages 770--778" değil.
+        # Gerçek derlemeyle ölçüldü.
+        deger = deger.replace("–", "--").replace("—", "--")
+    # LaTeX'te `&` kaçışsız kullanılamaz; kaçışlı olanlara dokunma.
+    deger = re.sub(r"(?<!\\)&", r"\\&", deger)
+    return deger
+
+
+def normallestir(ham: str, *, mevcut_anahtarlar=()) -> tuple[str, str]:
+    """Getirilen BibTeX'i .bib'e eklenebilir hâle getir: (metin, anahtar).
+
+    Üç düzeltme de GERÇEK DERLEMEYLE ölçülmüş kusurlara karşılık geliyor:
+    ay makrosu, orta tireli sayfa aralığı, geçersiz anahtar. Ayrıca gelen
+    girdi TEK SATIR oluyor; .bib'e öyle eklemek dosyayı okunmaz yapardı.
+    """
+    girdiler = parse_entries(ham)
+    if not girdiler:
+        raise DoiHatasi("ayristirilamadi")
+    g = girdiler[0]
+
+    alanlar = {}
+    for ad, deger in g.alanlar.items():
+        if ad == "month":
+            kisa = _AYLAR.get(deger.strip().strip("{}").lower())
+            # Tanınmayan ay değerini AYNEN bırakmak yerine atıyoruz: makro
+            # olarak çözülmezse bibtex zaten uyarıp düşürüyor.
+            if kisa:
+                alanlar[ad] = kisa
+            continue
+        alanlar[ad] = _deger_duzelt(ad, deger)
+
+    anahtar = g.anahtar
+    if not _ANAHTAR_GECERLI.match(anahtar):
+        anahtar = _anahtar_uret(alanlar, "")
+    anahtar = benzersiz_anahtar(anahtar, mevcut_anahtarlar)
+
+    satirlar = ["@%s{%s," % (g.tur, anahtar)]
+    for ad, deger in alanlar.items():
+        # `month` makro; süslü parantez içine alınırsa metin olur ve
+        # bibtex ayı "jun" diye basar, "June" diye değil.
+        if ad == "month":
+            satirlar.append("  month = %s," % deger)
+        else:
+            satirlar.append("  %s = {%s}," % (ad, deger))
+    satirlar.append("}")
+    return "\n".join(satirlar), anahtar
+
+
+def bibe_ekle(yol: str, girdi_metni: str) -> None:
+    """Girdiyi .bib dosyasının SONUNA ekle.
+
+    Dosya yeniden yazılmıyor, yalnız ekleniyor: mevcut yorumlar, `@string`
+    makroları ve girdi sırası olduğu gibi kalıyor.
+    """
+    from core.project_search import coz
+    var_olan = ""
+    if os.path.isfile(yol):
+        with open(yol, "rb") as f:
+            var_olan = coz(f.read())
+    ayrac = "" if (not var_olan or var_olan.endswith("\n\n")) else (
+        "\n" if var_olan.endswith("\n") else "\n\n")
+    with open(yol, "a", encoding="utf-8", newline="") as f:
+        f.write(ayrac + girdi_metni + "\n")
 
 
 @dataclass

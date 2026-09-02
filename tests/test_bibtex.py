@@ -269,3 +269,231 @@ class TestOzet:
         g = parse_entries(
             "@inproceedings{He2016, author={He, K}, title={T}, year={2016}}")[0]
         assert ozet(g) == ("He2016", "inproceedings", "He", "2016", "T")
+
+
+# --- DOI ile kaynak ekleme ---
+#
+# Getirilen BibTeX HAM HÂLİYLE kullanılamıyor. Üç kusur da GERÇEK DERLEMEYLE
+# ölçüldü (pdflatex + bibtex, TeX Live 2023):
+#
+#   month=June  -> "Warning--string name 'june' is undefined", ay SESSİZCE
+#                  düşüyor. Standart makrolar üç harfli (jan..dec).
+#   pages={770<U+2013>778} (orta tire) -> plain.bst aralığı `--` ile tanıyor;
+#                  çıktıya "page 770<U+2013>778" yazıyor, TEKİL. `--` ile
+#                  "pages 770--778" oluyor.
+#   anahtar olarak URL -> doi.org yolu `@misc{https://doi.org/10.48550/...}`
+#                  döndürebiliyor, bu geçerli bir BibTeX anahtarı değil.
+#
+# Düzeltmelerden sonra dört gerçek DOI sıfır uyarıyla derlendi.
+
+import urllib.error  # noqa: E402
+
+from core.bibtex import (  # noqa: E402
+    DoiHatasi, benzersiz_anahtar, bibe_ekle, doi_getir, doi_temizle,
+    normallestir,
+)
+
+
+IEEE_HAM = (
+    "@inproceedings{He_2016, title={Deep Residual Learning for Image "
+    "Recognition}, DOI={10.1109/cvpr.2016.90}, booktitle={CVPR}, "
+    "publisher={IEEE}, author={He, Kaiming and Zhang, Xiangyu}, year={2016}, "
+    "month=June, pages={770–778} }"
+)
+
+
+class TestDoiTemizle:
+    def test_ciplak_doi(self):
+        assert doi_temizle("10.1038/nature14539") == "10.1038/nature14539"
+
+    def test_tam_url(self):
+        assert doi_temizle("https://doi.org/10.1038/nature14539") == "10.1038/nature14539"
+
+    def test_dx_ve_doi_oneki(self):
+        assert doi_temizle("http://dx.doi.org/10.1/x") == "10.1/x"
+        assert doi_temizle("doi:10.1/x") == "10.1/x"
+        assert doi_temizle("DOI:10.1/x") == "10.1/x"
+
+    def test_bosluk_kirpiliyor(self):
+        assert doi_temizle("  10.1/x  ") == "10.1/x"
+
+
+class TestNormallestir:
+    def test_ay_uc_harfe_iniyor(self):
+        """`month=June` bibtex'te TANIMSIZ makro; ay sessizce düşüyordu."""
+        metin, _a = normallestir(IEEE_HAM)
+        assert "month = jun," in metin
+        assert "June" not in metin
+
+    def test_ay_suslu_parantez_ICINE_ALINMIYOR(self):
+        """`month = {jun}` metin olur ve bibtex 'jun' diye basar, 'June' değil."""
+        metin, _a = normallestir(IEEE_HAM)
+        assert "month = {" not in metin
+
+    def test_sayfa_araligi_cift_tire(self):
+        """plain.bst aralığı `--` ile tanıyor; orta tirede 'page' (tekil) yazıyor."""
+        metin, _a = normallestir(IEEE_HAM)
+        assert "pages = {770--778}" in metin
+
+    def test_tanınmayan_ay_atiliyor(self):
+        ham = "@article{k, title={T}, month=Sonbahar, year={2020}}"
+        metin, _a = normallestir(ham)
+        assert "month" not in metin
+
+    def test_kisa_ay_korunuyor(self):
+        metin, _a = normallestir("@article{k, title={T}, month=Apr}")
+        assert "month = apr," in metin
+
+    def test_gecersiz_anahtar_yeniden_uretiliyor(self):
+        """doi.org yolu anahtar olarak URL döndürebiliyor."""
+        ham = ("@misc{https://doi.org/10.48550/arxiv.1706.03762, "
+               "author={Vaswani, Ashish}, title={Attention}, year={2017}}")
+        _m, anahtar = normallestir(ham)
+        assert anahtar == "Vaswani2017"
+
+    def test_gecerli_anahtar_KORUNUYOR(self):
+        _m, anahtar = normallestir(IEEE_HAM)
+        assert anahtar == "He_2016"
+
+    def test_anahtar_cakismasi_cozuluyor(self):
+        _m, anahtar = normallestir(IEEE_HAM, mevcut_anahtarlar=["He_2016"])
+        assert anahtar == "He_2016a"
+
+    def test_cok_satirli_uretiliyor(self):
+        """Gelen girdi TEK satır; .bib'e öyle eklemek dosyayı okunmaz yapar."""
+        metin, _a = normallestir(IEEE_HAM)
+        assert len(metin.splitlines()) > 5
+        assert metin.startswith("@inproceedings{He_2016,")
+        assert metin.rstrip().endswith("}")
+
+    def test_kacissiz_ampersan_kaciriliyor(self):
+        """LaTeX'te çıplak `&` derlemeyi bozar."""
+        metin, _a = normallestir("@article{k, title={Ar & Ge}, year={2020}}")
+        assert "Ar \\& Ge" in metin
+
+    def test_kacisli_ampersan_iki_kez_kacmiyor(self):
+        metin, _a = normallestir("@article{k, title={Ar \\& Ge}, year={2020}}")
+        assert "\\\\&" not in metin
+
+    def test_bos_girdi_hata(self):
+        with pytest.raises(DoiHatasi):
+            normallestir("hicbir sey")
+
+    def test_turkce_karakter_korunuyor(self):
+        ham = "@article{k, title={Akciğer nodülü}, author={Kaya, Aydın}, year={2018}}"
+        metin, _a = normallestir(ham)
+        assert "Akciğer nodülü" in metin
+        assert "Kaya, Aydın" in metin
+
+
+class TestBenzersizAnahtar:
+    def test_bostaysa_aynen(self):
+        assert benzersiz_anahtar("a2020", []) == "a2020"
+
+    def test_doluysa_harf_ekleniyor(self):
+        assert benzersiz_anahtar("a2020", ["a2020"]) == "a2020a"
+        assert benzersiz_anahtar("a2020", ["a2020", "a2020a"]) == "a2020b"
+
+    def test_harfler_bitince_sayi(self):
+        dolu = ["a"] + ["a" + chr(c) for c in range(ord("a"), ord("z") + 1)]
+        assert benzersiz_anahtar("a", dolu) == "a2"
+
+
+class TestDoiGetir:
+    """Ağ SAHTE: gerçek DOI'ler ayrıca elle ölçüldü (dördü de derlendi)."""
+
+    def test_crossref_basarili(self):
+        cagrilar = []
+
+        def sahte(url, kabul):
+            cagrilar.append(url)
+            return IEEE_HAM
+
+        assert doi_getir("10.1109/CVPR.2016.90", ac=sahte) == IEEE_HAM
+        assert "api.crossref.org" in cagrilar[0]
+        assert len(cagrilar) == 1, "ilk uç yettiği hâlde ikincisi de denendi"
+
+    def test_crossref_404_ise_doi_org_deneniyor(self):
+        """Crossref DataCite kayıtlarını (arXiv, Zenodo) tanımıyor."""
+        cagrilar = []
+
+        def sahte(url, kabul):
+            cagrilar.append(url)
+            if "crossref" in url:
+                raise urllib.error.HTTPError(url, 404, "yok", None, None)
+            return IEEE_HAM
+
+        assert doi_getir("10.1/x", ac=sahte) == IEEE_HAM
+        assert len(cagrilar) == 2 and "doi.org" in cagrilar[1]
+
+    def test_ikisi_de_bulamazsa_hata(self):
+        def sahte(url, kabul):
+            raise urllib.error.HTTPError(url, 404, "yok", None, None)
+
+        with pytest.raises(DoiHatasi) as e:
+            doi_getir("10.1/x", ac=sahte)
+        assert "bulunamadi" in str(e.value)
+
+    def test_ag_hatasi_ayirt_ediliyor(self):
+        """"Bulunamadı" ile "bağlanamadım" kullanıcı için ayrı şeyler."""
+        def sahte(url, kabul):
+            raise OSError("baglanti yok")
+
+        with pytest.raises(DoiHatasi) as e:
+            doi_getir("10.1/x", ac=sahte)
+        assert "ag" in str(e.value)
+
+    def test_doi_gibi_gorunmeyen_ag_a_HIC_gitmiyor(self):
+        cagrilar = []
+
+        def sahte(url, kabul):
+            cagrilar.append(url)
+            return IEEE_HAM
+
+        for kotu in ("", "   ", "merhaba", "https://ornek.com/makale"):
+            with pytest.raises(DoiHatasi):
+                doi_getir(kotu, ac=sahte)
+        assert cagrilar == [], cagrilar
+
+    def test_bibtex_olmayan_cevap_reddediliyor(self):
+        def sahte(url, kabul):
+            return "<html>404 sayfasi</html>"
+
+        with pytest.raises(DoiHatasi):
+            doi_getir("10.1/x", ac=sahte)
+
+
+class TestBibeEkle:
+    def test_sona_ekleniyor_mevcut_KORUNUYOR(self, tmp_path):
+        """Dosya yeniden yazılmıyor: yorumlar, @string ve sıra duruyor."""
+        p = tmp_path / "refs.bib"
+        onceki = ("% elle yazilmis yorum\n"
+                  "@string{jn = \"Nature\"}\n"
+                  "@article{eski, title={T}, year={2019}}\n")
+        p.write_text(onceki, encoding="utf-8")
+        bibe_ekle(str(p), "@article{yeni,\n  title = {Y},\n}")
+        sonra = p.read_text(encoding="utf-8")
+        assert sonra.startswith(onceki)
+        assert "@article{yeni," in sonra
+
+    def test_olmayan_dosya_yaratiliyor(self, tmp_path):
+        p = tmp_path / "yeni.bib"
+        bibe_ekle(str(p), "@article{a,\n}")
+        assert "@article{a," in p.read_text(encoding="utf-8")
+
+    def test_eklenen_girdi_geri_ayristirilabiliyor(self, tmp_path):
+        p = tmp_path / "refs.bib"
+        p.write_text("@article{eski, title={T}}\n", encoding="utf-8")
+        metin, anahtar = normallestir(IEEE_HAM)
+        bibe_ekle(str(p), metin)
+        girdiler = parse_entries(p.read_text(encoding="utf-8"))
+        assert [g.anahtar for g in girdiler] == ["eski", anahtar]
+        assert girdiler[1].alanlar["pages"] == "770--778"
+
+    def test_cp1254_dosyaya_eklenince_bozulmuyor(self, tmp_path):
+        """Türkçe .bib'ler cp1254 olabiliyor; okuma çözücüden geçiyor."""
+        p = tmp_path / "refs.bib"
+        p.write_bytes("@article{eski, title={Şekil}}\n".encode("cp1254"))
+        bibe_ekle(str(p), "@article{yeni,\n  title = {Ölçüm},\n}")
+        ham = p.read_bytes()
+        assert b"@article{yeni," in ham

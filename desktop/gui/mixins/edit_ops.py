@@ -3,7 +3,7 @@
 import os
 import re
 
-from PyQt6.QtWidgets import QInputDialog, QApplication, QMessageBox
+from PyQt6.QtWidgets import QDialog, QInputDialog, QApplication, QMessageBox
 from PyQt6.QtCore import QCoreApplication
 
 from core.log import get_logger
@@ -283,6 +283,78 @@ class EditOpsMixin:
         # vermek yanlış yönlendiriyordu (bkz. _bib_yok_nedeni).
         self._output_panel.show_bibliography(
             [], self._bib_yok_nedeni(editor.text(), editor.file_path))
+
+    # --- DOI ile kaynak ekleme ---
+
+    def _add_by_doi(self):
+        """DOI sor, arka planda getir, onaylat, .bib'in sonuna ekle.
+
+        Yazma hedefi belgenin KENDİ .bib'i: `\\bibliography` bildirimi yoksa
+        nereye ekleneceği belirsiz ve rastgele bir dosya yaratmak kullanıcıyı
+        şaşırtır.
+        """
+        from core.latex_refs import find_bib_path
+
+        editor = self._current_editor()
+        if not editor or not editor.file_path:
+            self._status.showMessage(_("Önce bir .tex dosyası açın"))
+            return
+        yol = find_bib_path(editor.text(), editor.file_path)
+        if not yol:
+            QMessageBox.information(
+                self, _("DOI ile Kaynak Ekle"),
+                _("Bu belgenin bir .bib dosyası yok.") + "\n\n"
+                + self._bib_yok_nedeni(editor.text(), editor.file_path))
+            return
+
+        doi, ok = QInputDialog.getText(
+            self, _("DOI ile Kaynak Ekle"),
+            _("DOI (tam URL de olur):"))
+        if not ok or not doi.strip():
+            return
+
+        if getattr(self, "_doi_runner", None) is None:
+            from gui.doi_fetch import DoiRunner
+            self._doi_runner = DoiRunner(self)
+            self._doi_runner.done.connect(self._on_doi_fetched)
+        self._doi_bib_yolu = yol
+        self._status.showMessage(_("DOI getiriliyor..."))
+        from core.latex_refs import collect_cite_keys
+        self._doi_runner.start(doi, collect_cite_keys(editor.text(), editor.file_path))
+
+    def _on_doi_fetched(self, ok: bool, metin: str, anahtar: str, hata: str):
+        if not ok:
+            mesajlar = {
+                "gecersiz": _("Bu bir DOI'ye benzemiyor (10. ile başlamalı)"),
+                "bulunamadi": _("Bu DOI bulunamadı"),
+                "ayristirilamadi": _("Gelen kayıt okunamadı"),
+            }
+            self._status.showMessage("")
+            QMessageBox.warning(
+                self, _("DOI ile Kaynak Ekle"),
+                mesajlar.get(hata, _("Bağlantı kurulamadı")))
+            return
+
+        from gui.doi_fetch import DoiOnayDialog
+        yol = getattr(self, "_doi_bib_yolu", "")
+        dlg = DoiOnayDialog(metin, os.path.basename(yol), self)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            self._status.showMessage("")
+            return
+
+        from core.bibtex import bibe_ekle
+        try:
+            bibe_ekle(yol, dlg.girdi())
+        except OSError as e:
+            _logger.error("Kaynakçaya yazılamadı: %s", yol, exc_info=True)
+            QMessageBox.warning(self, _("DOI ile Kaynak Ekle"),
+                                _("Kaynakçaya yazılamadı: {e}").format(e=e))
+            return
+        self._status.showMessage(
+            _("Eklendi: {a} · {d}").format(a=anahtar, d=os.path.basename(yol)))
+        # Sekme açıksa taze listeyi göster; kapalıysa zaten açılınca dolacak.
+        if self._output_panel._bib_table.rowCount():
+            self._show_bibliography()
 
     @staticmethod
     def _bibitem_satiri(girdi) -> tuple:

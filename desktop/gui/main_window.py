@@ -297,6 +297,7 @@ class MainWindow(
         edit_menu.addSeparator()
         self._add_action(edit_menu, _("&Referansları Denetle"), self._audit_references)
         self._add_action(edit_menu, _("&Kaynakçayı Listele"), self._show_bibliography)
+        self._add_action(edit_menu, _("DOI ile Kaynak &Ekle..."), self._add_by_doi)
         edit_menu.addSeparator()
         self._add_action(edit_menu, _("S&onraki Hata"), self._goto_next_error, "F4", app_shortcut=True)
         self._add_action(edit_menu, _("Ö&nceki Hata"), self._goto_prev_error, "Shift+F4", app_shortcut=True)
@@ -1148,7 +1149,11 @@ class MainWindow(
     # Sürümleme daha uzun tutulur — büyük klasörde add+commit saniyeler sürer
     # ve yarıda kesilmesi depoyu bozabilir; dışa aktarmada en kötü hâl yarım
     # bir çıktı dosyasıdır.
-    _BG_WRITERS = (("_snapshot_runner", 15000), ("_export_runner", 10000))
+    # _doi_runner diske YAZMIYOR (yalnız ağdan okuyup sinyal yayıyor) ama yine
+    # de bekleniyor: 8 sn'lik zaman aşımıyla çalışan bir thread pencere yok
+    # edilirken canlı kalırsa sinyali ölü bir nesneye ulaşır.
+    _BG_WRITERS = (("_snapshot_runner", 15000), ("_export_runner", 10000),
+                   ("_doi_runner", 9000))
 
     def _wait_background_writers(self):
         """Diske yazan daemon thread'lerin bitmesini bekle.
