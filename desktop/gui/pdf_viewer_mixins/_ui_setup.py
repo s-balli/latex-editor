@@ -186,7 +186,9 @@ class PdfUISetupMixin:
         self._btn_search.setToolTip(_("PDF'te Ara (Ctrl+F)"))
         self._btn_search.setStyleSheet(
             f"QPushButton {{ background: transparent; color: {_t['fg_muted']}; border: none; border-radius: 3px; padding: 4px; }}"
-            f"QPushButton:hover {{ background: {_t['bg_hover']}; }}"
+            # hover'da metin de parlaklasmali: fg_muted daha acik bir zemine
+            # binince karsitlik alti temada esigin altina dusuyordu.
+            f"QPushButton:hover {{ background: {_t['bg_hover']}; color: {_t['fg_bright']}; }}"
             f"QPushButton:disabled {{ opacity: 0.3; }}"
         )
         self._btn_search.clicked.connect(self._toggle_search_bar)

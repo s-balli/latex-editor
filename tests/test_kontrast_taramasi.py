@@ -13,14 +13,25 @@ Dört katman:
   2. QTextBrowser       Uygulamanın stylesheet'ine takılmıyor, kendi beyaz
                         `Base` rengini koruyor. Koyu temada beyaz zemin
                         üzerine açık metin, karşıtlık 1.37 idi.
-  3. Widget ağacı       Çalışan uygulamanın ÇÖZÜLMÜŞ stylesheet'leri; aynı
-                        kural içinde renk+zemin veren her blok ölçülüyor.
+  3. Stylesheet'ler     `build_stylesheet()` çıktısı ve kaynaktaki
+                        `setStyleSheet` gövdeleri, QSS basamaklanması
+                        modellenerek.
   4. setForeground      Renk QSS ile değil `QColor` ile veriliyor, yani
                         3. katman bunları GÖRMÜYOR. Bu boşluk ölçülerek
                         bulundu: `sem_error` beş temada eşiğin altındaydı
                         ve 3. katman onu kaçırıyordu.
 
 Eşik WCAG AA normal metin: 4.50.
+
+3. katman NEDEN widget kurmuyor: ilk halinde `MainWindow` kurup widget
+ağacını geziyordu. Bu depoda başka hiçbir test MainWindow kurmuyor ve
+sebebi CI'da görüldü: pencere `close()` ile yok olmuyor, sonra çöp toplama
+sırasında başka bir testin içinde SIGABRT veriyor (exit 134, 3.12 ve
+Windows işleri düştü, 3.10 geçti). Yerine `build_stylesheet()` saf
+fonksiyonu ve kaynaktaki `setStyleSheet` gövdeleri okunuyor: hem çökme
+riski yok hem de KAPSAM DAHA GENİŞ, çünkü widget ağacı taraması PDF
+görüntüleyicinin kurallarını hiç görmüyordu (orada `fg_muted` altı temada
+eşiğin altındaydı).
 """
 
 import os
@@ -29,14 +40,13 @@ import re
 import pytest
 
 try:
-    from PyQt6.QtWidgets import QApplication, QWidget
-    from gui import main_window as mw
+    from gui.stylesheet import build_stylesheet
     from gui.theme import THEMES
     _VAR = True
 except ImportError:  # pragma: no cover
     _VAR = False
 
-gui = pytest.mark.skipif(not _VAR, reason="PyQt6 / gui modülleri gerekli")
+gui = pytest.mark.skipif(not _VAR, reason="gui modülleri gerekli")
 
 ESIK = 4.5
 _KOK = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -50,10 +60,12 @@ _GUI = os.path.join(_KOK, "desktop", "gui")
 # çıkarmak demek. Kullanıcı kararıyla olduğu gibi bırakıldı.
 _ISTISNA_TEMALAR = {"solarized_light"}
 
-_RE_BLOK = re.compile(r"([^{}]*)\{([^{}]*)\}")
+_RE_BLOK = re.compile(r"([^{}]*?)\{([^{}]*)\}")
 _RE_BILDIRIM = re.compile(r"([a-z-]+)\s*:\s*([^;]+)")
 _RE_RENK = re.compile(r"^#([0-9a-fA-F]{6})$")
 _RE_RGBA = re.compile(r"rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)")
+# {t['x']}, {_t['x']}, {self._theme['x']}, {self._theme.get('x', '#fff')}
+_RE_YER = re.compile(r"\{[A-Za-z_.]*(?:\[|\.get\()\s*[\"'](\w+)[\"'][^}]*\}")
 
 
 def _bagil(c):
@@ -91,7 +103,7 @@ def _saydam(v):
                 return float(p[3].strip()) < 250
             except ValueError:
                 return True
-    return v in ("transparent", "none")
+    return v in ("transparent", "none", "")
 
 
 def _kaynaklar():
@@ -100,7 +112,13 @@ def _kaynaklar():
             if ad.endswith(".py"):
                 yol = os.path.join(kok, ad)
                 with open(yol, encoding="utf-8") as f:
-                    yield os.path.relpath(yol, _KOK), f.read()
+                    yield os.path.relpath(yol, _KOK).replace("\\", "/"), f.read()
+
+
+def _temalar():
+    for ad, t in THEMES.items():
+        if ad not in _ISTISNA_TEMALAR:
+            yield ad, t
 
 
 # ------------------------------------------------------- 1. HTML bağlantısı
@@ -113,16 +131,21 @@ def test_html_baglantilari_acik_renk_tasiyor():
     renksiz = []
     for yol, metin in _kaynaklar():
         for m in re.finditer(r"<a href=", metin):
-            # Etiketin kapanışına kadar olan kısımda renk aranıyor
             son = metin.find(">", m.start())
             etiket = metin[m.start():son if son > 0 else m.start() + 200]
             if "color:" not in etiket:
-                satir = metin[:m.start()].count("\n") + 1
-                renksiz.append("%s:%d" % (yol, satir))
+                renksiz.append("%s:%d" % (yol, metin[:m.start()].count("\n") + 1))
 
     assert not renksiz, (
         "bu bağlantılara açık renk verilmemiş, koyu temada okunmayacak: %s"
         % renksiz)
+
+
+def test_html_baglantisi_taramasi_bos_degil():
+    """Katman 1 hiç bağlantı bulamazsa sessizce anlamsızlaşır."""
+    sayi = sum(metin.count("<a href=") for _y, metin in _kaynaklar())
+
+    assert sayi >= 3, "kaynakta <a href bulunamadı (%d)" % sayi
 
 
 # --------------------------------------------------------- 2. QTextBrowser
@@ -133,7 +156,6 @@ def test_metin_tarayicilarina_zemin_veriliyor():
     for yol, metin in _kaynaklar():
         for m in re.finditer(r"=\s*QTextBrowser\(", metin):
             satir = metin[:m.start()].count("\n") + 1
-            # Kurulumdan sonraki 20 satirda zemin veren bir setStyleSheet
             sonrasi = "\n".join(metin.split("\n")[satir - 1:satir + 19])
             if "setStyleSheet" not in sonrasi or "background" not in sonrasi:
                 zeminsiz.append("%s:%d" % (yol, satir))
@@ -143,107 +165,141 @@ def test_metin_tarayicilarina_zemin_veriliyor():
         % zeminsiz)
 
 
-# ------------------------------------------------------------ 3. Widget ağacı
+# --------------------------------------------------------- 3. Stylesheet'ler
 
-@pytest.fixture(scope="module")
-def qapp():
-    if not _VAR:
-        yield None
-        return
-    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-    yield QApplication.instance() or QApplication([])
+def _govde(metin, bas):
+    """`setStyleSheet(` çağrısının parantez gövdesi."""
+    i = metin.index("(", bas)
+    derinlik, j = 0, i
+    while j < len(metin):
+        if metin[j] == "(":
+            derinlik += 1
+        elif metin[j] == ")":
+            derinlik -= 1
+            if derinlik == 0:
+                return metin[i:j + 1]
+        j += 1
+    return metin[i:i + 400]
 
 
-def _bulgular(pencere):
-    """Aynı kural içinde renk+zemin veren, eşiği geçemeyen bloklar."""
+def _qss_uret(govde, tema):
+    """Yer tutucuları tema değeriyle doldurup gerçek bir QSS üret.
+
+    Yer tutucular TEK süslü parantezli, QSS ayraçları f-string içinde ÇİFT.
+    Önce yer tutucular değiştiriliyor, SONRA çift ayraçlar teke indiriliyor;
+    ters sırada yer tutucular bozulur.
+    """
+    qss = _RE_YER.sub(lambda m: str(tema.get(m.group(1), "#000000")), govde)
+    return qss.replace("{{", "{").replace("}}", "}")
+
+
+def _bulgular(qss, kaynak):
+    """Basamaklanmayı modelleyerek eşiği geçemeyen etkin renk/zemin çiftleri.
+
+    QSS'te `QPushButton { color: X }` ile `QPushButton:hover { background: Y }`
+    ayrı kurallardır ama hover ANINDA ikisi birlikte görünür: metin taban
+    kuraldan, zemin durum kuralından gelir. Bu modellenmezse gerçek kusur
+    kaçar; modellenmeden "aynı çağrıda tek renk tek zemin" diye eşleştirmek
+    de uydurma çiftler üretir (ikisini de yaşadım).
+    """
+    bloklar = [(s.split('"')[-1].strip(),
+                dict((k, v.strip()) for k, v in _RE_BILDIRIM.findall(b)))
+               for s, b in _RE_BLOK.findall(qss)]
+    taban = {s: d for s, d in bloklar if ":" not in s}
     cikan = []
-    for w in [pencere] + pencere.findChildren(QWidget):
-        qss = w.styleSheet()
-        if not qss or ":" not in qss:
+    for sec, d in bloklar:
+        ust = taban.get(sec.split(":")[0].strip(), {})
+        on = d.get("color") or ust.get("color")
+        arka = (d.get("background") or d.get("background-color")
+                or ust.get("background") or ust.get("background-color"))
+        if not on or not arka or _saydam(arka):
             continue
-        for secici, bildirimler in (_RE_BLOK.findall(qss) or [("", qss)]):
-            d = dict((k, v.strip())
-                     for k, v in _RE_BILDIRIM.findall(bildirimler))
-            on = d.get("color")
-            arka = d.get("background") or d.get("background-color")
-            if not on or not arka or _saydam(arka):
-                continue
-            c_on, c_arka = _coz(on), _coz(arka)
-            if c_on is None or c_arka is None:
-                continue
-            o = _karsitlik(c_on, c_arka)
-            if o < ESIK:
-                cikan.append("%s %.2f (%s / %s)"
-                             % (secici.strip()[:30] or w.__class__.__name__,
-                                o, on, arka))
+        c_on, c_arka = _coz(on), _coz(arka)
+        if c_on is None or c_arka is None:
+            continue
+        o = _karsitlik(c_on, c_arka)
+        if o < ESIK:
+            cikan.append("%s %s %.2f (%s / %s)" % (kaynak, sec, o, on, arka))
     return cikan
 
 
 @gui
-def test_widget_agacinda_karsitlik(qapp):
-    """Çalışan uygulamanın çözülmüş stylesheet'leri, yedi temada.
+def test_global_stylesheet_karsitligi():
+    """`build_stylesheet()` saf fonksiyon: widget kurmaya gerek yok."""
+    kotu = []
+    for ad, t in _temalar():
+        kotu += ["%s %s" % (ad, x)
+                 for x in _bulgular(build_stylesheet(t), "global")]
 
-    Tek pencere kurulup tema değiştiriliyor: yedi ayrı pencere kurmakla
-    aynı sonucu verdiği ölçüldü (2026-09-03), maliyeti yarısı.
-    """
-    pencere = mw.MainWindow()
-    try:
-        pencere.show()
-        qapp.processEvents()
-        kotu = {}
-        for ad in THEMES:
-            if ad in _ISTISNA_TEMALAR:
-                continue
-            pencere._theme_mgr.apply(ad)
-            qapp.processEvents()
-            bulgu = _bulgular(pencere)
-            if bulgu:
-                kotu[ad] = sorted(set(bulgu))
-    finally:
-        pencere.close()
-
-    assert not kotu, "eşiğin altında kalan birleşimler: %s" % kotu
+    assert not kotu, "eşiğin altında kalan kurallar: %s" % sorted(set(kotu))
 
 
 @gui
-def test_tarama_GERCEKTEN_bir_sey_goruyor(qapp):
-    """Tarama boş dönerse test anlamsızlaşır; gördüğünü de denetle.
+def test_widget_stylesheetleri_karsitligi():
+    """Kaynaktaki her `setStyleSheet` gövdesi, yedi temaya doldurularak."""
+    kotu = []
+    for yol, metin in _kaynaklar():
+        kisa = yol.replace("desktop/gui/", "")
+        for m in re.finditer(r"setStyleSheet\s*\(", metin):
+            govde = _govde(metin, m.start())
+            if "{" not in govde:
+                continue
+            yer = "%s:%d" % (kisa, metin[:m.start()].count("\n") + 1)
+            for ad, t in _temalar():
+                kotu += ["%s %s" % (ad, x)
+                         for x in _bulgular(_qss_uret(govde, t), yer)]
 
-    Eşik geçici olarak imkânsız bir değere çekilince bulgu ÇIKMALI. Yoksa
-    'hiç bulgu yok' sonucu koddan değil taramanın kendisinden geliyordur.
+    assert not kotu, "eşiğin altında kalan kurallar: %s" % sorted(set(kotu))
+
+
+@gui
+def test_stylesheet_taramasi_GERCEKTEN_kural_goruyor():
+    """Ayrıştırıcı bozulursa tarama sessizce hiçbir şey görmez.
+
+    Bu tarama yazılırken tam bu oldu: f-string'in çift süslü parantezi ve
+    seçicideki Python sözdizimi yüzünden seçiciler boş çıkıyor, basamaklanma
+    eşleşmiyor ve bulgu sayısı sıfıra düşüyordu. Kod düzgün görünüyordu.
     """
-    global ESIK
-    pencere = mw.MainWindow()
-    try:
-        pencere.show()
-        qapp.processEvents()
-        eski = ESIK
-        try:
-            ESIK = 99.0
-            bulgu = _bulgular(pencere)
-        finally:
-            ESIK = eski
-    finally:
-        pencere.close()
+    tema = THEMES["dark"]
+    kurallar = 0
+    for _sec, bil in _RE_BLOK.findall(build_stylesheet(tema)):
+        d = dict((k, v.strip()) for k, v in _RE_BILDIRIM.findall(bil))
+        if d.get("color") and (d.get("background") or d.get("background-color")):
+            kurallar += 1
+    assert kurallar >= 10, (
+        "global stylesheet'te renk+zemin veren kural sayısı %d, "
+        "ayrıştırıcı bozuk olabilir" % kurallar)
 
-    assert len(bulgu) > 10, (
-        "tarama neredeyse hiçbir kural görmüyor (%d), muhtemelen "
-        "stylesheet'leri okuyamıyor" % len(bulgu))
+    # Widget gövdelerinde de seçiciler DOLU çözülmeli
+    seciciler = set()
+    for _yol, metin in _kaynaklar():
+        for m in re.finditer(r"setStyleSheet\s*\(", metin):
+            govde = _govde(metin, m.start())
+            if "{" not in govde:
+                continue
+            for s, _b in _RE_BLOK.findall(_qss_uret(govde, tema)):
+                ad = s.split('"')[-1].strip()
+                if ad:
+                    seciciler.add(ad)
+    assert any(":" in s for s in seciciler), (
+        "hiçbir durum seçicisi (:hover gibi) çözülemedi; basamaklanma "
+        "denetimi çalışmıyor demektir. Çözülenler: %s"
+        % sorted(seciciler)[:10])
 
 
 # ------------------------------------------------------- 4. setForeground
 
-# `fg_dim` BILEREK disarida: dosya agacinda duzenlenemez dosyalari soluk
-# gostermek icin kullaniliyor ve esigi gecirmek icin gereken deger fg_muted
-# ile birebir ayni cikiyor, yani "duzenlenebilir / duzenlenemez" ayrimi
-# tamamen kayboluyor (olculdu 2026-09-03). Kullanici karariyla kaliyor.
+# `fg_dim` BILEREK dışarıda: dosya ağacında düzenlenemez dosyaları soluk
+# göstermek için kullanılıyor ve eşiği geçirmek için gereken değer fg_muted
+# ile birebir aynı çıkıyor, yani "düzenlenebilir / düzenlenemez" ayrımı
+# tamamen kayboluyor (ölçüldü 2026-09-03). Kullanıcı kararıyla kalıyor.
 _ISTISNA_RENKLER = {"fg_dim"}
 
 # Hangi dosyadaki `setForeground` hangi zemine çiziyor. Varsayım değil,
 # çalışan uygulamadan ölçüldü (2026-09-03, widget'ların çözülmüş
 # stylesheet'leri okunarak):
 #
-#   QTreeWidget / _DragTree   #1d2021 -> bg_secondary
+#   QTreeWidget / _DragTree    #1d2021 -> bg_secondary
 #   QListWidget / QTableWidget #282828 -> bg_primary
 #
 # İlk halinde her rengi HER İKİ zemine karşı denetliyordum ve `fg_muted`
@@ -258,11 +314,7 @@ _DOSYA_ZEMINI = {
 
 
 def _setforeground_renkleri():
-    """(tema anahtarı, zemin anahtarı) çiftleri, kaynaktan çıkarılıyor.
-
-    Kaynaktan çıkarılıyor ki yeni bir renk bu yolla kullanılmaya başlarsa
-    listeye elle eklemek gerekmesin.
-    """
+    """(tema anahtarı, zemin anahtarı) çiftleri, kaynaktan çıkarılıyor."""
     ciftler = set()
     for yol, metin in _kaynaklar():
         zemin = _DOSYA_ZEMINI.get(os.path.basename(yol))
@@ -274,6 +326,7 @@ def _setforeground_renkleri():
     return ciftler
 
 
+@gui
 def test_setforeground_renkleri_kaynaktan_bulunuyor():
     """Katman 4 boş çalışırsa sessizce anlamsızlaşır."""
     bulunan = _setforeground_renkleri()
@@ -286,14 +339,15 @@ def test_setforeground_renkleri_kaynaktan_bulunuyor():
         "beklenen zeminlerin hepsi taranmıyor: %s" % zeminler)
 
 
+@gui
 def test_setforeground_renkleri_okunabilir():
     """QSS taraması bunları görmüyor; `sem_error` tam buradan kaçmıştı."""
     dusuk = []
     for anahtar, zemin in sorted(_setforeground_renkleri()):
         if anahtar in _ISTISNA_RENKLER:
             continue
-        for ad, t in THEMES.items():
-            if ad in _ISTISNA_TEMALAR or anahtar not in t:
+        for ad, t in _temalar():
+            if anahtar not in t:
                 continue
             on, arka = _coz(t[anahtar]), _coz(t.get(zemin))
             if on is None or arka is None:
@@ -305,6 +359,7 @@ def test_setforeground_renkleri_okunabilir():
     assert not dusuk, "okunmayan birleşimler: %s" % dusuk
 
 
+@gui
 def test_sem_renkleri_birbirinden_ayirt_edilebilir():
     """Karşıtlık düzeltmesi durum renklerini aynı tona getirmemeli.
 
@@ -313,8 +368,8 @@ def test_sem_renkleri_birbirinden_ayirt_edilebilir():
     """
     cakisan = []
     for ad, t in THEMES.items():
-        ayirt = ["sem_folder", "sem_compilable", "sem_hint"]
-        renkler = [(k, _coz(t[k])) for k in ayirt if k in t]
+        renkler = [(k, _coz(t[k])) for k in
+                   ("sem_folder", "sem_compilable", "sem_hint") if k in t]
         for i, (ka, ca) in enumerate(renkler):
             for kb, cb in renkler[i + 1:]:
                 if sum(abs(x - y) for x, y in zip(ca, cb)) < 40:

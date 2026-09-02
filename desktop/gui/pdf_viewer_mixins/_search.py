@@ -240,6 +240,7 @@ class PdfSearchMixin:
         self._search_count_label.setStyleSheet(f"color: {t['fg_muted']}; font-size: 11px;")
         self._btn_search.setStyleSheet(
             f"QPushButton {{ background: transparent; color: {t['fg_muted']}; border: none; border-radius: 3px; padding: 4px; }}"
-            f"QPushButton:hover {{ background: {t['bg_hover']}; }}"
+            # hover'da metin de parlaklasmali (bkz. _ui_setup.py).
+            f"QPushButton:hover {{ background: {t['bg_hover']}; color: {t['fg_bright']}; }}"
             f"QPushButton:disabled {{ opacity: 0.3; }}"
         )
