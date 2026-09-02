@@ -88,6 +88,17 @@ class EnvDoctorDialog(QDialog):
         layout.addWidget(self._busy)
 
         self._view = QTextBrowser()
+        # Zemin ACIKCA veriliyor: QTextBrowser kendi palet Base rengini
+        # (beyaz) koruyor ve uzerine koyu temanin acik metni basiliyordu.
+        # Olculdu (2026-09-03, gruvbox): govde 1.37, soluk 3.67, hata 3.44;
+        # WCAG AA esigi 4.50. Tema bos gelebilir, o yuzden .get + yedek.
+        _t = self._theme or {}
+        self._view.setStyleSheet(
+            "QTextBrowser {{ background: {bg}; color: {fg};"
+            " border: 1px solid {kenar}; }}".format(
+                bg=_t.get("bg_primary", "#1e1e1e"),
+                fg=_t.get("fg_primary", "#dddddd"),
+                kenar=_t.get("border_normal", "#3c3c3c")))
         self._view.setOpenExternalLinks(False)
         layout.addWidget(self._view, 1)
 

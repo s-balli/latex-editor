@@ -868,6 +868,14 @@ class MainWindow(
         layout = QVBoxLayout(dlg)
         layout.setContentsMargins(12, 12, 12, 12)
         browser = QTextBrowser()
+        # Zemin ACIKCA veriliyor: QTextBrowser uygulamanin stylesheet'ine
+        # takilmiyor, kendi palet Base rengini (beyaz) koruyor. Koyu temada
+        # bu pencere beyaz zemin uzerine krem yazi oluyordu, karsitlik 1.37
+        # (olculdu 2026-09-03, esik 4.50).
+        browser.setStyleSheet(
+            "QTextBrowser {{ background: {bg}; color: {fg};"
+            " border: 1px solid {kenar}; }}".format(
+                bg=t["bg_primary"], fg=c, kenar=t["border_normal"]))
         browser.setHtml(html)
         browser.setOpenExternalLinks(True)
         layout.addWidget(browser)
@@ -882,9 +890,16 @@ class MainWindow(
         html += "<p>" + _("LaTeX editörü ve derleyici") + "</p>"
         html += "<p><b>" + _("Geliştirici:") + "</b> Serkan Ballı</p>"
         html += "<p><b>" + _("E-posta:") + "</b> serkanballi@gmail.com</p>"
-        html += "<p><b>GitHub:</b> <a href='https://github.com/s-balli/latex-editor'>github.com/s-balli/latex-editor</a></p>"
+        # `<a>` govdenin span rengini ALMIYOR, Qt kendi sabit palet Link
+        # rengini kullaniyor: koyu temada karsitlik 1.43 olcüldü (esik 4.50).
+        # Ayni kusur guncelleme diyalogunda da vardi (bkz. _on_update_found).
+        vurgu = t["fg_bright"]
+        html += ("<p><b>GitHub:</b> "
+                 f"<a href='https://github.com/s-balli/latex-editor' "
+                 f"style='color:{vurgu}'>github.com/s-balli/latex-editor</a></p>")
         html += ("<p><b>" + _("Tanıtım sayfası:") + "</b> "
-                 "<a href='https://s-balli.github.io/latex-editor/'>"
+                 f"<a href='https://s-balli.github.io/latex-editor/' "
+                 f"style='color:{vurgu}'>"
                  "s-balli.github.io/latex-editor</a></p>")
         html += "</span>"
         QMessageBox.about(self, _("LaTeX Editor"), html)
