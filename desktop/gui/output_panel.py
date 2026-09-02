@@ -187,7 +187,17 @@ class OutputPanel(QWidget):
         self._tabs.currentChanged.connect(self._on_tab_changed)
 
         layout.addWidget(self._tabs)
-        self.setMaximumHeight(200)
+        # Tavan 200'dü ve panel ayırıcıdan sürüklense bile orada kalıyordu
+        # (ölçüldü: 300/450/600 istendi, üçünde de 200'de takıldı). Kaynakça
+        # sekmesi 118 satırlık bir tabloyu o alana sığdıramıyor.
+        #
+        # Tavan iki katına çıkarıldı, kaldırılmadı: sınırsız bırakılınca panel
+        # editörü ezebiliyor ve asıl iş alanı küçülüyor.
+        #
+        # KÜÇÜLME SINIRI DEĞİŞMEDİ: taban hâlâ widget'ın kendi
+        # minimumSizeHint'i (116 px, ölçüldü) ve ayırıcı tamamen kapatmaya da
+        # izin veriyor. Panel eskisi kadar küçülebiliyor.
+        self.setMaximumHeight(400)
 
         # Stiller TEK kaynaktan (bkz. apply_theme). Eskiden altı blok hem
         # burada hem apply_theme'de duruyordu ve ikisi AYRIŞMIŞTI:

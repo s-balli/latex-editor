@@ -120,6 +120,34 @@ _bib_chain_cache: dict = {}
 _BIB_CHAIN_TTL = 2.0
 
 
+def bib_declaration(content: str, base_path: str) -> str:
+    """Bildirimde YAZAN .bib adı, dosya var olmasa da. Yoksa "".
+
+    `find_bib_path` boş döndüğünde iki ayrı durum var ve ayırt edilmeleri
+    gerekiyor: bildirim hiç yok, ya da bildirim var ama gösterdiği dosya
+    bulunamıyor. İkisine aynı mesajı vermek kullanıcıyı zaten belgede duran
+    bir komutu aramaya gönderiyordu.
+    """
+    for metin in [strip_comments(content)] + [t for _p, t in _chain_texts(content, base_path)]:
+        for pat in (_RE_ADDBIB, _RE_BIBLIO):
+            m = pat.search(metin)
+            if m:
+                return m.group(1).strip()
+    return ""
+
+
+def has_manual_bibliography(content: str, base_path: str) -> bool:
+    """Belge kaynakçayı `\\begin{thebibliography}` ile ELLE mi yazıyor.
+
+    39 şablonun 13'ü böyle (213 kaynak). Onlara "kaynakçan yok" demek
+    yanlış: kaynakça var, yalnız .bib dosyasında değil .tex içinde.
+    """
+    for metin in [strip_comments(content)] + [t for _p, t in _chain_texts(content, base_path)]:
+        if "\\begin{thebibliography}" in metin or _RE_BIBITEM.search(metin):
+            return True
+    return False
+
+
 def find_bib_path(content: str, base_path: str) -> str:
     """\\addbibresource{X.bib} / \\bibliography{X} ile referans verilen .bib yolu.
 

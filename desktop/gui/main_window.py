@@ -210,6 +210,15 @@ class MainWindow(
 
         # Oran: üst %85, çıktı %15
         self._main_splitter.setSizes([765, 135])
+        # Pencere büyüyünce fazla alanı ÜST bölme alsın, çıktı paneli
+        # sürüklendiği yükseklikte kalsın. Panelin tavanı 200'ken bu fark
+        # edilmiyordu; 400'e çıkınca uzun bir pencerede panel kendiliğinden
+        # 400'e kadar şişiyor ve editörü eziyordu (ölçüldü: 1600x2000'de
+        # 181 -> 400). Esneme çarpanı yalnız YENİDEN BOYUTLAMADA gelen fazla
+        # alanı paylaştırıyor; kullanıcının ayırıcıyı sürüklemesini
+        # engellemiyor.
+        self._main_splitter.setStretchFactor(0, 1)
+        self._main_splitter.setStretchFactor(1, 0)
 
         self.setCentralWidget(self._main_splitter)
 

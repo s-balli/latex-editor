@@ -589,3 +589,128 @@ def test_clear_bibliography_bosaltiyor(qapp):
     panel.clear_bibliography()
     assert panel._bib_table.rowCount() == 0
     assert panel._bib_filter.text() == ""
+
+
+# --- Kaynakça listelenemiyorsa NEDENİ söylenmeli ---
+#
+# Dört ayrı durum vardı, üçü aynı mesajı alıyordu ve ikisi YANLIŞTI:
+#   - elle kaynakça yazana "kaynakçan yok" deniyordu (13 şablon böyle)
+#   - dosyası eksik olana da aynısı deniyordu, oysa \bibliography satırı
+#     belgede DURUYOR; kullanıcı zaten orada olan komutu aramaya gidiyordu
+
+
+def test_bildirim_var_dosya_yoksa_dosya_adi_soyleniyor(qapp, tmp_path):
+    main = tmp_path / "m.tex"
+    main.write_text("\\bibliography{olmayan}\n", encoding="utf-8")
+    ed = EditorWidget()
+    ed._file_path = str(main)
+    ed.setText(main.read_text(encoding="utf-8"))
+    stub = _StubMain(ed)
+    MainWindow._show_bibliography(stub)
+    not_ = stub._output_panel._bib_status.text()
+    assert "olmayan.bib" in not_, not_
+    assert "bibliography" not in not_.lower(), "bildirim yok sanıldı: " + not_
+
+
+def test_elle_kaynakca_ayirt_ediliyor(qapp, tmp_path):
+    """\\begin{thebibliography} kullanan belgenin kaynakçası VAR."""
+    main = tmp_path / "m.tex"
+    main.write_text(
+        "\\begin{thebibliography}{9}\n\\bibitem{a} A. Yazar, 2020.\n"
+        "\\end{thebibliography}\n", encoding="utf-8")
+    ed = EditorWidget()
+    ed._file_path = str(main)
+    ed.setText(main.read_text(encoding="utf-8"))
+    stub = _StubMain(ed)
+    MainWindow._show_bibliography(stub)
+    not_ = stub._output_panel._bib_status.text()
+    assert "elle" in not_.lower(), not_
+
+
+def test_hic_kaynakca_yoksa_bildirim_yok_deniyor(qapp, tmp_path):
+    main = tmp_path / "m.tex"
+    main.write_text("Sadece metin.\n", encoding="utf-8")
+    ed = EditorWidget()
+    ed._file_path = str(main)
+    ed.setText(main.read_text(encoding="utf-8"))
+    stub = _StubMain(ed)
+    MainWindow._show_bibliography(stub)
+    not_ = stub._output_panel._bib_status.text()
+    assert "bibliography" in not_.lower(), not_
+    assert "elle" not in not_.lower(), not_
+
+
+def test_uc_neden_birbirinden_FARKLI(qapp, tmp_path):
+    """Kapının kendisi: üçü aynı metne dönerse yukarıdakiler boşa düşer."""
+    mesajlar = set()
+    for ad, icerik in (
+        ("yok", "Sadece metin.\n"),
+        ("eksik", "\\bibliography{olmayan}\n"),
+        ("elle", "\\begin{thebibliography}{9}\n\\bibitem{a} X\n"
+                 "\\end{thebibliography}\n"),
+    ):
+        p = tmp_path / (ad + ".tex")
+        p.write_text(icerik, encoding="utf-8")
+        mesajlar.add(EditOpsMixin._bib_yok_nedeni(icerik, str(p)))
+    assert len(mesajlar) == 3, mesajlar
+
+
+# --- Çıktı paneli yüksekliği ---
+#
+# Tavan 200'dü ve panel ayırıcıdan sürüklense bile orada takılıyordu
+# (ölçüldü: 300/450/600 istendi, üçünde de 200). Kaynakça sekmesi 118
+# satırlık tabloyu o alana sığdıramıyor.
+
+
+def test_panel_tavani_iki_kat(qapp):
+    panel = OutputPanel(theme=THEMES["dark"])
+    assert panel.maximumHeight() == 400
+
+
+def test_panel_kuculme_siniri_DEGISMEDI(qapp):
+    """İstenen buydu: büyüyebilsin ama eskisi kadar da küçülebilsin.
+
+    Açık bir minimumHeight konmamalı; taban widget'ın kendi
+    minimumSizeHint'i (ölçüldü: 116 px).
+    """
+    panel = OutputPanel(theme=THEMES["dark"])
+    assert panel.minimumHeight() == 0
+    assert panel.minimumSizeHint().height() <= 200
+
+
+def test_pencere_buyuyunce_panel_buyumuyor(qapp):
+    """Fazla alanı ÜST bölme almalı; panel sürüklendiği yerde kalmalı.
+
+    Tavan 200'ken fark edilmiyordu; 400'e çıkınca uzun pencerede panel
+    kendiliğinden 400'e şişip editörü eziyordu (1600x2000'de 181 -> 400).
+    """
+    from PyQt6.QtWidgets import QSplitter, QWidget
+    from PyQt6.QtCore import Qt
+
+    s = QSplitter(Qt.Orientation.Vertical)
+    ust = QWidget()
+    panel = OutputPanel(theme=THEMES["dark"])
+    s.addWidget(ust)
+    s.addWidget(panel)
+    s.setSizes([700, 200])
+    s.setStretchFactor(0, 1)
+    s.setStretchFactor(1, 0)
+    s.resize(1200, 900)
+    s.show()
+    QApplication.processEvents()
+    once = panel.height()
+
+    s.resize(1200, 1800)
+    QApplication.processEvents()
+    assert panel.height() <= once + 5, (once, panel.height())
+    s.close()
+
+
+def test_main_window_esneme_carpanlarini_kuruyor():
+    """Yukarıdaki mekanizma GERÇEKTEN bağlanmış mı."""
+    kok = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    with open(os.path.join(kok, "desktop", "gui", "main_window.py"),
+              encoding="utf-8") as f:
+        k = f.read()
+    assert "self._main_splitter.setStretchFactor(0, 1)" in k
+    assert "self._main_splitter.setStretchFactor(1, 0)" in k

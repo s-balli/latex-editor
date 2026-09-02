@@ -215,6 +215,22 @@ class EditOpsMixin:
             parts.append(_("{n} kullanılmayan label").format(n=c["l"]))
         return _("Denetim: ") + ", ".join(parts)
 
+    @staticmethod
+    def _bib_yok_nedeni(icerik: str, yol: str) -> str:
+        """Kaynakça listelenemiyorsa NEDEN listelenemediğini söyle."""
+        from core.latex_refs import bib_declaration, has_manual_bibliography
+
+        ad = bib_declaration(icerik, yol)
+        if ad:
+            # Bildirim duruyor, dosya yok. Aranan adı yaz: kullanıcı ya adı
+            # düzeltir ya dosyayı koyar.
+            if not ad.endswith(".bib"):
+                ad += ".bib"
+            return _("'{ad}' bulunamadı (klasörde yok)").format(ad=ad)
+        if has_manual_bibliography(icerik, yol):
+            return _("Bu belge kaynakçayı elle yazıyor (\\bibitem); .bib dosyası yok")
+        return _("Bu belgede \\bibliography veya \\addbibresource yok")
+
     def _show_bibliography(self):
         """Kaynakça sekmesini .bib girdileriyle doldur.
 
@@ -234,10 +250,12 @@ class EditOpsMixin:
             return
         yol = find_bib_path(editor.text(), editor.file_path)
         if not yol:
-            # Neden boş olduğu SÖYLENMELİ: "kaynakça yok" ile "\bibliography
-            # satırı yok" ayrı şeyler ve kullanıcı ikincisini düzeltebilir.
+            # ÜÇ AYRI durum, üçü de ayrı cümleyi hak ediyor. Hepsine aynı
+            # mesajı vermek yanlış yönlendiriyordu: elle kaynakça yazana
+            # "kaynakçan yok" deniyor, dosyası eksik olana ise belgede zaten
+            # duran komutu aratıyordu.
             self._output_panel.show_bibliography(
-                [], "", _("Bu belgede \\bibliography veya \\addbibresource yok"))
+                [], "", self._bib_yok_nedeni(editor.text(), editor.file_path))
             return
         try:
             with open(yol, "rb") as f:
