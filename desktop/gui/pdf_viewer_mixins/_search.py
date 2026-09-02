@@ -82,7 +82,7 @@ class PdfSearchMixin:
 
         # textpage'i UI tarafında, ihtiyaç anında yarat (işçi sonuçları
         # yalnız koordinat taşır; iş parçacıkları arası handle yok)
-        scale = 1.5 * self._zoom
+        scale = self._olcek(page_idx)
         try:
             with pdfium_lock:
                 sayfa = self._pdf[page_idx]
@@ -120,7 +120,7 @@ class PdfSearchMixin:
         if not label or label.pixmap() is None or label.pixmap().isNull():
             return
 
-        scale = 1.5 * self._zoom
+        scale = self._olcek(page_idx)
         t = self._theme
 
         # Geometriler ÖNCE kilit altında hesaplanır, Qt widget'ları sonra

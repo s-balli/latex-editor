@@ -84,10 +84,10 @@ class PdfEventsMixin:
             return None
         if obj != self._pages_widget and obj not in self._page_labels:
             return None
-        scale = 1.5 * self._zoom
         for i, label in enumerate(self._page_labels):
             if i >= self._page_count:
                 break
+            scale = self._olcek(i)
             label_pos = label.mapFrom(obj, pos) if obj != label else pos
             if label.rect().contains(label_pos):
                 with pdfium_lock:
@@ -131,7 +131,7 @@ class PdfEventsMixin:
         if label.pixmap() is None or label.pixmap().isNull():
             self._request_render(idx)
 
-        scale = 1.5 * self._zoom
+        scale = self._olcek(idx)
         with pdfium_lock:
             scroll_y = resolve_dest_scroll_y(
                 self._pdf.raw, dest, self._pdf[idx].get_height(), scale)

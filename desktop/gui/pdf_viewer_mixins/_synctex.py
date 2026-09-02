@@ -10,10 +10,10 @@ class PdfSyncTexMixin:
             return
         if obj != self._pages_widget and obj not in self._page_labels:
             return
-        scale = 1.5 * self._zoom
         for i, label in enumerate(self._page_labels):
             if i >= self._page_count:
                 break
+            scale = self._olcek(i)
             label_pos = label.mapFrom(obj, pos) if obj != label else pos
             if label.rect().contains(label_pos):
                 x_pts = label_pos.x() / scale
@@ -27,7 +27,7 @@ class PdfSyncTexMixin:
         if idx < 0 or idx >= len(self._page_labels):
             return
         label = self._page_labels[idx]
-        scale = 1.5 * self._zoom
+        scale = self._olcek(idx)
         y_pixel = (y - height) * scale
         x_pixel = left * scale
         w_pixel = int(width * scale) if width else 0

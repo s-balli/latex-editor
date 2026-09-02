@@ -65,6 +65,7 @@ class PdfRenderMixin:
             with pdfium_lock:
                 self._pdf = pypdfium2.PdfDocument(veri)
                 self._page_count = len(self._pdf)
+            self._sayfa_pt.clear()
             self._pdf_path = path
             self._current_page = 0
             self._render_gen += 1
@@ -107,6 +108,7 @@ class PdfRenderMixin:
             with pdfium_lock:
                 self._pdf.close()
             self._pdf = None
+        self._sayfa_pt.clear()
         self._pdf_path = ""
         self._btn_save.setEnabled(False)
         self.update_bookmarks()
@@ -149,15 +151,45 @@ class PdfRenderMixin:
             if sw.isRunning():
                 sw.wait(6000)
 
+    # Tek karo olarak render edilen sayfa icin ust sinir. Olculdu (2026-09-02):
+    # A0 afis 3x yakinlastirmada 162.7 megapiksel ve +1031 MB; /MediaBox'i
+    # 20000x20000 olan bozuk bir PDF 900 megapiksel ve +4614 MB istiyordu.
+    # 1 KB'lik bir dosya boyle bir ayirma tetikleyebiliyordu.
+    #
+    # 40 MP ~ 160 MB. A4 (10.1 MP) ve A3 (20.3 MP) en yuksek yakinlastirmada
+    # bile sinirin altinda kaliyor, yani gundelik belgede hicbir sey degismiyor.
+    # A0 gibi buyuk boylar sinira dayaninca daha fazla buyumuyor.
+    _MAX_PIKSEL = 40_000_000
+
+    def _tavanli_olcek(self, w_pt: float, h_pt: float) -> float:
+        """Istenen olcek, piksel tavaniyla sinirli (en-boy orani korunur)."""
+        olcek = 1.5 * self._zoom
+        if w_pt > 0 and h_pt > 0:
+            piksel = w_pt * h_pt * olcek * olcek
+            if piksel > self._MAX_PIKSEL:
+                olcek = (self._MAX_PIKSEL / (w_pt * h_pt)) ** 0.5
+        return olcek
+
+    def _olcek(self, index: int) -> float:
+        """Sayfanin efektif olcegi. Render, yer tutucu boyutu ve TUM koordinat
+        donusumleri (arama vurgusu, secim, SyncTeX) bunu kullanmali; biri
+        tavansiz olceye donerse buyuk sayfalarda koordinatlar kayar.
+
+        Boyut onbellekte yoksa tavan uygulanmiyor: onbellek her yuklemede ve her
+        yakinlastirmada _create_placeholders -> _get_page_size yolundan doluyor.
+        """
+        boyut = self._sayfa_pt.get(index)
+        return self._tavanli_olcek(*boyut) if boyut else 1.5 * self._zoom
+
     def _get_page_size(self, index: int):
         if not self._pdf or index >= self._page_count:
             return (100, 100)
-        scale = 1.5 * self._zoom
         with pdfium_lock:
             page = self._pdf[index]
-            w = int(page.get_width() * scale)
-            h = int(page.get_height() * scale)
-        return (max(w, 50), max(h, 50))
+            w_pt, h_pt = page.get_width(), page.get_height()
+        self._sayfa_pt[index] = (w_pt, h_pt)
+        scale = self._tavanli_olcek(w_pt, h_pt)
+        return (max(int(w_pt * scale), 50), max(int(h_pt * scale), 50))
 
     def _create_placeholders(self):
         # Sayfa etiketleri yenileniyor: vurgu eskisinin çocuğuydu. Çift-sayfa
@@ -214,13 +246,13 @@ class PdfRenderMixin:
         if not self._pdf or index >= self._page_count:
             return
         self._render_worker.submit(self._render_gen, index,
-                                   1.5 * self._zoom, self._invert_colors)
+                                   self._olcek(index), self._invert_colors)
 
     def _on_render_result(self, gen: int, index: int, scale: float,
                           invert: bool, image: QImage):
         if gen != self._render_gen or not self._pdf:
             return                      # doküman değişti/yenilendi: bayat sonuç
-        if scale != 1.5 * self._zoom or invert != self._invert_colors:
+        if scale != self._olcek(index) or invert != self._invert_colors:
             return                      # zoom/renk tercihi değişti: bayat sonuç
         if index >= len(self._page_labels):
             return

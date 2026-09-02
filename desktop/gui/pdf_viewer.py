@@ -59,6 +59,9 @@ class PdfViewer(
         self._highlight_label: QLabel | None = None
         self._highlight_timer: QTimer | None = None
         self._page_count = 0
+        # Sayfa boyutlari (nokta): olcek tavani her karede yeniden
+        # pdfium'a sormasin diye belge basina onbellekleniyor.
+        self._sayfa_pt: dict[int, tuple[float, float]] = {}
         self._current_page = 0
         self._zoom = 0.75
         self._page_labels: list[QLabel] = []

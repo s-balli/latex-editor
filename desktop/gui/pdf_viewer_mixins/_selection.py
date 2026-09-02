@@ -104,7 +104,7 @@ class PdfSelectionMixin:
             with pdfium_lock:
                 page = self._pdf[page_idx]
                 textpage = page.get_textpage()
-                scale = 1.5 * self._zoom
+                scale = self._olcek(page_idx)
                 x_pdf = label_pos.x() / scale
                 y_pdf = page.get_height() - label_pos.y() / scale
                 idx = textpage.get_index(x_pdf, y_pdf, x_tol=5.0, y_tol=5.0)
@@ -159,7 +159,7 @@ class PdfSelectionMixin:
             with pdfium_lock:
                 page = self._pdf[page_idx]
                 textpage = page.get_textpage()
-                scale = 1.5 * self._zoom
+                scale = self._olcek(page_idx)
 
                 x1 = start_lp.x() / scale
                 y1 = page.get_height() - start_lp.y() / scale
@@ -188,7 +188,7 @@ class PdfSelectionMixin:
         if not label or label.pixmap() is None or label.pixmap().isNull():
             return
 
-        scale = 1.5 * self._zoom
+        scale = self._olcek(page_idx)
         with pdfium_lock:
             page_height = self._pdf[page_idx].get_height()
         t = self._theme
