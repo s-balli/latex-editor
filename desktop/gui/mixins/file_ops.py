@@ -137,10 +137,43 @@ class FileOpsMixin:
         editor.rename_bibitem_requested.connect(self._on_rename_bibitem)
         editor.goto_definition_requested.connect(self._on_goto_definition)
 
+    # Bu boyutun ustundeki dosya acilmadan once soruluyor. Acilis SENKRON ve
+    # olculdu (2026-09-02): ~0.53 sn/MB, yani 15 MB 8.4 sn, 40 MB 21 sn boyunca
+    # arayuz kilitli. Dosya secicide "Tum Dosyalar (*)" oldugu icin yanlislikla
+    # buyuk bir .log secmek kolay. Cokme yok, ama kullanici ne oldugunu
+    # anlamiyor; sormak hem uyari hem cikis yolu.
+    _BUYUK_DOSYA_BAYT = 10 * 1024 * 1024
+
+    def _buyuk_dosya_onayi(self, path: str) -> bool:
+        """Dosya buyukse kullaniciya sor. Acilabilirse True."""
+        try:
+            boyut = os.path.getsize(path)
+        except OSError:
+            return True          # boyut okunamiyorsa engelleme; acilis zaten hata verir
+        if boyut <= self._BUYUK_DOSYA_BAYT:
+            return True
+        from PyQt6.QtWidgets import QMessageBox
+        mb = boyut / (1024 * 1024)
+        cevap = QMessageBox.question(
+            self, _("Büyük dosya"),
+            _("'{ad}' {mb:.0f} MB.\n\nAçılması yaklaşık {sn:.0f} saniye sürebilir "
+              "ve bu sürede pencere yanıt vermez.\n\nAçılsın mı?").format(
+                  ad=os.path.basename(path), mb=mb, sn=mb * 0.53),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No)
+        return cevap == QMessageBox.StandardButton.Yes
+
     def _open_file_in_editor(self, path: str, add_recent: bool = True):
         editor = self._editor_by_path(path)
         if editor is not None:
             self._editor_tabs.setCurrentWidget(editor)
+            return
+
+        # Oturum geri yuklemede (add_recent=False) sorulmuyor: o dosya gecen
+        # oturumda zaten aciktir, acilista dialog cikarmak yanlis olurdu.
+        if add_recent and not self._buyuk_dosya_onayi(path):
+            self._status.showMessage(_("Açılmadı: {ad}").format(
+                ad=os.path.basename(path)))
             return
 
         editor = EditorWidget(theme=self._theme_mgr.theme)

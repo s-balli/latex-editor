@@ -891,3 +891,37 @@ def test_bulunamayan_anahtar_None(tmp_path):
     icerik, yol = _cite_projesi(tmp_path, zincirli=False)
     latex_refs._bib_chain_cache.clear()
     assert latex_refs.find_cite_location(icerik, yol, "hicyok") is None
+
+
+# --- find_cite_usage: derleme/paket dizinlerine inilmiyor ---
+
+
+def test_find_cite_usage_cop_dizinlere_inmiyor(tmp_path):
+    """`.bib`ten atıfa gidiş her `.tex`i AÇIP okuyor.
+
+    `node_modules` gibi bir ağaç altta kalırsa Alt+tık denetimi onu baştan
+    tarıyordu (ölçüldü 2026-09-02, dış rapor envanteri: node_modules altında
+    1000 .tex varken 0.97 sn, temizken 0.00 sn). Aynı atlama kuralı
+    project_search ve dosya ağacında zaten vardı.
+    """
+    from core.latex_refs import find_cite_usage
+
+    bib = tmp_path / "kaynaklar.bib"
+    bib.write_text("@article{k, title={x}}\n", encoding="utf-8")
+
+    # Atıf YALNIZCA atlanması gereken dizinde: bulunmamalı
+    cop = tmp_path / "node_modules" / "paket"
+    cop.mkdir(parents=True)
+    (cop / "a.tex").write_text("bkz \\cite{k}\n", encoding="utf-8")
+    gizli = tmp_path / ".git"
+    gizli.mkdir()
+    (gizli / "b.tex").write_text("bkz \\cite{k}\n", encoding="utf-8")
+
+    assert find_cite_usage(str(bib), "k") is None
+
+    # Normal dizindeki atıf bulunmalı
+    (tmp_path / "makale.tex").write_text("bkz \\cite{k}\n", encoding="utf-8")
+    sonuc = find_cite_usage(str(bib), "k")
+    assert sonuc is not None
+    assert sonuc[0].endswith("makale.tex")
+    assert sonuc[1] == 1

@@ -447,15 +447,22 @@ def find_cite_usage(bib_path: str, key: str) -> tuple[str, int] | None:
     bdir = os.path.dirname(os.path.abspath(bib_path)) if bib_path else ""
     if not bdir:
         return None
+    from core.project_search import SKIP_DIRS, duz_dosya_mi
+
     for root, dirs, files in os.walk(bdir):
-        dirs.sort()
+        # Gizli ve derleme/paket dizinlerine inilmiyor. Bu yürüyüş her .tex'i
+        # AÇIP okuyor; `node_modules` gibi bir ağaç altta kalırsa Alt+tık
+        # denetimi onu baştan tarıyordu (ölçüldü 2026-09-02: node_modules
+        # altında 1000 .tex varken 0.97 sn, temizken 0.00 sn). Aynı atlama
+        # kuralı project_search ve dosya ağacında da geçerli.
+        dirs[:] = sorted(x for x in dirs
+                         if not x.startswith('.') and x not in SKIP_DIRS)
         for fn in sorted(files):
             if not fn.endswith('.tex'):
                 continue
             path = os.path.join(root, fn)
             # FIFO'yu okumak sonsuza dek bloklardi (bkz.
             # project_search.duz_dosya_mi).
-            from core.project_search import duz_dosya_mi
             if not duz_dosya_mi(path):
                 continue
             try:

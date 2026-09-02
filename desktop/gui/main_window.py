@@ -882,6 +882,9 @@ class MainWindow(
         html += "<p><b>" + _("Geliştirici:") + "</b> Serkan Ballı</p>"
         html += "<p><b>" + _("E-posta:") + "</b> serkanballi@gmail.com</p>"
         html += "<p><b>GitHub:</b> <a href='https://github.com/s-balli/latex-editor'>github.com/s-balli/latex-editor</a></p>"
+        html += ("<p><b>" + _("Tanıtım sayfası:") + "</b> "
+                 "<a href='https://s-balli.github.io/latex-editor/'>"
+                 "s-balli.github.io/latex-editor</a></p>")
         html += "</span>"
         QMessageBox.about(self, _("LaTeX Editor"), html)
 

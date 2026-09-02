@@ -397,3 +397,86 @@ def test_menu_tek_sinyale_bagli():
     # eklenirse addAction ikinci bir argüman alır.
     kod = [l for l in bolum.splitlines() if not l.strip().startswith("#")]
     assert not [l for l in kod if "lambda" in l], "menü yenilemesinde lambda geri gelmiş"
+
+
+# --- Büyük dosya açmadan önce sorulmalı ---
+
+
+from PyQt6.QtWidgets import QMessageBox as _GercekQMB
+
+
+def _buyuk(tmp_path, mb, ad="dev.log"):
+    y = tmp_path / ad
+    y.write_bytes(b"x" * (mb * 1024 * 1024 + 1))
+    return str(y)
+
+
+def test_buyuk_dosya_soruluyor_ve_hayirda_acilmiyor(qapp, tmp_path, monkeypatch):
+    """Açılış SENKRON: ~0.53 sn/MB, yani 40 MB'lık dosyada pencere 21 saniye
+    yanıt vermiyor (ölçüldü 2026-09-02).
+
+    Dosya seçicide "Tüm Dosyalar (*)" olduğu için yanlışlıkla büyük bir .log
+    seçmek kolay; çökme yok ama kullanıcı ne olduğunu anlamıyor.
+    """
+    stub = _Stub([])
+    yol = _buyuk(tmp_path, 11)
+    sorulan = []
+
+    class _SahteQMB:
+        StandardButton = _GercekQMB.StandardButton
+
+        @staticmethod
+        def question(parent, baslik, metin, *a, **k):
+            sorulan.append(metin)
+            return _SahteQMB.StandardButton.No
+
+    monkeypatch.setattr("PyQt6.QtWidgets.QMessageBox", _SahteQMB)
+
+    stub._open_file_in_editor(yol)
+
+    assert len(sorulan) == 1
+    assert "11 MB" in sorulan[0] or "MB" in sorulan[0]
+    assert stub._editor_tabs.count() == 0, "hayır denince açılmamalı"
+
+
+def test_kucuk_dosya_sorulmuyor(qapp, tmp_path, monkeypatch):
+    stub = _Stub([])
+    yol = _tex(tmp_path)
+    sorulan = []
+
+    class _SahteQMB:
+        StandardButton = _GercekQMB.StandardButton
+
+        @staticmethod
+        def question(parent, baslik, metin, *a, **k):
+            sorulan.append(metin)
+            return _SahteQMB.StandardButton.No
+
+    monkeypatch.setattr("PyQt6.QtWidgets.QMessageBox", _SahteQMB)
+
+    stub._open_file_in_editor(yol)
+
+    assert sorulan == []
+    assert stub._editor_tabs.count() == 1
+
+
+def test_oturum_geri_yuklemede_sorulmuyor(qapp, tmp_path, monkeypatch):
+    """Geçen oturumda açık olan dosya için açılışta dialog çıkmamalı."""
+    stub = _Stub([])
+    yol = _buyuk(tmp_path, 11, "buyuk.tex")
+    sorulan = []
+
+    class _SahteQMB:
+        StandardButton = _GercekQMB.StandardButton
+
+        @staticmethod
+        def question(parent, baslik, metin, *a, **k):
+            sorulan.append(metin)
+            return _SahteQMB.StandardButton.No
+
+    monkeypatch.setattr("PyQt6.QtWidgets.QMessageBox", _SahteQMB)
+
+    stub._open_file_in_editor(yol, add_recent=False)
+
+    assert sorulan == [], "oturum geri yüklemede sorulmamalı"
+    assert stub._editor_tabs.count() == 1
