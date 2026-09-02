@@ -100,6 +100,9 @@ class FileOpsMixin:
         # etiketinin SOLUNA, aynı satıra düşüyor ve gövde ile `\end{document}`
         # tek satırda birleşiyor. Gövde satır 2 (boş satır); imleç oraya.
         editor.setCursorPosition(2, 0)
+        # Baslangic konumu: derleme sonrasi atlama kararinda "kullanici imlece
+        # DOKUNDU mu" bunun uzerinden anlasiliyor (bkz. compile_ops).
+        editor._ilk_imlec = editor.getCursorPosition()
         self._connect_editor_signals(editor)
         idx = self._editor_tabs.addTab(editor, editor.display_name)
         self._editor_tabs.setCurrentIndex(idx)
@@ -144,6 +147,7 @@ class FileOpsMixin:
         self._apply_editor_settings(editor)
         if editor.open_file(path):
             _logger.info("Dosya açıldı: %s", path)
+            editor._ilk_imlec = editor.getCursorPosition()
             self._connect_editor_signals(editor)
             idx = self._editor_tabs.addTab(editor, editor.display_name)
             self._editor_tabs.setCurrentIndex(idx)

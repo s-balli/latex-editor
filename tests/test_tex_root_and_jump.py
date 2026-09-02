@@ -174,44 +174,83 @@ def _finished_ctx(tmp_path, success=True):
     return result
 
 
-def test_ilk_derlemede_atlama_yok(qapp, tmp_path):
-    """İlk derlemede PDF baştan açılmalı, imlece atlanmamalı.
+def test_dokunulmamis_imlecle_ilk_derleme_basta_aciliyor(qapp, tmp_path):
+    """Dosyayı açıp HİÇBİR ŞEY yapmadan derleyen kullanıcı başı görmeli.
 
-    Atlamanın amacı yazarken BULUNDUĞUN yeri korumak; belgeyi ilk kez
-    derlerken korunacak bir konum yok. Belgeyi baştan aşağı yazan kullanıcı
-    imleci en altta bıraktığı için PDF son sayfada açılıyordu (kullanıcı
-    bildirimi, 2026-09-02: "ilk açıp derleyince son sayfaya atıyor; sonra
-    imleci değiştirince davranış doğru").
+    Atlamanın amacı yazarken bulunduğun yeri korumak; dosyaya hiç
+    dokunulmadıysa korunacak bir konum yok ve doğal beklenti PDF'in baştan
+    açılması (kullanıcı bildirimi, 2026-09-02).
     """
     root, child = _project(tmp_path)
     ed = _editor_for(child)
     ed.setCursorPosition(1, 0)
+    ed._ilk_imlec = ed.getCursorPosition()      # açılıştaki konum
     stub = _Stub([ed], str(tmp_path))
 
     stub._compile()
     stub._on_compile_finished(_finished_ctx(tmp_path, success=True))
 
     assert stub._pdf_viewer.loaded == str(tmp_path / "tez.pdf")
-    assert stub._synctex_worker.calls == [], "ilk derlemede atlama olmamalı"
+    assert stub._synctex_worker.calls == [], "dokunulmamış imleçte atlama olmamalı"
+
+
+def test_ilk_derlemede_de_imlec_TASINDIYSA_atliyor(qapp, tmp_path):
+    """İmleci bilerek bir satıra götürüp derleyen oraya gitmek istiyor.
+
+    Ayırt edici şey "ilk derleme" DEĞİL, imlecin taşınmış olması.
+    """
+    root, child = _project(tmp_path)
+    ed = _editor_for(child)
+    ed._ilk_imlec = ed.getCursorPosition()      # açılıştaki konum
+    ed.setCursorPosition(1, 0)                  # kullanıcı imleci taşıdı
+    stub = _Stub([ed], str(tmp_path))
+
+    stub._compile()
+    stub._on_compile_finished(_finished_ctx(tmp_path, success=True))
+
+    assert len(stub._synctex_worker.calls) == 1
+    kind, args, _sd, _ctx = stub._synctex_worker.calls[0]
+    assert kind == "forward"
+    assert args[1] == 2                         # satır 1 (0-based) → 1-based 2
 
 
 def test_successful_compile_auto_jumps_to_cursor(qapp, tmp_path):
-    """İKİNCİ derlemeden itibaren imleç konumuna ileri-arama gönderilir."""
+    """İkinci derlemeden itibaren imleç dokunulmamış olsa da atlanır.
+
+    O noktada PDF zaten bir kez gösterilmiştir: korunacak bir konum vardır.
+    """
     root, child = _project(tmp_path)
     ed = _editor_for(child)
     ed.setCursorPosition(1, 0)
+    ed._ilk_imlec = ed.getCursorPosition()
     stub = _Stub([ed], str(tmp_path))
 
-    # İlk derleme: PDF ilk kez gösteriliyor, atlama yok
     stub._compile()
     stub._on_compile_finished(_finished_ctx(tmp_path, success=True))
     assert stub._synctex_worker.calls == []
 
-    # İkinci derleme: davranış eskisi gibi
     stub._compile()
     stub._on_compile_finished(_finished_ctx(tmp_path, success=True))
 
     assert stub._pdf_viewer.loaded == str(tmp_path / "tez.pdf")
+    assert len(stub._synctex_worker.calls) == 1
+
+
+def test_baslangic_konumu_bilinmiyorsa_atliyor(qapp, tmp_path):
+    """`_ilk_imlec` yoksa "dokunuldu" sayılmalı: var olan özellik korunur.
+
+    Emin olunamayan durumda atlamayı KAPATMAK, tanıtılan bir davranışı
+    sessizce kaybettirirdi.
+    """
+    root, child = _project(tmp_path)
+    ed = _editor_for(child)
+    ed.setCursorPosition(1, 0)
+    assert not hasattr(ed, "_ilk_imlec")
+    stub = _Stub([ed], str(tmp_path))
+
+    stub._compile()
+    stub._on_compile_finished(_finished_ctx(tmp_path, success=True))
+
     assert len(stub._synctex_worker.calls) == 1
     kind, args, synctex_dir, context = stub._synctex_worker.calls[0]
     assert kind == "forward"

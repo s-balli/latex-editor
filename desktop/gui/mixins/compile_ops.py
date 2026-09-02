@@ -167,6 +167,8 @@ class CompileOpsMixin:
         # SyncTeX girdi-dosyası bazlı olduğu için alt dosya konumu da geçerlidir
         line, col = editor.getCursorPosition()
         self._compile_cursor_ctx = (editor.file_path, line + 1, col + 1)
+        self._imlece_dokunuldu = (
+            getattr(editor, "_ilk_imlec", None) != (line, col))
         self._output_panel.clear()
         _logger.info("Derleme başladı: %s (%s)", os.path.basename(target), engine)
         self._compile_target = target
@@ -196,6 +198,8 @@ class CompileOpsMixin:
         if editor is not None:
             line, col = editor.getCursorPosition()
             self._compile_cursor_ctx = (path, line + 1, col + 1)
+            self._imlece_dokunuldu = (
+                getattr(editor, "_ilk_imlec", None) != (line, col))
         self._output_panel.clear()
         _logger.info("Derleme başladı: %s (%s)", os.path.basename(target), engine)
         self._compile_target = target
@@ -296,11 +300,12 @@ class CompileOpsMixin:
         # Yalnız başarılı derlemede; hatalı derlemede odak hatalardadır. quiet
         # mod: "Başarılı" durum mesajı SyncTeX mesajıyla ezilmez.
         #
-        # İLK derlemede atlanmıyor. Atlamanın amacı yazarken BULUNDUĞUN yeri
-        # korumak; belgeyi ilk kez derlerken korunacak bir konum yok ve doğal
-        # beklenti PDF'in baştan açılması. Belgeyi baştan aşağı yazan kullanıcı
-        # imleci en altta bıraktığı için PDF de son sayfada açılıyordu.
-        # Sonraki derlemelerde davranış aynen sürüyor.
+        # PDF ILK kez gosteriliyorsa VE kullanici imlece hic dokunmadiysa
+        # atlanmiyor: belge bastan aciliyor. Ayirt edici sey "ilk derleme"
+        # DEGIL, imlecin dokunulup dokunulmadigi. Dosyayi acip hicbir sey
+        # yapmadan derleyen kullanici basi gormek istiyor; imleci bilerek bir
+        # satira goturup derleyen ise oraya gitmek istiyor. Sonraki
+        # derlemelerde davranis her durumda aynen suruyor.
         ctx = getattr(self, "_compile_cursor_ctx", None)
         gorulenler = getattr(self, "_gorulen_pdfler", None)
         if gorulenler is None:
@@ -308,7 +313,9 @@ class CompileOpsMixin:
         ilk_gosterim = bool(pdf_shown) and result.pdf_path not in gorulenler
         if pdf_shown:
             gorulenler.add(result.pdf_path)
-        if ctx and not failed and pdf_shown and not ilk_gosterim:
+        dokunuldu = getattr(self, "_imlece_dokunuldu", True)
+        atla = ilk_gosterim and not dokunuldu
+        if ctx and not failed and pdf_shown and not atla:
             self._on_forward_search(ctx[0], ctx[1], ctx[2], quiet=True)
 
         # Hata satırlarını çözümle ve sakla (panel + gutter işareti + F4 ortak
