@@ -280,12 +280,24 @@ def test_derle_sh_no_shell_escape_bayragini_taniyor():
     assert i_red < i_izin
 
 
-@pytest.mark.skipif(not os.path.exists(DERLE_SH), reason="derle.sh yok")
-def test_derle_sh_sozdizimi():
-    bash = "bash"
+def _calisan_bash() -> bool:
+    """PATH'teki `bash` gerçekten bash mi.
+
+    Windows'ta `bash` çoğu kez WSL saplaması oluyor: dağıtım kurulu değilse
+    UTF-16 bir hata basıp 1 dönüyor. `bash -n`in dönüş kodunu sözdizimi
+    hatası sanmak, Windows CI'ı derle.sh'e hiç bakmadan düşürüyordu.
+    """
     try:
-        r = subprocess.run([bash, "-n", DERLE_SH], capture_output=True,
-                           text=True, encoding="utf-8")
-    except OSError:  # pragma: no cover
-        pytest.skip("bash yok")
-    assert r.returncode == 0, r.stderr
+        r = subprocess.run(["bash", "-c", "echo ok"], capture_output=True,
+                           text=True, encoding="utf-8", errors="replace")
+    except OSError:
+        return False
+    return r.returncode == 0 and "ok" in (r.stdout or "")
+
+
+@pytest.mark.skipif(not os.path.exists(DERLE_SH), reason="derle.sh yok")
+@pytest.mark.skipif(not _calisan_bash(), reason="çalışan bash yok")
+def test_derle_sh_sozdizimi():
+    r = subprocess.run(["bash", "-n", DERLE_SH], capture_output=True,
+                       text=True, encoding="utf-8", errors="replace")
+    assert r.returncode == 0, r.stderr or r.stdout
