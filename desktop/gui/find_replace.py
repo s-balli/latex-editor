@@ -13,6 +13,38 @@ from PyQt6.QtCore import QCoreApplication
 _ = lambda s: QCoreApplication.translate("FindReplaceBar", s)
 
 
+# Scintilla'nın ECMAScript kipi std::regex'e dayanıyor ve desen ÇÖZÜMLEMESİ
+# özyinelemeli: çok derin iç içe yakalayan grup yığını taşırıyor. Ölçüldü
+# (2026-09-02): 100 kat sorunsuz, 150 kat süreci 0xC0000005 ile öldürüyor.
+# Python istisnası değil, süreç ölümü — yakalanamıyor, kaydedilmemiş her şey
+# gidiyor. `(a|(a|...))` biçimi de aynı. Sınır ölçülen eşiğin epey altında:
+# gerçek bir aramada bu derinliğe yaklaşan desen yok.
+_MAX_GRUP_DERINLIGI = 50
+
+
+def _desen_guvenli(desen: str) -> bool:
+    """Desen, motoru yıkacak kadar derin iç içe grup taşıyor mu."""
+    derinlik = enbuyuk = 0
+    kacis = sinif = False
+    for c in desen:
+        if kacis:
+            kacis = False
+        elif c == "\\":
+            kacis = True
+        elif sinif:
+            # Karakter sınıfı içinde `(` düz karakter, grup açmıyor.
+            sinif = c != "]"
+        elif c == "[":
+            sinif = True
+        elif c == "(":
+            derinlik += 1
+            if derinlik > enbuyuk:
+                enbuyuk = derinlik
+        elif c == ")":
+            derinlik = max(0, derinlik - 1)
+    return enbuyuk <= _MAX_GRUP_DERINLIGI
+
+
 class FindReplaceBar(QWidget):
     # "Tümünü Değiştir" için üst sınır. Döngü normalde kendiliğinden biter
     # (arama wrap'siz ileri gider, imleç her değiştirmede ilerler); bu yalnız
@@ -247,6 +279,8 @@ class FindReplaceBar(QWidget):
         ECMAScript lehçesini açıyor; ipucu metni de onu anlatıyor.
         """
         re_, cs, wo = self._arama_bayraklari()
+        if re_ and not _desen_guvenli(text):
+            return False
         if line is None:
             line, col = self._editor.getCursorPosition()
         return self._editor.findFirst(
@@ -264,6 +298,11 @@ class FindReplaceBar(QWidget):
             return
 
         self._gecersiz_desen = False
+        if self._cb_regex.isChecked() and not _desen_guvenli(text):
+            self._gecersiz_desen = True
+            self._match_count = 0
+            self._update_current_match()
+            return
         # İlk eşleşmeyi bul
         bulundu = self._find_next_in_text(text, forward=True, wrap=True)
 
@@ -338,6 +377,8 @@ class FindReplaceBar(QWidget):
         """
         ed = self._editor
         re_, cs, wo = self._arama_bayraklari()
+        if re_ and not _desen_guvenli(text):
+            return 0, False
         bayrak = 0
         if cs:
             bayrak |= QsciScintilla.SCFIND_MATCHCASE

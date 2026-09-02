@@ -486,3 +486,61 @@ class TestSeceneklerAramayiTazeliyor:
         bar._cb_case.setChecked(True)      # toggled -> _on_option_toggled
         bar._count_matches("fig")
         assert bar._match_count == 1
+
+
+# =====================================================================
+# Derin iç içe grup: motoru öldüren desen
+# =====================================================================
+
+def test_derin_ic_ice_grup_reddediliyor():
+    """Scintilla'nın std::regex'i derin özyinelemede YIĞIN TAŞIRIYOR.
+
+    Ölçüldü (2026-09-02): 100 kat iç içe yakalayan grup sorunsuz, 150 kat
+    süreci 0xC0000005 ile öldürüyor. Python istisnası değil — try/except
+    yakalayamıyor, uygulama kapanıyor ve kaydedilmemiş her şey gidiyor.
+    """
+    from gui.find_replace import _desen_guvenli
+
+    assert _desen_guvenli("(" * 50 + "a" + ")" * 50)
+    assert not _desen_guvenli("(" * 51 + "a" + ")" * 51)
+    assert not _desen_guvenli("(a|" * 150 + "b" + ")" * 150)
+    # Karakter sınıfı KAPANDIKTAN sonraki gruplar yine sayılmalı; sınıf
+    # atlaması kapanışı gözden kaçırırsa tehlikeli desen güvenli sayılır.
+    assert not _desen_guvenli("[abc]" + "(" * 60 + "a" + ")" * 60)
+
+
+def test_gundelik_desenler_guvenli_sayiliyor():
+    """Sınır gerçek aramaları engellememeli."""
+    from gui.find_replace import _desen_guvenli
+
+    for desen in (r"\\section",
+                  r"\\(sub)?section\{(.*)\}",
+                  r"(a|b|c)+",
+                  "(" * 20 + "x" + ")" * 20,
+                  # Sınırın ÜSTÜNDE sayıda parantez, ama sınıfın içinde: grup
+                  # açmıyorlar. Sınıf atlaması bozulursa bu desen "güvensiz"
+                  # sayılır ve test düşer.
+                  "[" + "(" * 60 + "]",
+                  # Aynısı kaçırılmış parantezle.
+                  "\\(" * 60):
+        assert _desen_guvenli(desen), desen
+
+
+def test_derin_desen_arama_yolunu_tetiklemiyor(qapp, tmp_path):
+    """Guard hem _find_first hem _say yolunda olmalı: ikisi de motoru çağırıyor."""
+    from gui.find_replace import FindReplaceBar
+    from gui.editor import EditorWidget
+
+    ed = EditorWidget()
+    ed.setText("(((a)))\n")
+    bar = FindReplaceBar()
+    bar.set_editor(ed)
+    bar._cb_regex.setChecked(True)
+
+    kotu = "(" * 200 + "a" + ")" * 200
+    assert bar._find_first(kotu, wrap=True) is False
+    assert bar._say(kotu) == (0, False)
+
+    bar._find_input.setText(kotu)
+    bar._do_find()
+    assert bar._gecersiz_desen is True
