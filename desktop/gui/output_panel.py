@@ -480,10 +480,15 @@ class OutputPanel(QWidget):
         self._bib_status.setText("")
         self._tabs.setTabText(self._bib_tab_index, _("Kaynakça"))
 
-    def show_bibliography(self, satirlar, bib_yolu: str = "", uyari: str = ""):
-        """`satirlar`: core.bibtex.ozet() demetleri + satır no listesi.
+    def show_bibliography(self, satirlar, uyari: str = ""):
+        """Kaynakça listesini göster.
 
-        Beklenen biçim: ((anahtar, tür, yazar, yıl, başlık), satır) çiftleri.
+        `satirlar`: ((anahtar, tür, yazar, yıl, başlık), dosya, satır) üçlüleri.
+
+        Yol SATIR BAŞINA geliyor, tek bir .bib yolu değil: elle yazılmış
+        kaynakçada (`\\bibitem`) girdiler \\input zincirindeki FARKLI
+        dosyalara dağılmış olabiliyor.
+
         Yol ve satır YALNIZ ilk sütunun UserRole'ünde: tıklama satırın
         neresinden gelirse gelsin oradan okunuyor.
         """
@@ -497,12 +502,12 @@ class OutputPanel(QWidget):
         renk = QColor(self._theme.get("fg_primary", "#000000"))
 
         self._bib_table.setRowCount(len(satirlar))
-        for r, (ozet, satir) in enumerate(satirlar):
+        for r, (ozet, yol, satir) in enumerate(satirlar):
             for c, metin in enumerate(ozet):
                 hucre = QTableWidgetItem(metin)
                 hucre.setForeground(renk)
                 if c == 0:
-                    hucre.setData(Qt.ItemDataRole.UserRole, (bib_yolu, satir))
+                    hucre.setData(Qt.ItemDataRole.UserRole, (yol, satir))
                 self._bib_table.setItem(r, c, hucre)
         self._bib_table.setSortingEnabled(True)
         self._bib_table.resizeColumnsToContents()

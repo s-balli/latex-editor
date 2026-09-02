@@ -228,7 +228,9 @@ class EditOpsMixin:
                 ad += ".bib"
             return _("'{ad}' bulunamadı (klasörde yok)").format(ad=ad)
         if has_manual_bibliography(icerik, yol):
-            return _("Bu belge kaynakçayı elle yazıyor (\\bibitem); .bib dosyası yok")
+            # Buraya ancak kaynakça ortamı VAR ama İÇİ BOŞ ise düşülüyor:
+            # `\bibitem` bulunsaydı çağıran onları listelemişti.
+            return _("Kaynakça ortamı boş (\\begin{thebibliography} içinde \\bibitem yok)")
         return _("Bu belgede \\bibliography veya \\addbibresource yok")
 
     def _show_bibliography(self):
@@ -240,38 +242,65 @@ class EditOpsMixin:
         editörde açmak zaten mümkün.
         """
         from core.bibtex import ozet, parse_entries
-        from core.latex_refs import find_bib_path
+        from core.latex_refs import find_bib_path, parse_bibitems
         from core.project_search import coz
 
         editor = self._current_editor()
         if not editor or not editor.file_path:
-            self._output_panel.show_bibliography(
-                [], "", _("Önce bir .tex dosyası açın"))
+            self._output_panel.show_bibliography([], _("Önce bir .tex dosyası açın"))
             return
+
         yol = find_bib_path(editor.text(), editor.file_path)
-        if not yol:
-            # ÜÇ AYRI durum, üçü de ayrı cümleyi hak ediyor. Hepsine aynı
-            # mesajı vermek yanlış yönlendiriyordu: elle kaynakça yazana
-            # "kaynakçan yok" deniyor, dosyası eksik olana ise belgede zaten
-            # duran komutu aratıyordu.
+        if yol:
+            try:
+                with open(yol, "rb") as f:
+                    ham = f.read()
+            except OSError as e:
+                _logger.warning("Kaynakça okunamadı: %s | %s", yol, e)
+                self._output_panel.show_bibliography(
+                    [], _("Kaynakça dosyası okunamadı"))
+                return
+            girdiler = parse_entries(coz(ham))
             self._output_panel.show_bibliography(
-                [], "", self._bib_yok_nedeni(editor.text(), editor.file_path))
+                [(ozet(g), yol, g.satir) for g in girdiler],
+                _("kaynakçada girdi yok"))
+            self._status.showMessage(
+                _("Kaynakça: {n} girdi · {d}").format(
+                    n=len(girdiler), d=os.path.basename(yol)))
             return
-        try:
-            with open(yol, "rb") as f:
-                ham = f.read()
-        except OSError as e:
-            _logger.warning("Kaynakça okunamadı: %s | %s", yol, e)
+
+        # .bib yok: kaynakça ELLE yazılmış olabilir. 38 şablonun 13'ü böyle
+        # (213 kaynak) ve o kullanıcılar sekmeyi hiç göremiyordu.
+        elle = parse_bibitems(editor.text(), editor.file_path)
+        if elle:
             self._output_panel.show_bibliography(
-                [], "", _("Kaynakça dosyası okunamadı"))
+                [self._bibitem_satiri(x) for x in elle])
+            self._status.showMessage(
+                _("Kaynakça: {n} girdi (elle yazılmış)").format(n=len(elle)))
             return
-        girdiler = parse_entries(coz(ham))
+
+        # ÜÇ AYRI durum, üçü de ayrı cümleyi hak ediyor. Hepsine aynı mesajı
+        # vermek yanlış yönlendiriyordu (bkz. _bib_yok_nedeni).
         self._output_panel.show_bibliography(
-            [(ozet(g), g.satir) for g in girdiler], yol,
-            _("kaynakçada girdi yok"))
-        self._status.showMessage(
-            _("Kaynakça: {n} girdi · {d}").format(
-                n=len(girdiler), d=os.path.basename(yol)))
+            [], self._bib_yok_nedeni(editor.text(), editor.file_path))
+
+    @staticmethod
+    def _bibitem_satiri(girdi) -> tuple:
+        """`\\bibitem` girdisini tablo satırına çevir.
+
+        YAZAR sütunu BİLEREK boş: `\\bibitem` gövdesi serbest metin, alanlara
+        ayrılmış değil. Yazarı oradan çıkarmak tahmin olurdu ve doğruluğunu
+        sınayacak bir kaynak yok. Metnin tamamı Başlık sütununda duruyor,
+        süzgeç de orayı tarıyor; yazar araması yine çalışıyor.
+
+        YIL yalnız metinde TEK yıl adayı varsa doluyor (bkz.
+        latex_refs._bibitem_yili).
+        """
+        from core.latex_refs import _bibitem_yili
+
+        anahtar, dosya, satir, metin = girdi
+        return ((anahtar, "bibitem", "", _bibitem_yili(metin), metin),
+                dosya, satir)
 
     def _audit_references(self):
         """Düzenle > Referansları Denetle — derlemeden bağımsız lokal analiz."""

@@ -573,7 +573,7 @@ def test_sekmeye_gecince_doldurma_isteniyor(qapp):
 
 def test_dolu_sekmeye_gecince_tekrar_istenmiyor(qapp):
     panel = OutputPanel(theme=THEMES["dark"])
-    panel.show_bibliography([(("k", "article", "A", "2020", "T"), 1)], "/tmp/r.bib")
+    panel.show_bibliography([(("k", "article", "A", "2020", "T"), "/tmp/r.bib", 1)])
     istekler = []
     panel.bibliography_requested.connect(lambda: istekler.append(1))
     panel._tabs.setCurrentIndex(0)
@@ -584,7 +584,7 @@ def test_dolu_sekmeye_gecince_tekrar_istenmiyor(qapp):
 def test_clear_bibliography_bosaltiyor(qapp):
     """Kök değişince eski projenin girdileri kalmamalı."""
     panel = OutputPanel(theme=THEMES["dark"])
-    panel.show_bibliography([(("k", "article", "A", "2020", "T"), 1)], "/tmp/r.bib")
+    panel.show_bibliography([(("k", "article", "A", "2020", "T"), "/tmp/r.bib", 1)])
     panel._bib_filter.setText("k")
     panel.clear_bibliography()
     assert panel._bib_table.rowCount() == 0
@@ -612,19 +612,42 @@ def test_bildirim_var_dosya_yoksa_dosya_adi_soyleniyor(qapp, tmp_path):
     assert "bibliography" not in not_.lower(), "bildirim yok sanıldı: " + not_
 
 
-def test_elle_kaynakca_ayirt_ediliyor(qapp, tmp_path):
-    """\\begin{thebibliography} kullanan belgenin kaynakçası VAR."""
+def test_elle_kaynakca_LISTELENIYOR(qapp, tmp_path):
+    """\\begin{thebibliography} kullanan belgenin kaynakçası VAR: gösterilmeli.
+
+    Bir ara "bu belge kaynakçayı elle yazıyor" diye mesaj veriliyordu; doğru
+    ama yetersizdi. 38 şablonun 13'ü böyle (213 kaynak) ve o kullanıcılar
+    sekmeyi hiç göremiyordu.
+    """
     main = tmp_path / "m.tex"
     main.write_text(
-        "\\begin{thebibliography}{9}\n\\bibitem{a} A. Yazar, 2020.\n"
+        "\\begin{thebibliography}{9}\n\\bibitem{a} A. Yazar, Bir Makale, 2020.\n"
         "\\end{thebibliography}\n", encoding="utf-8")
     ed = EditorWidget()
     ed._file_path = str(main)
     ed.setText(main.read_text(encoding="utf-8"))
     stub = _StubMain(ed)
     MainWindow._show_bibliography(stub)
-    not_ = stub._output_panel._bib_status.text()
-    assert "elle" in not_.lower(), not_
+    t = stub._output_panel._bib_table
+    assert t.rowCount() == 1
+    assert t.item(0, 0).text() == "a"
+    assert t.item(0, 1).text() == "bibitem"
+    assert t.item(0, 3).text() == "2020"
+    assert "Bir Makale" in t.item(0, 4).text()
+
+
+def test_bos_kaynakca_ortami_soyleniyor(qapp, tmp_path):
+    """Ortam var ama içi boşsa liste değil, sebep gösterilmeli."""
+    main = tmp_path / "m.tex"
+    main.write_text("\\begin{thebibliography}{9}\n\\end{thebibliography}\n",
+                    encoding="utf-8")
+    ed = EditorWidget()
+    ed._file_path = str(main)
+    ed.setText(main.read_text(encoding="utf-8"))
+    stub = _StubMain(ed)
+    MainWindow._show_bibliography(stub)
+    assert stub._output_panel._bib_table.rowCount() == 0
+    assert "boş" in stub._output_panel._bib_status.text().lower()
 
 
 def test_hic_kaynakca_yoksa_bildirim_yok_deniyor(qapp, tmp_path):
@@ -646,8 +669,9 @@ def test_uc_neden_birbirinden_FARKLI(qapp, tmp_path):
     for ad, icerik in (
         ("yok", "Sadece metin.\n"),
         ("eksik", "\\bibliography{olmayan}\n"),
-        ("elle", "\\begin{thebibliography}{9}\n\\bibitem{a} X\n"
-                 "\\end{thebibliography}\n"),
+        # `\bibitem` VARSA çağıran onları listeliyor; bu kol yalnız kaynakça
+        # ortamı boşken görünüyor.
+        ("bos_ortam", "\\begin{thebibliography}{9}\n\\end{thebibliography}\n"),
     ):
         p = tmp_path / (ad + ".tex")
         p.write_text(icerik, encoding="utf-8")

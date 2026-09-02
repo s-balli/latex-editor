@@ -698,3 +698,107 @@ def test_zincir_sonucu_onbelleklenıyor(tmp_path):
         time.time() - latex_refs._BIB_CHAIN_TTL - 1,
         latex_refs._bib_chain_cache[yol][1])
     assert latex_refs.find_bib_path(icerik, yol) == ""      # tazelendi
+
+
+# --- parse_bibitems: elle yazılmış kaynakça ---
+#
+# 38 şablonun 12'si kaynakçayı `\bibitem` ile yazıyor (213 kaynak) ve o
+# belgelerde Kaynakça sekmesi hiçbir şey gösteremiyordu.
+
+
+def test_bibitem_anahtar_ve_metin(tmp_path):
+    p = tmp_path / "m.tex"
+    icerik = ("\\begin{thebibliography}{9}\n"
+              "\\bibitem{a2020} A. Yazar, Bir Makale, Dergi, 2020.\n"
+              "\\bibitem{b2021} B. Yazar, Baska Makale, 2021.\n"
+              "\\end{thebibliography}\n")
+    p.write_text(icerik, encoding="utf-8")
+    g = latex_refs.parse_bibitems(icerik, str(p))
+    assert [x[0] for x in g] == ["a2020", "b2021"]
+    assert g[0][3] == "A. Yazar, Bir Makale, Dergi, 2020"
+
+
+def test_bibitem_satir_numarasi_dogru(tmp_path):
+    """Tıklama gerçek satıra gitmeli."""
+    p = tmp_path / "m.tex"
+    icerik = ("satir1\nsatir2\n\\begin{thebibliography}{9}\n"
+              "\\bibitem{a} X\n\\bibitem{b} Y\n\\end{thebibliography}\n")
+    p.write_text(icerik, encoding="utf-8")
+    g = latex_refs.parse_bibitems(icerik, str(p))
+    assert [(x[0], x[2]) for x in g] == [("a", 4), ("b", 5)]
+
+
+def test_bibitem_kose_parantezli_etiket(tmp_path):
+    """`\\bibitem[Yazar 2020]{anahtar}` biçimi de yaygın."""
+    p = tmp_path / "m.tex"
+    icerik = "\\bibitem[Yazar, 2020]{key1} Metin burada.\n"
+    p.write_text(icerik, encoding="utf-8")
+    g = latex_refs.parse_bibitems(icerik, str(p))
+    assert [x[0] for x in g] == ["key1"]
+
+
+def test_bibitem_zincirdeki_dosyadan(tmp_path):
+    """Kaynakça bölüm dosyasında olabilir; yol SATIR BAŞINA dönmeli."""
+    (tmp_path / "kaynaklar.tex").write_text(
+        "\\begin{thebibliography}{9}\n\\bibitem{z} Zincirdeki kaynak\n"
+        "\\end{thebibliography}\n", encoding="utf-8")
+    icerik = "\\begin{document}\n\\input{kaynaklar}\n\\end{document}\n"
+    p = tmp_path / "main.tex"
+    p.write_text(icerik, encoding="utf-8")
+    g = latex_refs.parse_bibitems(icerik, str(p))
+    assert len(g) == 1
+    assert g[0][0] == "z"
+    assert os.path.basename(g[0][1]) == "kaynaklar.tex"
+
+
+def test_bibitem_mukerrer_anahtar_bir_kez(tmp_path):
+    """Aynı dosya hem içerik hem zincirden gelirse iki kez sayılmasın."""
+    p = tmp_path / "m.tex"
+    icerik = "\\bibitem{a} X\n\\bibitem{a} Y\n"
+    p.write_text(icerik, encoding="utf-8")
+    assert len(latex_refs.parse_bibitems(icerik, str(p))) == 1
+
+
+def test_bibitem_bicim_komutlari_soyuluyor(tmp_path):
+    p = tmp_path / "m.tex"
+    icerik = ("\\bibitem{a} A.~Yazar, \\newblock \\emph{Kitap Adi}, "
+              "\\textbf{12}, ``alinti'' 2020.\n")
+    p.write_text(icerik, encoding="utf-8")
+    metin = latex_refs.parse_bibitems(icerik, str(p))[0][3]
+    assert "\\emph" not in metin and "\\newblock" not in metin
+    assert "Kitap Adi" in metin
+    assert "~" not in metin
+    assert '"alinti"' in metin
+
+
+def test_bibitem_yoksa_bos(tmp_path):
+    p = tmp_path / "m.tex"
+    icerik = "Sadece metin, kaynakca yok.\n"
+    p.write_text(icerik, encoding="utf-8")
+    assert latex_refs.parse_bibitems(icerik, str(p)) == []
+
+
+class TestBibitemYili:
+    """Yıl TAHMİN EDİLMİYOR: tek aday yoksa boş.
+
+    222 gerçek girdide ölçüldü: %87'sinde tek aday var, %5'inde birden çok.
+    Gerçek bir örnekte adaylar 2014, 2023 ve 2037 ve sonuncusu bir SAYFA
+    numarası. Yanlış yıl göstermek boş bırakmaktan kötü: sütuna göre
+    sıralama da bozulur.
+    """
+
+    def test_tek_aday_gosteriliyor(self):
+        assert latex_refs._bibitem_yili("A. Yazar, Makale, Dergi, 2020.") == "2020"
+
+    def test_birden_cok_aday_bos(self):
+        assert latex_refs._bibitem_yili("Makale 2019, sayfa 2037, cilt 3") == ""
+
+    def test_ayni_yil_iki_kez_hala_tek_aday(self):
+        assert latex_refs._bibitem_yili("2020 basimi, 2020 tarihli") == "2020"
+
+    def test_aday_yoksa_bos(self):
+        assert latex_refs._bibitem_yili("Yazar, Kitap, Yayinevi.") == ""
+
+    def test_gelecek_yil_gibi_sayilar_alinmiyor(self):
+        """Kural aralığı 1800-2049: 2500 ya da 1234 yıl değil."""
+        assert latex_refs._bibitem_yili("no. 1234, pp. 2500") == ""

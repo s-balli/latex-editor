@@ -681,7 +681,7 @@ class TestKokDegisince:
             pass
 
         panel.show_bibliography(
-            [(("k", "article", "A", "2020", "T"), 1)], "/eski/refs.bib")
+            [(("k", "article", "A", "2020", "T"), "/eski/refs.bib", 1)])
         assert panel._bib_table.rowCount() == 1
 
         S(panel, proje)._on_project_root_changed("/baska/kok")

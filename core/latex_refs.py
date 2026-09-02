@@ -120,6 +120,81 @@ _bib_chain_cache: dict = {}
 _BIB_CHAIN_TTL = 2.0
 
 
+# \bibitem[etiket]{anahtar} GÖVDE ... bir sonraki \bibitem'e ya da ortamın
+# sonuna kadar. Gövde serbest metin: .bib gibi alanlara ayrılmış değil.
+_RE_BIBITEM_GOVDE = re.compile(
+    r"\\bibitem\s*(?:\[[^\]]*\])?\s*\{([^}]+)\}"
+    r"(.*?)(?=\\bibitem|\\end\{thebibliography\}|\Z)", re.DOTALL)
+
+# Gösterim için soyulan biçim komutları. Liste DAR: tanınmayan komutu silmek
+# metni bozabilir (\& gibi kaçışlar, \TeX gibi anlam taşıyanlar).
+_RE_BICIM = re.compile(r"\\(?:emph|textit|textbf|texttt|textsc|url|href)\s*\{([^{}]*)\}")
+_RE_NEWBLOCK = re.compile(r"\\newblock\b")
+
+# Yıl adayı: 1800-2049. Sayfa/cilt numaraları da bu aralığa düşebiliyor,
+# bu yüzden TEK aday yoksa yıl BOŞ bırakılıyor (aşağıya bakın).
+_RE_YIL = re.compile(r"\b(1[89]\d{2}|20[0-4]\d)\b")
+
+
+def _bibitem_metni(ham: str) -> str:
+    """\\bibitem gövdesini okunur tek satıra indir."""
+    s = _RE_NEWBLOCK.sub(" ", ham)
+    for _ in range(3):          # iç içe \emph{\textbf{...}} için birkaç tur
+        yeni = _RE_BICIM.sub(r"\1", s)
+        if yeni == s:
+            break
+        s = yeni
+    s = s.replace("~", " ").replace("``", '"').replace("''", '"')
+    s = s.replace("{", "").replace("}", "")
+    return " ".join(s.split()).strip(" ,.")
+
+
+def _bibitem_yili(metin: str) -> str:
+    """Metinde TEK bir yıl adayı varsa onu döndür, yoksa "".
+
+    Tahmin YOK. Ölçüldü (222 gerçek girdi): %87'sinde tek aday var, %5'inde
+    birden çok ve orada hangisinin yıl olduğu belli değil. Gerçek bir örnek:
+    adaylar 2014, 2023, 2037 ve sonuncusu bir SAYFA numarası. Yanlış yıl
+    göstermek, boş bırakmaktan kötü: sütuna göre sıralama da bozulur.
+    """
+    adaylar = set(_RE_YIL.findall(metin))
+    return adaylar.pop() if len(adaylar) == 1 else ""
+
+
+def parse_bibitems(content: str, base_path: str) -> list[tuple[str, str, int, str]]:
+    """Elle yazılmış kaynakça girdileri: (anahtar, dosya, satır, metin).
+
+    Belgede ve \\input zincirinde geçen `\\bibitem`ler. .bib'in aksine her
+    girdi FARKLI bir dosyada olabiliyor, o yüzden yol satır başına dönüyor.
+
+    Yorumlar soyulmuyor: satır numarası GERÇEK dosyadaki satır olmalı ki
+    tıklama doğru yere gitsin. (`strip_comments` satırları koruyor ama burada
+    ham metinle çalışmak daha az varsayım demek.)
+    """
+    kaynaklar: list[tuple[str, str]] = []
+    if base_path:
+        kaynaklar.append((base_path, content))
+    bdir = _base_dir(base_path)
+    for yol in _flatten_input_paths(content, bdir):
+        try:
+            with open(yol, 'r', encoding='utf-8', errors='replace') as f:
+                kaynaklar.append((yol, f.read()))
+        except OSError:
+            continue
+
+    cikti: list[tuple[str, str, int, str]] = []
+    gorulen: set[str] = set()
+    for yol, metin in kaynaklar:
+        for m in _RE_BIBITEM_GOVDE.finditer(metin):
+            anahtar = m.group(1).strip()
+            if not anahtar or anahtar in gorulen:
+                continue
+            gorulen.add(anahtar)
+            cikti.append((anahtar, yol, metin.count("\n", 0, m.start()) + 1,
+                          _bibitem_metni(m.group(2))))
+    return cikti
+
+
 def bib_declaration(content: str, base_path: str) -> str:
     """Bildirimde YAZAN .bib adı, dosya var olmasa da. Yoksa "".
 
