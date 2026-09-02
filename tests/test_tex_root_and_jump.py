@@ -174,13 +174,40 @@ def _finished_ctx(tmp_path, success=True):
     return result
 
 
-def test_successful_compile_auto_jumps_to_cursor(qapp, tmp_path):
-    """Başarılı derleme → imleç konumuna ileri-arama isteği gönderilir."""
+def test_ilk_derlemede_atlama_yok(qapp, tmp_path):
+    """İlk derlemede PDF baştan açılmalı, imlece atlanmamalı.
+
+    Atlamanın amacı yazarken BULUNDUĞUN yeri korumak; belgeyi ilk kez
+    derlerken korunacak bir konum yok. Belgeyi baştan aşağı yazan kullanıcı
+    imleci en altta bıraktığı için PDF son sayfada açılıyordu (kullanıcı
+    bildirimi, 2026-09-02: "ilk açıp derleyince son sayfaya atıyor; sonra
+    imleci değiştirince davranış doğru").
+    """
     root, child = _project(tmp_path)
     ed = _editor_for(child)
     ed.setCursorPosition(1, 0)
     stub = _Stub([ed], str(tmp_path))
 
+    stub._compile()
+    stub._on_compile_finished(_finished_ctx(tmp_path, success=True))
+
+    assert stub._pdf_viewer.loaded == str(tmp_path / "tez.pdf")
+    assert stub._synctex_worker.calls == [], "ilk derlemede atlama olmamalı"
+
+
+def test_successful_compile_auto_jumps_to_cursor(qapp, tmp_path):
+    """İKİNCİ derlemeden itibaren imleç konumuna ileri-arama gönderilir."""
+    root, child = _project(tmp_path)
+    ed = _editor_for(child)
+    ed.setCursorPosition(1, 0)
+    stub = _Stub([ed], str(tmp_path))
+
+    # İlk derleme: PDF ilk kez gösteriliyor, atlama yok
+    stub._compile()
+    stub._on_compile_finished(_finished_ctx(tmp_path, success=True))
+    assert stub._synctex_worker.calls == []
+
+    # İkinci derleme: davranış eskisi gibi
     stub._compile()
     stub._on_compile_finished(_finished_ctx(tmp_path, success=True))
 

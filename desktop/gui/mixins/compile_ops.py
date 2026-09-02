@@ -295,8 +295,20 @@ class CompileOpsMixin:
         # olduğu yere PDF kaydırılır, kullanıcı çıktısını olduğu yerda doğrular.
         # Yalnız başarılı derlemede; hatalı derlemede odak hatalardadır. quiet
         # mod: "Başarılı" durum mesajı SyncTeX mesajıyla ezilmez.
+        #
+        # İLK derlemede atlanmıyor. Atlamanın amacı yazarken BULUNDUĞUN yeri
+        # korumak; belgeyi ilk kez derlerken korunacak bir konum yok ve doğal
+        # beklenti PDF'in baştan açılması. Belgeyi baştan aşağı yazan kullanıcı
+        # imleci en altta bıraktığı için PDF de son sayfada açılıyordu.
+        # Sonraki derlemelerde davranış aynen sürüyor.
         ctx = getattr(self, "_compile_cursor_ctx", None)
-        if ctx and not failed and pdf_shown:
+        gorulenler = getattr(self, "_gorulen_pdfler", None)
+        if gorulenler is None:
+            gorulenler = self._gorulen_pdfler = set()
+        ilk_gosterim = bool(pdf_shown) and result.pdf_path not in gorulenler
+        if pdf_shown:
+            gorulenler.add(result.pdf_path)
+        if ctx and not failed and pdf_shown and not ilk_gosterim:
             self._on_forward_search(ctx[0], ctx[1], ctx[2], quiet=True)
 
         # Hata satırlarını çözümle ve sakla (panel + gutter işareti + F4 ortak
