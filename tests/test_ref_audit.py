@@ -11,7 +11,7 @@ import pytest
 
 try:
     from PyQt6.QtCore import Qt
-    from PyQt6.QtWidgets import QApplication
+    from PyQt6.QtWidgets import QApplication, QMessageBox
     from gui.editor import EditorWidget
     from gui.main_window import MainWindow
     from gui.mixins.edit_ops import EditOpsMixin
@@ -738,3 +738,123 @@ def test_main_window_esneme_carpanlarini_kuruyor():
         k = f.read()
     assert "self._main_splitter.setStretchFactor(0, 1)" in k
     assert "self._main_splitter.setStretchFactor(1, 0)" in k
+
+
+# --- DOI: yazılacak .bib nasıl bulunuyor ---
+#
+# Üç durum var ve bir ara üçü de aynı duvara çarpıyordu ("bu belgenin .bib
+# dosyası yok"). Oysa `\bibliography{refs}` yazıp henüz refs.bib'i
+# yaratmamış olmak YENİ BİR BELGENİN OLAĞAN HÂLİ.
+
+
+def _doi_stub(tmp_path, tex, bib=None, bib_adi="refs.bib"):
+    if bib is not None:
+        (tmp_path / bib_adi).write_text(bib, encoding="utf-8")
+    main = tmp_path / "m.tex"
+    main.write_text(tex, encoding="utf-8")
+    ed = EditorWidget()
+    ed._file_path = str(main)
+    ed.setText(tex)
+    return _StubMain(ed), ed
+
+
+def test_var_olan_bib_kullaniliyor(qapp, tmp_path):
+    stub, ed = _doi_stub(tmp_path, "\\bibliography{refs}\n", bib="@article{a,}\n")
+    assert stub._doi_hedef_bib(ed) == str(tmp_path / "refs.bib")
+
+
+def test_bildirim_var_dosya_yoksa_ONAYLA_yaratiliyor(qapp, tmp_path, monkeypatch):
+    """`\\bibliography{refs}` yazıp dosyayı yaratmamış olmak olağan."""
+    stub, ed = _doi_stub(tmp_path, "\\bibliography{refs}\n")
+    monkeypatch.setattr(QMessageBox, "question",
+                        staticmethod(lambda *a, **k: QMessageBox.StandardButton.Yes))
+    yol = stub._doi_hedef_bib(ed)
+    assert yol == str(tmp_path / "refs.bib")
+    assert os.path.isfile(yol)
+
+
+def test_yaratma_reddedilirse_bos(qapp, tmp_path, monkeypatch):
+    stub, ed = _doi_stub(tmp_path, "\\bibliography{refs}\n")
+    monkeypatch.setattr(QMessageBox, "question",
+                        staticmethod(lambda *a, **k: QMessageBox.StandardButton.No))
+    assert stub._doi_hedef_bib(ed) == ""
+    assert not (tmp_path / "refs.bib").exists()
+
+
+def test_var_olan_dosya_ONAY_SORMADAN_kullaniliyor(qapp, tmp_path, monkeypatch):
+    """Dosya varken soru çıkmamalı."""
+    sorular = []
+    monkeypatch.setattr(QMessageBox, "question",
+                        staticmethod(lambda *a, **k: sorular.append(1)))
+    stub, ed = _doi_stub(tmp_path, "\\bibliography{refs}\n", bib="@article{a,}\n")
+    stub._doi_hedef_bib(ed)
+    assert sorular == []
+
+
+def test_uzantisiz_bildirim_bib_ekliyor(qapp, tmp_path, monkeypatch):
+    """`\\bibliography{kaynaklar}` -> kaynaklar.bib"""
+    stub, ed = _doi_stub(tmp_path, "\\bibliography{kaynaklar}\n")
+    monkeypatch.setattr(QMessageBox, "question",
+                        staticmethod(lambda *a, **k: QMessageBox.StandardButton.Yes))
+    assert stub._doi_hedef_bib(ed) == str(tmp_path / "kaynaklar.bib")
+
+
+def _mesaj_metni(cagri) -> str:
+    """QMessageBox çağrısının GÖVDE metni.
+
+    `str(args)` KULLANMA: demette parent widget de var ve her stub farklı bir
+    nesne olduğu için metinler hep benzersiz çıkıyor. Bu yüzden "üç mesaj
+    farklı mı" kapısı boşa düşmüştü (kol kapatılınca bile geçiyordu).
+    """
+    return " ".join(str(x) for x in cagri if isinstance(x, str))
+
+
+def test_elle_kaynakcada_ne_yapmasi_gerektigi_soyleniyor(qapp, tmp_path, monkeypatch):
+    """BibTeX girdisi eklemek işe yaramaz: belge onu hiç okumaz."""
+    mesajlar = []
+    monkeypatch.setattr(QMessageBox, "information",
+                        staticmethod(lambda *a, **k: mesajlar.append(a)))
+    stub, ed = _doi_stub(
+        tmp_path,
+        "\\begin{thebibliography}{9}\n\\bibitem{a} X\n\\end{thebibliography}\n")
+    assert stub._doi_hedef_bib(ed) == ""
+    assert mesajlar, "sessizce vazgeçti"
+    metin = _mesaj_metni(mesajlar[0])
+    # `\bibitem` GEÇMELİ: yalnız "bibliography{refs} ekleyin" demek genel
+    # mesajla aynı ve bu durumu ayırt etmiyor.
+    assert "bibitem" in metin, metin
+    assert "bibliography{refs}" in metin, metin
+
+
+def test_hic_kaynakca_yoksa_yol_gosteriliyor(qapp, tmp_path, monkeypatch):
+    mesajlar = []
+    monkeypatch.setattr(QMessageBox, "information",
+                        staticmethod(lambda *a, **k: mesajlar.append(a)))
+    stub, ed = _doi_stub(tmp_path, "Sadece metin.\n")
+    assert stub._doi_hedef_bib(ed) == ""
+    assert mesajlar
+    metin = _mesaj_metni(mesajlar[0])
+    assert "bibliography{refs}" in metin, metin
+    assert "bibitem" not in metin, metin
+
+
+def test_uc_durum_AYRI_mesaj_veriyor(qapp, tmp_path, monkeypatch):
+    """Kapının kendisi: üçü aynı metne dönerse yukarıdakiler boşa düşer."""
+    mesajlar = []
+    monkeypatch.setattr(QMessageBox, "information",
+                        staticmethod(lambda *a, **k: mesajlar.append(_mesaj_metni(a))))
+    monkeypatch.setattr(
+        QMessageBox, "question",
+        staticmethod(lambda *a, **k: (mesajlar.append(_mesaj_metni(a))
+                                      or QMessageBox.StandardButton.No)))
+    for i, tex in enumerate((
+        "Sadece metin.\n",
+        "\\bibliography{olmayan}\n",
+        "\\begin{thebibliography}{9}\n\\bibitem{a} X\n\\end{thebibliography}\n",
+    )):
+        d = tmp_path / ("p%d" % i)
+        d.mkdir()
+        stub, ed = _doi_stub(d, tex)
+        stub._doi_hedef_bib(ed)
+    assert len(mesajlar) == 3, mesajlar
+    assert len(set(mesajlar)) == 3, mesajlar

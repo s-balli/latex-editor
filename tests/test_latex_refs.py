@@ -802,3 +802,92 @@ class TestBibitemYili:
     def test_gelecek_yil_gibi_sayilar_alinmiyor(self):
         """Kural aralığı 1800-2049: 2500 ya da 1234 yıl değil."""
         assert latex_refs._bibitem_yili("no. 1234, pp. 2500") == ""
+
+
+# --- Alt+tık ile tanıma gitme: HER İKİ YÖN ---
+#
+# `\cite` üzerinde Alt+tık .bib girdisine, .bib girdisi üzerinde Alt+tık
+# kullanıldığı satıra götürüyor. İkisi de `find_bib_path`in altında duruyor
+# ve oraya zincir taraması eklendi; bu testler o yolun bozulmadığını
+# sabitliyor. (Zincirli proje için zaten YENİ kazanım: eskiden .bib hiç
+# bulunamadığı için cite->bib geçişi de çalışmıyordu.)
+
+
+def _cite_projesi(tmp_path, zincirli: bool):
+    (tmp_path / "referans.bib").write_text(
+        "@article{a2019, author={A}, title={T}, journal={J}, year={2019}}\n"
+        "@article{b2020, author={B}, title={T}, journal={J}, year={2020}}\n",
+        encoding="utf-8")
+    if zincirli:
+        (tmp_path / "kaynaklar.tex").write_text(
+            "\\bibliographystyle{plain}\n\\bibliography{referans}\n",
+            encoding="utf-8")
+        icerik = ("\\documentclass{book}\n\\begin{document}\n"
+                  "Metin \\cite{b2020}.\n\\include{kaynaklar}\n"
+                  "\\end{document}\n")
+    else:
+        icerik = ("\\documentclass{article}\n\\bibliography{referans}\n"
+                  "\\begin{document}\nMetin \\cite{b2020}.\n\\end{document}\n")
+    yol = tmp_path / "main.tex"
+    yol.write_text(icerik, encoding="utf-8")
+    return icerik, str(yol)
+
+
+def test_cite_bib_girdisine_gidiyor(tmp_path):
+    icerik, yol = _cite_projesi(tmp_path, zincirli=False)
+    latex_refs._bib_chain_cache.clear()
+    kon = latex_refs.find_cite_location(icerik, yol, "b2020")
+    assert kon is not None
+    assert os.path.basename(kon[0]) == "referans.bib"
+    assert kon[1] == 2
+
+
+def test_cite_ZINCIRLI_projede_de_gidiyor(tmp_path):
+    """Bildirim \\include edilen dosyadayken de bulunmalı."""
+    icerik, yol = _cite_projesi(tmp_path, zincirli=True)
+    latex_refs._bib_chain_cache.clear()
+    kon = latex_refs.find_cite_location(icerik, yol, "b2020")
+    assert kon is not None
+    assert os.path.basename(kon[0]) == "referans.bib"
+    assert kon[1] == 2
+
+
+def test_TERS_YON_bib_girdisinden_kullanildigi_yere(tmp_path):
+    """`.bib` girdisi üzerinde Alt+tık: nerede alıntılandığına git."""
+    icerik, yol = _cite_projesi(tmp_path, zincirli=False)
+    latex_refs._bib_chain_cache.clear()
+    bib = str(tmp_path / "referans.bib")
+    kon = latex_refs.find_cite_usage(bib, "b2020")
+    assert kon is not None
+    assert os.path.basename(kon[0]) == "main.tex"
+    assert kon[1] == 4
+
+
+def test_TERS_YON_zincirli_projede(tmp_path):
+    icerik, yol = _cite_projesi(tmp_path, zincirli=True)
+    latex_refs._bib_chain_cache.clear()
+    kon = latex_refs.find_cite_usage(str(tmp_path / "referans.bib"), "b2020")
+    assert kon is not None
+    assert os.path.basename(kon[0]) == "main.tex"
+    assert kon[1] == 3
+
+
+def test_cite_ELLE_kaynakcada_bibitem_satirina(tmp_path):
+    """.bib yoksa `\\bibitem` tanımına gitmeli."""
+    icerik = ("\\documentclass{article}\n\\begin{document}\n"
+              "Metin \\cite{elle2020}.\n"
+              "\\begin{thebibliography}{9}\n"
+              "\\bibitem{elle2020} A. Yazar, 2020.\n"
+              "\\end{thebibliography}\n\\end{document}\n")
+    yol = tmp_path / "m.tex"
+    yol.write_text(icerik, encoding="utf-8")
+    latex_refs._bib_chain_cache.clear()
+    kon = latex_refs.find_bibitem_location(icerik, str(yol), "elle2020")
+    assert kon is not None
+    assert kon[1] == 5
+
+
+def test_bulunamayan_anahtar_None(tmp_path):
+    icerik, yol = _cite_projesi(tmp_path, zincirli=False)
+    latex_refs._bib_chain_cache.clear()
+    assert latex_refs.find_cite_location(icerik, yol, "hicyok") is None
