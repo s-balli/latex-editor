@@ -550,6 +550,7 @@ def test_derin_desen_arama_yolunu_tetiklemiyor(qapp, tmp_path):
 
 
 @pytest.mark.parametrize("desen", [
+    # Sınırsız iç nicelik
     r"(a+)+$",
     r"(a*)*b",
     r"(x+x+)+y",
@@ -557,6 +558,20 @@ def test_derin_desen_arama_yolunu_tetiklemiyor(qapp, tmp_path):
     r"(\w+)*x",
     r"([a-z]+)+$",
     r"(a{1,})+",
+    r"(a+a+)+",
+    r"(a+){2,}",
+    r"((a+)*)+",
+    r"(\w+\s*)+x",
+    # SINIRLI iç nicelik: ilk kapı bunları kaçırıyordu, aynı üstel sınıf ve
+    # daha hızlı büyüyor. Ölçüldü (2026-09-02, dış doğrulama 3. tur, Linux):
+    # `(a?a?)+b` eşleşmeyen metinde 10 karakter 2.47 sn, 12 karakter 45 sn'de
+    # DÖNMEDİ. Sınırsız `(a+)+$` 30 karakterde donuyordu; bu aile 12'de.
+    r"(a?a?)+b",
+    r"(a{1,3})+b",
+    r"((a)?)+",
+    r"(\w?\s?)+",
+    r"(?:a+)+",
+    r"(?:a?a?)+",
 ])
 def test_ic_ice_nicelik_reddediliyor(desen):
     """`(a+)+` biçimi arayüzü KALICI dondurabiliyor.
@@ -591,6 +606,26 @@ def test_ic_ice_nicelik_reddediliyor(desen):
     r"a+b+",
     r"\\cite\{([^}]+)\}",
     r"(\d{4})",
+    r"\d{1,3}\.",
+    # Süslü parantez LaTeX'te çok yaygın; içeriği sayı değilse nicelik değil
+    r"\\begin\{figure\}(.*)\\end\{figure\}",
+    # NİCELENMİŞ grubun gövdesinde KAÇIRILMAMIŞ `{...}`: içeriği sayı
+    # olmadığı için nicelik sayılmamalı. Kullanıcı LaTeX ararken süslüyü
+    # kaçırmayı sık unutuyor, o zaman `{x}` düz karakter oluyor.
+    r"(\\section{x})+",
+    r"(\\begin{itemize})+",
+    r"(\\item\{ad\})+",
+    # Sınıf içindeki ve kaçırılmış nicelik karakteri sayılmamalı
+    r"(a[+])+b",
+    r"(a\+)+b",
+    # `?` ile nicelenmiş DIŞ grup patlamıyor
+    r"(x|y)?z",
+    # Grup türü belirteçlerindeki `?` nicelik değil
+    r"(?:ab)+",
+    r"(?:a|b)+",
+    r"(?=foo)bar",
+    r"(?P<ad>x)+",
+    r"((?:ab))+",
 ])
 def test_gercek_aramalar_kapiya_takilmiyor(desen):
     """Kapı gündelik LaTeX aramalarını engellememeli.

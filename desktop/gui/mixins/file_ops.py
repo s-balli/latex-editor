@@ -96,7 +96,10 @@ class FileOpsMixin:
             # yollu sekme açma, izleme/recent kaydı da yapma
             editor.deleteLater()
             return
-        editor.setCursorPosition(3, 0)
+        # Satır 3 `\end{document}`. İmleç oraya konunca ilk tuş vuruşu kapanış
+        # etiketinin SOLUNA, aynı satıra düşüyor ve gövde ile `\end{document}`
+        # tek satırda birleşiyor. Gövde satır 2 (boş satır); imleç oraya.
+        editor.setCursorPosition(2, 0)
         self._connect_editor_signals(editor)
         idx = self._editor_tabs.addTab(editor, editor.display_name)
         self._editor_tabs.setCurrentIndex(idx)

@@ -177,6 +177,29 @@ def test_new_file_kayit_basarisiz_tab_eklenmez(qapp, tmp_path, monkeypatch):
     assert stub.recent_calls == [] and stub.watch_added == []
 
 
+def test_new_file_imleci_govdeye_koyuyor(qapp, tmp_path, monkeypatch):
+    r"""İmleç `\end{document}` satırında değil, boş gövde satırında olmalı.
+
+    Satır 3 kapanış etiketi. İmleç oraya konunca ilk tuş vuruşu etiketin
+    SOLUNA, aynı satıra düşüyor ve gövde ile `\end{document}` tek satırda
+    birleşiyordu. Ayrıca derleme sonrası SyncTeX ileri araması belgenin
+    SONUNA gidiyordu, çünkü imleç kapanış etiketindeydi.
+    """
+    stub = _Stub([])
+    yol = str(tmp_path / "yeni.tex")
+    monkeypatch.setattr(
+        "gui.mixins.file_ops.QFileDialog.getSaveFileName",
+        staticmethod(lambda *a, **k: (yol, "")))
+
+    stub._new_file()
+
+    ed = stub._editor_tabs.widget(0)
+    satir, sutun = ed.getCursorPosition()
+    assert (satir, sutun) == (2, 0)
+    assert ed.text(satir).strip() == "", "imleç boş gövde satırında olmalı"
+    assert ed.text(satir + 1).startswith("\\end{document}")
+
+
 # --- _export_file: meşgul kontrolü hedef dialogundan önce ---
 
 

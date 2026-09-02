@@ -22,6 +22,10 @@ _ = lambda s: QCoreApplication.translate("FindReplaceBar", s)
 _MAX_GRUP_DERINLIGI = 50
 
 
+# `{...}` icerigi nicelik mi: {n}, {n,}, {n,m}
+_RE_NICELIK_ICI = _re.compile(r"\d+(?:,\d*)?")
+
+
 def _grup_araliklari(desen: str):
     """Desendeki `(...)` gruplarinin (bas, son) konumlari; ic ice olanlar dahil.
 
@@ -45,26 +49,68 @@ def _grup_araliklari(desen: str):
     return araliklar
 
 
-def _sinirsiz_nicelik_var(parca: str) -> bool:
-    """Parcada `*`, `+` ya da `{n,}` var mi (sinif ici ve kacirilmis olanlar haric)."""
+def _nicelik_govdesi(parca: str, kapanis: int) -> bool:
+    """`{...}` GERCEKTEN nicelik mi: `{n}`, `{n,}`, `{n,m}`.
+
+    LaTeX aramalarinda suslu parantez cok yaygin (`\\begin{figure}`); icerigi
+    sayi degilse duz karakterdir, nicelik degil.
+    """
+    return bool(_RE_NICELIK_ICI.fullmatch(parca[:kapanis]))
+
+
+# Grup turu belirtecleri: `(?:` yakalamayan, `(?=` `(?!` ileri bakis,
+# `(?<=` `(?<!` geri bakis, `(?P<ad>` adlandirilmis. Bunlardaki `?` nicelik
+# DEGIL; govdeye dahil edilirse `(?:ab)+` gibi zararsiz bir desen
+# reddedilirdi (olculdu).
+_RE_GRUP_ONEKI = _re.compile(r"\?(?:P<[^>]*>|<[=!]|[:=!>])")
+
+
+def _grup_govdesi(parca: str) -> str:
+    """Grup govdesinden tur belirtecini ayikla."""
+    m = _RE_GRUP_ONEKI.match(parca)
+    return parca[m.end():] if m else parca
+
+
+def _nicelik_var(parca: str) -> bool:
+    """Parcada HERHANGI bir nicelik var mi: `*`, `+`, `?`, `{n}`, `{n,}`, `{n,m}`.
+
+    Once yalniz SINIRSIZ nicelige (`*`, `+`, `{n,}`) bakiliyordu. Sinirli
+    nicelik de ayni ustel sinifi uretiyor ve dis dogrulamada daha hizli
+    buyudugu olculdu: `(a?a?)+b` eslesmeyen metinde Linux'ta 10 karakterde
+    2.47 sn, 12 karakterde 45 sn'de DONMEDI. `(a{1,3})+b` de ayni aile.
+
+    Sinif ici (`[+*?]`) ve kacirilmis (`\\+`) olanlar sayilmiyor. Grup acan
+    `(?:`, `(?=`, `(?!` bicimlerindeki `?` de sayilmiyor: o nicelik degil,
+    grup turu belirteci.
+    """
     kacis = sinif = False
+    onceki_acilis = False
     i, n = 0, len(parca)
     while i < n:
         c = parca[i]
         if kacis:
             kacis = False
+            onceki_acilis = False
         elif c == "\\":
             kacis = True
+            onceki_acilis = False
         elif sinif:
             sinif = c != "]"
+            onceki_acilis = False
         elif c == "[":
             sinif = True
-        elif c in "*+":
+            onceki_acilis = False
+        elif c == "?" and onceki_acilis:
+            onceki_acilis = False        # `(?:` `(?=` `(?!` grup belirteci
+        elif c in "*+?":
             return True
         elif c == "{":
             kapanis = parca.find("}", i)
-            if kapanis > 0 and parca[i + 1:kapanis].endswith(","):
-                return True      # {n,} ust sinirsiz
+            if kapanis > 0 and _nicelik_govdesi(parca[i + 1:], kapanis - i - 1):
+                return True
+            onceki_acilis = False
+        else:
+            onceki_acilis = c == "("
         i += 1
     return False
 
@@ -92,7 +138,7 @@ def _ic_ice_nicelik(desen: str) -> bool:
         if not nicelenmis and kuyruk == "{":
             kapanis = desen.find("}", son + 1)
             nicelenmis = kapanis > 0 and desen[son + 2:kapanis].endswith(",")
-        if nicelenmis and _sinirsiz_nicelik_var(desen[bas + 1:son]):
+        if nicelenmis and _nicelik_var(_grup_govdesi(desen[bas + 1:son])):
             return True
     return False
 
