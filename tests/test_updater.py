@@ -2,9 +2,11 @@
 import pytest
 """updater.py — güncelleme kontrolü testleri."""
 
+import json as _json
+
 from core.updater import (
     _parse_semver, _is_newer, check_for_update, _extract_changelog,
-    clear_cache, VERSION,
+    _satira_hizali_kirp, clear_cache, VERSION,
 )
 
 
@@ -240,3 +242,70 @@ def test_url_yoksa_release_sayfasina_dusuyor(monkeypatch):
     up = _yanitla(monkeypatch, '{"tag_name": "v99.0.0"}')
     sonuc = up.check_for_update(force=True)
     assert sonuc["url"].startswith("https://github.com/")
+
+
+# ---------------------------------------------------------------------------
+# Sürüm notlarının GÖSTERİMİ. Getirme yolunu bugün sertleştirmiştik ama
+# gösterime hiç bakmamıştık; v1.0.19 yayınlandıktan sonra gerçek API yanıtıyla
+# ölçüldü (2026-09-02):
+#
+#   "## What's Changed"            diyalogda ham markdown olarak görünüyordu
+#   3577 karakterin 500'ü kalıyor  %86 kayıp, kesim cümlenin ortasında
+#
+# ---------------------------------------------------------------------------
+
+class TestBaslikAtiliyor:
+    def test_markdown_basligi_atiliyor(self):
+        """'## What's Changed' etiketin altında ikinci kez görünmemeli."""
+        assert _extract_changelog("## What's Changed\n\n- Fix X") == "- Fix X"
+
+    def test_alt_seviye_baslik_da_atiliyor(self):
+        assert _extract_changelog("### Notlar\n\n- Fix X") == "- Fix X"
+
+    def test_kare_ile_baslayan_metin_baslik_degil(self):
+        """'#hashtag' başlık değil: markdown başlığı BOŞLUK ister."""
+        assert _extract_changelog("#etiket sayılmaz\n- Fix X").startswith("#etiket")
+
+    def test_ortadaki_baslik_korunuyor(self):
+        """Yalnız BAŞTAKİ başlık atılıyor, gövdedeki bilgi silinmemeli."""
+        sonuc = _extract_changelog("## Bas\n\n- Fix X\n\n## Ara\n\n- Fix Y")
+        assert "## Ara" in sonuc and "Fix Y" in sonuc
+
+
+class TestSatiraHizaliKirpma:
+    def test_tavanin_altinda_kirpilmiyor(self):
+        metin = "kisa\nmetin"
+        assert _satira_hizali_kirp(metin, 100) == (metin, False)
+
+    def test_satir_sinirinda_kesiliyor(self):
+        """Cümlenin ortasında değil, satır sonunda bitmeli."""
+        metin = "- birinci madde\n- ikinci madde\n- ucuncu madde"
+        kesik, kirpildi = _satira_hizali_kirp(metin, 25)
+        assert kirpildi is True
+        assert kesik == "- birinci madde"
+
+    def test_tek_uzun_satir_sert_kesiliyor(self):
+        """Tavandan uzun TEK satırda satır sınırı yok: sert kesim, ama
+        kırpıldığı yine söyleniyor, yoksa kullanıcı eksik olduğunu bilmez."""
+        kesik, kirpildi = _satira_hizali_kirp("a" * 100, 30)
+        assert kirpildi is True
+        assert len(kesik) == 30
+
+    def test_kirpilmis_sonuc_bayrakla_geliyor(self, monkeypatch):
+        govde = "\n".join("- %d numarali oldukca uzun bir madde" % i
+                          for i in range(200))
+        up = _yanitla(
+            monkeypatch,
+            _json.dumps({"tag_name": "v99.0.0", "body": govde,
+                         "html_url": "https://x"}))
+        sonuc = up.check_for_update(force=True)
+        assert sonuc["kirpildi"] is True
+        assert len(sonuc["notes"]) <= up._NOT_TAVANI
+        # Satır sınırında bittiği için son satır yarım kalmamalı
+        assert sonuc["notes"].endswith("madde")
+
+    def test_kisa_notta_bayrak_dusuk(self, monkeypatch):
+        up = _yanitla(
+            monkeypatch,
+            '{"tag_name": "v99.0.0", "body": "- tek madde", "html_url": "u"}')
+        assert up.check_for_update(force=True)["kirpildi"] is False

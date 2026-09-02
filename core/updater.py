@@ -14,6 +14,7 @@ import json
 import time
 import urllib.request
 import urllib.error
+import re
 from typing import Optional, Tuple
 
 from core.version import VERSION
@@ -25,6 +26,13 @@ TIMEOUT = 5
 # Yanıt üst sınırı (bkz. fetch_latest_release).
 _MAX_YANIT = 1024 * 1024
 CACHE_INTERVAL = 86400  # 24 saat (saniye)
+
+# Diyalogda gosterilecek not tavani. Eskiden 500'du ve v1.0.19'un 3577
+# karakterlik changelog'unun %86'si kayboluyordu (13 maddeden 2'si yarim
+# goruunuyordu). Tavan tamamen kalkarsa QMessageBox kaydirilamadigi icin
+# diyalog ekrandan tasar; kirpildiginda kullaniciya soyleniyor.
+_NOT_TAVANI = 1500
+_RE_BASLIK = re.compile(r"\s*#{1,6}\s")
 
 # In-memory cache — process içinde tekrar tekrar API çağrısı yapma
 _cached_result: Optional[dict] = None
@@ -55,8 +63,32 @@ def _extract_changelog(body: str) -> str:
     # Önce spesifik ayırıcı dene (güvenli)
     for sep in ("---\n\n## Installation", "---\n\n## Kurulum", "---"):
         if sep in body:
-            return body.split(sep)[0].strip()
-    return body.strip()
+            body = body.split(sep)[0]
+            break
+    # Baştaki markdown başlığını at: "## What's Changed" diyalogda ham metin
+    # olarak görünüyordu (ölçüldü 2026-09-02, v1.0.19 yanıtı) ve zaten
+    # "Sürüm notları:" etiketinin altında duruyor.
+    satirlar = body.strip().splitlines()
+    while satirlar and (not satirlar[0].strip()
+                        or _RE_BASLIK.match(satirlar[0])):
+        satirlar.pop(0)
+    return "\n".join(satirlar).strip()
+
+
+def _satira_hizali_kirp(metin: str, tavan: int) -> Tuple[str, bool]:
+    """Tavanı aşmayan, SATIR sınırında biten parça ve kırpıldı mı bilgisi.
+
+    Düz `metin[:tavan]` cümlenin ortasında kesiyordu; kullanıcı 13 maddenin
+    ikisini yarım görüyor ve devamı olduğunu anlamıyordu. Tek bir satır bile
+    tavandan uzunsa sert kesime düşülüyor, o zaman da kırpıldığı söyleniyor.
+    """
+    if len(metin) <= tavan:
+        return metin, False
+    kesik = metin[:tavan]
+    son = kesik.rfind("\n")
+    if son > 0:
+        kesik = kesik[:son]
+    return kesik.rstrip(), True
 
 
 def fetch_latest_release() -> Optional[dict]:
@@ -139,10 +171,12 @@ def check_for_update(force: bool = False) -> Optional[dict]:
     url = release.get("html_url")
     if not isinstance(url, str) or not url:
         url = f"https://github.com/{GITHUB_OWNER}/{GITHUB_REPO}/releases/latest"
+    notlar, kirpildi = _satira_hizali_kirp(changelog, _NOT_TAVANI)
     result = {
         "tag": tag,
         "url": url,
-        "notes": changelog[:500],
+        "notes": notlar,
+        "kirpildi": kirpildi,
     }
     # Cache'e kaydet
     _cached_result = result

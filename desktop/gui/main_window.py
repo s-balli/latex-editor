@@ -3,6 +3,7 @@
 import os
 import shutil
 import tempfile
+from html import escape as _kacir
 
 from core.version import VERSION
 from core.log import get_logger, log_path as _log_path
@@ -1015,7 +1016,15 @@ class MainWindow(
         html += f"<h3>{_('Yeni sürüm')} {tag} {_('mevcut')}</h3>"
         html += f"<p>{_('Kullandığınız sürüm')}: v{VERSION}</p>"
         if notes:
-            html += f"<p><b>{_('Sürüm notları')}:</b><br>{notes}</p>"
+            # Notlar HTML'e gomuluyor: KACIS sart, yoksa surum notundaki bir
+            # `<` etiket sanilip gosterimi bozar. Satir sonlari da <br>
+            # olmadan bosluga cokuyor ve 13 madde tek paragrafa yapisiyordu
+            # (olculdu 2026-09-02, gercek v1.0.19 yaniti Qt'ye cizdirilerek).
+            govde = _kacir(notes).replace("\n", "<br>")
+            html += f"<p><b>{_('Sürüm notları')}:</b><br>{govde}</p>"
+            if info.get("kirpildi"):
+                html += (f"<p><i>{_('Notların tamamı Releases sayfasında.')}"
+                         "</i></p>")
         html += f"<p><a href='{url}'>{_('İndirmek için Releases sayfasını aç')}</a></p>"
         html += "</span>"
         msg.setText(html)
