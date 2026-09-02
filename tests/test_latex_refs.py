@@ -607,3 +607,94 @@ def test_toplu_konum_yorumdaki_label_i_atlar(tmp_path):
     konumlar = latex_refs.label_locations(icerik, str(ana))
     assert "yorumda" not in konumlar
     assert konumlar["gercek"] == (str(ana), 2)
+
+
+# --- find_bib_path: \input/\include ZİNCİRİ ---
+#
+# Çok dosyalı tezlerde \bibliography bildirimi ana dosyada değil bir bölüm
+# dosyasında oluyor. Zincir taranmadığında uygulama "kaynakça yok" sanıyor ve
+# ÜÇ şey birden bozuluyordu: \cite tamamlama hiçbir anahtar önermiyor,
+# referans denetimi her \cite'ı "tanımsız" sayıyor, Kaynakça sekmesi boş
+# kalıyor. Gerçek örnek: template33-tez, 0main.tex -> \include{17kaynaklar}
+# -> orada \bibliography{referans}. Denetim o projede 7 sahte "tanımsız
+# cite" üretiyordu; zincir eklendikten sonra 1'e indi (ölçüldü).
+
+
+def _cok_dosyali_proje(tmp_path, bildirim_nerede: str):
+    """bildirim_nerede: 'ana' | 'bolum' | 'yok'."""
+    (tmp_path / "referans.bib").write_text(
+        "@article{a2020, author={A}, title={T}, journal={J}, year={2020}}\n",
+        encoding="utf-8")
+    bolum = "Bölüm metni.\n"
+    if bildirim_nerede == "bolum":
+        bolum += "\\bibliography{referans}\n"
+    (tmp_path / "bolum1.tex").write_text(bolum, encoding="utf-8")
+    ana = "\\documentclass{book}\n\\begin{document}\n\\include{bolum1}\n"
+    if bildirim_nerede == "ana":
+        ana += "\\bibliography{referans}\n"
+    ana += "\\end{document}\n"
+    yol = tmp_path / "0main.tex"
+    yol.write_text(ana, encoding="utf-8")
+    return ana, str(yol)
+
+
+def test_find_bib_path_ana_dosyada(tmp_path):
+    icerik, yol = _cok_dosyali_proje(tmp_path, "ana")
+    assert latex_refs.find_bib_path(icerik, yol) == str(tmp_path / "referans.bib")
+
+
+def test_find_bib_path_zincirdeki_bolumde(tmp_path):
+    """Bildirim \\include edilen dosyada: ZİNCİR taranmalı."""
+    icerik, yol = _cok_dosyali_proje(tmp_path, "bolum")
+    assert latex_refs.find_bib_path(icerik, yol) == str(tmp_path / "referans.bib")
+
+
+def test_find_bib_path_hicbir_yerde_yoksa_bos(tmp_path):
+    icerik, yol = _cok_dosyali_proje(tmp_path, "yok")
+    assert latex_refs.find_bib_path(icerik, yol) == ""
+
+
+def test_zincirdeki_bildirimle_cite_anahtarlari_toplaniyor(tmp_path):
+    """Otomatik tamamlamanın gördüğü yol: bildirim zincirdeyse de çalışmalı."""
+    icerik, yol = _cok_dosyali_proje(tmp_path, "bolum")
+    latex_refs._bib_chain_cache.clear()
+    assert latex_refs.collect_cite_keys(icerik, yol) == ["a2020"]
+
+
+def test_zincirdeki_bildirimle_denetim_sahte_uyari_uretmiyor(tmp_path):
+    """Asıl bozulan buydu: .bib görünmeyince HER \\cite tanımsız sayılıyordu."""
+    icerik, yol = _cok_dosyali_proje(tmp_path, "bolum")
+    icerik = icerik.replace("\\end{document}", "\\cite{a2020}\n\\end{document}")
+    latex_refs._bib_chain_cache.clear()
+    rapor = latex_refs.audit_references(icerik, yol)
+    assert rapor.undefined_cites == []
+
+
+def test_ana_dosyadaki_bildirim_zincire_bakmadan_bulunuyor(tmp_path):
+    """Sıcak yol korunmalı: 22 şablonun 19'unda bildirim ana dosyada.
+
+    Zincir çözümlemesi 15 dosyalık bir tezde 16 ms (ölçüldü); \\cite
+    tamamlaması her tuş vuruşunda çağırıyor. Ana dosyada bulunca zincire
+    HİÇ inilmemeli.
+    """
+    icerik, yol = _cok_dosyali_proje(tmp_path, "ana")
+    latex_refs._bib_chain_cache.clear()
+    assert latex_refs.find_bib_path(icerik, yol)
+    assert not latex_refs._bib_chain_cache, "ana dosyada bulundu ama zincir tarandı"
+
+
+def test_zincir_sonucu_onbelleklenıyor(tmp_path):
+    icerik, yol = _cok_dosyali_proje(tmp_path, "bolum")
+    latex_refs._bib_chain_cache.clear()
+    latex_refs.find_bib_path(icerik, yol)
+    assert yol in latex_refs._bib_chain_cache
+
+    # Önbellek TTL içinde diskteki değişikliği görmüyor; bu bilinçli bir
+    # ödünç (zincirin mtime'ını anahtar yapmak zincirin kendisini çözmeyi
+    # gerektirirdi). Süresi dolunca yeniden taranmalı.
+    os.remove(tmp_path / "referans.bib")
+    assert latex_refs.find_bib_path(icerik, yol) != ""      # bayat, beklenen
+    latex_refs._bib_chain_cache[yol] = (
+        time.time() - latex_refs._BIB_CHAIN_TTL - 1,
+        latex_refs._bib_chain_cache[yol][1])
+    assert latex_refs.find_bib_path(icerik, yol) == ""      # tazelendi

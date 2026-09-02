@@ -673,6 +673,20 @@ class TestKokDegisince:
         assert panel._psearch_list.count() == 0
         assert "kok" in panel._psearch_kok.text()
 
+    def test_kok_degisince_kaynakca_da_temizleniyor(self, panel, proje):
+        """Kaynakça listesi de köke bağlı: eski girdiler proje dışına götürür."""
+        from gui.mixins.project_search_ops import ProjectSearchMixin
+
+        class S(ProjectSearchMixin, _AramaStub):
+            pass
+
+        panel.show_bibliography(
+            [(("k", "article", "A", "2020", "T"), 1)], "/eski/refs.bib")
+        assert panel._bib_table.rowCount() == 1
+
+        S(panel, proje)._on_project_root_changed("/baska/kok")
+        assert panel._bib_table.rowCount() == 0
+
     def test_kablolama_main_window_da_bagli(self):
         kok = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
         with open(os.path.join(kok, "desktop", "gui", "main_window.py"),

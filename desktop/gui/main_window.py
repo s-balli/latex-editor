@@ -287,6 +287,7 @@ class MainWindow(
         self._add_action(edit_menu, _("Tabloyu &Hizala"), self._align_table)
         edit_menu.addSeparator()
         self._add_action(edit_menu, _("&Referansları Denetle"), self._audit_references)
+        self._add_action(edit_menu, _("&Kaynakçayı Listele"), self._show_bibliography)
         edit_menu.addSeparator()
         self._add_action(edit_menu, _("S&onraki Hata"), self._goto_next_error, "F4", app_shortcut=True)
         self._add_action(edit_menu, _("Ö&nceki Hata"), self._goto_prev_error, "Shift+F4", app_shortcut=True)
@@ -469,6 +470,7 @@ class MainWindow(
         self._output_panel.env_check_requested.connect(self._open_env_doctor)
         self._output_panel.project_search_requested.connect(
             self._on_project_search_requested)
+        self._output_panel.bibliography_requested.connect(self._show_bibliography)
         self._file_tree.root_changed.connect(self._on_project_root_changed)
         self._file_tree.file_renamed.connect(self._on_file_renamed)
 

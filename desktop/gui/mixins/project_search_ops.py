@@ -65,6 +65,10 @@ class ProjectSearchMixin:
         self._psearch_id += 1
         self._psearch_root = ""
         self._output_panel.clear_project_search(kok)
+        # Kaynakça listesi de köke bağlı: eski projenin girdileri kalırsa
+        # tıklama kullanıcıyı yine proje dışına götürür. Boşalınca sekmeye
+        # geçildiğinde kendini yeniden dolduruyor.
+        self._output_panel.clear_bibliography()
 
     def _kok_disinda_mi(self, kok: str) -> str:
         """Açık dosya kökün DIŞINDAysa açıklama metni, değilse boş dize.

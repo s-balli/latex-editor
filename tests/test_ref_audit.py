@@ -367,3 +367,225 @@ def test_ozet_sifirlari_atliyor(qapp, tmp_path):
     assert "mükerrer" in msg.lower(), msg
     assert "tanımsız ref" not in msg, msg
     assert "kullanılmayan label" not in msg, msg
+
+
+# --- Kaynakça sekmesi: yapılandırılmış görünüm ---
+#
+# .bib'i editörde açmak zaten mümkün; bu sekmenin varlık sebebi girdileri
+# SÜTUNLARA ayırıp sıralayabilmek ve süzebilmek. Ölçülen en büyük gerçek
+# .bib 118 girdi taşıyor, panel ise 200 piksel: süzgeç olmadan kaydırmaktan
+# ibaret kalırdı.
+
+
+def _bib_projesi(tmp_path, bib_icerik: str, tex: str = None):
+    bib = tmp_path / "refs.bib"
+    bib.write_text(bib_icerik, encoding="utf-8")
+    main = tmp_path / "m.tex"
+    main.write_text(tex if tex is not None else "\\bibliography{refs}\n",
+                    encoding="utf-8")
+    ed = EditorWidget()
+    ed._file_path = str(main)
+    ed.setText(main.read_text(encoding="utf-8"))
+    return _StubMain(ed), bib
+
+
+IKI_GIRDI = (
+    "@article{Kaya2018, author={Kaya, Aydın and Can, Ahmet},"
+    " title={Akciğer nodülü}, journal={Gazi}, year={2018}}\n"
+    "@inproceedings{He2016, author={He, Kaiming}, title={Deep Residual},"
+    " booktitle={CVPR}, year={2016}}\n"
+)
+
+
+def test_girdiler_sutunlara_ayriliyor(qapp, tmp_path):
+    stub, bib = _bib_projesi(tmp_path, IKI_GIRDI)
+    MainWindow._show_bibliography(stub)
+
+    tablo = stub._output_panel._bib_table
+    assert tablo.rowCount() == 2
+    satirlar = {tablo.item(r, 0).text(): [tablo.item(r, c).text() for c in range(5)]
+                for r in range(2)}
+    assert satirlar["Kaya2018"] == [
+        "Kaya2018", "article", "Kaya vd.", "2018", "Akciğer nodülü"]
+    assert satirlar["He2016"][1] == "inproceedings"
+    assert satirlar["He2016"][2] == "He"          # tek yazar, "vd." yok
+
+
+def test_satira_tiklayinca_bib_satirina_gidiyor(qapp, tmp_path):
+    stub, bib = _bib_projesi(tmp_path, IKI_GIRDI)
+    MainWindow._show_bibliography(stub)
+
+    panel = stub._output_panel
+    atlamalar = []
+    panel.error_clicked.connect(lambda p, l: atlamalar.append((p, l)))
+    tablo = panel._bib_table
+    # İkinci girdi dosyanın 2. satırında
+    hedef = [r for r in range(2) if tablo.item(r, 0).text() == "He2016"][0]
+    panel._on_bib_click(tablo.item(hedef, 4))     # BAŞLIK sütununa tıkla
+    assert atlamalar == [(str(bib), 2)], atlamalar
+
+
+def test_tiklama_hangi_sutundan_gelirse_gelsin_calisiyor(qapp, tmp_path):
+    """Yol/satır yalnız ilk sütunda; tıklama satırın her yerinden okumalı."""
+    stub, bib = _bib_projesi(tmp_path, IKI_GIRDI)
+    MainWindow._show_bibliography(stub)
+    panel = stub._output_panel
+    for sutun in range(5):
+        atlamalar = []
+        baglanti = panel.error_clicked.connect(
+            lambda p, l: atlamalar.append((p, l)))
+        panel._on_bib_click(panel._bib_table.item(0, sutun))
+        panel.error_clicked.disconnect(baglanti)
+        assert len(atlamalar) == 1, sutun
+
+
+def test_suzgec_anahtar_yazar_basliga_bakiyor(qapp, tmp_path):
+    stub, _bib = _bib_projesi(tmp_path, IKI_GIRDI)
+    MainWindow._show_bibliography(stub)
+    panel = stub._output_panel
+    tablo = panel._bib_table
+
+    def gorunen():
+        return [tablo.item(r, 0).text() for r in range(tablo.rowCount())
+                if not tablo.isRowHidden(r)]
+
+    panel._bib_filter.setText("kaya")          # yazar
+    assert gorunen() == ["Kaya2018"]
+    panel._bib_filter.setText("residual")      # başlık
+    assert gorunen() == ["He2016"]
+    panel._bib_filter.setText("He2016")        # anahtar
+    assert gorunen() == ["He2016"]
+    panel._bib_filter.setText("")
+    assert len(gorunen()) == 2
+
+
+def test_suzgec_turkce_harf_duyarsiz(qapp, tmp_path):
+    """Projede ara ile aynı katlama: 'ciger' araması 'Akciğer'i bulmalı."""
+    stub, _bib = _bib_projesi(tmp_path, IKI_GIRDI)
+    MainWindow._show_bibliography(stub)
+    panel = stub._output_panel
+    panel._bib_filter.setText("AKCİĞER")
+    gorunen = [panel._bib_table.item(r, 0).text()
+               for r in range(panel._bib_table.rowCount())
+               if not panel._bib_table.isRowHidden(r)]
+    assert gorunen == ["Kaya2018"], gorunen
+
+
+def test_suzgec_yila_bakmiyor(qapp, tmp_path):
+    """Yıl sütunu SIRALAMA için, süzgeç için değil.
+
+    Anahtar yılı İÇERDİĞİ için (Kaya2018 gibi, ki olağan biçim budur) bunu
+    ayırt eden sahne anahtarında yıl GEÇMEYEN bir girdi gerektiriyor.
+    """
+    stub, _bib = _bib_projesi(tmp_path, (
+        "@article{kaya, author={Kaya, A}, title={Nodül},"
+        " journal={J}, year={2018}}\n"))
+    MainWindow._show_bibliography(stub)
+    panel = stub._output_panel
+    panel._bib_filter.setText("2018")
+    gorunen = [r for r in range(panel._bib_table.rowCount())
+               if not panel._bib_table.isRowHidden(r)]
+    assert gorunen == [], "yıl süzgece giriyor"
+
+    # Kapının kendisi: aynı sahnede yazar araması BULMALI, yoksa yukarıdaki
+    # boş sonuç "süzgeç hiç çalışmıyor" yüzünden de geliyor olabilirdi.
+    panel._bib_filter.setText("kaya")
+    assert [r for r in range(panel._bib_table.rowCount())
+            if not panel._bib_table.isRowHidden(r)] == [0]
+
+
+def test_tablo_salt_okunur(qapp, tmp_path):
+    """Girdi düzenleme bilinçli olarak kapsam dışı."""
+    stub, _bib = _bib_projesi(tmp_path, IKI_GIRDI)
+    MainWindow._show_bibliography(stub)
+    from PyQt6.QtWidgets import QAbstractItemView
+    assert (stub._output_panel._bib_table.editTriggers()
+            == QAbstractItemView.EditTrigger.NoEditTriggers)
+
+
+def test_siralama_acik(qapp, tmp_path):
+    stub, _bib = _bib_projesi(tmp_path, IKI_GIRDI)
+    MainWindow._show_bibliography(stub)
+    assert stub._output_panel._bib_table.isSortingEnabled()
+
+
+def test_bibliography_yoksa_nedeni_soyleniyor(qapp, tmp_path):
+    """'Boş' ile '\\bibliography satırı yok' ayrı şeyler."""
+    stub, _bib = _bib_projesi(tmp_path, IKI_GIRDI, tex="merhaba\n")
+    MainWindow._show_bibliography(stub)
+    panel = stub._output_panel
+    assert panel._bib_table.rowCount() == 0
+    assert "bibliography" in panel._bib_status.text().lower()
+
+
+def test_dosya_acik_degilse_uyariyor(qapp):
+    stub = _StubMain(EditorWidget())
+    MainWindow._show_bibliography(stub)
+    assert ".tex" in stub._output_panel._bib_status.text()
+
+
+def test_bos_bib_dosyasi(qapp, tmp_path):
+    stub, _bib = _bib_projesi(tmp_path, "% yalnız yorum\n")
+    MainWindow._show_bibliography(stub)
+    panel = stub._output_panel
+    assert panel._bib_table.rowCount() == 0
+    assert panel._bib_status.text()
+
+
+def test_cp1254_bib_okunabiliyor(qapp, tmp_path):
+    """Türkçe .bib dosyaları cp1254 ile kaydedilmiş olabilir."""
+    bib = tmp_path / "refs.bib"
+    bib.write_bytes(
+        "@article{k, author={Öz, Ali}, title={Şekil}, journal={J}, year={2020}}\n"
+        .encode("cp1254"))
+    main = tmp_path / "m.tex"
+    main.write_text("\\bibliography{refs}\n", encoding="utf-8")
+    ed = EditorWidget()
+    ed._file_path = str(main)
+    ed.setText(main.read_text(encoding="utf-8"))
+    stub = _StubMain(ed)
+    MainWindow._show_bibliography(stub)
+    tablo = stub._output_panel._bib_table
+    assert tablo.rowCount() == 1
+    assert tablo.item(0, 2).text() == "Öz"
+    assert tablo.item(0, 4).text() == "Şekil"
+
+
+def test_yeniden_doldurma_eski_satirlari_birakmiyor(qapp, tmp_path):
+    stub, bib = _bib_projesi(tmp_path, IKI_GIRDI)
+    MainWindow._show_bibliography(stub)
+    assert stub._output_panel._bib_table.rowCount() == 2
+
+    bib.write_text("@book{tek, author={A}, title={T}, publisher={P}, year={2020}}\n",
+                   encoding="utf-8")
+    MainWindow._show_bibliography(stub)
+    assert stub._output_panel._bib_table.rowCount() == 1
+
+
+def test_sekmeye_gecince_doldurma_isteniyor(qapp):
+    """Boş sekmeye tıklayıp boş tablo görmek çıkmaz sokak."""
+    panel = OutputPanel(theme=THEMES["dark"])
+    istekler = []
+    panel.bibliography_requested.connect(lambda: istekler.append(1))
+    panel._tabs.setCurrentIndex(panel._bib_tab_index)
+    assert istekler == [1]
+
+
+def test_dolu_sekmeye_gecince_tekrar_istenmiyor(qapp):
+    panel = OutputPanel(theme=THEMES["dark"])
+    panel.show_bibliography([(("k", "article", "A", "2020", "T"), 1)], "/tmp/r.bib")
+    istekler = []
+    panel.bibliography_requested.connect(lambda: istekler.append(1))
+    panel._tabs.setCurrentIndex(0)
+    panel._tabs.setCurrentIndex(panel._bib_tab_index)
+    assert istekler == []
+
+
+def test_clear_bibliography_bosaltiyor(qapp):
+    """Kök değişince eski projenin girdileri kalmamalı."""
+    panel = OutputPanel(theme=THEMES["dark"])
+    panel.show_bibliography([(("k", "article", "A", "2020", "T"), 1)], "/tmp/r.bib")
+    panel._bib_filter.setText("k")
+    panel.clear_bibliography()
+    assert panel._bib_table.rowCount() == 0
+    assert panel._bib_filter.text() == ""

@@ -7,6 +7,7 @@ Qt bağımlılığı yok (tıpkı input_parser gibi).
 import logging
 import os
 import re
+import time
 from dataclasses import dataclass, field
 
 from core.input_parser import parse_inputs
@@ -96,11 +97,10 @@ def collect_labels(content: str, base_path: str) -> list[str]:
     return sorted(labels)
 
 
-def find_bib_path(content: str, base_path: str) -> str:
-    """\\addbibresource{X.bib} / \\bibliography{X} ile referans verilen .bib yolu."""
-    bdir = _base_dir(base_path)
+def _bib_path_in(text: str, bdir: str) -> str:
+    """Tek bir metinde .bib bildirimi ara, çözülebilen yolu döndür."""
     for pat in (_RE_ADDBIB, _RE_BIBLIO):
-        m = pat.search(strip_comments(content))
+        m = pat.search(text)
         if not m:
             continue
         name = m.group(1).strip()
@@ -110,6 +110,50 @@ def find_bib_path(content: str, base_path: str) -> str:
         if os.path.isfile(cand):
             return cand
     return ""
+
+
+# Zincir taramasının sonucu. Otomatik tamamlama bu fonksiyonu her tuş
+# vuruşunda çağırıyor; zincir çözümlemesi 15 dosyalık bir tezde 16 ms
+# (ölçüldü, template33-tez). TTL bilinçli: zincirin mtime'ını anahtar yapmak
+# zincirin kendisini çözmeyi gerektirirdi, yani pahalı kısmı.
+_bib_chain_cache: dict = {}
+_BIB_CHAIN_TTL = 2.0
+
+
+def find_bib_path(content: str, base_path: str) -> str:
+    """\\addbibresource{X.bib} / \\bibliography{X} ile referans verilen .bib yolu.
+
+    ÖNCE açık belgede, bulunamazsa \\input/\\include ZİNCİRİNDE aranıyor.
+    Zincir taraması 2026-09-02'de eklendi: çok dosyalı tezlerde bildirim
+    ana dosyada değil bir bölüm dosyasında oluyor ve o zaman uygulama
+    "kaynakça yok" sanıyordu. Üç yeri birden bozuyordu:
+
+      - \\cite otomatik tamamlama hiçbir anahtar önermiyordu
+      - referans denetimi HER \\cite'ı "tanımsız" sayıyordu (template33-tez
+        için 7 sahte uyarı, ölçüldü)
+      - Kaynakça sekmesi boş kalıyordu
+
+    22 şablonun 19'unda bildirim ana dosyada; zincir gerektiren 1 tanesi
+    template33-tez (`0main.tex` -> `\\include{17kaynaklar}` -> orada).
+    """
+    bdir = _base_dir(base_path)
+    dogrudan = _bib_path_in(strip_comments(content), bdir)
+    if dogrudan:
+        return dogrudan
+
+    onbellek = _bib_chain_cache.get(base_path)
+    if onbellek and (time.time() - onbellek[0]) < _BIB_CHAIN_TTL:
+        return onbellek[1]
+
+    sonuc = ""
+    for _p, metin in _chain_texts(content, base_path):
+        sonuc = _bib_path_in(metin, bdir)
+        if sonuc:
+            break
+    if len(_bib_chain_cache) > 8:
+        _bib_chain_cache.clear()
+    _bib_chain_cache[base_path] = (time.time(), sonuc)
+    return sonuc
 
 
 # --- \input / \include tamamlama: projedeki .tex dosyaları ---

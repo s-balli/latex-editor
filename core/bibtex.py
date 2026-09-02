@@ -188,6 +188,44 @@ def eksik_alanlar(girdi: BibGirdi) -> list[str]:
     return eksik
 
 
+def yazar_kisalt(deger: str) -> str:
+    """`author` alanını listede gösterilecek kısa biçime indir.
+
+    Ham alan tabloya sığmıyor: ölçülen bir örnek
+    `{Kaya, Aydın and Keçeli, Ali Seydi and Can, Ahmet Burak}`.
+
+    BibTeX iki yazar biçimini de kabul ediyor ve ikisi de sahada var:
+        "Kaya, Aydın"   -> soyadı virgülden ÖNCE
+        "Aydın Kaya"    -> soyadı SON kelime
+    Süslü parantezle sarılı ad kurum demektir (`{Dünya Sağlık Örgütü}`) ve
+    bölünmemeli; oradaki virgül yazar ayracı değil.
+    """
+    deger = deger.strip()
+    if not deger:
+        return ""
+    if deger.startswith("{") and deger.endswith("}"):
+        return deger[1:-1].strip()
+    yazarlar = [y.strip() for y in deger.split(" and ") if y.strip()]
+    if not yazarlar:
+        return ""
+    ilk = yazarlar[0]
+    soyad = ilk.split(",")[0].strip() if "," in ilk else ilk.split()[-1]
+    return soyad + (" vd." if len(yazarlar) > 1 else "")
+
+
+def ozet(girdi: BibGirdi) -> tuple[str, str, str, str, str]:
+    """Listeleme için (anahtar, tür, yazar, yıl, başlık).
+
+    Değerler ham; yalnız gösterim için kısaltılıyor. Başlıktaki koruma
+    parantezleri (`{BERT}`) atılıyor: kullanıcı okuyacak, dizgi motoru değil.
+    """
+    baslik = girdi.alanlar.get("title", "").replace("{", "").replace("}", "")
+    return (girdi.anahtar, girdi.tur,
+            yazar_kisalt(girdi.alanlar.get("author")
+                         or girdi.alanlar.get("editor", "")),
+            girdi.alanlar.get("year", ""), " ".join(baslik.split()))
+
+
 @dataclass
 class BibDenetim:
     """.bib dosyasının KENDİ tutarlılığı (referans denetiminden ayrı).

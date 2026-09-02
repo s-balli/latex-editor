@@ -14,7 +14,7 @@ import pytest
 
 from core.bibtex import (
     BibGirdi, denetle, dosyayi_denetle, eksik_alanlar, mukerrer_anahtarlar,
-    parse_entries,
+    ozet, parse_entries,
 )
 
 
@@ -223,3 +223,49 @@ class TestDosyaOkuma:
 ])
 def test_bicim_varyantlari(metin, beklenen):
     assert len(parse_entries(metin)) == beklenen
+
+
+# --- Listeleme özeti ---
+#
+# Bu üçü ısırma denemesinde AÇIK çıktı: kod doğruydu ama hiçbir test
+# değişikliği yakalamıyordu.
+
+class TestOzet:
+    def test_tek_yazar(self):
+        g = parse_entries("@article{k, author={Kaya, Aydın}}")[0]
+        assert ozet(g)[2] == "Kaya"
+
+    def test_cok_yazar_vd(self):
+        g = parse_entries("@article{k, author={Kaya, A and Can, B and Öz, C}}")[0]
+        assert ozet(g)[2] == "Kaya vd."
+
+    def test_ad_soyad_bicimi(self):
+        """BibTeX "Aydın Kaya" biçimini de kabul ediyor: soyadı SON kelime."""
+        g = parse_entries("@article{k, author={Aydın Kaya}}")[0]
+        assert ozet(g)[2] == "Kaya"
+
+    def test_kurum_adi_BOLUNMUYOR(self):
+        """`{Dünya Sağlık Örgütü}` kurum demek; içindeki boşluk ad ayracı değil."""
+        g = parse_entries("@article{k, author={{Dünya Sağlık Örgütü}}}")[0]
+        assert ozet(g)[2] == "Dünya Sağlık Örgütü"
+
+    def test_yazar_yoksa_editor(self):
+        g = parse_entries("@book{k, editor={Öz, Ali}}")[0]
+        assert ozet(g)[2] == "Öz"
+
+    def test_yazar_da_editor_de_yoksa_bos(self):
+        assert ozet(parse_entries("@misc{k, title={T}}")[0])[2] == ""
+
+    def test_baslik_koruma_parantezleri_ATILIYOR(self):
+        """`{BERT}` dizgi motoru için; listede okunacak metin var."""
+        g = parse_entries("@article{k, title={The {BERT} Model}}")[0]
+        assert ozet(g)[4] == "The BERT Model"
+
+    def test_baslik_satir_sonlari_tek_bosluga_iniyor(self):
+        g = parse_entries("@article{k, title={Uzun\n   bir\n   başlık}}")[0]
+        assert ozet(g)[4] == "Uzun bir başlık"
+
+    def test_ozet_sirasi(self):
+        g = parse_entries(
+            "@inproceedings{He2016, author={He, K}, title={T}, year={2016}}")[0]
+        assert ozet(g) == ("He2016", "inproceedings", "He", "2016", "T")

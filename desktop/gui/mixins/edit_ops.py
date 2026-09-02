@@ -215,6 +215,46 @@ class EditOpsMixin:
             parts.append(_("{n} kullanılmayan label").format(n=c["l"]))
         return _("Denetim: ") + ", ".join(parts)
 
+    def _show_bibliography(self):
+        """Kaynakça sekmesini .bib girdileriyle doldur.
+
+        Salt görüntüleme: tıklayınca .bib'in o satırına gidiyor, düzenleme
+        yok. BibTeX'i yeniden yazmak yorumları, `@string` makrolarını ve
+        büyük harf koruma parantezlerini bozma riski taşıyor; dosyayı
+        editörde açmak zaten mümkün.
+        """
+        from core.bibtex import ozet, parse_entries
+        from core.latex_refs import find_bib_path
+        from core.project_search import coz
+
+        editor = self._current_editor()
+        if not editor or not editor.file_path:
+            self._output_panel.show_bibliography(
+                [], "", _("Önce bir .tex dosyası açın"))
+            return
+        yol = find_bib_path(editor.text(), editor.file_path)
+        if not yol:
+            # Neden boş olduğu SÖYLENMELİ: "kaynakça yok" ile "\bibliography
+            # satırı yok" ayrı şeyler ve kullanıcı ikincisini düzeltebilir.
+            self._output_panel.show_bibliography(
+                [], "", _("Bu belgede \\bibliography veya \\addbibresource yok"))
+            return
+        try:
+            with open(yol, "rb") as f:
+                ham = f.read()
+        except OSError as e:
+            _logger.warning("Kaynakça okunamadı: %s | %s", yol, e)
+            self._output_panel.show_bibliography(
+                [], "", _("Kaynakça dosyası okunamadı"))
+            return
+        girdiler = parse_entries(coz(ham))
+        self._output_panel.show_bibliography(
+            [(ozet(g), g.satir) for g in girdiler], yol,
+            _("kaynakçada girdi yok"))
+        self._status.showMessage(
+            _("Kaynakça: {n} girdi · {d}").format(
+                n=len(girdiler), d=os.path.basename(yol)))
+
     def _audit_references(self):
         """Düzenle > Referansları Denetle — derlemeden bağımsız lokal analiz."""
         editor = self._current_editor()

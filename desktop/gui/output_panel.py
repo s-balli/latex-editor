@@ -5,7 +5,8 @@ from PyQt6.QtGui import QColor, QTextCursor
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QTabWidget,
     QListWidget, QListWidgetItem, QPlainTextEdit, QMenu,
-    QLineEdit, QCheckBox, QLabel,
+    QLineEdit, QCheckBox, QLabel, QTableWidget, QTableWidgetItem,
+    QAbstractItemView, QHeaderView,
 )
 
 from core.error_hints import get_hint
@@ -48,6 +49,9 @@ class OutputPanel(QWidget):
     env_check_requested = pyqtSignal()
     # Projede ara: (sorgu, büyük/küçük harf duyarlı)
     project_search_requested = pyqtSignal(str, bool)
+    # Kaynakça sekmesi doldurulmak istiyor (menüden ya da sekmeye tıklayınca).
+    # Panel .bib'in nerede olduğunu bilmiyor; MainWindow biliyor.
+    bibliography_requested = pyqtSignal()
 
     # Doktor satırının UserRole işareti: (dosya, satır) demetiyle karışmasın
     _ENV_DOCTOR_TAG = "__env_doctor__"
@@ -139,6 +143,48 @@ class OutputPanel(QWidget):
         self._psearch_list.customContextMenuRequested.connect(self._on_list_context_menu)
         arama_layout.addWidget(self._psearch_list)
         self._psearch_tab_index = self._tabs.addTab(arama, _("Projede Ara"))
+
+        # --- Kaynakça sekmesi ---
+        # Liste değil TABLO: bu sekmenin tek varlık sebebi girdileri
+        # sütunlara ayırıp sıralayabilmek. Tek satırlık metin gösterseydi
+        # .bib dosyasını editörde açmaktan farkı kalmazdı.
+        kaynakca = QWidget()
+        kaynakca_layout = QVBoxLayout(kaynakca)
+        kaynakca_layout.setContentsMargins(6, 6, 6, 0)
+        kaynakca_layout.setSpacing(4)
+
+        ust = QHBoxLayout()
+        ust.setSpacing(6)
+        # Süzgeç şart: ölçülen en büyük gerçek .bib 118 girdi taşıyor ve panel
+        # 200 piksel yüksekliğinde. Süzgeçsiz liste kaydırmaktan ibaret kalır.
+        self._bib_filter = QLineEdit()
+        self._bib_filter.setPlaceholderText(_("Süz (anahtar, yazar, başlık)"))
+        self._bib_filter.textChanged.connect(self._on_bib_filter)
+        self._bib_status = QLabel("")
+        ust.addWidget(self._bib_filter, 1)
+        ust.addWidget(self._bib_status)
+        kaynakca_layout.addLayout(ust)
+
+        self._bib_table = QTableWidget(0, 5)
+        self._bib_table.setHorizontalHeaderLabels(
+            [_("Anahtar"), _("Tür"), _("Yazar"), _("Yıl"), _("Başlık")])
+        self._bib_table.verticalHeader().setVisible(False)
+        # Salt okunur: girdi düzenleme bilinçli olarak KAPSAM DIŞI. BibTeX'i
+        # yeniden yazmak yorumları, @string makrolarını ve büyük harf koruma
+        # parantezlerini bozma riski taşıyor; .bib'i editörde açmak zaten var.
+        self._bib_table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+        self._bib_table.setSelectionBehavior(
+            QAbstractItemView.SelectionBehavior.SelectRows)
+        self._bib_table.setSortingEnabled(True)
+        self._bib_table.horizontalHeader().setStretchLastSection(True)
+        self._bib_table.horizontalHeader().setSectionResizeMode(
+            QHeaderView.ResizeMode.Interactive)
+        self._bib_table.itemClicked.connect(self._on_bib_click)
+        kaynakca_layout.addWidget(self._bib_table)
+        self._bib_tab_index = self._tabs.addTab(kaynakca, _("Kaynakça"))
+        # Sekmeye tıklayınca boş durmasın: panel .bib'in yerini bilmiyor,
+        # dolduracak olan MainWindow. Menü öğesi de aynı sinyale bağlı.
+        self._tabs.currentChanged.connect(self._on_tab_changed)
 
         layout.addWidget(self._tabs)
         self.setMaximumHeight(200)
@@ -369,6 +415,97 @@ class OutputPanel(QWidget):
                 _("{n} sonuç · {d} dosya").format(n=n, d=dosya))
         self._tabs.setCurrentIndex(self._psearch_tab_index)
 
+    # --- Kaynakça sekmesi ---
+
+    def _on_tab_changed(self, index: int):
+        """Kaynakça sekmesine geçilince boşsa doldurulmasını iste.
+
+        Sekmeye tıklayıp boş tablo görmek çıkmaz sokak; menüyü bulmak
+        zorunda kalmasın.
+        """
+        if index == getattr(self, "_bib_tab_index", -1) and self._bib_table.rowCount() == 0:
+            self.bibliography_requested.emit()
+
+    def _on_bib_filter(self, metin: str):
+        """Satırları süz. Süzgeç anahtar, yazar ve başlıkta arıyor."""
+        from core.project_search import kucult
+        aranan = kucult(metin.strip())
+        gorunen = 0
+        for r in range(self._bib_table.rowCount()):
+            if not aranan:
+                uygun = True
+            else:
+                # 0 anahtar, 2 yazar, 4 başlık. Tür ve yıl süzgece girmiyor:
+                # "2020" yazınca başlığında 2020 geçen girdiler de gelsin
+                # istemiyoruz, yıl sütunu sıralama için var.
+                uygun = any(
+                    aranan in kucult(self._bib_table.item(r, c).text())
+                    for c in (0, 2, 4) if self._bib_table.item(r, c))
+            self._bib_table.setRowHidden(r, not uygun)
+            gorunen += uygun
+        self._bib_durum_yaz(gorunen, self._bib_table.rowCount())
+
+    def _bib_durum_yaz(self, gorunen: int, toplam: int):
+        if toplam and gorunen != toplam:
+            self._bib_status.setText(
+                _("{g}/{t} girdi").format(g=gorunen, t=toplam))
+        else:
+            self._bib_status.setText(_("{n} girdi").format(n=toplam))
+
+    def _on_bib_click(self, item):
+        """Satıra tıklayınca .bib dosyasının o satırına git."""
+        anahtar = self._bib_table.item(item.row(), 0) if item else None
+        if anahtar is None:
+            return
+        veri = anahtar.data(Qt.ItemDataRole.UserRole)
+        if veri:
+            path, line = veri
+            if path and line:
+                self.error_clicked.emit(path, line)
+
+    def clear_bibliography(self):
+        """Tabloyu boşalt (kök/dosya değişince bayat liste kalmasın)."""
+        self._bib_table.setRowCount(0)
+        self._bib_filter.clear()
+        self._bib_status.setText("")
+        self._tabs.setTabText(self._bib_tab_index, _("Kaynakça"))
+
+    def show_bibliography(self, satirlar, bib_yolu: str = "", uyari: str = ""):
+        """`satirlar`: core.bibtex.ozet() demetleri + satır no listesi.
+
+        Beklenen biçim: ((anahtar, tür, yazar, yıl, başlık), satır) çiftleri.
+        Yol ve satır YALNIZ ilk sütunun UserRole'ünde: tıklama satırın
+        neresinden gelirse gelsin oradan okunuyor.
+        """
+        # Sıralama AÇIKKEN satır eklemek Qt'de satırları anında yeniden
+        # sıralar ve setItem indisleri kayar; doldurma bitene kadar kapalı.
+        self._bib_table.setSortingEnabled(False)
+        self._bib_table.setRowCount(0)
+        self._bib_filter.blockSignals(True)
+        self._bib_filter.clear()
+        self._bib_filter.blockSignals(False)
+        renk = QColor(self._theme.get("fg_primary", "#000000"))
+
+        self._bib_table.setRowCount(len(satirlar))
+        for r, (ozet, satir) in enumerate(satirlar):
+            for c, metin in enumerate(ozet):
+                hucre = QTableWidgetItem(metin)
+                hucre.setForeground(renk)
+                if c == 0:
+                    hucre.setData(Qt.ItemDataRole.UserRole, (bib_yolu, satir))
+                self._bib_table.setItem(r, c, hucre)
+        self._bib_table.setSortingEnabled(True)
+        self._bib_table.resizeColumnsToContents()
+
+        n = len(satirlar)
+        if not n:
+            self._bib_status.setText(uyari or _("kaynakça bulunamadı"))
+        else:
+            self._bib_durum_yaz(n, n)
+        self._tabs.setTabText(self._bib_tab_index,
+                              _("Kaynakça ({n})").format(n=n) if n else _("Kaynakça"))
+        self._tabs.setCurrentIndex(self._bib_tab_index)
+
     def show_history(self, entries):
         """Sürüm geçmişi sekmesini doldur (core.versioning.VersionEntry listesi).
 
@@ -521,6 +658,28 @@ class OutputPanel(QWidget):
         self._psearch_kok.setStyleSheet(f"color: {t['fg_muted']}; font-size: 11px;")
         for i in range(self._psearch_list.count()):
             self._psearch_list.item(i).setForeground(QColor(t["fg_primary"]))
+        # Kaynakça tablosu. Sürüm Geçmişi'nin başına gelen buraya gelmesin:
+        # o yalnız kurulumda stillenmişti ve tema değişince eski renkte
+        # kalıyordu; bu yüzden burada, kurulumda değil.
+        self._bib_table.setStyleSheet(
+            f"QTableWidget {{ background: {t['bg_primary']}; color: {t['fg_primary']};"
+            f" font-size: 12px; border: none; gridline-color: {t['bg_item_hover']}; }}"
+            f"QTableWidget::item {{ padding: 2px 6px; }}"
+            f"QTableWidget::item:hover {{ background: {t['bg_item_hover']}; }}"
+            f"QTableWidget::item:selected {{ background: {t['bg_pressed']}; }}"
+            f"QHeaderView::section {{ background: {t['bg_toolbar']}; color: {t['fg_muted']};"
+            f" border: none; border-bottom: 1px solid {t['border_normal']}; padding: 3px 6px; }}"
+        )
+        self._bib_filter.setStyleSheet(
+            f"QLineEdit {{ background: {t['bg_secondary']}; color: {t['fg_primary']};"
+            f" border: 1px solid {t['border_input']}; border-radius: 3px; padding: 3px 6px; }}"
+        )
+        self._bib_status.setStyleSheet(f"color: {t['fg_muted']}; font-size: 11px;")
+        for r in range(self._bib_table.rowCount()):
+            for c in range(self._bib_table.columnCount()):
+                hucre = self._bib_table.item(r, c)
+                if hucre is not None:
+                    hucre.setForeground(QColor(t["fg_primary"]))
         self._log_text.setStyleSheet(
             f"QPlainTextEdit {{ background: {t['bg_primary']}; color: {t['fg_primary']}; font-family: Consolas, 'DejaVu Sans Mono', Menlo, monospace; font-size: 11px; border: none; }}"
         )
