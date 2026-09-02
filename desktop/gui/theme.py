@@ -124,7 +124,7 @@ THEMES = {
         "bg_toolbar":         "#e2e2e2",
         "bg_button":          "#d5d5d5",
         "bg_hover":           "#dddada",
-        "bg_hover_alt":       "#e0e0e0",
+        "bg_hover_alt":       "#d4d4d4",
         "bg_statusbar":       "#d5d5d5",
         "bg_statusbar_deep":  "#c2c2c2",
         "bg_pressed":         "#c4e1ff",

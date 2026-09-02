@@ -648,7 +648,9 @@ class OutputPanel(QWidget):
             f"QTabBar::tab {{ background: {t['bg_toolbar']}; color: {t['fg_muted']}; padding: 5px 14px;"
             f"border: 1px solid transparent; border-bottom: none;"
             f"border-top-left-radius: 4px; border-top-right-radius: 4px; margin-right: 1px; }}"
-            f"QTabBar::tab:hover {{ color: {t['fg_label']}; background: {t['bg_hover_alt']}; }}"
+            # fg_label DEGIL: hover zemininde karsitlik dort temada
+            # esigin altindaydi (bkz. gui/stylesheet.py).
+            f"QTabBar::tab:hover {{ color: {t['fg_bright']}; background: {t['bg_hover_alt']}; }}"
             f"QTabBar::tab:selected {{ background: {t['bg_primary']}; color: {t['fg_bright']}; border: 1px solid {t['border_normal']}; }}"
         )
         list_base = (

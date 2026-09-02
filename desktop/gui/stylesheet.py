@@ -42,7 +42,11 @@ def build_stylesheet(t: dict) -> str:
             border-top-left-radius: 6px; border-top-right-radius: 6px;
             margin-right: 1px;
         }}
-        QTabBar::tab:hover {{ background: {t["bg_hover_alt"]}; color: {t["fg_label"]}; }}
+        /* hover VURGU demek: metin parlaklasiyor. fg_label ile karsitlik
+           solarized_light 3.44, monokai 3.58, nord 3.21, gruvbox 3.28 idi
+           (olculdu 2026-09-03, esik 4.50). fg_bright yedi temada da
+           geciyor ve zemin degismedigi icin "yukari kalkma" hissi duruyor. */
+        QTabBar::tab:hover {{ background: {t["bg_hover_alt"]}; color: {t["fg_bright"]}; }}
         QTabBar::tab:selected {{
             background: {t["bg_primary"]}; color: {t["fg_editor"]};
             border: 1px solid {t["border_normal"]}; border-bottom: 2px solid {t["tab_active_border"]};

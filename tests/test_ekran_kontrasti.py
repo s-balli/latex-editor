@@ -242,3 +242,69 @@ def test_fg_dim_ile_fg_muted_AYRI_kalmali():
             if str(t["fg_dim"]).lower() == str(t["fg_muted"]).lower()]
 
     assert not ayni, "fg_dim ile fg_muted eşitlenmiş: %s" % ayni
+
+
+# ---------------------------------------------------------------------------
+# Sekme uzerine gelme. bg_hover_alt uzerinde olculdu (2026-09-03):
+#
+#   fg_label    solarized_light 3.44, monokai 3.58, nord 3.21, gruvbox 3.28
+#   fg_primary  solarized_light 3.44, digerleri geciyor
+#   fg_bright   yedi temada da geciyor (7.49 - 12.63)
+#
+# Zemin DEGISTIRILMEDI: hesap onu koyulastirmayi oneriyordu ama hover su an
+# normal sekmeden ACIK, yani "yukari kalkma" hissi veriyor.
+# ---------------------------------------------------------------------------
+
+def test_sekme_hover_metni_TUM_temalarda_okunabilir():
+    dusuk = []
+    for ad, t in THEMES.items():
+        oran = _karsitlik(_coz(t["fg_bright"]), _coz(t["bg_hover_alt"]))
+        if oran < ESIK:
+            dusuk.append("%s (%.2f)" % (ad, oran))
+
+    assert not dusuk, "sekme hover metni okunmuyor: %s" % dusuk
+
+
+def test_sekme_hover_kurallari_fg_label_KULLANMIYOR():
+    """İki çağrı yeri de aynı rengi kullanmalı, yoksa desen tekrar ayrışır."""
+    import inspect
+    from gui import stylesheet as ss
+    from gui import output_panel as op
+
+    for modul in (ss, op):
+        kaynak = inspect.getsource(modul)
+        i = 0
+        while True:
+            i = kaynak.find("QTabBar::tab:hover", i)
+            if i < 0:
+                break
+            satir = kaynak[i:kaynak.index("}}", i) + 2]
+            assert "fg_label" not in satir, (
+                "%s içinde hover hâlâ fg_label: %s"
+                % (modul.__name__, satir[:90]))
+            i += 1
+
+
+# solarized_light hover farkı 1.06 ile burada da en altta, ama o temanın
+# paleti bütün olarak ertelenmiş bir karar (fg_primary kendi zemininde 4.13).
+# Listeye alınması "kabul edildi" demek değil, "ayrı karar" demek.
+_HOVER_ISTISNA = {"solarized_light"}
+
+
+def test_hover_zemini_normal_sekmeden_AYIRT_EDILEBILIR():
+    """Düzeltme kontrastı çözerken hover geri bildirimini yok etmemeli.
+
+    Zemini koyulaştıran alternatif tam bunu riske atıyordu. Ayrıca bu test
+    yazılırken light temada hover'ın zaten görünmediği ortaya çıktı:
+    `#e0e0e0` ile `#e2e2e2`, yani kanal başına 2 birim, oran 1.019. Geri
+    bildirim sayılmaz; `#d4d4d4` yapıldı (1.14, dark'taki 1.12'ye yakın).
+    """
+    silik = []
+    for ad, t in THEMES.items():
+        if ad in _HOVER_ISTISNA:
+            continue
+        fark = _karsitlik(_coz(t["bg_hover_alt"]), _coz(t["bg_toolbar"]))
+        if fark < 1.10:
+            silik.append("%s (%.3f)" % (ad, fark))
+
+    assert not silik, "hover zemini normal sekmeden ayırt edilemiyor: %s" % silik
