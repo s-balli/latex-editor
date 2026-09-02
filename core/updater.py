@@ -128,8 +128,13 @@ def check_for_update(force: bool = False) -> Optional[dict]:
         return None
     # `release.get("body", "")` YETMIYOR: GitHub aciklamasiz release'de alani
     # null gonderiyor, varsayilan da devreye girmiyordu ve `in` denetimi
-    # TypeError atiyordu.
-    body = release.get("body") or ""
+    # TypeError atiyordu. `or ""` de YETMIYOR: sayi/dizi/nesne gibi TRUTHY ama
+    # metin olmayan bir deger gecip _extract_changelog icinde patliyor
+    # (dis dogrulama, 2026-09-02). tag_name ve html_url'de isinstance vardi,
+    # burada unutulmustu.
+    body = release.get("body")
+    if not isinstance(body, str):
+        body = ""
     changelog = _extract_changelog(body)
     url = release.get("html_url")
     if not isinstance(url, str) or not url:

@@ -544,3 +544,107 @@ def test_derin_desen_arama_yolunu_tetiklemiyor(qapp, tmp_path):
     bar._find_input.setText(kotu)
     bar._do_find()
     assert bar._gecersiz_desen is True
+
+
+# --- İç içe sınırsız nicelik: üstel geri izleme ---
+
+
+@pytest.mark.parametrize("desen", [
+    r"(a+)+$",
+    r"(a*)*b",
+    r"(x+x+)+y",
+    r"(a+)+b",
+    r"(\w+)*x",
+    r"([a-z]+)+$",
+    r"(a{1,})+",
+])
+def test_ic_ice_nicelik_reddediliyor(desen):
+    """`(a+)+` biçimi arayüzü KALICI dondurabiliyor.
+
+    Ölçüldü (2026-09-02), `(a+)+$` ile eşleşmeyen metinde:
+
+        Windows (MSVC STL)   20 kr 4.98 sn, 30 kr 2.85 sn, 40 kr 3.38 sn
+        Linux  (libstdc++)   20 kr 0.25 sn, 25 kr 7.45 sn, 30 kr 90+ sn DÖNMEDİ
+
+    Windows'ta std::regex'in karmaşıklık sınırı devreye girip vazgeçtiği için
+    süre girdiyle artmıyor; Linux/AppImage'de temiz üstel artış var ve
+    kullanıcı uygulamayı zorla kapatmak zorunda kalıyor. Bu fark ilk ölçümde
+    kaçmıştı: yalnız Windows'a bakıp "3-4 sn, rahatsızlık" denmişti.
+
+    std::regex'e zaman aşımı takılamıyor, bu yüzden çözüm deseni ÖNCEDEN
+    elemek.
+    """
+    from gui.find_replace import _desen_guvenli
+
+    assert not _desen_guvenli(desen), desen
+
+
+@pytest.mark.parametrize("desen", [
+    r"\\section",
+    r"\\(sub)?section\{(.*)\}",
+    r"(a|b|c)+",
+    r"[()]{3,}",
+    r"(foo)+",
+    r"(\w+)\s*=\s*(\d+)",
+    r"\\begin\{(figure|table)\}",
+    r"(.*)",
+    r"a+b+",
+    r"\\cite\{([^}]+)\}",
+    r"(\d{4})",
+])
+def test_gercek_aramalar_kapiya_takilmiyor(desen):
+    """Kapı gündelik LaTeX aramalarını engellememeli.
+
+    Yanlış alarm burada gerçek bir bedel: kullanıcı çalışan bir deseni
+    "geçersiz" görür ve neden olduğunu anlamaz.
+    """
+    from gui.find_replace import _desen_guvenli
+
+    assert _desen_guvenli(desen), desen
+
+
+def _sureli(fn, sinir=10.0):
+    """fn'i ayrı iş parçacığında koş; sürede dönmezse testi düşür.
+
+    Kapı kaldırılırsa arama Linux'ta 90+ saniye dönmüyor ve test ASILIYOR.
+    CI'da asılma, düşmekten kötü: zaman sınırıyla düşürülüyor. Kaçan iş
+    parçacığı daemon; süreç çıkışını engellemiyor.
+    """
+    import threading
+
+    kutu = {}
+
+    def kos():
+        try:
+            kutu["deger"] = fn()
+        except Exception as e:            # pragma: no cover
+            kutu["hata"] = e
+
+    t = threading.Thread(target=kos, daemon=True)
+    t.start()
+    t.join(sinir)
+    if t.is_alive():
+        pytest.fail("arama %.0f sn içinde dönmedi (desen kapısı çalışmıyor)" % sinir)
+    if "hata" in kutu:
+        raise kutu["hata"]
+    return kutu["deger"]
+
+
+def test_kapi_arama_yollarinda_da_gecerli(qapp):
+    """Koruma üç yolda birden olmalı: _find_first, _say, _do_find."""
+    from gui.find_replace import FindReplaceBar
+    from gui.editor import EditorWidget
+
+    ed = EditorWidget()
+    ed.setText("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa!\n")
+    bar = FindReplaceBar()
+    bar.set_editor(ed)
+    bar._cb_regex.setChecked(True)
+
+    kotu = r"(a+)+$"
+    assert _sureli(lambda: bar._find_first(kotu, wrap=True)) is False
+    assert _sureli(lambda: bar._say(kotu)) == (0, False)
+
+    bar._find_input.setText(kotu)
+    _sureli(bar._do_find)
+    assert bar._gecersiz_desen is True

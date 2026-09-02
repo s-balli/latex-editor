@@ -22,6 +22,81 @@ _ = lambda s: QCoreApplication.translate("FindReplaceBar", s)
 _MAX_GRUP_DERINLIGI = 50
 
 
+def _grup_araliklari(desen: str):
+    """Desendeki `(...)` gruplarinin (bas, son) konumlari; ic ice olanlar dahil.
+
+    Kacirilmis parantez ve karakter sinifi ICI atlaniyor.
+    """
+    yigin, araliklar = [], []
+    kacis = sinif = False
+    for i, c in enumerate(desen):
+        if kacis:
+            kacis = False
+        elif c == "\\":
+            kacis = True
+        elif sinif:
+            sinif = c != "]"
+        elif c == "[":
+            sinif = True
+        elif c == "(":
+            yigin.append(i)
+        elif c == ")" and yigin:
+            araliklar.append((yigin.pop(), i))
+    return araliklar
+
+
+def _sinirsiz_nicelik_var(parca: str) -> bool:
+    """Parcada `*`, `+` ya da `{n,}` var mi (sinif ici ve kacirilmis olanlar haric)."""
+    kacis = sinif = False
+    i, n = 0, len(parca)
+    while i < n:
+        c = parca[i]
+        if kacis:
+            kacis = False
+        elif c == "\\":
+            kacis = True
+        elif sinif:
+            sinif = c != "]"
+        elif c == "[":
+            sinif = True
+        elif c in "*+":
+            return True
+        elif c == "{":
+            kapanis = parca.find("}", i)
+            if kapanis > 0 and parca[i + 1:kapanis].endswith(","):
+                return True      # {n,} ust sinirsiz
+        i += 1
+    return False
+
+
+def _ic_ice_nicelik(desen: str) -> bool:
+    """NICELENMIS bir grubun govdesinde de sinirsiz nicelik var mi.
+
+    `(a+)+`, `(a*)*`, `(x+x+)+` bicimleri ustel geri izlemeye yol aciyor.
+    Olculdu (2026-09-02): `(a+)+$` ile eslesmeyen metinde
+
+        Windows (MSVC STL)   20 kr 4.98 sn, 30 kr 2.85 sn, 40 kr 3.38 sn
+        Linux  (libstdc++)   20 kr 0.25 sn, 25 kr 7.45 sn, 30 kr 90+ sn DONMEDI
+
+    Windows'ta std::regex'in karmaşıklık siniri devreye girip vazgectigi icin
+    sure girdiyle artmiyor; Linux'ta temiz ustel artis var ve arayuz KALICI
+    donuyor, kullanici zorla kapatmak zorunda kaliyor. std::regex'e zaman
+    asimi takilamadigi icin cozum deseni ONCEDEN elemek.
+
+    Bu kapi her felaket desenini yakalamiyor (ornegin ortusen almasik
+    `(a|a)+`); yakaladigi, kazayla en sik yazilan bicim.
+    """
+    for bas, son in _grup_araliklari(desen):
+        kuyruk = desen[son + 1:son + 2]
+        nicelenmis = kuyruk in ("*", "+")
+        if not nicelenmis and kuyruk == "{":
+            kapanis = desen.find("}", son + 1)
+            nicelenmis = kapanis > 0 and desen[son + 2:kapanis].endswith(",")
+        if nicelenmis and _sinirsiz_nicelik_var(desen[bas + 1:son]):
+            return True
+    return False
+
+
 def _desen_guvenli(desen: str) -> bool:
     """Desen, motoru yıkacak kadar derin iç içe grup taşıyor mu."""
     derinlik = enbuyuk = 0
@@ -42,7 +117,9 @@ def _desen_guvenli(desen: str) -> bool:
                 enbuyuk = derinlik
         elif c == ")":
             derinlik = max(0, derinlik - 1)
-    return enbuyuk <= _MAX_GRUP_DERINLIGI
+    if enbuyuk > _MAX_GRUP_DERINLIGI:
+        return False
+    return not _ic_ice_nicelik(desen)
 
 
 class FindReplaceBar(QWidget):
