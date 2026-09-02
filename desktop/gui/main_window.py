@@ -576,11 +576,35 @@ class MainWindow(
 
     _EDITOR_SETTING_DEFAULTS = {"editor/tab_width": 4, "editor/font_size": 11, "editor/wrap": True}
 
+    @staticmethod
+    def _ayar_sayi(deger, varsayilan, en_az: int, en_cok: int) -> int:
+        """QSettings degerini tam sayiya cevir; bozuksa varsayilana don.
+
+        Ayar dosyasina yarim yazma (elektrik kesintisi, dolu disk) bos ya da
+        bozuk bir deger birakabiliyor. `int("")` ValueError atiyor ve bu,
+        oturumda ACIK SEKME varsa __init__ -> _restore_state ->
+        _apply_editor_settings zincirinde patliyordu: uygulama BIR DAHA
+        ACILMIYORDU. Olculdu (2026-09-02): bos, metin ve ondalik degerlerin
+        ucu de acilisi kesiyordu; sekme yokken sorun cikmiyordu.
+
+        Aralik da sinirli: sifir ya da absurt buyuk bir deger uygulamayi
+        acar ama kullanilamaz halde birakirdi, yani ayni kilitlenme.
+        """
+        try:
+            n = int(deger)
+        except (TypeError, ValueError):
+            return int(varsayilan)
+        return max(en_az, min(n, en_cok))
+
     def _read_editor_settings(self) -> dict:
         d = self._EDITOR_SETTING_DEFAULTS
         return {
-            "tab_width": int(self._settings.value("editor/tab_width", d["editor/tab_width"])),
-            "font_size": int(self._settings.value("editor/font_size", d["editor/font_size"])),
+            "tab_width": self._ayar_sayi(
+                self._settings.value("editor/tab_width", d["editor/tab_width"]),
+                d["editor/tab_width"], 1, 16),
+            "font_size": self._ayar_sayi(
+                self._settings.value("editor/font_size", d["editor/font_size"]),
+                d["editor/font_size"], 6, 72),
             "wrap": self._settings.value("editor/wrap", d["editor/wrap"]) in (True, "true", "True"),
         }
 

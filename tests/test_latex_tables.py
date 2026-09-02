@@ -1,6 +1,8 @@
 """latex_tables çekirdek testleri — üretim, kaçış, parse, hizalama, CSV, label."""
 
 
+import pytest
+
 from core.latex_tables import (
     TableOptions, build_col_spec, build_tabular, csv_to_rows, escape_cell,
     extract_caption_label, format_tabular, parse_first_tabular,
@@ -315,3 +317,45 @@ class TestSarilmisSatir:
         assert block is not None
         assert len(block["rows"]) == 1, "sarılmış satır iki satır olarak ayrıştırıldı"
         assert len(block["rows"][0]) == 2
+
+
+# --- CSV kodlaması: Excel'in Türkçe varsayılanı da okunmalı ---
+
+_CSV_TR = "Ürün;Adet;Not\nÇilek;12;İyi\nŞeftali;7;Güzel\n"
+
+
+def _csv_yaz(tmp_path, ad, veri):
+    y = tmp_path / ad
+    y.write_bytes(veri)
+    return str(y)
+
+
+@pytest.mark.parametrize("ad,kod", [
+    ("utf8.csv", "utf-8"),
+    ("utf8bom.csv", "utf-8-sig"),
+    ("cp1254.csv", "cp1254"),
+    ("utf16.csv", "utf-16"),
+])
+def test_csv_kodlamalari_okunuyor(tmp_path, ad, kod):
+    """Excel Türkçe Windows'ta CSV'yi VARSAYILAN olarak cp1254 yazıyor.
+
+    Yalnız utf-8 denendiği için UnicodeDecodeError atılıyordu ve bu hata
+    tablo sihirbazının `except OSError`inden kaçıp slot'tan dışarı çıkıyordu:
+    düğme sessizce hiçbir şey yapmamış gibi oluyordu (ölçüldü 2026-09-02).
+    """
+    yol = _csv_yaz(tmp_path, ad, _CSV_TR.encode(kod))
+    satirlar = csv_to_rows(yol)
+    assert satirlar[0] == ["Ürün", "Adet", "Not"]
+    assert satirlar[1] == ["Çilek", "12", "İyi"]
+    assert satirlar[2] == ["Şeftali", "7", "Güzel"]
+
+
+def test_ikili_dosya_copluk_uretmiyor(tmp_path):
+    """latin-1 her şeyi çözer; ikili dosya sessizce tabloya dolardı."""
+    yol = _csv_yaz(tmp_path, "ikili.csv", bytes(range(256)) * 8)
+    with pytest.raises(ValueError):
+        csv_to_rows(yol)
+
+
+def test_bos_dosya_hata_vermiyor(tmp_path):
+    assert csv_to_rows(_csv_yaz(tmp_path, "bos.csv", b"")) == []

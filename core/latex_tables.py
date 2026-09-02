@@ -5,6 +5,7 @@ sürümünde de aynen kullanılabilir.
 """
 
 import csv
+import io
 import re
 import unicodedata
 from dataclasses import dataclass
@@ -141,12 +142,65 @@ def suggest_label(existing: list[str], caption: str = "",
 # --- CSV içe aktarma ---
 
 
+# Denenecek kodlamalar. Excel Turkce Windows'ta CSV'yi VARSAYILAN olarak
+# cp1254 yaziyor; dosya yalnizca utf-8 denenince UnicodeDecodeError atiyordu ve
+# bu hata tablo sihirbazinin `except OSError`inden kacip slot'tan disari
+# cikiyordu: dugme sessizce hicbir sey yapmamis gibi oluyordu (olculdu
+# 2026-09-02, dis guvenlik raporu 2. bulgu). latin-1 en sonda ve hic hata
+# atmiyor, yani artik cozulemeyen dosya yok.
+_CSV_KODLAMALARI = ("utf-8-sig", "cp1254", "latin-1")
+
+# BOM'lu dosyalar once BOM'dan tanınıyor. UTF-32 UTF-16'DAN ONCE bakiliyor:
+# FF FE 00 00 (UTF-32 LE) FF FE (UTF-16 LE) ile basliyor.
+_CSV_BOM = (
+    (b"\xff\xfe\x00\x00", "utf-32"),
+    (b"\x00\x00\xfe\xff", "utf-32"),
+    (b"\xff\xfe", "utf-16"),
+    (b"\xfe\xff", "utf-16"),
+    (b"\xef\xbb\xbf", "utf-8-sig"),
+)
+
+
+def _ikili_mi(ham: bytes) -> bool:
+    """Icerik metin degil ikili mi: NUL ya da cok fazla denetim karakteri."""
+    bas = ham[:4096]
+    if not bas:
+        return False
+    if b"\x00" in bas and not bas.startswith((b"\xff\xfe", b"\xfe\xff")):
+        return True            # UTF-16/32 BOM'lularda NUL normal
+    denetim = sum(1 for b in bas if b < 9 or 13 < b < 32)
+    return denetim > len(bas) * 0.05
+
+
+def _csv_metni(path: str) -> str:
+    """CSV dosyasını metne çevir: kodlamayı BOM'dan ya da deneyerek bul."""
+    with open(path, "rb") as f:
+        ham = f.read()
+    for bom, kod in _CSV_BOM:
+        if ham.startswith(bom):
+            try:
+                return ham.decode(kod)
+            except UnicodeDecodeError:
+                break
+    if _ikili_mi(ham):
+        # latin-1 her seyi cozer, yani ikili bir dosya da "okunur" ve tablo
+        # coplukle dolardi. Cagirana okunamadigini soylemek dogrusu.
+        raise ValueError("CSV degil: ikili icerik")
+    for kod in _CSV_KODLAMALARI:
+        try:
+            return ham.decode(kod)
+        except UnicodeDecodeError:
+            continue
+    return ham.decode("latin-1", "replace")
+
+
 def csv_to_rows(path: str) -> list[list[str]]:
     """CSV dosyasını hücre satırlarına oku (ayraç: , ; veya sekme, otomatik).
 
-    Excel'in UTF-8 BOM'u temizlenir; tamamen boş satırlar atılır.
+    Excel'in UTF-8 BOM'u temizlenir; tamamen boş satırlar atılır. Kodlama
+    otomatik: BOM, sonra utf-8, sonra cp1254 (Excel'in Türkçe varsayılanı).
     """
-    with open(path, newline="", encoding="utf-8-sig") as f:
+    with io.StringIO(_csv_metni(path), newline="") as f:
         sample = f.read(4096)
         f.seek(0)
         delim = None

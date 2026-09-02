@@ -13,6 +13,7 @@ Burada aranan şey proje kökü altındaki tüm .tex/.cls/.sty/.bib dosyaların�
 """
 
 import os
+import stat
 from dataclasses import dataclass
 
 # Yürüyüşe girmeyen dizinler. TEK KAYNAK: gui/file_tree.py ve gui/quick_open.py
@@ -91,6 +92,24 @@ def coz(ham: bytes) -> str:
     return ham.decode("utf-8", errors="replace")
 
 
+def duz_dosya_mi(yol: str) -> bool:
+    """Yol DÜZ bir dosya mı: FIFO, aygıt ya da soket değil.
+
+    Yazan tarafı olmayan bir FIFO'yu okumaya kalkmak SONSUZA DEK blokluyor.
+    Proje ağacındaki tek bir `boru.tex` aramayı kilitliyordu ve iptal bayrağı
+    da kurtarmıyordu: engel `f.read()` içinde oluşuyor, bayrak ise okuma
+    bittikten sonra denetleniyor (ölçüldü 2026-09-02, 30 sn zaman aşımı).
+
+    Linux ve macOS'a özgü; Windows'ta adlandırılmış borular dosya sisteminde
+    böyle görünmüyor. Aynı koruma minted taramasında ve latex_refs'in .tex
+    yürüyüşünde de var; ikisi de dosyaları AÇIYOR.
+    """
+    try:
+        return stat.S_ISREG(os.stat(yol).st_mode)
+    except OSError:
+        return False
+
+
 def iter_project_files(root: str, uzantilar=KAYNAK_UZANTILARI):
     """Kök altındaki kaynak dosyaları mutlak yol olarak üret (sıralı).
 
@@ -103,8 +122,11 @@ def iter_project_files(root: str, uzantilar=KAYNAK_UZANTILARI):
         dirs[:] = sorted(d for d in dirs
                          if not d.startswith('.') and d not in SKIP_DIRS)
         for fn in sorted(files):
-            if fn.lower().endswith(uzantilar):
-                yield os.path.join(dirpath, fn)
+            if not fn.lower().endswith(uzantilar):
+                continue
+            yol = os.path.join(dirpath, fn)
+            if duz_dosya_mi(yol):
+                yield yol
 
 
 def search_project(root: str, query: str, *, case_sensitive: bool = False,

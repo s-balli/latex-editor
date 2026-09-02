@@ -5,6 +5,7 @@ yalnızca değerleri toplar ve önizler. Mevcut bir tabular bloğu düzenleniyor
 `load_block` ile hücreler/spec doldurulur.
 """
 
+import csv
 import re
 
 from PyQt6.QtCore import QCoreApplication
@@ -215,7 +216,11 @@ class TableWizardDialog(QDialog):
             return
         try:
             rows = csv_to_rows(path)
-        except OSError:
+        except (OSError, UnicodeError, csv.Error, ValueError):
+            # Yalnız OSError yakalanıyordu; UnicodeDecodeError buradan kaçıp
+            # slot'tan dışarı çıkıyor ve düğme sessizce hiçbir şey yapmamış
+            # gibi oluyordu. Okuma artık kodlamayı kendi çözüyor, bu geniş
+            # yakalama ikinci hat.
             self._preview.setPlainText(_("CSV okunamadı"))
             return
         if not rows:

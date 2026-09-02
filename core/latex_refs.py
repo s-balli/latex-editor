@@ -453,6 +453,11 @@ def find_cite_usage(bib_path: str, key: str) -> tuple[str, int] | None:
             if not fn.endswith('.tex'):
                 continue
             path = os.path.join(root, fn)
+            # FIFO'yu okumak sonsuza dek bloklardi (bkz.
+            # project_search.duz_dosya_mi).
+            from core.project_search import duz_dosya_mi
+            if not duz_dosya_mi(path):
+                continue
             try:
                 with open(path, 'r', encoding='utf-8', errors='replace') as f:
                     text = f.read()

@@ -78,7 +78,13 @@ def fetch_latest_release() -> Optional[dict]:
             # SINIRLI okuma: `read()` sınırsızdır. GitHub'ın release yanıtı
             # birkaç KB; 1 MB tavan hem fazlasıyla geniş hem de ele geçirilmiş
             # ya da yalnızca bozuk bir uca karşı belleği koruyor.
-            return json.loads(resp.read(_MAX_YANIT + 1)[:_MAX_YANIT].decode("utf-8"))
+            veri = json.loads(
+                resp.read(_MAX_YANIT + 1)[:_MAX_YANIT].decode("utf-8"))
+            # Gecerli JSON ama NESNE olmayabilir (dizi, metin, sayi, null).
+            # O zaman asagidaki `.get` AttributeError atiyordu ve GUI bunu
+            # yuttugu icin her kontrol "ag hatasi" gibi goruunuyordu
+            # (olculdu 2026-09-02, dis guvenlik raporu 5. bulgu).
+            return veri if isinstance(veri, dict) else None
     except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, TimeoutError, OSError):
         return None
 
@@ -110,19 +116,27 @@ def check_for_update(force: bool = False) -> Optional[dict]:
     if not release:
         # Ağ hatası / rate limit — cache'e kaydetme (tekrar denenebilir)
         return {"error": "network"}
-    tag = release.get("tag_name", "")
-    if not tag:
+    tag = release.get("tag_name")
+    # tag_name metin olmayabilir: sayi gelince `_is_newer` icindeki lstrip
+    # AttributeError atiyordu.
+    if not isinstance(tag, str) or not tag:
         return {"error": "network"}
     if not _is_newer(tag, VERSION):
         # Güncelleme yok — cache'e None kaydet (24h tekrar sorma)
         _cached_result = None
         _cached_time = now
         return None
-    body = release.get("body", "")
+    # `release.get("body", "")` YETMIYOR: GitHub aciklamasiz release'de alani
+    # null gonderiyor, varsayilan da devreye girmiyordu ve `in` denetimi
+    # TypeError atiyordu.
+    body = release.get("body") or ""
     changelog = _extract_changelog(body)
+    url = release.get("html_url")
+    if not isinstance(url, str) or not url:
+        url = f"https://github.com/{GITHUB_OWNER}/{GITHUB_REPO}/releases/latest"
     result = {
         "tag": tag,
-        "url": release.get("html_url", f"https://github.com/{GITHUB_OWNER}/{GITHUB_REPO}/releases/latest"),
+        "url": url,
         "notes": changelog[:500],
     }
     # Cache'e kaydet

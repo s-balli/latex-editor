@@ -83,6 +83,37 @@ class PdfViewer(
             return
         super().keyPressEvent(event)
 
+    def closeEvent(self, event):
+        """Kapanırken işçileri durdur.
+
+        `shutdown()` yalnız MainWindow.closeEvent'ten çağrılıyordu; viewer
+        başka bir yoldan yok edilirse (açılışta hata, GC) render ve arama
+        iş parçacıkları koşar kalıyor ve QThread çalışırken yok edilince
+        süreç SIGABRT ile ölüyordu. Ölçüldü (2026-09-02, dış güvenlik raporu
+        4. bulgu): `close()` tek başına 6 koşudan 6'sında çökertiyordu,
+        `shutdown()` eklenince 0. Bu, BAŞKA bir hatanın izini de aborta
+        çevirdiği için tek başına önemli.
+
+        shutdown() yeniden çağrılabilir: durmuş işçide stop/wait zararsız.
+        """
+        self.shutdown()
+        super().closeEvent(event)
+
+    def __del__(self):
+        """close() cagrilmadan yok edilen viewer da isciyi durdursun.
+
+        closeEvent yalniz close() yolunda tetikleniyor. Viewer close() olmadan
+        GC ye duserse (ornegin MainWindow.__init__ arada hata verirse) surec
+        yine SIGABRT ile oluyordu: 6 kosudan 6 (olculdu 2026-09-02). Bu, ASIL
+        hatanin izini de siliyordu, cunku abort geriye traceback birakmiyor.
+
+        Yorumlayici kapanirken modul durumu yarim olabilir; her sey yutuluyor.
+        """
+        try:
+            self.shutdown()
+        except Exception:
+            pass
+
     @property
     def in_presentation(self) -> bool:
         return self._presentation_mode

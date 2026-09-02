@@ -33,7 +33,7 @@ _MAX_DERINLIK = 5
 
 def minted_kullaniliyor(kok: str) -> bool:
     """Proje klasöründe minted geçen bir kaynak dosya var mı."""
-    from core.project_search import SKIP_DIRS
+    from core.project_search import SKIP_DIRS, duz_dosya_mi
 
     if not kok or not os.path.isdir(kok):
         return False
@@ -46,6 +46,10 @@ def minted_kullaniliyor(kok: str) -> bool:
             if not ad.lower().endswith(_UZANTILAR):
                 continue
             yol = os.path.join(dizin, ad)
+            # FIFO'yu okumak sonsuza dek bloklardi ve derleme karari orada
+            # asilirdi (bkz. project_search.duz_dosya_mi).
+            if not duz_dosya_mi(yol):
+                continue
             try:
                 if os.path.getsize(yol) > _MAX_DOSYA_BAYT:
                     continue

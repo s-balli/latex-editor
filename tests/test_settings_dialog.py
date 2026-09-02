@@ -65,6 +65,9 @@ def test_font_size_survives_theme_change(qapp):
 class _StubMain(StubMain):
     # MainWindow'un ayar metotları (stub üstünde bağlanmış hali)
     _EDITOR_SETTING_DEFAULTS = MainWindow._EDITOR_SETTING_DEFAULTS
+    # staticmethod: siniftan duz fonksiyon olarak alinip stub'a atanirsa
+    # self'i ilk argüman sanip TypeError veriyor.
+    _ayar_sayi = staticmethod(MainWindow._ayar_sayi)
     _read_editor_settings = MainWindow._read_editor_settings
     _apply_editor_settings = MainWindow._apply_editor_settings
 
@@ -106,3 +109,46 @@ def test_read_editor_settings_defaults_and_roundtrip(qapp):
     # QSettings'ten string gelen wrap ("true") de doğru çözülmeli
     stub._settings.d = {"editor/tab_width": 8, "editor/font_size": 12, "editor/wrap": "true"}
     assert MainWindow._read_editor_settings(stub) == {"tab_width": 8, "font_size": 12, "wrap": True}
+
+
+# --- Bozuk ayar dosyasi acilisi engellemesin ---
+
+
+def test_bozuk_ayar_varsayilana_donuyor(qapp):
+    """Ayar dosyasina yarim yazma uygulamayi ACILMAZ yapiyordu.
+
+    `int("")` ValueError atiyor ve oturumda ACIK SEKME varsa bu, __init__ ->
+    _restore_state -> _apply_editor_settings zincirinde patliyordu: uygulama
+    bir daha acilmiyordu ve kullanicinin duzeltmesi kolay degildi. Olculdu
+    (2026-09-02, dis guvenlik raporu): bos/metin/ondalik degerlerin ucu de
+    acilisi kesiyordu; sekme yokken sorun cikmiyordu.
+    """
+    stub = _StubMain()
+    v = MainWindow._EDITOR_SETTING_DEFAULTS
+    for bozuk in ("", "abc", "4.5", None, [], "0x10"):
+        stub._settings.d = {"editor/tab_width": bozuk, "editor/font_size": bozuk}
+        okunan = MainWindow._read_editor_settings(stub)
+        assert okunan["tab_width"] == v["editor/tab_width"], bozuk
+        assert okunan["font_size"] == v["editor/font_size"], bozuk
+
+
+def test_absurt_ayar_kullanilabilir_araliga_cekiliyor(qapp):
+    """Sifir ya da devasa deger uygulamayi acar ama kullanilamaz birakirdi."""
+    stub = _StubMain()
+    stub._settings.d = {"editor/tab_width": 0, "editor/font_size": 999999}
+    okunan = MainWindow._read_editor_settings(stub)
+    assert okunan["tab_width"] == 1
+    assert okunan["font_size"] == 72
+
+    stub._settings.d = {"editor/tab_width": 99, "editor/font_size": -20}
+    okunan = MainWindow._read_editor_settings(stub)
+    assert okunan["tab_width"] == 16
+    assert okunan["font_size"] == 6
+
+
+def test_gecerli_ayar_dokunulmadan_geciyor(qapp):
+    """Sinir, gundelik degerleri degistirmemeli."""
+    stub = _StubMain()
+    stub._settings.d = {"editor/tab_width": 8, "editor/font_size": 14}
+    assert MainWindow._read_editor_settings(stub)["tab_width"] == 8
+    assert MainWindow._read_editor_settings(stub)["font_size"] == 14

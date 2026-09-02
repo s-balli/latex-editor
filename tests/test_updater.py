@@ -1,3 +1,5 @@
+
+import pytest
 """updater.py — güncelleme kontrolü testleri."""
 
 from core.updater import (
@@ -169,3 +171,72 @@ class TestCheckForUpdate:
         r2 = check_for_update()
         assert r1 == r2
         assert r1 is not None
+
+
+# --- Bozuk GitHub yanıtı güncelleme kontrolünü öldürmesin ---
+
+
+class _SahteYanit:
+    """urlopen dönüşü: bağlam yöneticisi + read."""
+
+    def __init__(self, veri: bytes):
+        self._veri = veri
+
+    def read(self, n=-1):
+        return self._veri
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        return False
+
+
+def _yanitla(monkeypatch, ham: str):
+    import core.updater as up
+    up._cached_time = 0.0
+    up._cached_result = None
+    monkeypatch.setattr(up.urllib.request, "urlopen",
+                        lambda *a, **k: _SahteYanit(ham.encode("utf-8")))
+    return up
+
+
+@pytest.mark.parametrize("ham,aciklama", [
+    ('{"tag_name": "v99.0.0", "body": null, "html_url": "u"}', "body: null"),
+    ('{"tag_name": "v99.0.0", "html_url": "u"}', "body alanı yok"),
+    ('[1, 2, 3]', "JSON dizi"),
+    ('"metin"', "JSON metin"),
+    ('null', "JSON null"),
+    ('42', "JSON sayı"),
+    ('{"tag_name": 12345}', "tag_name sayı"),
+    ('{"tag_name": "v99.0.0", "html_url": 7}', "html_url sayı"),
+])
+def test_bozuk_yanit_guncelleme_kontrolunu_oldurmuyor(monkeypatch, ham, aciklama):
+    """GitHub açıklamasız release'de `body` alanını NULL gönderiyor.
+
+    `release.get("body", "")` varsayılanı devreye girmiyor ve `in` denetimi
+    TypeError atıyordu; nesne olmayan JSON ise `.get`te AttributeError
+    veriyordu. GUI yuttuğu için süreç çökmüyordu ama güncelleme kontrolü her
+    seferinde "ağ hatası" sanılıyordu (ölçüldü 2026-09-02, dış güvenlik
+    raporu 5. bulgu). `tag_name` sayı gelirse `_is_newer` içindeki lstrip de
+    patlıyordu; o rapordan bağımsız çıktı.
+    """
+    up = _yanitla(monkeypatch, ham)
+    sonuc = up.check_for_update(force=True)          # istisna atmamalı
+    assert sonuc is None or isinstance(sonuc, dict), aciklama
+
+
+def test_normal_yanit_hala_calisiyor(monkeypatch):
+    """Sertleştirme geçerli yanıtı bozmamalı."""
+    up = _yanitla(
+        monkeypatch,
+        '{"tag_name": "v99.0.0", "body": "## Yenilikler\\n- şey", "html_url": "https://x"}')
+    sonuc = up.check_for_update(force=True)
+    assert sonuc["tag"] == "v99.0.0"
+    assert sonuc["url"] == "https://x"
+
+
+def test_url_yoksa_release_sayfasina_dusuyor(monkeypatch):
+    up = _yanitla(monkeypatch, '{"tag_name": "v99.0.0"}')
+    sonuc = up.check_for_update(force=True)
+    assert sonuc["url"].startswith("https://github.com/")
