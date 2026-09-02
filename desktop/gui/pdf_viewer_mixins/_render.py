@@ -184,9 +184,19 @@ class PdfRenderMixin:
     def _get_page_size(self, index: int):
         if not self._pdf or index >= self._page_count:
             return (100, 100)
-        with pdfium_lock:
-            page = self._pdf[index]
-            w_pt, h_pt = page.get_width(), page.get_height()
+        # Bozuk bir sayfada pdfium istisna atiyor. Eskiden bu, zoom
+        # dongusunun (_update_page_sizes) ORTASINDA kaciyordu: bir kisim
+        # etiket yeni olcekte, kalani eskisinde kaliyordu ve olcek/koordinat
+        # eslesmesi bozuldugu icin arama vurgusu, secim ve SyncTeX kayiyordu.
+        # Simdi o sayfa onceki boyutunu (yoksa varsayilani) koruyor, dongu
+        # devam ediyor.
+        try:
+            with pdfium_lock:
+                page = self._pdf[index]
+                w_pt, h_pt = page.get_width(), page.get_height()
+        except Exception:
+            _logger.warning("Sayfa boyutu okunamadi: %d", index, exc_info=True)
+            w_pt, h_pt = self._sayfa_pt.get(index, (612.0, 792.0))
         self._sayfa_pt[index] = (w_pt, h_pt)
         scale = self._tavanli_olcek(w_pt, h_pt)
         return (max(int(w_pt * scale), 50), max(int(h_pt * scale), 50))

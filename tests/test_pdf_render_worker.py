@@ -157,3 +157,119 @@ def test_viewer_async_render_ve_bayat_zoom_dusurme(qapp, tmp_path):
         v.shutdown()
         v.deleteLater()
         qapp.processEvents()
+
+
+# --- Açılışı kaçıran işçi nesil boyunca ölü kalmasın ---
+
+
+def _tek_sayfalik_pdf(tmp_path, ad="a.pdf"):
+    icerik = b"BT /F1 12 Tf 50 50 Td (x) Tj ET"
+    nesneler = [
+        b"<</Type/Catalog/Pages 2 0 R>>",
+        b"<</Type/Pages/Kids[3 0 R]/Count 1>>",
+        b"<</Type/Page/Parent 2 0 R/MediaBox[0 0 612 792]"
+        b"/Resources<</Font<</F1 5 0 R>>>>/Contents 4 0 R>>",
+        b"<</Length " + str(len(icerik)).encode() + b">>stream\n" + icerik +
+        b"\nendstream",
+        b"<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>",
+    ]
+    out = bytearray(b"%PDF-1.4\n")
+    yerler = []
+    for i, n in enumerate(nesneler, start=1):
+        yerler.append(len(out))
+        out += b"%d 0 obj" % i + n + b"endobj\n"
+    xref = len(out)
+    out += b"xref\n0 %d\n0000000000 65535 f \n" % (len(nesneler) + 1)
+    for y in yerler:
+        out += b"%010d 00000 n \n" % y
+    out += (b"trailer<</Size %d/Root 1 0 R>>\nstartxref\n%d\n%%%%EOF\n"
+            % (len(nesneler) + 1, xref))
+    yol = tmp_path / ad
+    yol.write_bytes(bytes(out))
+    return str(yol)
+
+
+def test_acilisi_kaciran_isci_yeniden_deniyor(tmp_path, monkeypatch):
+    """Windows'ta derleme PDF'i YERİNDE yeniden yazıyor.
+
+    O ana denk gelen açılış başarısız oluyor ve `_doc_key` zaten atandığı
+    için BİR DAHA denenmiyordu: işçi o nesil boyunca ölü kalıyor, kullanıcı
+    bir sonraki derlemeye kadar boş sayfa görüyordu (dış güvenlik raporu,
+    kod okuması maddesi).
+
+    `_doc_key`i boş bırakmak çözüm DEĞİL: bekleme koşulu
+    `_wanted == _doc_key` olduğu için işçi %100 CPU ile döner.
+    """
+    from gui.pdf_render_worker import PdfRenderWorker
+
+    yol = _tek_sayfalik_pdf(tmp_path)
+    w = PdfRenderWorker()
+
+    gercek_open = open
+    kalan = {"hata": 1}
+
+    def sahte_open(dosya, *a, **kw):
+        if str(dosya) == yol and kalan["hata"] > 0:
+            kalan["hata"] -= 1
+            raise OSError("yazma sirasinda yakalandi")
+        return gercek_open(dosya, *a, **kw)
+
+    monkeypatch.setattr("builtins.open", sahte_open)
+
+    w._wanted = (yol, 1)
+    w._swap_document((yol, 1))
+    assert w._doc is None                   # ilk deneme kacti
+    assert w._doc_key == (yol, 1)           # anahtar yine atandi (spin olmasin)
+    assert w._acilis_denemesi == 1
+
+    # İş geldiğinde yeniden denenmeli
+    w._swap_document((yol, 1))
+    assert w._doc is not None, "isci nesil boyunca olu kaldi"
+    assert w._acilis_denemesi == 0          # basarida sayac sifirlanir
+
+    w._doc.close()
+
+
+def test_yeniden_deneme_sinirli(tmp_path, monkeypatch):
+    """Kalıcı olarak bozuk dosyada sonsuza dek denenmemeli."""
+    from gui.pdf_render_worker import PdfRenderWorker, _MAX_ACILIS_DENEMESI
+
+    yol = _tek_sayfalik_pdf(tmp_path)
+    w = PdfRenderWorker()
+
+    def hep_hata(dosya, *a, **kw):
+        raise OSError("hep bozuk")
+
+    monkeypatch.setattr("builtins.open", hep_hata)
+    for _ in range(_MAX_ACILIS_DENEMESI + 3):
+        w._swap_document((yol, 1))
+    assert w._acilis_denemesi >= _MAX_ACILIS_DENEMESI
+
+
+def test_yeni_nesilde_sayac_sifirlaniyor(tmp_path, monkeypatch):
+    """Bir nesilde tükenen deneme hakkı sonrakini kilitlememeli."""
+    from gui.pdf_render_worker import PdfRenderWorker
+
+    yol = _tek_sayfalik_pdf(tmp_path)
+    w = PdfRenderWorker()
+
+    monkeypatch.setattr("builtins.open",
+                        lambda *a, **kw: (_ for _ in ()).throw(OSError("x")))
+    for _ in range(5):
+        w._swap_document((yol, 1))
+    assert w._acilis_denemesi > 0
+
+    tukenen = w._acilis_denemesi
+
+    # Yeni nesil de HATA versin: basari yolu sayaci zaten sifirladigi icin
+    # basarili acilisla olcmek bos olurdu (kasitli bozmada goruldu).
+    w._swap_document((yol, 2))
+    assert w._acilis_denemesi == 1, (
+        "yeni nesilde sayac sifirlanmadi: %d (onceki nesilde %d)"
+        % (w._acilis_denemesi, tukenen))
+
+    monkeypatch.undo()
+    w._swap_document((yol, 3))
+    assert w._doc is not None
+    assert w._acilis_denemesi == 0
+    w._doc.close()

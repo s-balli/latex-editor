@@ -68,22 +68,26 @@ class PdfBookmarksMixin:
             self._bookmark_tree.hide()
             return
 
+        # Kilit YALNIZ get_toc'u sarmalıyordu; başlık ve sayfa indeksi
+        # okumaları döngüde, kilidin DIŞINDA kalıyordu. `_bm_title` ve
+        # `_bm_page_index` pdfium'a giriyor (get_title, get_dest().get_index)
+        # ve pdfium küresel durum tuttuğu için render işçisiyle aynı anda
+        # çağrılmaları segfault sınıfı (bkz. gui/pdfium_lock.py). Çıkarma
+        # artık kilit altında; ağaç kurulumu dışarıda, çünkü Qt tarafı
+        # pdfium'a dokunmuyor ve kilit kısa tutulmalı.
         try:
             with pdfium_lock:
-                bookmarks = list(self._pdf.get_toc())
+                girdiler = [(_bm_title(bm), _bm_level(bm), _bm_page_index(bm))
+                            for bm in self._pdf.get_toc()]
         except Exception:
-            bookmarks = []
+            girdiler = []
 
-        if not bookmarks:
+        if not girdiler:
             self._bookmark_tree.hide()
             return
 
         stack = []
-        for bm in bookmarks:
-            title = _bm_title(bm)
-            level = _bm_level(bm)
-            page_idx = _bm_page_index(bm)
-
+        for title, level, page_idx in girdiler:
             item = QTreeWidgetItem([title])
             item.setData(0, Qt.ItemDataRole.UserRole, page_idx)
 

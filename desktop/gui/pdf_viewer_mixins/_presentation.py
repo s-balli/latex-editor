@@ -5,6 +5,9 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel
 
 from gui.pdf_render import render_page_to_pixmap
+from core.log import get_logger
+
+_logger = get_logger("pdf_viewer")
 
 
 class PdfPresentationMixin:
@@ -53,9 +56,15 @@ class PdfPresentationMixin:
         else:
             screen_size = self._presentation_widget.size()
 
-        with pdfium_lock:
-            page = self._pdf[idx]
-            pw, ph = page.get_width(), page.get_height()
+        # Sunum modunda (F5) pdfium cagrilari korumasizdi: bozuk bir sayfada
+        # istisna slot'tan disari cikiyor, sunum yarim ekranla kaliyordu.
+        try:
+            with pdfium_lock:
+                page = self._pdf[idx]
+                pw, ph = page.get_width(), page.get_height()
+        except Exception:
+            _logger.warning("Sunum: sayfa acilamadi: %d", idx, exc_info=True)
+            return
         if pw <= 0 or ph <= 0:
             return
 
@@ -68,9 +77,13 @@ class PdfPresentationMixin:
 
         key = ("pres", idx, scale, self._invert_colors)
         if key not in self._pres_cache:
-            with pdfium_lock:
-                self._pres_cache[key] = render_page_to_pixmap(
-                    page, scale, self._invert_colors)
+            try:
+                with pdfium_lock:
+                    self._pres_cache[key] = render_page_to_pixmap(
+                        page, scale, self._invert_colors)
+            except Exception:
+                _logger.warning("Sunum: sayfa cizilemedi: %d", idx, exc_info=True)
+                return
             while len(self._pres_cache) > 10:
                 oldest = next(iter(self._pres_cache))
                 del self._pres_cache[oldest]
