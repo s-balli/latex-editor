@@ -38,12 +38,35 @@ jobs:
         with:
           python-version: '3.12'
 
+      # Onbellekteki .deb'leri apt'nin arsivine koy: apt indirmek yerine
+      # bunlari kullanir. `-n`: var olanin ustune yazma.
+      # Anahtardaki "v1" ELLE artirilmali paket listesi degisirse, yoksa
+      # eksik paket eski onbellekten gelmis gibi gorunur.
+      - name: APT paket onbellegi
+        uses: actions/cache@v4
+        with:
+          path: ~/apt-arsiv
+          key: apt-pyqt-${{ runner.os }}-v1
+
       - name: Install system dependencies (PyQt6 headless)
         run: |
+          echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' \
+            | sudo tee /etc/apt/apt.conf.d/99onbellek > /dev/null
+          mkdir -p ~/apt-arsiv
+          sudo cp -n ~/apt-arsiv/*.deb /var/cache/apt/archives/ 2>/dev/null || true
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             libxcb-cursor0 libgl1 libegl1 libglib2.0-0 \
             libdbus-1-3 libxkbcommon0 libfontconfig1
+
+      # apt kurulumdan SONRA .deb'leri siliyor, o yuzden Keep-Downloaded sart.
+      # actions/cache is sonunda ~/apt-arsiv'i kendiliginden sakliyor.
+      - name: Paketleri onbellege al
+        run: |
+          mkdir -p ~/apt-arsiv
+          sudo cp -n /var/cache/apt/archives/*.deb ~/apt-arsiv/ 2>/dev/null || true
+          sudo chown -R "$USER" ~/apt-arsiv
+          echo "onbellekteki paket: $(ls ~/apt-arsiv/*.deb 2>/dev/null | wc -l)"
 
       - name: Install Python dependencies
         run: |
@@ -134,13 +157,36 @@ jobs:
         shell: bash
         run: echo "VERSION=$(grep VERSION core/version.py | cut -d'"' -f2)" >> $GITHUB_OUTPUT
 
+      # Onbellekteki .deb'leri apt'nin arsivine koy: apt indirmek yerine
+      # bunlari kullanir. `-n`: var olanin ustune yazma.
+      # Anahtardaki "v1" ELLE artirilmali paket listesi degisirse, yoksa
+      # eksik paket eski onbellekten gelmis gibi gorunur.
+      - name: APT paket onbellegi
+        uses: actions/cache@v4
+        with:
+          path: ~/apt-arsiv
+          key: apt-appimage-${{ runner.os }}-v1
+
       - name: Install system dependencies
         run: |
+          echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' \
+            | sudo tee /etc/apt/apt.conf.d/99onbellek > /dev/null
+          mkdir -p ~/apt-arsiv
+          sudo cp -n ~/apt-arsiv/*.deb /var/cache/apt/archives/ 2>/dev/null || true
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             python3-venv inkscape \
             libxcb-cursor0 libgl1 libegl1 libglib2.0-0 \
             libdbus-1-3 libxkbcommon0 libfontconfig1
+
+      # apt kurulumdan SONRA .deb'leri siliyor, o yuzden Keep-Downloaded sart.
+      # actions/cache is sonunda ~/apt-arsiv'i kendiliginden sakliyor.
+      - name: Paketleri onbellege al
+        run: |
+          mkdir -p ~/apt-arsiv
+          sudo cp -n /var/cache/apt/archives/*.deb ~/apt-arsiv/ 2>/dev/null || true
+          sudo chown -R "$USER" ~/apt-arsiv
+          echo "onbellekteki paket: $(ls ~/apt-arsiv/*.deb 2>/dev/null | wc -l)"
 
       - name: Build AppImage
         working-directory: desktop
