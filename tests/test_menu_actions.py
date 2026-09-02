@@ -310,3 +310,81 @@ def test_her_tree_sinyali_baglanmis():
         f"FileTree sinyali tanımlanmış ama MainWindow'da bağlanmamış: {eksik}. "
         "Sinyal sessizce hiçbir işe yaramaz."
     )
+
+
+# --- Yardım metinleri gerçekten kapsıyor mu ---
+#
+# Yardım > Klavye Kısayolları ve Yardım > Özellikler ELLE yazılmış HTML.
+# Yeni özellik eklenip bu metinlerin unutulması sessiz bir hata: kullanıcı
+# özelliğin varlığından haberdar olmuyor. Bu depoda birikmişti; 2026-09-02'de
+# yapılan kapsamlı taramada Ctrl+N kısayol listesinde HİÇ yoktu ve çıktı
+# panelinin Uyarılar/Öneriler sekmeleri hiçbir yerde anlatılmıyordu.
+
+
+def _mw_kaynak() -> str:
+    kok = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    with open(os.path.join(kok, "desktop", "gui", "main_window.py"),
+              encoding="utf-8") as f:
+        return f.read()
+
+
+def _bolum(kaynak: str, bas: str, son: str) -> str:
+    return kaynak[kaynak.index(bas):kaynak.index(son)]
+
+
+def _kayitli_kisayollar(kaynak: str) -> set:
+    """Menüde/QShortcut ile GERÇEKTEN kaydedilmiş tuş dizileri."""
+    ks = re.compile(r"^(?:Ctrl|Alt|Shift|F\d)")
+    bulunan = set()
+    for m in re.finditer(r'_add_action\([^\n]*?,\s*"([^"]{1,24})"', kaynak):
+        if ks.match(m.group(1)):
+            bulunan.add(m.group(1))
+    for m in re.finditer(r'QShortcut\(QKeySequence\("([^"]+)"\)', kaynak):
+        bulunan.add(m.group(1))
+    return bulunan
+
+
+def test_kisayol_listesi_okunabiliyor():
+    """Kapının kapısı: ayrıştırma bozulursa aşağıdaki test boşa düşmesin."""
+    kaynak = _mw_kaynak()
+    kayitli = _kayitli_kisayollar(kaynak)
+    assert len(kayitli) >= 15, kayitli
+    assert "Ctrl+S" in kayitli and "Ctrl+Shift+F" in kayitli
+
+
+def test_her_kisayol_yardim_diyalogunda():
+    """Kaydedilmiş her tuş dizisi Klavye Kısayolları'nda yazılı olmalı.
+
+    Ctrl+N tam bu yüzden kaçmıştı: menüde vardı, listede yoktu.
+    """
+    kaynak = _mw_kaynak()
+    diyalog = _bolum(kaynak, "def _show_shortcuts", "def _show_features")
+    eksik = sorted(k for k in _kayitli_kisayollar(kaynak) if k not in diyalog)
+    assert not eksik, (
+        f"kısayol kaydedilmiş ama Yardım > Klavye Kısayolları'nda yok: {eksik}")
+
+
+def test_panel_sekmeleri_ozelliklerde_anlatiliyor():
+    """Çıktı panelinin her sekmesi Özellikler'de geçmeli.
+
+    Uyarılar ve Öneriler sekmeleri hiçbir yerde anlatılmıyordu.
+    """
+    kok = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    with open(os.path.join(kok, "desktop", "gui", "output_panel.py"),
+              encoding="utf-8") as f:
+        panel = f.read()
+    sekmeler = re.findall(r'addTab\([^,]+,\s*_\("([^"]+)"\)', panel)
+    assert len(sekmeler) >= 5, sekmeler
+
+    ozellikler = _bolum(_mw_kaynak(), "def _show_features", "def _show_about")
+    eksik = [s for s in sekmeler if s not in ozellikler]
+    assert not eksik, f"panel sekmesi Özellikler'de anlatılmıyor: {eksik}"
+
+
+def test_bu_turun_ozellikleri_yardimda():
+    """2026-09-02 turunda eklenenler Özellikler'de geçmeli."""
+    ozellikler = _bolum(_mw_kaynak(), "def _show_features", "def _show_about")
+    for beklenen in ("Kaynakça Sekmesi", "DOI ile Kaynak Ekle",
+                     "Dosya Ağacı İşlemleri", "Çökme Kurtarma",
+                     "düzenli ifade", "mükerrer .bib"):
+        assert beklenen in ozellikler, f"Özellikler'de yok: {beklenen}"

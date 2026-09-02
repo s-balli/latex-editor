@@ -143,16 +143,50 @@ def test_landing_page_var_olmayan_kisayol_vaat_etmiyor():
 
 
 def test_landing_page_yeni_ozellikleri_iceriyor():
-    """v1.0.18'in iki özelliği sayfada görünmeli.
+    """Son iki turun özellikleri sayfada görünmeli.
 
     Sayfa güncellenmeden yayınlanan bir sürüm, kullanıcının haberi olmayan
-    bir özellik demek — bu depoda bir kez oldu (`6ebb892`).
+    bir özellik demek; bu depoda bir kez oldu (`6ebb892`).
     """
     with open(os.path.join(_ROOT, "docs", "index.html"), encoding="utf-8") as f:
         sayfa = f.read()
-    for beklenen in ("Ctrl+Shift+F", "Find in project", "Projede ara",
-                     "Crash recovery", "Çökme kurtarma"):
+    for beklenen in (
+        # v1.0.18
+        "Ctrl+Shift+F", "Find in project", "Projede ara",
+        "Crash recovery", "Çökme kurtarma",
+        # 2026-09-01/02 turu
+        "Bibliography tab", "Kaynakça sekmesi",
+        "Add a source by DOI", "DOI ile kaynak ekle",
+        "File tree operations", "Dosya ağacı işlemleri",
+        # var olan iki kartın tazelenmiş metni
+        "regular expression", "düzenli ifade",
+        "duplicate .bib keys", "mükerrer .bib anahtarını",
+    ):
         assert beklenen in sayfa, f"tanıtım sayfasında yok: {beklenen}"
+
+
+def test_landing_page_kart_yapisi_saglam():
+    """Kartlar iki dilli ve dengeli olmalı.
+
+    Elle düzenlenen HTML'de kart eklerken açık/kapalı etiket ya da eksik dil
+    bloğu bırakmak kolay; sayfa sessizce bozuk görünür.
+    """
+    with open(os.path.join(_ROOT, "docs", "index.html"), encoding="utf-8") as f:
+        sayfa = f.read()
+    assert sayfa.count("<article") == sayfa.count("</article>"), "article dengesiz"
+
+    kartlar = re.findall(
+        r'<article class="card feat"><span class="feat-emoji">([^<]*)</span>'
+        r'<h3><span class="en">([^<]*)</span><span class="tr">([^<]*)</span>',
+        sayfa)
+    assert len(kartlar) >= 38, f"kart sayısı beklenenden az: {len(kartlar)}"
+    for emoji, en, tr in kartlar:
+        assert emoji.strip(), f"emojisiz kart: {en}"
+        assert en.strip() and tr.strip(), f"tek dilli kart: {en}|{tr}"
+
+    emojiler = [e for e, _en, _tr in kartlar]
+    tekrar = sorted({e for e in emojiler if emojiler.count(e) > 1})
+    assert not tekrar, f"aynı emoji birden çok kartta: {tekrar}"
 
 
 def test_landing_page_em_dash_kullanmiyor():
