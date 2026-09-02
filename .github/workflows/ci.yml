@@ -169,8 +169,29 @@ jobs:
         with:
           python-version: '3.12'
 
+      # TeX Live paketleri birkac yuz MB. Indirme suresi kosucunun apt
+      # aynasina bagli ve OLCULDU (2026-09-02, 12 kosu): ortanca 68 sn, ama
+      # uc kez 120, 256 ve 364+ sn surdu. Ayni kosularda test suresi 20-26 sn
+      # SABITTI, yani dalgalanma tamamen indirmede. .deb'ler onbellege
+      # alininca indirme tekrarlanmiyor.
+      #
+      # Anahtarda "v1" var: paket listesi degisirse elle artirilmali, yoksa
+      # eksik paket eski onbellekten gelmis gibi gorunur.
+      - name: APT paket onbellegi
+        uses: actions/cache@v4
+        with:
+          path: ~/apt-arsiv
+          key: apt-texlive-${{ runner.os }}-v1
+
       - name: TeX Live kur
         run: |
+          # apt kurulumdan SONRA .deb'leri siliyor; onbellek icin tutmasi sart.
+          echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' \
+            | sudo tee /etc/apt/apt.conf.d/99onbellek > /dev/null
+          mkdir -p ~/apt-arsiv
+          # Onbellekteki paketleri apt'nin arsivine koy: apt indirmek yerine
+          # bunlari kullanir. `-n`: var olanin ustune yazma.
+          sudo cp -n ~/apt-arsiv/*.deb /var/cache/apt/archives/ 2>/dev/null || true
           sudo apt-get update
           sudo apt-get install -y \
             texlive-latex-base texlive-latex-recommended texlive-latex-extra \
@@ -187,6 +208,17 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             libxcb-cursor0 libgl1 libegl1 libglib2.0-0 \
             libdbus-1-3 libxkbcommon0 libfontconfig1
+
+      # Iki apt adimindan SONRA: bir sonraki kosunun indirmeden kurmasi icin
+      # .deb'ler onbellege yazilacak dizine kopyalaniyor. actions/cache is
+      # sonunda burayi kendiliginden sakliyor.
+      - name: Paketleri onbellege al
+        run: |
+          mkdir -p ~/apt-arsiv
+          sudo cp -n /var/cache/apt/archives/*.deb ~/apt-arsiv/ 2>/dev/null || true
+          sudo chown -R "$USER" ~/apt-arsiv
+          echo "onbellekteki paket: $(ls ~/apt-arsiv/*.deb 2>/dev/null | wc -l)"
+          du -sh ~/apt-arsiv || true
 
       - name: Install Python dependencies
         run: pip install -r desktop/requirements.txt pytest
