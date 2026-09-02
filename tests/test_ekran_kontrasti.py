@@ -188,3 +188,57 @@ def test_beyaz_zemin_koyu_temalarda_GERCEKTEN_yetmiyor():
             if _karsitlik(_coz(t["fg_primary"]), beyaz) < ESIK]
 
     assert len(koyu) >= 5, "beyaz zemin beklenenden iyi: %s" % koyu
+
+
+# ---------------------------------------------------------------------------
+# Stylesheet ile boyanan widget'lar. Calisan uygulamanin COZULMUS
+# styleSheet()'leri okunarak tarandi (2026-09-03, yedi tema).
+#
+#   kok klasor yolu etiketi   fg_dim / bg_secondary   1.56 - 2.67
+#   fg_muted                  bg_secondary uzerinde   2.18 - 4.47
+#   fg_muted                  bg_toolbar  uzerinde    3.89 - 4.43
+#
+# fg_dim BILEREK yukseltilmedi: esigi gecmesi icin gereken deger dark temada
+# fg_muted icin gerekenle birebir ayni cikti, yani dosya agacindaki
+# "duzenlenebilir / duzenlenemez" ayrimi tamamen kaybolurdu.
+# ---------------------------------------------------------------------------
+
+# fg_muted'in GERCEKTE uzerine bindigi zeminler (kural duzeyinde tarandi).
+_MUTED_ZEMINLERI = ("bg_secondary", "bg_toolbar")
+
+
+def test_fg_muted_TUM_temalarda_kendi_zeminlerinde_okunabilir():
+    dusuk = []
+    for ad, t in THEMES.items():
+        for zemin in _MUTED_ZEMINLERI:
+            oran = _karsitlik(_coz(t["fg_muted"]), _coz(t[zemin]))
+            if oran < ESIK:
+                dusuk.append("%s/%s (%.2f)" % (ad, zemin, oran))
+
+    assert not dusuk, "soluk metin bu birleşimlerde okunmuyor: %s" % dusuk
+
+
+@gui
+def test_kok_klasor_etiketi_fg_dim_KULLANMIYOR(qapp):
+    """10px'lik yol etiketi gerçek bilgi; fg_dim ile yedi temada da okunmuyordu."""
+    from gui import file_tree as ft
+    import inspect
+
+    kaynak = inspect.getsource(ft)
+    i = kaynak.index("self._root_label.setStyleSheet(")
+    blok = kaynak[i:i + 260]
+
+    assert "fg_dim" not in blok, "kök yolu etiketi hâlâ fg_dim kullanıyor"
+    assert "fg_muted" in blok
+
+
+def test_fg_dim_ile_fg_muted_AYRI_kalmali():
+    """Ayrımın kendisi korunuyor: ikisi eşitlenirse dosya ağacındaki
+    'düzenlenebilir / düzenlenemez' vurgusu yok olur.
+
+    fg_dim'i eşiğin üstüne çekmek tam olarak buna yol açıyordu, o yüzden
+    bilerek yükseltilmedi."""
+    ayni = [ad for ad, t in THEMES.items()
+            if str(t["fg_dim"]).lower() == str(t["fg_muted"]).lower()]
+
+    assert not ayni, "fg_dim ile fg_muted eşitlenmiş: %s" % ayni

@@ -688,8 +688,11 @@ class FileTree(QWidget):
             f"QPushButton:hover {{ background: {t['bg_hover']}; border: 1px solid {t['accent']}; }}"
             f"QPushButton:pressed {{ background: {t['bg_pressed']}; }}"
         )
+        # fg_dim DEGIL: bu etiket hangi klasorde oldugunu soyluyor, yani
+        # gercek bilgi, ustelik 10px. fg_dim ile karsitlik yedi temada
+        # 1.56 - 2.67 arasindaydi (olculdu 2026-09-03, esik 4.50).
         self._root_label.setStyleSheet(
-            f"color: {t['fg_dim']}; font-size: 10px; padding: 2px 10px; "
+            f"color: {t['fg_muted']}; font-size: 10px; padding: 2px 10px; "
             f"background: {t['bg_secondary']}; border-bottom: 1px solid {t['border_normal']};"
         )
         tree_ss = (
