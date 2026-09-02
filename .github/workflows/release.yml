@@ -46,7 +46,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/apt-arsiv
-          key: apt-pyqt-${{ runner.os }}-v1
+          key: apt-pyqt-ubuntu-22.04-v1
 
       - name: Install system dependencies (PyQt6 headless)
         run: |
@@ -165,7 +165,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/apt-arsiv
-          key: apt-appimage-${{ runner.os }}-v1
+          key: apt-appimage-ubuntu-22.04-v1
 
       - name: Install system dependencies
         run: |
