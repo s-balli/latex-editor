@@ -510,3 +510,22 @@ def test_kurtarma_dizini_log_ile_ayni_yerde():
 
     assert os.path.dirname(_recovery_dizini()) == os.path.dirname(LOG_FILE)
     assert os.path.basename(_recovery_dizini()) == "recovery"
+
+
+def test_json_nesne_olmayan_dosya_acilisi_engellemiyor(tmp_path):
+    """Gecerli JSON ama nesne degilse `g.get` AttributeError atiyordu.
+
+    O istisna `oku`nun except demetinde yoktu: kurtarma dizininde tek bir
+    bozuk dosya uygulamanin ACILISINI engelliyordu (kendini kilitleme).
+    """
+    (tmp_path / "a.snapshot.json").write_text("[1, 2, 3]", encoding="utf-8")
+    (tmp_path / "b.snapshot.json").write_text('"duz metin"', encoding="utf-8")
+    (tmp_path / "c.snapshot.json").write_text("null", encoding="utf-8")
+    (tmp_path / "d.snapshot.json").write_text("42", encoding="utf-8")
+
+    recovery.yaz(str(tmp_path), "saglam", file_path=str(tmp_path / "x.tex"),
+                 content="merhaba", encoding="utf-8", newline="lf")
+
+    snaplar = recovery.oku(str(tmp_path))
+
+    assert [s.snap_id for s in snaplar] == ["saglam"]

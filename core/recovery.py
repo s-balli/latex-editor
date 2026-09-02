@@ -124,7 +124,10 @@ def oku(dizin: str) -> list[Snapshot]:
         try:
             with open(os.path.join(dizin, ad), "r", encoding="utf-8") as f:
                 g = json.load(f)
-            if g.get("version") != SURUM:
+            # Gecerli JSON ama nesne DEGIL (dizi, metin, sayi, null) olabiliyor;
+            # o zaman `g.get` AttributeError atiyordu ve bu, asagidaki except
+            # demetinde yok: tek bozuk dosya acilisi komple engelliyordu.
+            if not isinstance(g, dict) or g.get("version") != SURUM:
                 continue
             out.append(Snapshot(
                 snap_id=ad[:-len(_UZANTI)],
