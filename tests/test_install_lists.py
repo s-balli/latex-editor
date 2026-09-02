@@ -152,7 +152,7 @@ def test_landing_page_yeni_ozellikleri_iceriyor():
         sayfa = f.read()
     for beklenen in (
         # v1.0.18
-        "Ctrl+Shift+F", "Find in project", "Projede ara",
+        "Ctrl+Shift+F", "Find in folder", "Klasörde ara",
         "Crash recovery", "Çökme kurtarma",
         # 2026-09-01/02 turu
         "Bibliography tab", "Kaynakça sekmesi",

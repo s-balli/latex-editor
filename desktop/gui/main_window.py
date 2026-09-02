@@ -292,7 +292,7 @@ class MainWindow(
         edit_menu.addSeparator()
         self._add_action(edit_menu, _("&Bul..."), self._show_find, "Ctrl+F")
         self._add_action(edit_menu, _("Bul &Değiştir..."), self._show_replace, "Ctrl+H")
-        self._add_action(edit_menu, _("&Projede Ara..."), self._project_search,
+        self._add_action(edit_menu, _("Klasörde &Ara..."), self._project_search,
                          "Ctrl+Shift+F", app_shortcut=True)
         edit_menu.addSeparator()
         self._add_action(edit_menu, _("Yorum &Toggle"), self._toggle_comment)
@@ -646,7 +646,7 @@ class MainWindow(
         html += "Ctrl+Z · " + _("Geri Al") + "<br>"
         html += "Ctrl+Y · " + _("Yinele") + "<br>"
         html += "Ctrl+F · " + _("Bul") + "<br>"
-        html += "Ctrl+Shift+F · " + _("Projede Ara") + "<br>"
+        html += "Ctrl+Shift+F · " + _("Klasörde Ara") + "<br>"
         html += "Ctrl+H · " + _("Bul ve Değiştir") + "<br>"
         html += "Ctrl+/ · " + _("Yorum Toggle") + "<br>"
         html += "Ctrl+G · " + _("Satıra Git") + "<br>"
@@ -690,7 +690,7 @@ class MainWindow(
         left += "<b>" + _("Bul / Değiştir") + " (Ctrl+F / Ctrl+H)</b><br>"
         left += "<span style='color:" + dim + "'>" + _("VS Code tarzı inline panel. Üç seçenek: büyük/küçük harf eşleştir, tam kelime, düzenli ifade. Desen kipinde değiştirmede \\1 yakalanan gruba karşılık gelir.") + "</span>"
         left += "<br><br>"
-        left += "<b>" + _("Projede Ara") + " (Ctrl+Shift+F)</b><br>"
+        left += "<b>" + _("Klasörde Ara") + " (Ctrl+Shift+F)</b><br>"
         left += "<span style='color:" + dim + "'>" + _("Klasör ağacındaki TÜM .tex/.bib/.cls/.sty dosyalarının İÇİNDE arar — sekmede açık olmayanlar dahil. Ctrl+F yalnız açık sekmede arar. Sonuca tıklayınca o dosyanın o satırına gidilir.") + "</span>"
         left += "<br><br>"
         left += "<b>" + _("Hızlı Dosya Aç") + " (Ctrl+P)</b><br>"
@@ -715,7 +715,7 @@ class MainWindow(
         left += "<span style='color:" + dim + "'>" + _("Otomatik \\documentclass şablonu ile yeni .tex dosyası.") + "</span>"
         left += "<br><br>"
         left += "<b>" + _("Çıktı Paneli") + "</b><br>"
-        left += "<span style='color:" + dim + "'>" + _("Alt paneldeki sekmeler: Hatalar, Uyarılar, Öneriler, Log, Sürüm Geçmişi, Projede Ara ve Kaynakça. Hata ve uyarı satırlarına tıklayınca ilgili dosyanın o satırına gidilir; Öneriler sekmesi hatanın ne anlama geldiğini Türkçe anlatır. Panel ayırıcıdan sürüklenerek büyütülebilir. Esc derlemeyi durdurur.") + "</span>"
+        left += "<span style='color:" + dim + "'>" + _("Alt paneldeki sekmeler: Hatalar, Uyarılar, Öneriler, Log, Sürüm Geçmişi, Klasörde Ara ve Kaynakça. Hata ve uyarı satırlarına tıklayınca ilgili dosyanın o satırına gidilir; Öneriler sekmesi hatanın ne anlama geldiğini Türkçe anlatır. Panel ayırıcıdan sürüklenerek büyütülebilir. Esc derlemeyi durdurur.") + "</span>"
         left += "<br><br>"
         left += "<b>" + _("Hata İşareti + F4") + "</b><br>"
         left += "<span style='color:" + dim + "'>" + _("Derleyince hata satırları gutter'da kırmızı işaretlenir. F4/Shift+F4 ile hatalar arasında dolaşın.") + "</span>"

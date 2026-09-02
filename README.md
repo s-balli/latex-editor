@@ -42,7 +42,7 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 
 ### v1.0.18: Nothing Lost, Everything Findable
 - **Crash recovery**: if the app is killed, crashes, or the power goes out, unsaved buffers used to be gone completely. Dirty tabs are now snapshotted to the application data directory every 30 seconds; on the next launch you are asked whether to restore them, and a clean shutdown deletes them. The snapshot itself is written atomically, and if the file on disk already matches what was snapshotted you are not asked at all. Verified end to end by killing a real process mid-edit
-- **Find in project (Ctrl+Shift+F)**: searches INSIDE every `.tex`/`.bib`/`.cls`/`.sty` file under the project folder — including files not open in a tab. Ctrl+F only ever searched the open tab, so tracking a renamed command across thirty chapters meant opening each file by hand. Results list `file:line` with the matching text; click to jump there. Case sensitivity is a toggle, the searched folder is shown next to the box, and the scan runs in the background so a large project does not freeze the interface. Turkish dotted **İ** is folded correctly — plain lowercasing missed four out of five realistic Turkish queries, because Unicode turns `İ` into `i` plus a combining dot
+- **Find in folder (Ctrl+Shift+F)**: searches INSIDE every `.tex`/`.bib`/`.cls`/`.sty` file under the project folder — including files not open in a tab. Ctrl+F only ever searched the open tab, so tracking a renamed command across thirty chapters meant opening each file by hand. Results list `file:line` with the matching text; click to jump there. Case sensitivity is a toggle, the searched folder is shown next to the box, and the scan runs in the background so a large project does not freeze the interface. Turkish dotted **İ** is folded correctly — plain lowercasing missed four out of five realistic Turkish queries, because Unicode turns `İ` into `i` plus a combining dot
 - **Three paths that silently corrupted documents**: aligning a table that contained a `\\` inside a cell, renaming a label when only part of the project was reachable, and exporting with a filename the shell would reinterpret. Each one wrote a file that no longer compiled, without saying anything
 - **A successful compile could be reported as a failure**: the check for "is this PDF from the compile that just ran" compared a timestamp written by WSL against one read on the Windows side. WSL2's clock drifts against the host and resynchronises in roughly one-second jumps, so a perfectly fresh PDF was regularly judged stale — the log said `[basarili]`, the panel said "failed — 0 errors", and the preview was cleared. Measured on real compiles: 32 of 40 succeeded before, 40 of 40 after
 - **Wrong syntax colouring after editing near an unclosed `$`**: the incremental lexer's line-state cache went stale in two ways at once, so a line inside maths was later treated as ordinary text. Found by a randomised edit test, not by reading the code. Editing in such a document is also 9× faster now — the lexer resumes from the middle of an open block instead of rescanning from the top
@@ -140,7 +140,7 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 
 ### v1.0.7 — Quick Open, Rename & Auto Audit
 - **Editor**: quick open (Ctrl+P): fuzzy-filtered file picker over the project folder (.tex/.bib/.cls/.sty); type, navigate with arrow keys, Enter opens
-- **Find in project (Ctrl+Shift+F)**: searches INSIDE every .tex/.bib/.cls/.sty file under the project folder — including files not open in a tab (Ctrl+F only searches the open tab). Results list file:line with the matching text; click to jump there. Case-sensitivity toggle; Turkish dotted-İ folded correctly. Runs in a background thread, so large projects don't freeze the UI.
+- **Find in folder (Ctrl+Shift+F)**: searches INSIDE every .tex/.bib/.cls/.sty file under the project folder — including files not open in a tab (Ctrl+F only searches the open tab). Results list file:line with the matching text; click to jump there. Case-sensitivity toggle; Turkish dotted-İ folded correctly. Runs in a background thread, so large projects don't freeze the UI.
 - **Editor**: F2 on a `\cite` key or a `.bib` entry renames the bibliography key across the document, the `\input` chain and the `.bib` entry itself; `\bibitem` entries (manual thebibliography) are also supported (multi-key `\cite{a,b}` segments handled; single undo step in open tabs; duplicates blocked). F2 on labels keeps working as before
 - **Editor**: optional post-compile reference audit (Build menu toggle): findings are appended to the output panel after each compile without clearing compile errors; clickable as before; a one-line summary (zero categories omitted) is appended to the status bar next to the compile result
 - **656 unit tests**
@@ -463,7 +463,7 @@ Frontend runs at `http://localhost:5173`.
 | `Ctrl+Y` | Redo |
 | `Ctrl+F` | Find (Editor or PDF) |
 | `Ctrl+H` | Find and Replace |
-| `Ctrl+Shift+F` | Find in Project (searches inside every project file) |
+| `Ctrl+Shift+F` | Find in Folder (searches inside every project file) |
 | `Ctrl+C` | Copy (if text selected in PDF) |
 | `Ctrl+/` | Toggle Comment |
 | `Ctrl+G` | Go to Line |

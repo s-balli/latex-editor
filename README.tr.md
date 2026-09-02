@@ -42,7 +42,7 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 
 ### v1.0.18: Kaybolmayan İş, Bulunabilen Proje
 - **Çökme kurtarma**: uygulama öldürülür, çökerse ya da elektrik giderse kaydedilmemiş arabellekler tamamen gidiyordu. Kirli sekmeler artık 30 saniyede bir uygulama veri dizinine yazılıyor; bir sonraki açılışta geri yüklemek isteyip istemediğiniz soruluyor, temiz kapanışta dosyalar siliniyor. Anlık görüntünün kendisi de atomik yazılıyor ve diskteki içerik zaten aynıysa hiç sorulmuyor. Gerçek bir süreç düzenleme sırasında öldürülerek uçtan uca doğrulandı
-- **Projede ara (Ctrl+Shift+F)**: proje klasöründeki TÜM `.tex`/`.bib`/`.cls`/`.sty` dosyalarının İÇİNDE arıyor — sekmede açık olmayanlar dahil. Ctrl+F yalnızca açık sekmede arıyordu, yani adı değişen bir komutu otuz bölümde takip etmek dosyaları tek tek açmak demekti. Sonuçlar `dosya:satır` ve eşleşen metinle listeleniyor, tıklayınca oraya gidiliyor. Büyük/küçük harf eşleştirme seçilebilir, aranan klasör kutunun yanında yazıyor ve tarama arka planda koşuyor — büyük projede arayüz donmuyor. Türkçe noktalı **İ** doğru eşleşiyor: düz küçültme beş gerçekçi Türkçe sorgudan dördünü kaçırıyordu, çünkü Unicode `İ`yi `i` artı birleşen noktaya çeviriyor
+- **Klasörde ara (Ctrl+Shift+F)**: proje klasöründeki TÜM `.tex`/`.bib`/`.cls`/`.sty` dosyalarının İÇİNDE arıyor — sekmede açık olmayanlar dahil. Ctrl+F yalnızca açık sekmede arıyordu, yani adı değişen bir komutu otuz bölümde takip etmek dosyaları tek tek açmak demekti. Sonuçlar `dosya:satır` ve eşleşen metinle listeleniyor, tıklayınca oraya gidiliyor. Büyük/küçük harf eşleştirme seçilebilir, aranan klasör kutunun yanında yazıyor ve tarama arka planda koşuyor — büyük projede arayüz donmuyor. Türkçe noktalı **İ** doğru eşleşiyor: düz küçültme beş gerçekçi Türkçe sorgudan dördünü kaçırıyordu, çünkü Unicode `İ`yi `i` artı birleşen noktaya çeviriyor
 - **Belgeyi sessizce bozan üç yol**: içinde `\\` geçen bir hücreyle tablo hizalama, projenin yalnız bir kısmına erişilebilirken etiket yeniden adlandırma, ve kabuğun yeniden yorumlayacağı bir dosya adıyla dışa aktarma. Üçü de artık derlenmeyen bir dosya yazıp hiçbir şey söylemiyordu
 - **Başarılı derleme başarısız gösterilebiliyordu**: "bu PDF az önceki derlemenin ürünü mü" denetimi, WSL'in yazdığı zaman damgasını Windows tarafında okunan saatle karşılaştırıyordu. WSL2'nin saati ana makineye göre kayıyor ve yaklaşık bir saniyelik sıçramalarla senkronlanıyor; bu yüzden tertemiz bir PDF düzenli olarak bayat sayılıyordu — log `[basarili]` diyor, panel "başarısız — 0 hata" diyor, önizleme temizleniyordu. Gerçek derlemelerle ölçüldü: önce 40 turun 32'si, sonra 40'ın 40'ı başarılı
 - **Kapanmamış `$` yakınında düzenleyince renklendirme bozuluyordu**: artımlı lexer'ın satır durumu önbelleği iki ayrı yoldan bayatlıyor, matematik içindeki bir satır sonradan düz metin sanılıyordu. Kodu okuyarak değil, rastgele düzenleme testiyle bulundu. Böyle bir belgede yazmak artık 9 kat da hızlı — lexer açık bloğun ortasından devam ediyor, baştan taramıyor
@@ -141,7 +141,7 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 
 ### v1.0.7 — Hızlı Açma, Yeniden Adlandırma ve Otomatik Denetim
 - **Editör**: hızlı dosya açma (Ctrl+P): proje klasöründeki dosyalar (.tex/.bib/.cls/.sty) bulanık filtreyle; yaz, ok tuşlarıyla gez, Enter ile aç
-- **Projede ara (Ctrl+Shift+F)**: proje klasöründeki TÜM .tex/.bib/.cls/.sty dosyalarının İÇİNDE arar — sekmede açık olmayanlar dahil (Ctrl+F yalnız açık sekmede arar). Sonuçlar dosya:satır ve eşleşen metinle listelenir, tıklayınca oraya gidilir. Büyük/küçük harf duyarlılığı seçilebilir; Türkçe noktalı İ doğru eşleşir. Tarama arka planda koşar, büyük projede arayüz donmaz.
+- **Klasörde ara (Ctrl+Shift+F)**: proje klasöründeki TÜM .tex/.bib/.cls/.sty dosyalarının İÇİNDE arar — sekmede açık olmayanlar dahil (Ctrl+F yalnız açık sekmede arar). Sonuçlar dosya:satır ve eşleşen metinle listelenir, tıklayınca oraya gidilir. Büyük/küçük harf duyarlılığı seçilebilir; Türkçe noktalı İ doğru eşleşir. Tarama arka planda koşar, büyük projede arayüz donmaz.
 - **Editör**: `\cite` anahtarı veya `.bib` girdisi üzerinde F2 ile kaynakça anahtarını doküman, `\input` zinciri ve `.bib` girdisinin kendisinde toplu yeniden adlandır; `\bibitem` (el ile kaynakça) girdileri de desteklenir (çoklu `\cite{a,b}` segmentleri destekli; açık sekmeler tek undo adımı alır; çift isim engellenir). Label'da F2 eskisi gibi çalışır
 - **Editör**: isteğe bağlı derleme sonrası referans denetimi (Derle menüsü anahtarı): her derlemeden sonra bulgular, derleme hatalarını silmeden panelin sonuna eklenir; eskisi gibi tıklanabilir; durum çubuğuna, derleme sonucunun yanına sıfır kategorileri atlayan tek satır özet düşer
 - **656 birim testi**
@@ -464,7 +464,7 @@ Frontend `http://localhost:5173` adresinde çalışır.
 | `Ctrl+Y` | Yinele |
 | `Ctrl+F` | Bul (Editör veya PDF) |
 | `Ctrl+H` | Bul ve Değiştir |
-| `Ctrl+Shift+F` | Projede Ara (tüm proje dosyalarının içinde arar) |
+| `Ctrl+Shift+F` | Klasörde Ara (tüm proje dosyalarının içinde arar) |
 | `Ctrl+C` | Kopyala (PDF'te metin seçiliyse) |
 | `Ctrl+/` | Yorum Toggle |
 | `Ctrl+G` | Satıra Git |

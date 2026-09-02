@@ -497,9 +497,9 @@ class TestKablolama:
         import re
         k = self._kaynak()
         assert re.search(
-            r'_add_action\(edit_menu,\s*_\("&Projede Ara\.\.\."\),\s*self\._project_search,\s*\n?\s*'
+            r'_add_action\(edit_menu,\s*_\("Klasörde &Ara\.\.\."\),\s*self\._project_search,\s*\n?\s*'
             r'"Ctrl\+Shift\+F",\s*app_shortcut=True\)',
-            k), "menüdeki Projede Ara app_shortcut'lı Ctrl+Shift+F ile bağlı değil"
+            k), "menüdeki Klasörde Ara app_shortcut'lı Ctrl+Shift+F ile bağlı değil"
         assert 'QShortcut(QKeySequence("Ctrl+Shift+F")' not in k, (
             "Ctrl+Shift+F hem QAction hem QShortcut — Qt ikisini de tetiklemez"
         )

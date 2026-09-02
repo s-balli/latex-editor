@@ -114,7 +114,7 @@ class OutputPanel(QWidget):
         satir = QHBoxLayout()
         satir.setSpacing(6)
         self._psearch_input = QLineEdit()
-        self._psearch_input.setPlaceholderText(_("Projede ara (Enter)"))
+        self._psearch_input.setPlaceholderText(_("Klasörde ara (Enter)"))
         self._psearch_input.returnPressed.connect(self._on_project_search_return)
         # Etiket "Aa" idi — kullanıcı anlamadığını bildirdi. VS Code'da bu
         # simge bir düğmenin ÜSTÜNDE ve yanında ayrıca "match case" ipucu var;
@@ -142,7 +142,7 @@ class OutputPanel(QWidget):
         self._psearch_list.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self._psearch_list.customContextMenuRequested.connect(self._on_list_context_menu)
         arama_layout.addWidget(self._psearch_list)
-        self._psearch_tab_index = self._tabs.addTab(arama, _("Projede Ara"))
+        self._psearch_tab_index = self._tabs.addTab(arama, _("Klasörde Ara"))
 
         # --- Kaynakça sekmesi ---
         # Liste değil TABLO: bu sekmenin tek varlık sebebi girdileri
