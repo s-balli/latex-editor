@@ -10,6 +10,7 @@ işçinin handle'ları iş parçacıkları arasında paylaşılmaz.
 from PyQt6.QtWidgets import QLabel
 
 from gui.pdfium_lock import pdfium_lock
+from gui.pdf_donusum import geometri, gorsele, kutu_gorsele
 from PyQt6.QtCore import QCoreApplication, QPoint
 _ = lambda s: QCoreApplication.translate("PdfViewer", s)
 
@@ -88,7 +89,10 @@ class PdfSearchMixin:
                 sayfa = self._pdf[page_idx]
                 textpage = sayfa.get_textpage()
                 left, bottom, right, top = textpage.get_charbox(start, loose=True)
-                match_y = (sayfa.get_height() - top) * scale
+                # `get_charbox` DONDURULMEMIS kullanici uzayinda, `get_height()`
+                # ise GORSEL boyutu veriyor; ikisini karistirmak /Rotate'li
+                # sayfada koordinati bozuyordu (bkz. gui/pdf_donusum.py).
+                _mx, match_y = gorsele(geometri(sayfa), left, top, scale)
         except Exception:
             match_y = 0
 
@@ -131,15 +135,17 @@ class PdfSearchMixin:
             with pdfium_lock:
                 sayfa = self._pdf[page_idx]
                 textpage = sayfa.get_textpage()
-                yukseklik = sayfa.get_height()
+                g = geometri(sayfa)
                 for ci in range(start, start + count):
                     try:
                         left, bottom, right, top = textpage.get_charbox(ci, loose=True)
                     except Exception:
                         continue
-                    # PDF koordinatları: origin sol-alt, Qt: sol-üst
-                    kutular.append((left * scale, (yukseklik - top) * scale,
-                                    (right - left) * scale, (top - bottom) * scale))
+                    # PDF koordinatları: origin sol-alt ve y yukarı; Qt'de
+                    # sol-üst ve y aşağı. /Rotate varsa eksenler de takas
+                    # oluyor (bkz. gui/pdf_donusum.py).
+                    kutular.append(kutu_gorsele(g, left, bottom, right, top,
+                                                scale))
         except Exception:
             return
 

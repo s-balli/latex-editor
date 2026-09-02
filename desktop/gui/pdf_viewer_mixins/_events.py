@@ -5,6 +5,7 @@ import webbrowser
 from PyQt6.QtCore import QEvent, QPoint, Qt, QTimer
 
 from gui.pdfium_lock import pdfium_lock
+from gui.pdf_donusum import geometri, kullaniciya
 
 from gui.pdf_links import (
     get_link_at_point, resolve_link_action, resolve_dest_scroll_y, get_dest_page_index,
@@ -94,8 +95,12 @@ class PdfEventsMixin:
                     page = self._pdf[i]
                     if not page.raw:
                         return None
-                    x_pts = label_pos.x() / scale
-                    y_pdf = page.get_height() - label_pos.y() / scale
+                    # `get_link_at_point` DONDURULMEMIS kullanici uzayi
+                    # bekliyor; `get_height()` GORSEL boyut veriyor ve
+                    # /Rotate'li sayfada bu karisim yanlis noktaya bakiyordu
+                    # (bkz. gui/pdf_donusum.py).
+                    x_pts, y_pdf = kullaniciya(geometri(page), label_pos.x(),
+                                               label_pos.y(), scale)
                     link = get_link_at_point(page.raw, x_pts, y_pdf)
                 if link:
                     return (i, link, page)

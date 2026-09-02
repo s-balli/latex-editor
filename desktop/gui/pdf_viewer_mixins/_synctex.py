@@ -1,6 +1,8 @@
 """PdfViewer SyncTeX mixin — ileri/geri arama koordinat dönüşümü."""
 
 from PyQt6.QtCore import QPoint, QTimer
+from gui.pdf_donusum import geometri, gorselden_syncteze, synctex_kutusu
+from gui.pdfium_lock import pdfium_lock
 
 
 class PdfSyncTexMixin:
@@ -16,8 +18,12 @@ class PdfSyncTexMixin:
             scale = self._olcek(i)
             label_pos = label.mapFrom(obj, pos) if obj != label else pos
             if label.rect().contains(label_pos):
-                x_pts = label_pos.x() / scale
-                y_pts = label_pos.y() / scale
+                # SyncTeX'in duzlemi /Rotate 0'da ekranla ortusuyor ama
+                # dondurulmus sayfada ortusmuyor (bkz. gui/pdf_donusum.py).
+                with pdfium_lock:
+                    g = geometri(self._pdf[i])
+                x_pts, y_pts = gorselden_syncteze(
+                    g, label_pos.x(), label_pos.y(), scale)
                 self.reverse_search_requested.emit(i + 1, x_pts, y_pts, self._pdf_path)
                 return
 
@@ -28,16 +34,17 @@ class PdfSyncTexMixin:
             return
         label = self._page_labels[idx]
         scale = self._olcek(idx)
-        y_pixel = (y - height) * scale
-        x_pixel = left * scale
-        w_pixel = int(width * scale) if width else 0
+        with pdfium_lock:
+            g = geometri(self._pdf[idx])
+        x_pixel, y_pixel, w_pixel, h_kutu = synctex_kutusu(
+            g, left, y, width, height, scale)
 
         if label.pixmap() is None or label.pixmap().isNull():
             # Label yüklemede doğru boyutla kurulmuş; pixmap arka planda
             # gelir, vurgu/konum hesabı onu beklemez
             self._request_render(idx)
 
-        h_pixel = int(height * scale) if height else 20
+        h_pixel = h_kutu if height else 20
         self._show_highlight(label, int(x_pixel), int(y_pixel), h_pixel, w_pixel)
 
         abs_y = label.mapTo(self._pages_widget, QPoint(0, 0)).y() + int(y_pixel)

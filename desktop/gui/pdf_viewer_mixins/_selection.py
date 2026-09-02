@@ -6,6 +6,7 @@ from PyQt6.QtCore import QTimer
 from PyQt6.QtWidgets import QLabel, QApplication, QMenu
 
 from gui.pdfium_lock import pdfium_lock
+from gui.pdf_donusum import geometri, kullaniciya, kutu_gorsele
 
 from PyQt6.QtCore import QCoreApplication
 _ = lambda s: QCoreApplication.translate("PdfViewer", s)
@@ -105,8 +106,11 @@ class PdfSelectionMixin:
                 page = self._pdf[page_idx]
                 textpage = page.get_textpage()
                 scale = self._olcek(page_idx)
-                x_pdf = label_pos.x() / scale
-                y_pdf = page.get_height() - label_pos.y() / scale
+                # `get_index` DONDURULMEMIS kullanici uzayi bekliyor;
+                # `get_height()` ise GORSEL boyut. /Rotate'li sayfada bu
+                # karisim hicbir karakteri bulamiyordu (bkz. pdf_donusum).
+                x_pdf, y_pdf = kullaniciya(geometri(page), label_pos.x(),
+                                           label_pos.y(), scale)
                 idx = textpage.get_index(x_pdf, y_pdf, x_tol=5.0, y_tol=5.0)
                 if idx is None or idx < 0:
                     return
@@ -161,10 +165,9 @@ class PdfSelectionMixin:
                 textpage = page.get_textpage()
                 scale = self._olcek(page_idx)
 
-                x1 = start_lp.x() / scale
-                y1 = page.get_height() - start_lp.y() / scale
-                x2 = end_lp.x() / scale
-                y2 = page.get_height() - end_lp.y() / scale
+                g = geometri(page)
+                x1, y1 = kullaniciya(g, start_lp.x(), start_lp.y(), scale)
+                x2, y2 = kullaniciya(g, end_lp.x(), end_lp.y(), scale)
 
                 idx1 = textpage.get_index(x1, y1, x_tol=5.0, y_tol=5.0)
                 idx2 = textpage.get_index(x2, y2, x_tol=5.0, y_tol=5.0)
@@ -190,7 +193,7 @@ class PdfSelectionMixin:
 
         scale = self._olcek(page_idx)
         with pdfium_lock:
-            page_height = self._pdf[page_idx].get_height()
+            g = geometri(self._pdf[page_idx])
         t = self._theme
 
         runs = []
@@ -205,10 +208,7 @@ class PdfSelectionMixin:
             if right - left < 0.5 or top - bottom < 0.5:
                 continue
 
-            x = left * scale
-            y = (page_height - top) * scale
-            w = (right - left) * scale
-            h = (top - bottom) * scale
+            x, y, w, h = kutu_gorsele(g, left, bottom, right, top, scale)
 
             if current_run and abs(y - current_run[1]) < 2:
                 current_run[2] = max(current_run[0] + current_run[2], x + w) - current_run[0]
