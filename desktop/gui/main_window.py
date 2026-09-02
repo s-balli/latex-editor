@@ -1025,7 +1025,20 @@ class MainWindow(
             if info.get("kirpildi"):
                 html += (f"<p><i>{_('Notların tamamı Releases sayfasında.')}"
                          "</i></p>")
-        html += f"<p><a href='{url}'>{_('İndirmek için Releases sayfasını aç')}</a></p>"
+        # `<a>` govdenin span rengini ALMIYOR: Qt kendi sabit palet Link
+        # rengini (0, 66, 117) kullaniyor ve koyu zeminde okunmuyor. Olculdu
+        # (2026-09-02, gercek diyalog goruntusu uzerinden): yedi temanin
+        # besinde karsitlik 1.21 ile 1.62 arasinda, WCAG AA esigi 4.50; ayni
+        # diyalogda govde metni 9.25 ile 13.94 arasinda, yani sorun temada
+        # degil yalnizca baglantida.
+        #
+        # `accent` yetmiyor (dark'ta 3.14, light'ta 3.94), `fg_primary` de
+        # solarized_light'ta esigin altinda (4.13). `fg_bright` yedi temada
+        # da geciyor, en dusugu 10.84. Alti cizili oldugu icin tiklanabilirlik
+        # renkten bagimsiz belli oluyor.
+        vurgu = t["fg_bright"]
+        html += (f"<p><a href='{url}' style='color:{vurgu}'>"
+                 f"{_('İndirmek için Releases sayfasını aç')}</a></p>")
         html += "</span>"
         msg.setText(html)
         msg.setInformativeText(_("Şimdi indirip kurmak ister misiniz?"))
