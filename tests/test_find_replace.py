@@ -683,3 +683,22 @@ def test_kapi_arama_yollarinda_da_gecerli(qapp):
     bar._find_input.setText(kotu)
     _sureli(bar._do_find)
     assert bar._gecersiz_desen is True
+
+
+def test_kapi_capali_desenlerde_muhafazakar():
+    r"""Gövdesi düz metinle BAŞLAYAN desenler de reddediliyor: bilinen ve kabul
+    edilmiş fazla-reddetme.
+
+    `(\ref\{[a-z]+\})+` gerçekte patlamıyor; her tekrar `\ref{` ile
+    çapalandığı için bölünme tekil. Yine de reddediliyor, çünkü "çapa
+    ambigüiteyi tekilleştiriyor mu" sorusunu doğru cevaplamak bu kapının işi
+    değil ve yanlış cevap kullanıcıyı DONDURUR. Fazladan reddetmenin bedeli
+    açık bir uyarı, eksik reddetmenin bedeli zorla kapatma.
+
+    Test davranışı SABİTLİYOR: ileride kasıtlı olarak gevşetilirse burada
+    görünsün (dış doğrulama, 2026-09-02).
+    """
+    from gui.find_replace import _desen_guvenli
+
+    assert not _desen_guvenli(r"(\ref\{[a-z]+\})+")
+    assert not _desen_guvenli(r"(fig\{[0-9]+\})+")

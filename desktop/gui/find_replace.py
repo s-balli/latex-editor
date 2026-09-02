@@ -131,6 +131,14 @@ def _ic_ice_nicelik(desen: str) -> bool:
 
     Bu kapi her felaket desenini yakalamiyor (ornegin ortusen almasik
     `(a|a)+`); yakaladigi, kazayla en sik yazilan bicim.
+
+    MUHAFAZAKAR OLDUGU BILINEN durum: govdesi duz bir metinle BASLAYAN
+    desenler de reddediliyor, ornegin `(\\ref\\{[a-z]+\\})+`. Orada her tekrar
+    `\\ref{` ile capalandigi icin bolunme tekil, yani patlama yok. Yine de
+    reddediliyor, cunku "capa ambigulugu tekillestiriyor mu" sorusunu dogru
+    cevaplamak bu kapinin isi degil ve yanlis cevap KULLANICIYI DONDURUR.
+    Fazladan reddetmenin bedeli acik bir uyari; eksik reddetmenin bedeli
+    zorla kapatma. Bu desenler nadir (dis dogrulama, 2026-09-02).
     """
     for bas, son in _grup_araliklari(desen):
         kuyruk = desen[son + 1:son + 2]
