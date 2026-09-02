@@ -12,20 +12,18 @@ class PdfSyncTexMixin:
             return
         if obj != self._pages_widget and obj not in self._page_labels:
             return
-        for i, label in enumerate(self._page_labels):
-            if i >= self._page_count:
-                break
-            scale = self._olcek(i)
-            label_pos = label.mapFrom(obj, pos) if obj != label else pos
-            if label.rect().contains(label_pos):
-                # SyncTeX'in duzlemi /Rotate 0'da ekranla ortusuyor ama
-                # dondurulmus sayfada ortusmuyor (bkz. gui/pdf_donusum.py).
-                with pdfium_lock:
-                    g = geometri(self._pdf[i])
-                x_pts, y_pts = gorselden_syncteze(
-                    g, label_pos.x(), label_pos.y(), scale)
-                self.reverse_search_requested.emit(i + 1, x_pts, y_pts, self._pdf_path)
-                return
+        # Sayfa yönlendirmesi TEK yerden (bkz. _selection._pos_to_page).
+        i, label_pos = self._pos_to_page(pos, obj)
+        if i is None:
+            return
+        scale = self._olcek(i)
+        # SyncTeX'in düzlemi /Rotate 0'da ekranla örtüşüyor ama döndürülmüş
+        # sayfada örtüşmüyor (bkz. gui/pdf_donusum.py).
+        with pdfium_lock:
+            g = geometri(self._pdf[i])
+        x_pts, y_pts = gorselden_syncteze(
+            g, label_pos.x(), label_pos.y(), scale)
+        self.reverse_search_requested.emit(i + 1, x_pts, y_pts, self._pdf_path)
 
     def scroll_to_position(self, page_num: int, x: float, y: float,
                            left: float = 0.0, width: float = 0.0, height: float = 0.0):

@@ -25,13 +25,38 @@ class PdfSelectionMixin:
         self._pending_click_timer = None
 
     def _pos_to_page(self, pos, obj):
-        """pos (obj koordinatlarinda) → (sayfa indeksi, label uzerinde pozisyon)."""
+        """pos (obj koordinatlarinda) → (sayfa indeksi, label uzerinde pozisyon).
+
+        `obj` sayfa etiketinin KENDİSİYSE döngüye hiç girilmiyor. Kardeş bir
+        etikete `mapFrom` çağırmak Qt'de tanımlı değil: dönen nokta
+        `pos - label.pos()` oluyor ve eş boyutlu sayfalarda çoğu zaman İLK
+        etiketin dikdörtgenine düşüyor. Ölçüldü (2026-09-02, dış rapor
+        6. tur; Qt 6.11):
+
+            pencere geniş (sayfa yatayda ortalı)  x negatife düşüyor, doğru
+                                                  sayfa bulunuyor (TESADÜF)
+            pencere dar   (ortalama payı yok)     2. sayfaya tıklama 1.
+                                                  sayfaya çözümleniyor
+
+        Yani hata sürüme değil, pencere genişliğine bağlıydı: aynı kullanıcı
+        pencereyi daralttığında SyncTeX geri araması, metin seçimi ve
+        bağlantı tıklaması yanlış sayfaya gidiyordu.
+        """
         if not self._pdf:
             return None, None
+        try:
+            i = self._page_labels.index(obj)
+        except ValueError:
+            i = -1
+        if i >= 0:
+            if i < self._page_count and obj.rect().contains(pos):
+                return i, pos
+            return None, None
+        # Kapsayıcıdan geldiyse mapFrom meşru: obj gerçekten ata.
         for i, label in enumerate(self._page_labels):
             if i >= self._page_count:
                 break
-            label_pos = label.mapFrom(obj, pos) if obj != label else pos
+            label_pos = label.mapFrom(obj, pos)
             if label.rect().contains(label_pos):
                 return i, label_pos
         return None, None

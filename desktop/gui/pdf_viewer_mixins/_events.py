@@ -85,27 +85,23 @@ class PdfEventsMixin:
             return None
         if obj != self._pages_widget and obj not in self._page_labels:
             return None
-        for i, label in enumerate(self._page_labels):
-            if i >= self._page_count:
-                break
-            scale = self._olcek(i)
-            label_pos = label.mapFrom(obj, pos) if obj != label else pos
-            if label.rect().contains(label_pos):
-                with pdfium_lock:
-                    page = self._pdf[i]
-                    if not page.raw:
-                        return None
-                    # `get_link_at_point` DONDURULMEMIS kullanici uzayi
-                    # bekliyor; `get_height()` GORSEL boyut veriyor ve
-                    # /Rotate'li sayfada bu karisim yanlis noktaya bakiyordu
-                    # (bkz. gui/pdf_donusum.py).
-                    x_pts, y_pdf = kullaniciya(geometri(page), label_pos.x(),
-                                               label_pos.y(), scale)
-                    link = get_link_at_point(page.raw, x_pts, y_pdf)
-                if link:
-                    return (i, link, page)
+        # Sayfa yönlendirmesi TEK yerden: kardeş etikete `mapFrom` çağırmak
+        # yanlış sayfaya götürüyordu (bkz. _selection._pos_to_page).
+        i, label_pos = self._pos_to_page(pos, obj)
+        if i is None:
+            return None
+        scale = self._olcek(i)
+        with pdfium_lock:
+            page = self._pdf[i]
+            if not page.raw:
                 return None
-        return None
+            # `get_link_at_point` DÖNDÜRÜLMEMİŞ kullanıcı uzayı bekliyor;
+            # `get_height()` GÖRSEL boyut veriyor ve /Rotate'li sayfada bu
+            # karışım yanlış noktaya bakıyordu (bkz. gui/pdf_donusum.py).
+            x_pts, y_pdf = kullaniciya(geometri(page), label_pos.x(),
+                                       label_pos.y(), scale)
+            link = get_link_at_point(page.raw, x_pts, y_pdf)
+        return (i, link, page) if link else None
 
     def _handle_link_click(self, pos, obj):
         result = self._link_at_pos(pos, obj)
