@@ -96,7 +96,7 @@ THEMES = {
         # -- Anlamsal --
         "sem_folder":         "#7eb8da",
         "sem_compilable":     "#e8d44d",
-        "sem_error":          "#f44747",
+        "sem_error":          "#f55353",
         "sem_warning":        "#cca700",
         "sem_hint":           "#ff9900",
         "sem_suggestion":     "#4ec9b0",
@@ -168,12 +168,12 @@ THEMES = {
         "syn_env_arg":        "#267f99",
 
         # -- Anlamsal --
-        "sem_folder":         "#0078d4",
-        "sem_compilable":     "#b58900",
-        "sem_error":          "#d73a49",
-        "sem_warning":        "#b58900",
-        "sem_hint":           "#e36209",
-        "sem_suggestion":     "#0078d4",
+        "sem_folder":         "#0069b9",
+        "sem_compilable":     "#826200",
+        "sem_error":          "#c42837",
+        "sem_warning":        "#826200",
+        "sem_hint":           "#aa4907",
+        "sem_suggestion":     "#0068b8",
 
         # -- Outline seviyeleri --
         "outline_part":             "#b58900",
@@ -392,7 +392,7 @@ THEMES = {
         # -- Anlamsal --
         "sem_folder":         "#66d9ef",
         "sem_compilable":     "#e6db74",
-        "sem_error":          "#f92672",
+        "sem_error":          "#fa4a89",
         "sem_warning":        "#fd971f",
         "sem_hint":           "#fd971f",
         "sem_suggestion":     "#a6e22e",
@@ -466,9 +466,9 @@ THEMES = {
         # -- Anlamsal --
         "sem_folder":         "#88c0d0",
         "sem_compilable":     "#ebcb8b",
-        "sem_error":          "#bf616a",
+        "sem_error":          "#cf888f",
         "sem_warning":        "#ebcb8b",
-        "sem_hint":           "#d08770",
+        "sem_hint":           "#d18a73",
         "sem_suggestion":     "#a3be8c",
 
         # -- Outline seviyeleri --
@@ -540,7 +540,7 @@ THEMES = {
         # -- Anlamsal --
         "sem_folder":         "#83a598",
         "sem_compilable":     "#fabd2f",
-        "sem_error":          "#fb4934",
+        "sem_error":          "#fb5440",
         "sem_warning":        "#fabd2f",
         "sem_hint":           "#fe8019",
         "sem_suggestion":     "#b8bb26",
