@@ -83,6 +83,33 @@ def latex_marka(cizim, x, y, boy):
     return imlec
 
 
+def _dikey_denge(im, tolerans=42):
+    """Icerik dikeyde ortali mi? Degilse patla.
+
+    Ilk surumde `ust` degeri gozle secilmisti ve icerik asagi kaymisti:
+    ustte 222, altta 113 px. Kart yuklendikten sonra fark edildi. Punto ya
+    da satir sayisi degisince ayni sey yine olur, o yuzden olcum burada.
+
+    Optik merkez: ustteki bosluk alttakinden BIRAZ AZ olmali. Tolerans
+    disina cikarsa gorsel yazilmiyor.
+    """
+    gri = im.convert("L")
+    # Ustteki vurgu seridi metin degil, olcume katilmasin
+    govde = gri.crop((0, 12, EN, BOY))
+    kutu = govde.point(lambda p: 255 if p > 120 else 0).getbbox()
+    if kutu is None:                             # pragma: no cover
+        raise SystemExit("kartta hic metin bulunamadi")
+    ust_bosluk = kutu[1] + 12
+    alt_bosluk = BOY - (kutu[3] + 12)
+    fark = ust_bosluk - alt_bosluk
+    if fark > tolerans or fark < -tolerans * 2:
+        raise SystemExit(
+            "icerik dikeyde ortali degil: ustte %d px, altta %d px. "
+            "`ust` degerini %+d kaydir."
+            % (ust_bosluk, alt_bosluk, -fark // 2))
+    print("  dikey denge: ustte %d px, altta %d px" % (ust_bosluk, alt_bosluk))
+
+
 def uret():
     im = Image.new("RGB", (EN, BOY), ZEMIN)
 
@@ -124,7 +151,10 @@ def uret():
             "metin karta sigmiyor: %d px, kullanilabilir %d px. "
             "Satirlari kisalt ya da punto dusur." % (en_genis, EN - 160))
 
-    ust = 214
+    # DIKEY KONUM. Once 214 idi ve icerik gozle gorulur asagi kaymisti
+    # (olculdu: ustte 222, altta 113 px). Optik merkez icin ustteki bosluk
+    # alttakinden BIRAZ AZ olmali; asagidaki _dikey_denge bunu denetliyor.
+    ust = 152
     son = latex_marka(c, (EN - marka_en) // 2, ust, marka_boy)
     c.text((son + 26, ust), "Editor", font=duz, fill=METIN)
 
@@ -134,6 +164,8 @@ def uret():
     c.line(((EN - 220) // 2, ay, (EN + 220) // 2, ay), fill=CIZGI, width=3)
 
     c.text(((EN - kunye_en) // 2, ay + 28), KUNYE, font=kunye_tf, fill=VURGU)
+
+    _dikey_denge(im)
 
     os.makedirs(os.path.dirname(CIKTI), exist_ok=True)
     im.save(CIKTI, "PNG", optimize=True)
