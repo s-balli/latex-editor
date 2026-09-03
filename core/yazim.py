@@ -126,10 +126,18 @@ shorttitle runningtitle thanks dedication
 # Liste ŞART, körü körüne atlanamaz: `\begin{theorem}[Pisagor Teoremi]`
 # argümanı GERÇEK METİNDİR ve denetlenmeli.
 #
-# `array`, `lstlisting` ve `tabular*` BİLEREK YOK: onlar _ATLANACAK_ORTAM'da,
-# içleri zaten hiç denetlenmiyor, buraya yazmak ölü girdi olurdu.
+# `array` ve `lstlisting` BİLEREK YOK: onlar _ATLANACAK_ORTAM'da, içleri
+# zaten hiç denetlenmiyor, buraya yazmak ölü girdi olurdu. (`array` gerçekten
+# matematik ortamı, `lstlisting` kod.)
+#
+# `tabular*` ÖNCE _ATLANACAK_ORTAM'DAYDI ve bu bir kusurdu: matematik
+# ortamlarının yanına yanlışlıkla yazılmış. `tabular` hücreleri denetleniyor,
+# `tabular*` hücreleri hiç denetlenmiyordu. ÖLÇÜLDÜ: altı şablon dosyasında
+# sekiz blok, 163 kelime denetim dışı kalıyordu (Command, Output, Meaning,
+# solar, microns...). Argümanı İKİ grup: `{genişlik}{sütunlar}`, ikisi de
+# aşağıdaki döngüyle atlanıyor.
 _BELIRTECLI_ORTAM = frozenset("""
-figure figure* table table* tabular tabularx longtable
+figure figure* table table* tabular tabular* tabularx longtable
 minipage wrapfigure subfigure subtable adjustbox sidewaystable sideways
 algorithm algorithmic multicols wraptable threeparttable
 """.split())
@@ -138,7 +146,7 @@ algorithm algorithmic multicols wraptable threeparttable
 _ATLANACAK_ORTAM = frozenset(
     "verbatim Verbatim lstlisting minted alltt tikzpicture "
     "equation equation* align align* gather gather* eqnarray eqnarray* "
-    "displaymath math array matrix pmatrix bmatrix tabular* ".split())
+    "displaymath math array matrix pmatrix bmatrix ".split())
 
 _HARF = re.compile(r"[^\W\d_]", re.UNICODE)
 

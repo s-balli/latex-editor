@@ -239,6 +239,47 @@ def test_yerlesim_ve_sutun_belirteci_atlanir():
     assert sozler(r"\begin{tabular}{lcccc} Hucre") == ["Hucre"]
 
 
+def test_tabular_YILDIZLI_hucreleri_de_denetleniyor():
+    r"""`tabular*` hucreleri hic denetlenmiyordu.
+
+    `tabular*` yanlislikla _ATLANACAK_ORTAM'a, yani matematik ortamlarinin
+    yanina yazilmisti: `tabular` hucreleri denetleniyor, `tabular*`
+    hucreleri hic denetlenmiyordu. OLCULDU: alti sablon dosyasinda sekiz
+    blok, 163 kelime denetim disi kaliyordu.
+
+    Argumani IKI grup: `{genislik}{sutunlar}`, ikisi de atlanmali.
+    """
+    assert sozler(r"\begin{tabular*}{\columnwidth}{ll} Komut & Anlam") == [
+        "Komut", "Anlam"]
+    # Gercek sablon sozdizimi: sutun belirtecinde IC ICE suslu parantez
+    assert sozler(r"\begin{tabular*}{\tblwidth}{@{} LLLL@{} } Col") == ["Col"]
+    assert sozler(
+        r"\begin{tabular*}{\columnwidth}{@{}l@{\hspace*{50pt}}l@{}} Output"
+    ) == ["Output"]
+
+
+def test_array_HALA_atlaniyor():
+    """`tabular*` duzeltilirken `array` yanlislikla acilmasin.
+
+    `array` gercekten matematik ortami (matematik modunda kullaniliyor),
+    icerigi denetlenmemeli. `tabular*` ile ayni listede duruyordu ama
+    ayni sey degiller.
+    """
+    assert sozler(r"\begin{array}{cc} xyz abc \end{array}") == []
+    assert sozler(r"\begin{lstlisting} kodicerigi \end{lstlisting}") == []
+
+
+def test_iki_ortam_listesi_AYRIK():
+    """Bir ortam hem atlanan hem belirtecli olamaz.
+
+    Ayni listede olursa `elif` sirasi yuzunden belirtec dali hic
+    calismiyor: olu girdi olur ve okuyani yanlis yonlendirir.
+    """
+    from core.yazim import _ATLANACAK_ORTAM, _BELIRTECLI_ORTAM
+    ortak = _ATLANACAK_ORTAM & _BELIRTECLI_ORTAM
+    assert not ortak, "iki listede birden: %s" % sorted(ortak)
+
+
 def test_teorem_basligi_METINDIR():
     """Belirtec atlama neden LISTEYLE sinirli: her ortamin koseli
     argumani belirtec degil, `theorem` icin duz metin."""
