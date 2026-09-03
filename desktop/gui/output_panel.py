@@ -38,6 +38,7 @@ def _hint_templates() -> dict:
         "rerun_needed": _("Tekrar derleyin: çapraz referanslar ve kaynakça iki derleme geçesinde çözülür"),
         "duplicate_label": _("Aynı \\label iki kez kullanılmış; F2 ile birini yeniden adlandırın"),
         "listings_language": _("Listings dili yüklenemedi. \\usepackage[turkish]{babel} kullanıyorsanız bu bilinen bir çakışmadır: language=C yerine language={[ANSI]C} yazın. Değilse dil adını kontrol edin (C, Python, Pascal, Java...)"),
+        "missing_glyph": _("Karakterin {font} yazı tipinde karşılığı yok, PDF'e yazılmadan atlandı ve derleme yine de başarılı göründü. En sık sebebi XeLaTeX/LuaLaTeX ile [T1]{fontenc} kullanmak; ş, ı, İ ve ğ sessizce düşer. Çözüm: \\usepackage{iftex} ekleyip fontenc ile inputenc satırlarını \\ifPDFTeX ... \\fi bloğuna alın"),
     }
 
 
@@ -225,12 +226,17 @@ class OutputPanel(QWidget):
             return ""
         cmd = params.get("cmd", "")
         env = params.get("env", "")
+        font = params.get("font", "")
         # str.format KULLANMA: şablonlar gerçek LaTeX küme parantezleri taşıyor
         # ('\end{...}', '{[ANSI]C}', '{babel}') — format onları yer tutucu sanıp
         # KeyError fırlatıyor, show_result yarıda kesiliyor ve Log sekmesi boş
         # kalıyordu. Yerine basit ikame.
         out = tmpl.replace("{cmd}", f" ({cmd})" if cmd else "")
-        return out.replace("{env}", env)
+        out = out.replace("{env}", env)
+        # missing_glyph şablonunda literal '{fontenc}' de geçiyor. Çakışmıyor:
+        # '{font}' kapanış parantezi ister, '{fontenc}' orada 'e' taşıyor.
+        # Yine de yer tutucuyu değiştirecek olan bunu akılda tutsun.
+        return out.replace("{font}", font)
 
     def show_result(self, result: CompileResult):
         self.clear()

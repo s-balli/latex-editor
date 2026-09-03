@@ -688,27 +688,27 @@ Referanslar tutarsız kaldı. Bu dosyalara yazma izni verip işlemi tekrarlayın
         <translation>Ortam Denetimi</translation>
     </message>
     <message>
-        <location filename="../gui/env_doctor.py" line="99" />
+        <location filename="../gui/env_doctor.py" line="110" />
         <source>Yeniden Denetle</source>
         <translation>Yeniden Denetle</translation>
     </message>
     <message>
-        <location filename="../gui/env_doctor.py" line="102" />
+        <location filename="../gui/env_doctor.py" line="113" />
         <source>Raporu Kopyala</source>
         <translation>Raporu Kopyala</translation>
     </message>
     <message>
-        <location filename="../gui/env_doctor.py" line="105" />
+        <location filename="../gui/env_doctor.py" line="116" />
         <source>Kapat</source>
         <translation>Kapat</translation>
     </message>
     <message>
-        <location filename="../gui/env_doctor.py" line="120" />
+        <location filename="../gui/env_doctor.py" line="131" />
         <source>Denetleniyor: WSL, TeX motorları, biber, pandoc, synctex ...</source>
         <translation>Denetleniyor: WSL, TeX motorları, biber, pandoc, synctex ...</translation>
     </message>
     <message>
-        <location filename="../gui/env_doctor.py" line="162" />
+        <location filename="../gui/env_doctor.py" line="173" />
         <source>Rapor panoya kopyalandı</source>
         <translation>Rapor panoya kopyalandı</translation>
     </message>
@@ -2302,125 +2302,125 @@ Belgede değiştirilmemiş eşleşmeler kalmış olabilir; işlemi tekrarlayarak
         <translation>Özellikler</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="882" />
+        <location filename="../gui/main_window.py" line="890" />
         <source>LaTeX editörü ve derleyici</source>
         <translation>LaTeX editörü ve derleyici</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="883" />
+        <location filename="../gui/main_window.py" line="891" />
         <source>Geliştirici:</source>
         <translation>Geliştirici:</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="884" />
+        <location filename="../gui/main_window.py" line="892" />
         <source>E-posta:</source>
         <translation>E-posta:</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="886" />
+        <location filename="../gui/main_window.py" line="900" />
         <source>Tanıtım sayfası:</source>
         <translation>Tanıtım sayfası:</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="890" />
+        <location filename="../gui/main_window.py" line="905" />
         <source>LaTeX Editor</source>
         <translation>LaTeX Editor</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="938" />
+        <location filename="../gui/main_window.py" line="953" />
         <source>Tanım</source>
         <translation>Tanım</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="940" />
+        <location filename="../gui/main_window.py" line="955" />
         <source>Tanım bulunamadı</source>
         <translation>Tanım bulunamadı</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="972" />
-        <location filename="../gui/main_window.py" line="964" />
+        <location filename="../gui/main_window.py" line="987" />
+        <location filename="../gui/main_window.py" line="979" />
         <source>Panoya kopyalandı — terminalde cd ile geçin:</source>
         <translation>Panoya kopyalandı — terminalde cd ile geçin:</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="986" />
-        <location filename="../gui/main_window.py" line="982" />
+        <location filename="../gui/main_window.py" line="1001" />
+        <location filename="../gui/main_window.py" line="997" />
         <source>Güncellemeler kontrol ediliyor...</source>
         <translation>Güncellemeler kontrol ediliyor...</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1012" />
+        <location filename="../gui/main_window.py" line="1027" />
         <source>Güncelleme Mevcut</source>
         <translation>Güncelleme Mevcut</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1016" />
+        <location filename="../gui/main_window.py" line="1031" />
         <source>Yeni sürüm</source>
         <translation>Yeni sürüm</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1016" />
+        <location filename="../gui/main_window.py" line="1031" />
         <source>mevcut</source>
         <translation>mevcut</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1017" />
+        <location filename="../gui/main_window.py" line="1032" />
         <source>Kullandığınız sürüm</source>
         <translation>Kullandığınız sürüm</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1024" />
+        <location filename="../gui/main_window.py" line="1039" />
         <source>Sürüm notları</source>
         <translation>Sürüm notları</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1026" />
+        <location filename="../gui/main_window.py" line="1041" />
         <source>Notların tamamı Releases sayfasında.</source>
         <translation>Notların tamamı Releases sayfasında.</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1028" />
+        <location filename="../gui/main_window.py" line="1056" />
         <source>İndirmek için Releases sayfasını aç</source>
         <translation>İndirmek için Releases sayfasını aç</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1031" />
+        <location filename="../gui/main_window.py" line="1059" />
         <source>Şimdi indirip kurmak ister misiniz?</source>
         <translation>Şimdi indirip kurmak ister misiniz?</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1032" />
+        <location filename="../gui/main_window.py" line="1060" />
         <source>Tarayıcıda Aç</source>
         <translation>Tarayıcıda Aç</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1033" />
+        <location filename="../gui/main_window.py" line="1061" />
         <source>Daha Sonra</source>
         <translation>Daha Sonra</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1053" />
-        <location filename="../gui/main_window.py" line="1045" />
+        <location filename="../gui/main_window.py" line="1081" />
+        <location filename="../gui/main_window.py" line="1073" />
         <source>Güncellemeleri Kontrol Et</source>
         <translation>Güncellemeleri Kontrol Et</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1046" />
+        <location filename="../gui/main_window.py" line="1074" />
         <source>En güncel sürümü kullanıyorsunuz</source>
         <translation>En güncel sürümü kullanıyorsunuz</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1054" />
+        <location filename="../gui/main_window.py" line="1082" />
         <source>Güncelleme kontrol edilemedi — bağlantı kurulamadı.</source>
         <translation>Güncelleme kontrol edilemedi — bağlantı kurulamadı.</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1193" />
+        <location filename="../gui/main_window.py" line="1221" />
         <source>Bu dosya türü açılamıyor: {name}</source>
         <translation>Bu dosya türü açılamıyor: {name}</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1198" />
+        <location filename="../gui/main_window.py" line="1226" />
         <source>Dosya bulunamadı: {name}</source>
         <translation>Dosya bulunamadı: {name}</translation>
     </message>
@@ -2651,250 +2651,255 @@ Belgede değiştirilmemiş eşleşmeler kalmış olabilir; işlemi tekrarlayarak
         <translation>Listings dili yüklenemedi. \usepackage[turkish]{babel} kullanıyorsanız bu bilinen bir çakışmadır: language=C yerine language={[ANSI]C} yazın. Değilse dil adını kontrol edin (C, Python, Pascal, Java...)</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="213" />
-        <location filename="../gui/output_panel.py" line="78" />
+        <location filename="../gui/output_panel.py" line="41" />
+        <source>Karakterin {font} yazı tipinde karşılığı yok, PDF'e yazılmadan atlandı ve derleme yine de başarılı göründü. En sık sebebi XeLaTeX/LuaLaTeX ile [T1]{fontenc} kullanmak; ş, ı, İ ve ğ sessizce düşer. Çözüm: \usepackage{iftex} ekleyip fontenc ile inputenc satırlarını \ifPDFTeX ... \fi bloğuna alın</source>
+        <translation>Karakterin {font} yazı tipinde karşılığı yok, PDF'e yazılmadan atlandı ve derleme yine de başarılı göründü. En sık sebebi XeLaTeX/LuaLaTeX ile [T1]{fontenc} kullanmak; ş, ı, İ ve ğ sessizce düşer. Çözüm: \usepackage{iftex} ekleyip fontenc ile inputenc satırlarını \ifPDFTeX ... \fi bloğuna alın</translation>
+    </message>
+    <message>
+        <location filename="../gui/output_panel.py" line="214" />
+        <location filename="../gui/output_panel.py" line="79" />
         <source>Hatalar</source>
         <translation>Hatalar</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="214" />
-        <location filename="../gui/output_panel.py" line="85" />
+        <location filename="../gui/output_panel.py" line="215" />
+        <location filename="../gui/output_panel.py" line="86" />
         <source>Uyarılar</source>
         <translation>Uyarılar</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="215" />
-        <location filename="../gui/output_panel.py" line="92" />
+        <location filename="../gui/output_panel.py" line="216" />
+        <location filename="../gui/output_panel.py" line="93" />
         <source>Öneriler</source>
         <translation>Öneriler</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="104" />
+        <location filename="../gui/output_panel.py" line="105" />
         <source>Sürüm Geçmişi</source>
         <translation>Sürüm Geçmişi</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="117" />
+        <location filename="../gui/output_panel.py" line="118" />
         <source>Klasörde ara (Enter)</source>
         <translation>Klasörde ara (Enter)</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="125" />
+        <location filename="../gui/output_panel.py" line="126" />
         <source>Büyük/küçük harf eşleştir</source>
         <translation>Büyük/küçük harf eşleştir</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="127" />
+        <location filename="../gui/output_panel.py" line="128" />
         <source>İşaretliyse 'Şekil' ile 'şekil' ayrı sayılır</source>
         <translation>İşaretliyse 'Şekil' ile 'şekil' ayrı sayılır</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="145" />
+        <location filename="../gui/output_panel.py" line="146" />
         <source>Klasörde Ara</source>
         <translation>Klasörde Ara</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="161" />
+        <location filename="../gui/output_panel.py" line="162" />
         <source>Süz (anahtar, yazar, başlık)</source>
         <translation>Süz (anahtar, yazar, başlık)</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="170" />
+        <location filename="../gui/output_panel.py" line="171" />
         <source>Anahtar</source>
         <translation>Anahtar</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="170" />
+        <location filename="../gui/output_panel.py" line="171" />
         <source>Tür</source>
         <translation>Tür</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="170" />
+        <location filename="../gui/output_panel.py" line="171" />
         <source>Yazar</source>
         <translation>Yazar</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="170" />
+        <location filename="../gui/output_panel.py" line="171" />
         <source>Yıl</source>
         <translation>Yıl</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="170" />
+        <location filename="../gui/output_panel.py" line="171" />
         <source>Başlık</source>
         <translation>Başlık</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="521" />
-        <location filename="../gui/output_panel.py" line="481" />
-        <location filename="../gui/output_panel.py" line="184" />
+        <location filename="../gui/output_panel.py" line="527" />
+        <location filename="../gui/output_panel.py" line="487" />
+        <location filename="../gui/output_panel.py" line="185" />
         <source>Kaynakça</source>
         <translation>Kaynakça</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="240" />
+        <location filename="../gui/output_panel.py" line="246" />
         <source>Satır {n}: {msg}</source>
         <translation>Satır {n}: {msg}</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="249" />
+        <location filename="../gui/output_panel.py" line="255" />
         <source>Hatalar ({n})</source>
         <translation>Hatalar ({n})</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="253" />
+        <location filename="../gui/output_panel.py" line="259" />
         <source>Satır {n}: </source>
         <translation>Satır {n}: </translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="337" />
-        <location filename="../gui/output_panel.py" line="317" />
-        <location filename="../gui/output_panel.py" line="263" />
+        <location filename="../gui/output_panel.py" line="343" />
+        <location filename="../gui/output_panel.py" line="323" />
+        <location filename="../gui/output_panel.py" line="269" />
         <source>Uyarılar ({n})</source>
         <translation>Uyarılar ({n})</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="276" />
+        <location filename="../gui/output_panel.py" line="282" />
         <source>Ortam Denetimi'ni Aç...</source>
         <translation>Ortam Denetimi'ni Aç...</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="585" />
-        <location filename="../gui/output_panel.py" line="577" />
-        <location filename="../gui/output_panel.py" line="338" />
-        <location filename="../gui/output_panel.py" line="318" />
-        <location filename="../gui/output_panel.py" line="280" />
+        <location filename="../gui/output_panel.py" line="591" />
+        <location filename="../gui/output_panel.py" line="583" />
+        <location filename="../gui/output_panel.py" line="344" />
+        <location filename="../gui/output_panel.py" line="324" />
+        <location filename="../gui/output_panel.py" line="286" />
         <source>Öneriler ({n})</source>
         <translation>Öneriler ({n})</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="316" />
+        <location filename="../gui/output_panel.py" line="322" />
         <source>Sorun bulunamadı — tüm \ref/\cite anahtarları tanımlı.</source>
         <translation>Sorun bulunamadı — tüm \ref/\cite anahtarları tanımlı.</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="349" />
+        <location filename="../gui/output_panel.py" line="355" />
         <source>Aranıyor...</source>
         <translation>Aranıyor...</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="370" />
+        <location filename="../gui/output_panel.py" line="376" />
         <source>Aranan klasör: {yol}</source>
         <translation>Aranan klasör: {yol}</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="372" />
+        <location filename="../gui/output_panel.py" line="378" />
         <source>klasör yok</source>
         <translation>klasör yok</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="373" />
+        <location filename="../gui/output_panel.py" line="379" />
         <source>Ctrl+Shift+O ile bir klasör açın</source>
         <translation>Ctrl+Shift+O ile bir klasör açın</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="417" />
+        <location filename="../gui/output_panel.py" line="423" />
         <source>bulunamadı</source>
         <translation>bulunamadı</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="421" />
+        <location filename="../gui/output_panel.py" line="427" />
         <source>ilk {n} sonuç (kırpıldı)</source>
         <translation>ilk {n} sonuç (kırpıldı)</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="425" />
+        <location filename="../gui/output_panel.py" line="431" />
         <source>{n} sonuç · {d} dosya</source>
         <translation>{n} sonuç · {d} dosya</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="461" />
+        <location filename="../gui/output_panel.py" line="467" />
         <source>{g}/{t} girdi</source>
         <translation>{g}/{t} girdi</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="463" />
+        <location filename="../gui/output_panel.py" line="469" />
         <source>{n} girdi</source>
         <translation>{n} girdi</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="517" />
+        <location filename="../gui/output_panel.py" line="523" />
         <source>kaynakça bulunamadı</source>
         <translation>kaynakça bulunamadı</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="521" />
+        <location filename="../gui/output_panel.py" line="527" />
         <source>Kaynakça ({n})</source>
         <translation>Kaynakça ({n})</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="535" />
+        <location filename="../gui/output_panel.py" line="541" />
         <source>dosya</source>
         <translation>dosya</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="546" />
+        <location filename="../gui/output_panel.py" line="552" />
         <source>Açık dosyayı bu sürümden geri yükle</source>
         <translation>Açık dosyayı bu sürümden geri yükle</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="547" />
+        <location filename="../gui/output_panel.py" line="553" />
         <source>Açık dosyanın farklarını göster</source>
         <translation>Açık dosyanın farklarını göster</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="548" />
+        <location filename="../gui/output_panel.py" line="554" />
         <source>Açık dosyanın bu sürümdeki hâlini kopyala</source>
         <translation>Açık dosyanın bu sürümdeki hâlini kopyala</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="552" />
+        <location filename="../gui/output_panel.py" line="558" />
         <source>Bu sürümü sil (en yeni)</source>
         <translation>Bu sürümü sil (en yeni)</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="554" />
+        <location filename="../gui/output_panel.py" line="560" />
         <source>Tüm geçmişi sil</source>
         <translation>Tüm geçmişi sil</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="570" />
+        <location filename="../gui/output_panel.py" line="576" />
         <source>Derleme başarısız oldu. Şu an {current} kullanılıyor.
     → Araç çubuğundan motoru {other} olarak değiştirip tekrar deneyin.</source>
         <translation>Derleme başarısız oldu. Şu an {current} kullanılıyor.
     → Araç çubuğundan motoru {other} olarak değiştirip tekrar deneyin.</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="595" />
+        <location filename="../gui/output_panel.py" line="601" />
         <source>derleniyor</source>
         <translation>derleniyor</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="596" />
+        <location filename="../gui/output_panel.py" line="602" />
         <source>basarili</source>
         <translation>basarili</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="597" />
+        <location filename="../gui/output_panel.py" line="603" />
         <source>basarisiz</source>
         <translation>basarisiz</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="598" />
+        <location filename="../gui/output_panel.py" line="604" />
         <source>uyari</source>
         <translation>uyari</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="599" />
+        <location filename="../gui/output_panel.py" line="605" />
         <source>hata</source>
         <translation>hata</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="600" />
+        <location filename="../gui/output_panel.py" line="606" />
         <source>bilgi</source>
         <translation>bilgi</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="639" />
+        <location filename="../gui/output_panel.py" line="645" />
         <source>Kopyala</source>
         <translation>Kopyala</translation>
     </message>
@@ -2995,32 +3000,32 @@ Belgede değiştirilmemiş eşleşmeler kalmış olabilir; işlemi tekrarlayarak
         <translation>PDF'te Ara (Ctrl+F)</translation>
     </message>
     <message>
-        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="205" />
-        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="205" />
+        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="207" />
+        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="207" />
         <source>PDF'te ara...</source>
         <translation>PDF'te ara...</translation>
     </message>
     <message>
-        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="234" />
-        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="234" />
+        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="236" />
+        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="236" />
         <source>Önceki</source>
         <translation>Önceki</translation>
     </message>
     <message>
-        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="243" />
-        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="243" />
+        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="245" />
+        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="245" />
         <source>Sonraki</source>
         <translation>Sonraki</translation>
     </message>
     <message>
-        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="431" />
-        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="431" />
+        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="433" />
+        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="433" />
         <source>PDF'i Farklı Kaydet</source>
         <translation>PDF'i Farklı Kaydet</translation>
     </message>
     <message>
-        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="431" />
-        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="431" />
+        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="433" />
+        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="433" />
         <source>PDF Dosyaları (*.pdf)</source>
         <translation>PDF Dosyaları (*.pdf)</translation>
     </message>

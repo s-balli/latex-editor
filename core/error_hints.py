@@ -47,6 +47,21 @@ _PATTERNS: list[tuple[re.Pattern, str]] = [
 
 _RE_ENV_UNDEFINED = re.compile(r"Environment (\S+) undefined")
 
+# "Missing character: There is no ş (U+015F) in font ec-lmr10!"
+#
+# Bu SESSIZ bir kayıp: derleme başarılı biter, PDF açılır, harf yoktur.
+# En sık sebebi XeLaTeX/LuaLaTeX ile `\usepackage[T1]{fontenc}` kullanmak;
+# o birleşim 8 bitlik EC yazı tiplerini yüklüyor ve Türkçeye özgü dört harfin
+# (ş, ı, İ, ğ) orada karşılığı yok. Almanca/Fransızcayla ortak olanlar (ü, ö,
+# ç) T1 yuvası olduğu için sağ kalıyor, bu yüzden kusur gözden kaçıyor.
+#
+# 2026-09-03'te ölçüldü, aynı belge üç kez derlendi:
+#   pdflatex + fontenc       -> 92 Türkçe harf
+#   XeTeX    + fontenc       -> 37   (ş 0, ı 0, İ 0, ğ 0)
+#   XeTeX    fontenc olmadan -> 92   (birebir aynı, sıfır uyarı)
+_RE_EKSIK_GLIF = re.compile(
+    r"Missing character: There is no .+? in font ([^\s!]+)")
+
 
 def get_hint(message: str, context: str = "") -> tuple[str, dict[str, str]] | None:
     """Hata/uyarı mesajı için (ipucu_kimliği, parametreler); tanınmazsa None.
@@ -59,6 +74,9 @@ def get_hint(message: str, context: str = "") -> tuple[str, dict[str, str]] | No
     m = _RE_ENV_UNDEFINED.search(message)
     if m:
         return "env_undefined", {"env": m.group(1)}
+    m = _RE_EKSIK_GLIF.search(message)
+    if m:
+        return "missing_glyph", {"font": m.group(1)}
     for pat, hint_id in _PATTERNS:
         if pat.search(message):
             params: dict[str, str] = {}

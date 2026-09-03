@@ -115,6 +115,35 @@ def test_listings_language_turkish_babel():
     assert get_hint("language xyz of abc undefined.")[0] == "listings_language"
 
 
+def test_eksik_glif_yazi_tipini_cikariyor():
+    """XeLaTeX/LuaLaTeX + [T1]{fontenc}: Türkçeye özgü harfler sessizce düşer.
+
+    Derleme BAŞARILI biter, PDF açılır, harf yoktur. 2026-09-03'te ölçüldü,
+    aynı belge (C:\\latex-demo) üç kez derlendi:
+        pdflatex + fontenc       -> 92 Türkçe harf
+        XeTeX    + fontenc       -> 37   (ş 0, ı 0, İ 0, ğ 0)
+        XeTeX    fontenc olmadan -> 92   (birebir aynı, sıfır uyarı)
+    ü, ö, ç sağ kalıyor çünkü T1 yuvaları var; kusurun gözden kaçma sebebi bu.
+    """
+    h = get_hint("Missing character: There is no ş (U+015F) in font ec-lmr10!")
+    assert h is not None
+    assert h[0] == "missing_glyph"
+    assert h[1] == {"font": "ec-lmr10"}
+
+
+def test_eksik_glif_onaltilik_bicimi_de_taniyor():
+    """XeTeX bazı loglarda karakteri ^^^^ ve onaltılık kodla yazıyor."""
+    h = get_hint('Missing character: There is no ^^^^015f ("15F) in font ec-lmri10!')
+    assert h[0] == "missing_glyph"
+    assert h[1]["font"] == "ec-lmri10"
+
+
+def test_eksik_glif_baska_missing_mesajlarini_calmiyor():
+    """Desen _PATTERNS döngüsünden ÖNCE koşuyor; komşularını yutmamalı."""
+    assert get_hint("Missing $ inserted.")[0] == "missing_math"
+    assert get_hint("Missing } inserted.")[0] == "brace_mismatch"
+
+
 # =====================================================================
 # _hint_text: şablonlardaki gerçek LaTeX parantezleri format() tuzağına
 # düşmemeli (KeyError show_result'i kesip Log sekmesini boş bırakıyordu)
@@ -137,6 +166,40 @@ def test_hint_text_sablon_parantezleri_guvenli(qapp):
     assert "(\\textbf)" in text
     text = OutputPanel._hint_text(("env_undefined", {"env": "deneme"}))
     assert "deneme" in text
+
+
+def test_missing_glyph_sablonu_fontenc_kelimesini_yemiyor(qapp):
+    """'{font}' yer tutucusu ile literal '{fontenc}' aynı şablonda.
+
+    Çakışmıyorlar çünkü '{font}' kapanış parantezi ister, '{fontenc}' orada
+    'e' taşır. Ama ikisi yan yana durduğu için bu incelik test edilmeden
+    bırakılmamalı: yer tutucu adı bir gün '{fo}' olursa sessizce bozulur.
+    """
+    from gui.output_panel import OutputPanel
+
+    text = OutputPanel._hint_text(("missing_glyph", {"font": "ec-lmr10"}))
+    assert "ec-lmr10" in text            # yer tutucu dolduruldu
+    assert "[T1]{fontenc}" in text       # literal LaTeX parantezi bozulmadı
+    assert "{font}" not in text          # yer tutucu artık yok
+    assert "iftex" in text               # düzeltme önerisi duruyor
+
+
+def test_her_ipucu_kimliginin_sablonu_var(qapp):
+    """Şablonu unutulan ipucu _hint_text'ten SESSİZCE '' döner.
+
+    Kullanıcı hiçbir şey görmez, hata da alınmaz. Bu kapı olmadan yeni bir
+    kalıp eklerken şablonu unutmak fark edilmez.
+    """
+    from core import error_hints
+    from gui.output_panel import OutputPanel, _hint_templates
+
+    kimlikler = {hid for _pat, hid in error_hints._PATTERNS}
+    kimlikler |= {"env_undefined", "missing_glyph"}  # parametreli olanlar
+    sablonlar = set(_hint_templates())
+    eksik = kimlikler - sablonlar
+    assert not eksik, "sablonu olmayan ipucu kimligi: %s" % sorted(eksik)
+    for hid in sorted(kimlikler):
+        assert OutputPanel._hint_text((hid, {})) != "", hid
 
 
 def test_show_result_listings_hatasi_logu_doldurur(qapp):
