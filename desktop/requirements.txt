@@ -4,3 +4,8 @@ pypdfium2>=4.20,<5
 Pillow>=10.0,<12
 send2trash>=1.8,<2
 dulwich>=1.0,<2
+# Yazim denetimi. Hunspell'in SAF PYTHON portu: pyenchant gibi yerel bir C
+# kutuphanesi ve saglayici DLL'i yok, PyInstaller'da sorun cikarmiyor.
+# Kendi bagimliligi da yok. Kurulu degilse uygulama ACILIR, yalnizca
+# Yazim sekmesi ve menu ogesi eklenmez (bkz. yazim_kullanilabilir()).
+spylls>=0.1.7,<0.2
