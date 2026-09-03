@@ -188,12 +188,14 @@ def test_dogrulama_metasi_KOPYALANMAMIS(tr):
     """Sahiplik dogrulamalari ana sayfada duruyor, /tr/ye tasinmiyor.
 
     Arama motorlari dogrulamayi mulkun ANA sayfasinda ariyor; alt sayfaya
-    kopyalamak hicbir ise yaramiyor. Kaynakta ikisi de var (Google ve
-    Yandex), ikisi de cikarilmali.
+    kopyalamak hicbir ise yaramiyor.
+
+    Uretecin deseni `yandex-verification`i da kapsiyor: su an oyle bir
+    etiket YOK (Yandex denendi, kokte doguladigi icin olmadi) ama baska
+    bir motor eklenirse kendiliginden cikarilsin.
     """
     kaynak = _oku(KAYNAK)
     assert "google-site-verification" in kaynak, "kaynakta olmali"
-    assert "yandex-verification" in kaynak, "kaynakta olmali"
     assert "google-site-verification" not in tr
     assert "yandex-verification" not in tr
 
