@@ -10,12 +10,6 @@ Açık pencereyi kullanın ya da uygulamayı kapatıp yeniden başlatın.</sourc
         <translation>The application is already running but is not responding.
 Use the open window, or quit the application and start it again.</translation>
     </message>
-    <message>
-        <source>Uygulama zaten çalışıyor.
-Aynı anda yalnızca bir örnek çalıştırılabilir.</source>
-        <translation type="vanished">Application is already running.
-Only one instance can run at a time.</translation>
-    </message>
 </context><context>
     <name>CompileOpsMixin</name>
     <message>
@@ -71,8 +65,8 @@ Enable it for '{k}'?
         <location filename="../gui/mixins/compile_ops.py" line="160" />
         <location filename="../gui/mixins/compile_ops.py" line="192" />
         <location filename="../gui/mixins/compile_ops.py" line="160" />
-        <source>Kayıt başarısız — derleme iptal</source>
-        <translation>Save failed — compilation cancelled</translation>
+        <source>Kayıt başarısız, derleme iptal</source>
+        <translation>Save failed, compilation cancelled</translation>
     </message>
     <message>
         <location filename="../gui/mixins/compile_ops.py" line="215" />
@@ -89,14 +83,14 @@ Enable it for '{k}'?
     <message>
         <location filename="../gui/mixins/compile_ops.py" line="267" />
         <location filename="../gui/mixins/compile_ops.py" line="267" />
-        <source>PDF açılamadı — motoru değiştirip tekrar deneyin</source>
-        <translation>Could not open PDF — change the engine and try again</translation>
+        <source>PDF açılamadı, motoru değiştirip tekrar deneyin</source>
+        <translation>Could not open PDF, change the engine and try again</translation>
     </message>
     <message>
         <location filename="../gui/mixins/compile_ops.py" line="281" />
         <location filename="../gui/mixins/compile_ops.py" line="281" />
-        <source>PDF oluşturuldu ama boş — motoru değiştirip tekrar deneyin</source>
-        <translation>PDF created but empty — try changing the engine</translation>
+        <source>PDF oluşturuldu ama boş, motoru değiştirip tekrar deneyin</source>
+        <translation>PDF created but empty, try changing the engine</translation>
     </message>
     <message>
         <location filename="../gui/mixins/compile_ops.py" line="291" />
@@ -163,30 +157,6 @@ Enable it for '{k}'?
         <location filename="../gui/mixins/compile_ops.py" line="445" />
         <source>Manuel</source>
         <translation>Manual</translation>
-    </message>
-    <message>
-        <source>{n} tanımsız ref</source>
-        <translation type="vanished">{n} undefined refs</translation>
-    </message>
-    <message>
-        <source>{n} tanımsız cite</source>
-        <translation type="vanished">{n} undefined cites</translation>
-    </message>
-    <message>
-        <source>{n} kullanılmayan .bib</source>
-        <translation type="vanished">{n} unused .bib</translation>
-    </message>
-    <message>
-        <source>{n} kullanılmayan label</source>
-        <translation type="vanished">{n} unused labels</translation>
-    </message>
-    <message>
-        <source>Denetim: </source>
-        <translation type="vanished">Audit: </translation>
-    </message>
-    <message>
-        <source>PDF acilamadi — motoru degistirip tekrar deneyin</source>
-        <translation type="vanished">Could not open PDF — try changing the engine</translation>
     </message>
 </context><context>
     <name>DoiFetch</name>
@@ -547,18 +517,6 @@ References are now inconsistent. Grant write permission to these files and retry
         <source>Kaynakça anahtarı yeniden adlandırıldı: {o} → {n} ({c} dosya)</source>
         <translation>Bibliography key renamed: {o} → {n} ({c} files)</translation>
     </message>
-    <message>
-        <source>Bu belgenin bir .bib dosyası yok.</source>
-        <translation type="vanished">This document has no .bib file.</translation>
-    </message>
-    <message>
-        <source>Bu belge kaynakçayı elle yazıyor (\bibitem); .bib dosyası yok</source>
-        <translation type="vanished">This document writes its bibliography by hand (\bibitem); there is no .bib file</translation>
-    </message>
-    <message>
-        <source>Referans denetimi: {r} tanımsız ref, {c} tanımsız cite, {b} kullanılmayan .bib, {l} kullanılmayan label</source>
-        <translation type="vanished">Reference audit: {r} undefined refs, {c} undefined cites, {b} unused .bib entries, {l} unused labels</translation>
-    </message>
 </context><context>
     <name>EditorSettingsDialog</name>
     <message>
@@ -655,12 +613,12 @@ References are now inconsistent. Grant write permission to these files and retry
     <message>
         <location filename="../gui/env_doctor.py" line="41" />
         <source>WSL olmadığından denetlenemedi</source>
-        <translation>could not be checked — WSL is missing</translation>
+        <translation>could not be checked, WSL is missing</translation>
     </message>
     <message>
         <location filename="../gui/env_doctor.py" line="42" />
         <source>WSL çalışmadığından denetlenemedi</source>
-        <translation>could not be checked — WSL is not running</translation>
+        <translation>could not be checked, WSL is not running</translation>
     </message>
     <message>
         <location filename="../gui/env_doctor.py" line="44" />
@@ -819,8 +777,8 @@ Windows: run 'sudo apt install pandoc' inside WSL</translation>
     <message>
         <location filename="../gui/mixins/file_ops.py" line="351" />
         <location filename="../gui/mixins/file_ops.py" line="351" />
-        <source>Dışa aktarma zaten sürüyor — bitmesini bekleyin</source>
-        <translation>An export is already running — wait for it to finish</translation>
+        <source>Dışa aktarma zaten sürüyor, bitmesini bekleyin</source>
+        <translation>An export is already running, wait for it to finish</translation>
     </message>
     <message>
         <location filename="../gui/mixins/file_ops.py" line="356" />
@@ -837,8 +795,8 @@ Windows: run 'sudo apt install pandoc' inside WSL</translation>
     <message>
         <location filename="../gui/mixins/file_ops.py" line="368" />
         <location filename="../gui/mixins/file_ops.py" line="368" />
-        <source>Kayıt başarısız — dışa aktarma iptal edildi</source>
-        <translation>Save failed — export cancelled</translation>
+        <source>Kayıt başarısız, dışa aktarma iptal edildi</source>
+        <translation>Save failed, export cancelled</translation>
     </message>
     <message>
         <location filename="../gui/mixins/file_ops.py" line="377" />
@@ -863,15 +821,6 @@ Windows: run 'sudo apt install pandoc' inside WSL</translation>
         <location filename="../gui/mixins/file_ops.py" line="396" />
         <source>Önce bir klasör açın</source>
         <translation>Open a folder first</translation>
-    </message>
-    <message>
-        <source>pandoc yüklü değil.
-
-Kurmak için:
-Linux: sudo apt install pandoc
-Windows (WSL): sudo apt install pandoc
-Windows: pandoc.org</source>
-        <translation type="vanished">pandoc is not installed.\n\nTo install:\nLinux: sudo apt install pandoc\nWindows (WSL): sudo apt install pandoc\nWindows: pandoc.org</translation>
     </message>
 </context><context>
     <name>FileTree</name>
@@ -1044,14 +993,6 @@ Windows: pandoc.org</source>
         <location filename="../gui/file_tree.py" line="677" />
         <source>Silinemedi: {e}</source>
         <translation>Could not delete: {e}</translation>
-    </message>
-    <message>
-        <source>📁 Klasörde Aç</source>
-        <translation type="vanished">📁 Open in Folder</translation>
-    </message>
-    <message>
-        <source>Dosya silinemedi: {e}</source>
-        <translation type="vanished">Could not delete file: {e}</translation>
     </message>
 </context><context>
     <name>FileWatchMixin</name>
@@ -1599,8 +1540,8 @@ Some matches in the document may be unchanged; run the command again to continue
     </message>
     <message>
         <location filename="../gui/main_window.py" line="421" />
-        <source>Kaydederken otomatik derle — açmak/kapatmak için tıklayın (Derle menüsü)</source>
-        <translation>Compile automatically on save — click to toggle (Compile menu)</translation>
+        <source>Kaydederken otomatik derle. Açmak/kapatmak için tıklayın (Derle menüsü)</source>
+        <translation>Compile automatically on save. Click to toggle (Compile menu)</translation>
     </message>
     <message>
         <location filename="../gui/main_window.py" line="428" />
@@ -1858,8 +1799,8 @@ Some matches in the document may be unchanged; run the command again to continue
     </message>
     <message>
         <location filename="../gui/main_window.py" line="714" />
-        <source>Komutlar, matematik, ortamlar — Notepad++ tarzı renklendirme.</source>
-        <translation>Commands, math, environments — Notepad++-style highlighting.</translation>
+        <source>Komutlar, matematik, ortamlar: Notepad++ tarzı renklendirme.</source>
+        <translation>Commands, math, environments: Notepad++-style highlighting.</translation>
     </message>
     <message>
         <location filename="../gui/main_window.py" line="717" />
@@ -1907,12 +1848,12 @@ Some matches in the document may be unchanged; run the command again to continue
         <translation>VS Code style inline panel. Three options: match case, whole word, regular expression. In pattern mode, \1 in the replacement refers to a captured group.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="210" />
-        <location filename="../gui/mixins/yazim_ops.py" line="205" />
-        <location filename="../gui/mixins/yazim_ops.py" line="179" />
-        <location filename="../gui/mixins/yazim_ops.py" line="210" />
-        <location filename="../gui/mixins/yazim_ops.py" line="205" />
-        <location filename="../gui/mixins/yazim_ops.py" line="179" />
+        <location filename="../gui/mixins/yazim_ops.py" line="244" />
+        <location filename="../gui/mixins/yazim_ops.py" line="239" />
+        <location filename="../gui/mixins/yazim_ops.py" line="213" />
+        <location filename="../gui/mixins/yazim_ops.py" line="244" />
+        <location filename="../gui/mixins/yazim_ops.py" line="239" />
+        <location filename="../gui/mixins/yazim_ops.py" line="213" />
         <location filename="../gui/main_window.py" line="732" />
         <source>Yazım Denetimi</source>
         <translation>Spell Check</translation>
@@ -1924,8 +1865,8 @@ Some matches in the document may be unchanged; run the command again to continue
     </message>
     <message>
         <location filename="../gui/main_window.py" line="734" />
-        <source>Klasör ağacındaki TÜM .tex/.bib/.cls/.sty dosyalarının İÇİNDE arar — sekmede açık olmayanlar dahil. Ctrl+F yalnız açık sekmede arar. Sonuca tıklayınca o dosyanın o satırına gidilir.</source>
-        <translation>Searches INSIDE every .tex/.bib/.cls/.sty file in the folder tree — including files not open in a tab. Ctrl+F searches only the open tab. Clicking a result jumps to that file and line.</translation>
+        <source>Klasör ağacındaki TÜM .tex/.bib/.cls/.sty dosyalarının İÇİNDE arar, sekmede açık olmayanlar dahil. Ctrl+F yalnız açık sekmede arar. Sonuca tıklayınca o dosyanın o satırına gidilir.</source>
+        <translation>Searches INSIDE every .tex/.bib/.cls/.sty file in the folder tree, including files not open in a tab. Ctrl+F searches only the open tab. Clicking a result jumps to that file and line.</translation>
     </message>
     <message>
         <location filename="../gui/main_window.py" line="737" />
@@ -2069,8 +2010,8 @@ Some matches in the document may be unchanged; run the command again to continue
     </message>
     <message>
         <location filename="../gui/main_window.py" line="785" />
-        <source>Ctrl+S ile kaydederken otomatik derler. Toolbar'dan kapatıp Manuel mod'a geçebilirsiniz — büyük belgelerde her kayıtta derleme yapmak yavaşlatır, o durumda Ctrl+B ile derleyin.</source>
-        <translation>Automatically compiles on Ctrl+S save. Toggle off from toolbar to switch to Manual mode — for large documents, compiling on every save is slow; use Ctrl+B to compile instead.</translation>
+        <source>Ctrl+S ile kaydederken otomatik derler. Toolbar'dan kapatıp Manuel mod'a geçebilirsiniz; büyük belgelerde her kayıtta derleme yapmak yavaşlatır, o durumda Ctrl+B ile derleyin.</source>
+        <translation>Automatically compiles on Ctrl+S save. Toggle off from toolbar to switch to Manual mode; for large documents, compiling on every save is slow; use Ctrl+B to compile instead.</translation>
     </message>
     <message>
         <location filename="../gui/main_window.py" line="788" />
@@ -2355,8 +2296,8 @@ Some matches in the document may be unchanged; run the command again to continue
     <message>
         <location filename="../gui/main_window.py" line="1002" />
         <location filename="../gui/main_window.py" line="994" />
-        <source>Panoya kopyalandı — terminalde cd ile geçin:</source>
-        <translation>Copied to clipboard — use cd in terminal:</translation>
+        <source>Panoya kopyalandı, terminalde cd ile geçin:</source>
+        <translation>Copied to clipboard, use cd in terminal:</translation>
     </message>
     <message>
         <location filename="../gui/main_window.py" line="1016" />
@@ -2427,8 +2368,8 @@ Some matches in the document may be unchanged; run the command again to continue
     </message>
     <message>
         <location filename="../gui/main_window.py" line="1097" />
-        <source>Güncelleme kontrol edilemedi — bağlantı kurulamadı.</source>
-        <translation>Update check failed — connection could not be established.</translation>
+        <source>Güncelleme kontrol edilemedi, bağlantı kurulamadı.</source>
+        <translation>Update check failed, connection could not be established.</translation>
     </message>
     <message>
         <location filename="../gui/main_window.py" line="1236" />
@@ -2441,14 +2382,14 @@ Some matches in the document may be unchanged; run the command again to continue
         <translation>File not found: {name}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="161" />
-        <location filename="../gui/mixins/yazim_ops.py" line="161" />
+        <location filename="../gui/mixins/yazim_ops.py" line="195" />
+        <location filename="../gui/mixins/yazim_ops.py" line="195" />
         <source>sözlük yükleniyor...</source>
         <translation>loading dictionary...</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="180" />
-        <location filename="../gui/mixins/yazim_ops.py" line="180" />
+        <location filename="../gui/mixins/yazim_ops.py" line="214" />
+        <location filename="../gui/mixins/yazim_ops.py" line="214" />
         <source>Sözlük yüklenemedi.
 
 {hata}
@@ -2461,174 +2402,34 @@ Sözlük dizini: {dizin}</source>
 Dictionary folder: {dizin}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="199" />
-        <location filename="../gui/mixins/yazim_ops.py" line="199" />
+        <location filename="../gui/mixins/yazim_ops.py" line="233" />
+        <location filename="../gui/mixins/yazim_ops.py" line="233" />
         <source>Öneriler aranıyor...</source>
         <translation>Looking for suggestions...</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="206" />
-        <location filename="../gui/mixins/yazim_ops.py" line="206" />
+        <location filename="../gui/mixins/yazim_ops.py" line="240" />
+        <location filename="../gui/mixins/yazim_ops.py" line="240" />
         <source>'{k}' için öneri bulunamadı.</source>
         <translation>No suggestions found for '{k}'.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="211" />
-        <location filename="../gui/mixins/yazim_ops.py" line="211" />
+        <location filename="../gui/mixins/yazim_ops.py" line="245" />
+        <location filename="../gui/mixins/yazim_ops.py" line="245" />
         <source>'{k}' yerine:</source>
         <translation>Replace '{k}' with:</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="227" />
-        <location filename="../gui/mixins/yazim_ops.py" line="227" />
+        <location filename="../gui/mixins/yazim_ops.py" line="261" />
+        <location filename="../gui/mixins/yazim_ops.py" line="261" />
         <source>'{e}' -&gt; '{y}' değiştirildi</source>
         <translation>'{e}' replaced with '{y}'</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="235" />
-        <location filename="../gui/mixins/yazim_ops.py" line="235" />
+        <location filename="../gui/mixins/yazim_ops.py" line="269" />
+        <location filename="../gui/mixins/yazim_ops.py" line="269" />
         <source>'{k}' sözlüğe eklendi</source>
         <translation>'{k}' added to dictionary</translation>
-    </message>
-    <message>
-        <source>Yazımı De&amp;netle</source>
-        <translation type="vanished">Check Spelli&amp;ng</translation>
-    </message>
-    <message>
-        <source>Alt paneldeki sekmeler: Hatalar, Uyarılar, Öneriler, Log, Sürüm Geçmişi, Klasörde Ara ve Kaynakça. Hata ve uyarı satırlarına tıklayınca ilgili dosyanın o satırına gidilir; Öneriler sekmesi hatanın ne anlama geldiğini Türkçe anlatır. Panel ayırıcıdan sürüklenerek büyütülebilir. Esc derlemeyi durdurur.</source>
-        <translation type="vanished">Tabs in the bottom panel: Errors, Warnings, Suggestions, Log, Version History, Find in Folder and Bibliography. Click an error or warning to jump to that line; the Suggestions tab explains what the error means in plain language. Drag the splitter to make the panel taller. Esc stops the compile.</translation>
-    </message>
-    <message>
-        <source>&amp;Projede Ara...</source>
-        <translation type="vanished">Find in Pro&amp;ject...</translation>
-    </message>
-    <message>
-        <source>Projede Ara</source>
-        <translation type="vanished">Find in Project</translation>
-    </message>
-    <message>
-        <source>Alt paneldeki sekmeler: Hatalar, Uyarılar, Öneriler, Log, Sürüm Geçmişi, Projede Ara ve Kaynakça. Hata ve uyarı satırlarına tıklayınca ilgili dosyanın o satırına gidilir; Öneriler sekmesi hatanın ne anlama geldiğini Türkçe anlatır. Panel ayırıcıdan sürüklenerek büyütülebilir. Esc derlemeyi durdurur.</source>
-        <translation type="vanished">Tabs in the bottom panel: Errors, Warnings, Suggestions, Log, Version History, Find in Project and Bibliography. Click an error or warning to jump to that line; the Suggestions tab explains what the error means in plain language. Drag the splitter to make the panel taller. Esc stops the compile.</translation>
-    </message>
-    <message>
-        <source>VS Code tarzı inline panel, büyük/küçük harf duyarsız.</source>
-        <translation type="vanished">VS Code-style inline panel, case-insensitive.</translation>
-    </message>
-    <message>
-        <source>Tanımsız \ref/\cite, kullanılmayan .bib girdisi ve label'ları derlemeden bulur; bulguya tıkla, yerine atla. Derle menüsünden her derleme sonrası otomatik çalışacak şekilde açılabilir.</source>
-        <translation type="vanished">Finds undefined \ref/\cite, unused .bib entries and labels without compiling; click a finding to jump. Can be enabled from the Build menu to run automatically after each compile.</translation>
-    </message>
-    <message>
-        <source>Ctrl+K ile tüm değişiklikleri adlandırılmış bir sürüme kaydedin; Sürüm Geçmişi sekmesinden farkları görün veya dosyayı eski sürümden geri yükleyin. Git bilgisine gerek yok; klasörde standart .git oluşur.</source>
-        <translation type="vanished">Save all changes into a named version with Ctrl+K; view diffs in the Version History tab or restore the file from an older version. No git knowledge needed; a standard .git is created in the folder.</translation>
-    </message>
-    <message>
-        <source>&amp;Dosya Aç...</source>
-        <translation type="vanished">&amp;Open File...</translation>
-    </message>
-    <message>
-        <source>Farklı &amp;Kaydet...</source>
-        <translation type="vanished">Save &amp;As...</translation>
-    </message>
-    <message>
-        <source>Çı&amp;kış</source>
-        <translation type="vanished">E&amp;xit</translation>
-    </message>
-    <message>
-        <source>Satıra &amp;Git...</source>
-        <translation type="vanished">&amp;Go to Line...</translation>
-    </message>
-    <message>
-        <source>&amp;Sonraki Hata</source>
-        <translation type="vanished">&amp;Next Error</translation>
-    </message>
-    <message>
-        <source>&amp;Durdur</source>
-        <translation type="vanished">&amp;Stop</translation>
-    </message>
-    <message>
-        <source>Referans Denetimi</source>
-        <translation type="vanished">Reference Audit</translation>
-    </message>
-    <message>
-        <source>Editör Ayarları</source>
-        <translation type="vanished">Editor Settings</translation>
-    </message>
-    <message>
-        <source>Aynı anda yalnızca bir örnek çalıştırılabilir.</source>
-        <translation type="vanished">Only one instance can run at a time.</translation>
-    </message>
-    <message>
-        <source>Ctrl+K ile tüm değişiklikleri adlandırılmış bir sürüme kaydedin; Geçmiş sekmesinden farkları görün veya dosyayı eski sürümden geri yükleyin. Git bilgisine gerek yok; klasörde standart .git oluşur.</source>
-        <translation type="vanished">Press Ctrl+K to save all changes into a named snapshot; view diffs from the History tab or restore a file from an older snapshot. No git knowledge needed; a standard .git is created in the folder.</translation>
-    </message>
-    <message>
-        <source>VS Code tarzı inline panel, büyük/küçük harf duyarlı.</source>
-        <translation type="vanished">VS Code-style inline panel, case-sensitive.</translation>
-    </message>
-    <message>
-        <source>Etiketi/Kaynakça Anahtarını Yeniden Adlandır (imleç \label/\ref/\cite veya .bib girdisi üzerinde)</source>
-        <translation type="vanished">Rename Label / Bibliography Key (cursor on a \label/\ref/\cite or a .bib entry)</translation>
-    </message>
-    <message>
-        <source>\label/\ref/\cite veya .bib girdisi üzerinde F2 → anahtar doküman, \input zinciri ve .bib'te toplu değişir. Açık sekmeler tek undo adımı alır; çift isim engellenir.</source>
-        <translation type="vanished">F2 on a \label/\ref/\cite or a .bib entry → the key is renamed across the document, the \input chain and the .bib. Open tabs get a single undo step; duplicates are blocked.</translation>
-    </message>
-    <message>
-        <source>\ komutları, ortam adları; \ref{/\eqref{/\cite{/\citep{ vb. için \label'lar ve .bib anahtarları önerilir.</source>
-        <translation type="vanished">\ commands, environment names; suggests \label keys and .bib entry keys for \ref{/\eqref{/\cite{/\citep{ and similar.</translation>
-    </message>
-    <message>
-        <source>Etiketi Yeniden Adlandır (imleç \label/\ref üzerinde)</source>
-        <translation type="vanished">Rename Label (cursor on a \label/\ref)</translation>
-    </message>
-    <message>
-        <source>Kaydet + Derle</source>
-        <translation type="vanished">Save + Compile</translation>
-    </message>
-    <message>
-        <source>Derle</source>
-        <translation type="vanished">Compile</translation>
-    </message>
-    <message>
-        <source>Ctrl+S ile kaydederken otomatik derler.</source>
-        <translation type="vanished">Automatically compiles on Ctrl+S save.</translation>
-    </message>
-    <message>
-        <source>Editörde bir yere Ctrl+tıklayarak PDF'teki karşılık gelen konuma gidebilirsiniz. Aynı şekilde PDF'te bir yere Ctrl+tıklayarak editörde ilgili kaynak satıra gidebilirsiniz. Önce dosyayı derlemeniz gerekir.</source>
-        <translation type="vanished">Ctrl+click anywhere in the editor to jump to the corresponding position in the PDF. Similarly, Ctrl+click in the PDF to jump to the related source line. You need to compile first.</translation>
-    </message>
-    <message>
-        <source>Sol paneldeki Anahat sekmesi, \section, \subsection, \chapter gibi bölümleri ağaç yapısında gösterir. Bir başlığa tıklayarak editörde o bölüme gidebilirsiniz. Yazarken otomatik güncellenir.</source>
-        <translation type="vanished">The Outline tab in the left panel shows sections like \section, \subsection, \chapter in a tree structure. Click a heading to jump to that section in the editor. Updates automatically as you type.</translation>
-    </message>
-    <message>
-        <source>PNG, JPG, PDF veya EPS dosyalarını editör alanına sürükleyerek otomatik \begin{figure} bloğu oluşturabilirsiniz. Dosya yolu, caption ve label otomatik eklenir.</source>
-        <translation type="vanished">Drag and drop PNG, JPG, PDF or EPS files onto the editor to automatically create a \begin{figure} block. File path, caption and label are added automatically.</translation>
-    </message>
-    <message>
-        <source>.tex, .cls, .sty, .bib dosyalarını pencereye sürükleyerek açabilirsiniz.</source>
-        <translation type="vanished">Drag and drop .tex, .cls, .sty, .bib files into the window to open them.</translation>
-    </message>
-    <message>
-        <source>Sekmelere sağ tıklayarak kapatma, diğerlerini kapatma, dosya yolunu kopyalama gibi işlemleri yapabilirsiniz. Orta tık ile de sekme kapatabilirsiniz.</source>
-        <translation type="vanished">Right-click tabs to close, close others, or copy file path. You can also close tabs with middle-click.</translation>
-    </message>
-    <message>
-        <source>Yeni bir .tex dosyası oluşturur. Otomatik olarak \documentclass şablonu eklenir.</source>
-        <translation type="vanished">Creates a new .tex file. Automatically adds a \documentclass template.</translation>
-    </message>
-    <message>
-        <source>Seçili satırları % ile yorum yapar veya yorumu kaldırır.</source>
-        <translation type="vanished">Comments or uncomments selected lines with %.</translation>
-    </message>
-    <message>
-        <source>Araç çubuğundaki 'Otomatik Derle' düğmesine tıklayarak açıp kapatabilirsiniz. Açıkken Ctrl+S ile kaydettiğinizde otomatik olarak derlenir.</source>
-        <translation type="vanished">Toggle auto-compile by clicking the 'Auto Compile' button in the toolbar. When enabled, saving with Ctrl+S triggers automatic compilation.</translation>
-    </message>
-    <message>
-        <source>Panoya kopyalandı — terminalde cd ile geçin: %1</source>
-        <translation type="vanished">Copied to clipboard — use cd in terminal: %1</translation>
     </message>
 </context><context>
     <name>OutlinePanel</name>
@@ -2661,8 +2462,8 @@ Dictionary folder: {dizin}</translation>
     </message>
     <message>
         <location filename="../gui/output_panel.py" line="28" />
-        <source>Geçersiz karakter — genelde Word'den kopyalanan akıllı tırnak/tire; düz " ve - kullanın</source>
-        <translation>Invalid character — usually smart quotes/dashes pasted from Word; use plain " and -</translation>
+        <source>Geçersiz karakter: genelde Word'den kopyalanan akıllı tırnak/tire; düz " ve - kullanın</source>
+        <translation>Invalid character: usually smart quotes/dashes pasted from Word; use plain " and -</translation>
     </message>
     <message>
         <location filename="../gui/output_panel.py" line="29" />
@@ -2877,8 +2678,8 @@ Dictionary folder: {dizin}</translation>
     </message>
     <message>
         <location filename="../gui/output_panel.py" line="386" />
-        <source>Sorun bulunamadı — tüm \ref/\cite anahtarları tanımlı.</source>
-        <translation>No issues found — all \ref/\cite keys are defined.</translation>
+        <source>Sorun bulunamadı, tüm \ref/\cite anahtarları tanımlı.</source>
+        <translation>No issues found, all \ref/\cite keys are defined.</translation>
     </message>
     <message>
         <location filename="../gui/output_panel.py" line="419" />
@@ -3033,34 +2834,6 @@ Dictionary folder: {dizin}</translation>
         <source>bilgi</source>
         <translation>info</translation>
     </message>
-    <message>
-        <source>Projede ara (Enter)</source>
-        <translation type="vanished">Find in project (Enter)</translation>
-    </message>
-    <message>
-        <source>Projede Ara</source>
-        <translation type="vanished">Find in Project</translation>
-    </message>
-    <message>
-        <source>Harf duyarlı</source>
-        <translation type="vanished">Case sensitive</translation>
-    </message>
-    <message>
-        <source>İşaretliyse 'Sekil' ile 'şekil' ayrı sayılır</source>
-        <translation type="vanished">When checked, 'Figure' and 'figure' are treated as different</translation>
-    </message>
-    <message>
-        <source>Aa</source>
-        <translation type="vanished">Aa</translation>
-    </message>
-    <message>
-        <source>Büyük/küçük harf duyarlı</source>
-        <translation type="vanished">Case sensitive</translation>
-    </message>
-    <message>
-        <source>Geçmiş</source>
-        <translation type="vanished">History</translation>
-    </message>
 </context><context>
     <name>PdfViewer</name>
     <message>
@@ -3162,8 +2935,8 @@ Dictionary folder: {dizin}</translation>
     <message>
         <location filename="../gui/pdf_viewer_mixins/_render.py" line="91" />
         <location filename="../gui/pdf_viewer_mixins/_render.py" line="91" />
-        <source>PDF açılamadı — derleme başarısız olmuş veya dosya bozuk olabilir.</source>
-        <translation>Could not open PDF — compilation may have failed or the file may be corrupted.</translation>
+        <source>PDF açılamadı, derleme başarısız olmuş veya dosya bozuk olabilir.</source>
+        <translation>Could not open PDF, compilation may have failed or the file may be corrupted.</translation>
     </message>
     <message>
         <location filename="../gui/pdf_viewer_mixins/_search.py" line="41" />
@@ -3182,10 +2955,6 @@ Dictionary folder: {dizin}</translation>
         <location filename="../gui/pdf_viewer_mixins/_navigation.py" line="16" />
         <source>Sayfa {cur} / {total}</source>
         <translation>Page {cur} / {total}</translation>
-    </message>
-    <message>
-        <source>Invert</source>
-        <translation type="vanished">Invert</translation>
     </message>
 </context><context>
     <name>ProjectSearchMixin</name>
@@ -3212,8 +2981,8 @@ Dictionary folder: {dizin}</translation>
     </message>
     <message>
         <location filename="../gui/quick_open.py" line="80" />
-        <source>Dosya adı yazın — Enter açar, Esc kapatır</source>
-        <translation>Type a file name — Enter opens, Esc closes</translation>
+        <source>Dosya adı yazın: Enter açar, Esc kapatır</source>
+        <translation>Type a file name: Enter opens, Esc closes</translation>
     </message>
 </context><context>
     <name>RecoveryOpsMixin</name>
@@ -3252,8 +3021,8 @@ Restore them? (Restored content opens in a tab; the file on disk is NOT touched 
     <message>
         <location filename="../gui/mixins/recovery_ops.py" line="104" />
         <location filename="../gui/mixins/recovery_ops.py" line="104" />
-        <source>{n} dosya kurtarıldı — kaydetmek için Ctrl+S</source>
-        <translation>{n} file(s) recovered — press Ctrl+S to save</translation>
+        <source>{n} dosya kurtarıldı, kaydetmek için Ctrl+S</source>
+        <translation>{n} file(s) recovered, press Ctrl+S to save</translation>
     </message>
 </context><context>
     <name>SyncTexMixin</name>
@@ -3354,8 +3123,8 @@ Restore them? (Restored content opens in a tab; the file on disk is NOT touched 
     <message>
         <location filename="../gui/mixins/table_ops.py" line="94" />
         <location filename="../gui/mixins/table_ops.py" line="94" />
-        <source>Mevcut tablo düzenleniyor — Ekle ile değiştirilir</source>
-        <translation>Editing the existing table — it is replaced when you press Add</translation>
+        <source>Mevcut tablo düzenleniyor, Ekle ile değiştirilir</source>
+        <translation>Editing the existing table, it is replaced when you press Add</translation>
     </message>
     <message>
         <location filename="../gui/mixins/table_ops.py" line="104" />
@@ -3587,8 +3356,8 @@ Versioning does not keep a SEPARATE history: snapshots are committed to your exi
     <message>
         <location filename="../gui/mixins/version_ops.py" line="175" />
         <location filename="../gui/mixins/version_ops.py" line="175" />
-        <source>Sürümleme — Mevcut Git Deposu</source>
-        <translation>Versioning — Existing Git Repository</translation>
+        <source>Sürümleme: Mevcut Git Deposu</source>
+        <translation>Versioning: Existing Git Repository</translation>
     </message>
     <message>
         <location filename="../gui/mixins/version_ops.py" line="178" />
@@ -3627,8 +3396,8 @@ Versioning does not keep a SEPARATE history: snapshots are committed to your exi
     <message>
         <location filename="../gui/mixins/version_ops.py" line="208" />
         <location filename="../gui/mixins/version_ops.py" line="208" />
-        <source>Kayıt başarısız — sürümleme iptal</source>
-        <translation>Save failed — snapshot cancelled</translation>
+        <source>Kayıt başarısız, sürümleme iptal</source>
+        <translation>Save failed, snapshot cancelled</translation>
     </message>
     <message>
         <location filename="../gui/mixins/version_ops.py" line="216" />
@@ -3677,8 +3446,8 @@ Versioning does not keep a SEPARATE history: snapshots are committed to your exi
     <message>
         <location filename="../gui/mixins/version_ops.py" line="238" />
         <location filename="../gui/mixins/version_ops.py" line="238" />
-        <source>Değişiklik yok — sürüm atlandı</source>
-        <translation>No changes — snapshot skipped</translation>
+        <source>Değişiklik yok, sürüm atlandı</source>
+        <translation>No changes, snapshot skipped</translation>
     </message>
     <message>
         <location filename="../gui/mixins/version_ops.py" line="241" />
@@ -3751,8 +3520,8 @@ Versioning does not keep a SEPARATE history: snapshots are committed to your exi
     <message>
         <location filename="../gui/mixins/version_ops.py" line="369" />
         <location filename="../gui/mixins/version_ops.py" line="369" />
-        <source>Silinemedi — tek sürüm kaldı ya da sürümleme kapalı</source>
-        <translation>Could not delete — only one snapshot left, or versioning is off</translation>
+        <source>Silinemedi, tek sürüm kaldı ya da sürümleme kapalı</source>
+        <translation>Could not delete, only one snapshot left, or versioning is off</translation>
     </message>
     <message>
         <location filename="../gui/mixins/version_ops.py" line="371" />
@@ -3763,10 +3532,10 @@ Versioning does not keep a SEPARATE history: snapshots are committed to your exi
     <message>
         <location filename="../gui/mixins/version_ops.py" line="384" />
         <location filename="../gui/mixins/version_ops.py" line="384" />
-        <source>Bu klasördeki .git klasörü — yani SİZİN git deponuz — çöp kutusuna taşınacak.
+        <source>Bu klasördeki .git klasörü (yani SİZİN git deponuz) çöp kutusuna taşınacak.
 
 Tüm dallar, etiketler ve uzak bağlantı ayarları gider; proje dosyalarınız yerinde kalır. Geri almak için çöp kutusundan kurtarmanız gerekir.</source>
-        <translation>The .git folder here — that is, YOUR git repository — will be moved to the recycle bin.
+        <translation>The .git folder here (that is, YOUR git repository) will be moved to the recycle bin.
 
 All branches, tags and remote settings will be gone; your project files stay in place. To undo this you must restore the folder from the recycle bin.</translation>
     </message>
@@ -3797,8 +3566,8 @@ All branches, tags and remote settings will be gone; your project files stay in 
     <message>
         <location filename="../gui/mixins/version_ops.py" line="407" />
         <location filename="../gui/mixins/version_ops.py" line="407" />
-        <source>Tüm geçmiş silindi — yeni sürümlemede yeniden başlar</source>
-        <translation>All history deleted — versioning starts fresh on the next snapshot</translation>
+        <source>Tüm geçmiş silindi, yeni sürümlemede yeniden başlar</source>
+        <translation>All history deleted, versioning starts fresh on the next snapshot</translation>
     </message>
     <message>
         <location filename="../gui/mixins/version_ops.py" line="415" />

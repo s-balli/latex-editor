@@ -267,9 +267,9 @@ class LatexCompiler(QObject):
         msg = _("Derleme hatası")
         if error == QProcess.ProcessError.FailedToStart:
             if PLATFORM == "win32":
-                msg = _("Süreç başlatılamadı — WSL yüklü mü?")
+                msg = _("Süreç başlatılamadı, WSL yüklü mü?")
             else:
-                msg = _("Süreç başlatılamadı — bash/derle.sh bulunamadı")
+                msg = _("Süreç başlatılamadı, bash/derle.sh bulunamadı")
         self.output_line.emit(f"[hata] {msg}\n")
 
         result = CompileResult(success=False)

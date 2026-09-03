@@ -63,7 +63,7 @@ def parse_inputs(content: str, base_dir: str, visited: set | None = None,
             children = parse_inputs(child_content, os.path.dirname(full_path),
                                     visited, root_dir)
         except Exception as e:
-            _logger.warning("Input dosyası okunamadı: %s — %s", full_path, e)
+            _logger.warning("Input dosyası okunamadı: %s (%s)", full_path, e)
 
         refs.append({
             'name': os.path.basename(full_path),

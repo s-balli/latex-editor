@@ -111,7 +111,7 @@ class ProjectSearchMixin:
         uyari = self._kok_disinda_mi(self._psearch_root) if not bulgular else ""
         self._output_panel.show_project_search(
             bulgular, kesildi, self._psearch_root, uyari)
-        _logger.info("Projede ara: %d bulgu%s — kök: %s", len(bulgular),
+        _logger.info("Projede ara: %d bulgu%s, kök: %s", len(bulgular),
                      " (kırpıldı)" if kesildi else "", self._psearch_root)
 
     def _cleanup_project_search(self):

@@ -464,13 +464,13 @@ def _export_native(tex_path: str, dest_path: str, bib: str = "") -> tuple[bool, 
             cwd=work_dir, env=clean_child_env(),
         )
         if r.returncode != 0:
-            _logger.warning("Export başarısız (native): %s → %s — %s", tex_path, dest_path, r.stderr)
+            _logger.warning("Export başarısız (native): %s → %s (%s)", tex_path, dest_path, r.stderr)
             return False, r.stderr.strip() or "Dışa aktarma başarısız"
         return True, ""
     except subprocess.TimeoutExpired:
         return False, "İşlem zaman aşımına uğradı"
     except FileNotFoundError:
-        return False, "pandoc bulunamadı — lütfen kurun (apt install pandoc)"
+        return False, "pandoc bulunamadı, lütfen kurun (apt install pandoc)"
     except Exception as e:
         return False, str(e)
 
@@ -506,7 +506,7 @@ def _export_wsl(tex_path: str, dest_path: str, bib: str = "") -> tuple[bool, str
             creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0),
         )
         if r.returncode != 0:
-            _logger.warning("Export başarısız (WSL): %s → %s — %s", tex_path, dest_path, r.stderr)
+            _logger.warning("Export başarısız (WSL): %s → %s (%s)", tex_path, dest_path, r.stderr)
             return False, r.stderr.strip() or "Dışa aktarma başarısız"
 
         # Çıktıyı WSL'den Windows'a kopyala

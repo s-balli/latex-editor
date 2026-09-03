@@ -348,12 +348,12 @@ class FileOpsMixin:
         # Meşgul kontrolü hedef dialogundan ÖNCE: kullanıcı varış yerini seçip
         # sonra 'zaten sürüyor' uyarısı almasın
         if getattr(self, "_export_busy", False):
-            self._status.showMessage(_("Dışa aktarma zaten sürüyor — bitmesini bekleyin"))
+            self._status.showMessage(_("Dışa aktarma zaten sürüyor, bitmesini bekleyin"))
             return
 
         default_name = os.path.splitext(os.path.basename(editor.file_path))[0] + ext
         dest, _sel_filter = QFileDialog.getSaveFileName(
-            self, _("Dışa Aktar") + " — " + fmt_name, default_name,
+            self, _("Dışa Aktar") + ": " + fmt_name, default_name,
             fmt_name + f" (*{ext});;" + _("Tüm Dosyalar (*)")
         )
         if not dest:
@@ -365,7 +365,7 @@ class FileOpsMixin:
         # çubuğu yine "Dışa aktarıldı" diyordu. Derleme yolu bunu zaten yapıyor
         # (compile_ops._compile), dışa aktarma atlamıştı.
         if not self._save_if_open(editor.file_path):
-            self._status.showMessage(_("Kayıt başarısız — dışa aktarma iptal edildi"))
+            self._status.showMessage(_("Kayıt başarısız, dışa aktarma iptal edildi"))
             return
 
         # pandoc zinciri arka planda çalışır; süreç bitince durum çubuğu güncellenir
@@ -386,7 +386,7 @@ class FileOpsMixin:
             _logger.info("Export başarılı → %s", dest)
         else:
             self._status.showMessage(_("Dışa aktarma başarısız") + ": " + str(err))
-            _logger.warning("Export başarısız → %s — %s", dest, err)
+            _logger.warning("Export başarısız → %s (%s)", dest, err)
 
     def _quick_open(self):
         """Ctrl+P: bulanık filtreyle proje dosyası aç (dosya ağacı kökünde)."""

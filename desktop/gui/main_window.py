@@ -418,7 +418,7 @@ class MainWindow(
             f"color: {t['accent_progress']}; font-weight: bold; padding: 3px 8px; "
             "border: 1px solid transparent; border-radius: 4px;"
         )
-        self._auto_label.setToolTip(_("Kaydederken otomatik derle — açmak/kapatmak için tıklayın (Derle menüsü)"))
+        self._auto_label.setToolTip(_("Kaydederken otomatik derle. Açmak/kapatmak için tıklayın (Derle menüsü)"))
         self._auto_label.setCursor(Qt.CursorShape.PointingHandCursor)
         self._auto_label.mousePressEvent = lambda e: self._toggle_auto()
         toolbar.addWidget(self._auto_label)
@@ -711,7 +711,7 @@ class MainWindow(
         # Sol sütun — Editör özellikleri
         left = ""
         left += "<b>" + _("Sözdizimi Renklendirme") + "</b><br>"
-        left += "<span style='color:" + dim + "'>" + _("Komutlar, matematik, ortamlar — Notepad++ tarzı renklendirme.") + "</span>"
+        left += "<span style='color:" + dim + "'>" + _("Komutlar, matematik, ortamlar: Notepad++ tarzı renklendirme.") + "</span>"
         left += "<br><br>"
         left += "<b>SyncTeX (PDF ↔ " + _("Kaynak") + ")</b><br>"
         left += "<span style='color:" + dim + "'>" + _("Ctrl+tıkla → PDF/kaynak arasında geçiş. Önce derleyin.") + "</span>"
@@ -731,7 +731,7 @@ class MainWindow(
         left += "<b>" + _("Klasörde Ara") + " (Ctrl+Shift+F)</b><br>"
         left += "<b>" + _("Yazım Denetimi") + " (Ctrl+Shift+N)</b><br>"
         left += "<span style='color:" + dim + "'>" + _("Yazım sekmesinden Denetle: belge taranır, bulgular satır numarasıyla listelenir, tıklayınca o satıra gidilir. Denetim canlı değildir, siz istemeden çalışmaz. Dil belgeden anlaşılır (% !TEX spellcheck ya da babel); Türkçe tezin İngilizce özeti gibi iki dilli belgelerde 'İkinci dil de var' kutusunu işaretleyin. Bulguya sağ tıklayarak öneri alabilir ya da kelimeyi kendi sözlüğünüze ekleyebilirsiniz.") + "</span><br><br>"
-        left += "<span style='color:" + dim + "'>" + _("Klasör ağacındaki TÜM .tex/.bib/.cls/.sty dosyalarının İÇİNDE arar — sekmede açık olmayanlar dahil. Ctrl+F yalnız açık sekmede arar. Sonuca tıklayınca o dosyanın o satırına gidilir.") + "</span>"
+        left += "<span style='color:" + dim + "'>" + _("Klasör ağacındaki TÜM .tex/.bib/.cls/.sty dosyalarının İÇİNDE arar, sekmede açık olmayanlar dahil. Ctrl+F yalnız açık sekmede arar. Sonuca tıklayınca o dosyanın o satırına gidilir.") + "</span>"
         left += "<br><br>"
         left += "<b>" + _("Hızlı Dosya Aç") + " (Ctrl+P)</b><br>"
         left += "<span style='color:" + dim + "'>" + _("Dosya adını yaz, bulanık filtreyle bul, Enter ile aç. Klasör ağacındaki .tex/.bib/.cls/.sty dosyaları.") + "</span>"
@@ -782,7 +782,7 @@ class MainWindow(
         left += "<span style='color:" + dim + "'>" + _("Tab genişliği, font boyutu ve satır kaydırma; kalıcıdır, tüm sekmelere uygulanır. Ctrl+tekerlek ile anlık zoom da vardır.") + "</span>"
         left += "<br><br>"
         left += "<b>" + _("Otomatik Derleme") + "</b><br>"
-        left += "<span style='color:" + dim + "'>" + _("Ctrl+S ile kaydederken otomatik derler. Toolbar'dan kapatıp Manuel mod'a geçebilirsiniz — büyük belgelerde her kayıtta derleme yapmak yavaşlatır, o durumda Ctrl+B ile derleyin.") + "</span>"
+        left += "<span style='color:" + dim + "'>" + _("Ctrl+S ile kaydederken otomatik derler. Toolbar'dan kapatıp Manuel mod'a geçebilirsiniz; büyük belgelerde her kayıtta derleme yapmak yavaşlatır, o durumda Ctrl+B ile derleyin.") + "</span>"
         left += "<br><br>"
         left += "<b>% !TEX root</b><br>"
         left += "<span style='color:" + dim + "'>" + _("Çok dosyalı projelerde alt dosyanın başına '% !TEX root = ana.tex' yazın; derleme otomatik olarak kök belgeye yönlendirilir, motor kökün içeriğinden algılanır.") + "</span>"
@@ -991,7 +991,7 @@ class MainWindow(
         if is_appimage:
             from PyQt6.QtWidgets import QApplication
             QApplication.clipboard().setText(log_dir)
-            self._status.showMessage(_("Panoya kopyalandı — terminalde cd ile geçin:") + f" {log_dir}")
+            self._status.showMessage(_("Panoya kopyalandı, terminalde cd ile geçin:") + f" {log_dir}")
             return
         ok = QDesktopServices.openUrl(QUrl.fromLocalFile(log_dir))
         if ok:
@@ -999,7 +999,7 @@ class MainWindow(
         else:
             from PyQt6.QtWidgets import QApplication
             QApplication.clipboard().setText(log_dir)
-            self._status.showMessage(_("Panoya kopyalandı — terminalde cd ile geçin:") + f" {log_dir}")
+            self._status.showMessage(_("Panoya kopyalandı, terminalde cd ile geçin:") + f" {log_dir}")
 
     # --- Event filter + sürükle-bırak ---
 
@@ -1094,7 +1094,7 @@ class MainWindow(
         if getattr(self, '_update_check_silent', True):
             return
         QMessageBox.information(self, _("Güncellemeleri Kontrol Et"),
-                                _("Güncelleme kontrol edilemedi — bağlantı kurulamadı."))
+                                _("Güncelleme kontrol edilemedi, bağlantı kurulamadı."))
 
     # --- Event filter + sürükle-bırak ---
 

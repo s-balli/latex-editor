@@ -101,7 +101,7 @@ class RecoveryOpsMixin:
         recovery.hepsini_sil(self._recovery_dir)
         _logger.info("Kurtarma: %d/%d sekme geri yüklendi", yuklenen, len(kayipli))
         self._status.showMessage(
-            _("{n} dosya kurtarıldı — kaydetmek için Ctrl+S").format(n=yuklenen))
+            _("{n} dosya kurtarıldı, kaydetmek için Ctrl+S").format(n=yuklenen))
 
     def _recovery_restore(self, snap) -> bool:
         """Bir anlık görüntüyü sekmeye yükle. İçerik KİRLİ olarak işaretlenir."""

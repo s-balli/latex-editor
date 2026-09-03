@@ -88,7 +88,7 @@ class PdfRenderMixin:
             self._render_worker.open_document("", self._render_gen)
             self._search_worker.open_document("", self._render_gen)
             self._clear_pages()
-            self._show_message(_("PDF açılamadı — derleme başarısız olmuş veya dosya bozuk olabilir."))
+            self._show_message(_("PDF açılamadı, derleme başarısız olmuş veya dosya bozuk olabilir."))
             return False
 
     def refresh(self):

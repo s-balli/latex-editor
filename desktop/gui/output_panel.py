@@ -25,7 +25,7 @@ def _hint_templates() -> dict:
     return {
         "undefined_control": _("Tanımsız komut{cmd}: yazım hatası olabilir ya da komutu sağlayan paket yüklenmemiş (\\usepackage gerekebilir)"),
         "missing_math": _("Matematik modu dışında _ ^ veya özel karakter kullanılmış; $...$ veya \\[...\\] içine alın"),
-        "invalid_character": _("Geçersiz karakter — genelde Word'den kopyalanan akıllı tırnak/tire; düz \" ve - kullanın"),
+        "invalid_character": _("Geçersiz karakter: genelde Word'den kopyalanan akıllı tırnak/tire; düz \" ve - kullanın"),
         "brace_mismatch": _("Eksik/fazla süslü parantez; bu satırdan geriye doğru { } eşleşmesini kontrol edin"),
         "double_subscript": _("Aynı terimde iki alt/üst simge; a_{bc} gibi gruplayın"),
         "env_undefined": _("Tanımsız ortam {env}: \\newenvironment ile tanımlanmamış ya da paketi yüklenmemiş"),
@@ -383,7 +383,7 @@ class OutputPanel(QWidget):
             item.setData(Qt.ItemDataRole.UserRole, (path, line))
             self._suggest_list.addItem(item)
         if not warnings and not suggestions:
-            self._suggest_list.addItem(QListWidgetItem(_("Sorun bulunamadı — tüm \\ref/\\cite anahtarları tanımlı.")))
+            self._suggest_list.addItem(QListWidgetItem(_("Sorun bulunamadı, tüm \\ref/\\cite anahtarları tanımlı.")))
         self._tabs.setTabText(self._warn_tab_index, _("Uyarılar ({n})").format(n=len(warnings)))
         self._tabs.setTabText(self._suggest_tab_index, _("Öneriler ({n})").format(n=len(suggestions)))
         self._tabs.setCurrentIndex(self._warn_tab_index if warnings else self._suggest_tab_index)
@@ -484,7 +484,7 @@ class OutputPanel(QWidget):
             # "bulunamadı" tek başına yanıltıcı olabiliyor — nerede aranmadığı
             # da söylenmeli (uyari, açık dosyanın kök dışında olduğu durumda
             # dolu gelir).
-            self._psearch_status.setText(_("bulunamadı") + (f" — {uyari}" if uyari else ""))
+            self._psearch_status.setText(_("bulunamadı") + (f", {uyari}" if uyari else ""))
         elif kesildi:
             # Kırpma SESSİZ OLMAZ: eksik listeyi tam sanmak yanlış sonuca
             # götürür ("bu komut yalnız 3 yerde geçiyormuş" gibi).

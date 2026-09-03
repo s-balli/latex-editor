@@ -50,7 +50,7 @@ def detect_engine_from_magic_comment(tex_path: str) -> str | None:
         with open(tex_path, "r", encoding="utf-8", errors="replace") as f:
             head = "".join(line for _, line in zip(range(_MAGIC_SCAN_LINES), f))
     except OSError as e:
-        _logger.warning("Magic comment okunamadı: %s — %s", tex_path, e)
+        _logger.warning("Magic comment okunamadı: %s (%s)", tex_path, e)
         return None
     return _magic_engine_from_content(head)
 
@@ -140,7 +140,7 @@ def detect_engine(tex_path: str) -> str | None:
         with open(tex_path, "r", encoding="utf-8", errors="replace") as f:
             content = f.read()
     except OSError as e:
-        _logger.warning("Motor algılama — dosya okunamadı: %s — %s", tex_path, e)
+        _logger.warning("Motor algılama, dosya okunamadı: %s (%s)", tex_path, e)
         return None
 
     # --- 0) % !TEX program magic comment (en yüksek öncelik) ---
@@ -206,7 +206,7 @@ def can_compile(path: str) -> tuple[bool, str]:
         with open(path, "r", encoding="utf-8", errors="replace") as f:
             content = f.read()
     except OSError as e:
-        _logger.warning("Derlenebilirlik kontrolü — dosya okunamadı: %s — %s", path, e)
+        _logger.warning("Derlenebilirlik kontrolü, dosya okunamadı: %s (%s)", path, e)
         return False, "Dosya okunamadı."
 
     return _check_compilable_content(content)
@@ -229,7 +229,7 @@ def _check_compilable_content(content: str) -> tuple[bool, str]:
     """Yorumları temizlenmiş içerikte \\begin{document} ara."""
     clean = strip_comments(content)
     if "\\begin{document}" not in clean:
-        return False, "Bu dosya derlenemez — \\begin{document} içermiyor (başka bir dosyadan çağrılan alt dosya olabilir)."
+        return False, "Bu dosya derlenemez, \\begin{document} içermiyor (başka bir dosyadan çağrılan alt dosya olabilir)."
     return True, ""
 
 
@@ -251,7 +251,7 @@ def _detect_from_cls(cls_path: str) -> str | None:
         with open(cls_path, "r", encoding="utf-8", errors="replace") as f:
             content = f.read()
     except OSError as e:
-        _logger.debug(".cls okunamadı (normal): %s — %s", cls_path, e)
+        _logger.debug(".cls okunamadı (normal): %s (%s)", cls_path, e)
         return None
     return _detect_from_cls_content(content)
 

@@ -38,13 +38,13 @@ class SyncTexMixin:
         """İleri arama isteği. quiet=True: derleme sonrası otomatik atlamada
         durum çubuğu mesajları ezilmez, yalnızca kaydırma yapılır."""
         if not self._current_pdf or not os.path.exists(self._current_pdf):
-            _logger.info("SyncTeX forward atlandı — PDF yok: %s:%d", os.path.basename(tex_path), line)
+            _logger.info("SyncTeX forward atlandı, PDF yok: %s:%d", os.path.basename(tex_path), line)
             if not quiet:
                 self._status.showMessage(_("SyncTeX: Önce derleyin"))
             return
         gz_name = os.path.splitext(os.path.basename(self._current_pdf))[0] + ".synctex.gz"
         if not os.path.exists(os.path.join(self._synctex_dir, gz_name)):
-            _logger.info("SyncTeX forward atlandı — .synctex.gz yok: %s:%d", os.path.basename(tex_path), line)
+            _logger.info("SyncTeX forward atlandı, .synctex.gz yok: %s:%d", os.path.basename(tex_path), line)
             if not quiet:
                 self._status.showMessage(_("SyncTeX: .synctex.gz bulunamadı, yeniden derleyin"))
             return

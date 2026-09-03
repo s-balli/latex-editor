@@ -80,7 +80,7 @@ class TableOpsMixin:
                 # Sihirbaz mevcut etiketleri gösteremeden açılır; sessiz kalırsa
                 # kullanıcı "etiketlerim neden listelenmiyor" diye sorar ve logda
                 # iz olmaz. Akışı kesmeye değmez, ama kaydı kalsın.
-                _logger.warning("Etiketler toplanamadı: %s — %s",
+                _logger.warning("Etiketler toplanamadı: %s (%s)",
                                 editor.file_path, e, exc_info=True)
                 existing = []
 
@@ -91,7 +91,7 @@ class TableOpsMixin:
             if wrapper:
                 # Kılıftaki caption/label'ı da al: yeniden üretimde korunur
                 dlg.set_meta(*extract_caption_label(text[wrapper[0]:wrapper[1]]))
-            self._status.showMessage(_("Mevcut tablo düzenleniyor — Ekle ile değiştirilir"))
+            self._status.showMessage(_("Mevcut tablo düzenleniyor, Ekle ile değiştirilir"))
 
         if dlg.exec() and dlg.result_text():
             code = dlg.result_text()

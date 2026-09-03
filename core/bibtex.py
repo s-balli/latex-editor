@@ -144,7 +144,7 @@ def parse_entries(text: str) -> list[BibGirdi]:
         while k < n and text[k] in " \t\r\n":
             k += 1
         if not tur or k >= n or text[k] not in "{(":
-            # Alan değerinin içindeki bir '@' (e-posta, DOI) — girdi değil.
+            # Alan değerinin içindeki bir '@' (e-posta, DOI) girdi DEĞİLDİR.
             i = max(j, i + 1)
             continue
         kapali = "}" if text[k] == "{" else ")"
@@ -448,7 +448,7 @@ def bibe_ekle(yol: str, girdi_metni: str) -> None:
 class BibDenetim:
     """.bib dosyasının KENDİ tutarlılığı (referans denetiminden ayrı).
 
-    mukerrer: (anahtar, tanımlandığı satırlar) — birden çok tanım
+    mukerrer: (anahtar, tanımlandığı satırlar): birden çok tanım
     eksik:    (anahtar, satır, eksik alan adları)
     """
     mukerrer: list = field(default_factory=list)

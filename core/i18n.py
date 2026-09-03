@@ -47,7 +47,7 @@ def init(app=None):
         mevcut = ([f for f in os.listdir(_trans_dir) if f.endswith(".qm")]
                   if os.path.isdir(_trans_dir) else "(dizin yok)")
         _logger.warning(
-            "Çeviri dosyası yüklenemedi: %s — dizindeki .qm dosyaları: %s",
+            "Çeviri dosyası yüklenemedi: %s, dizindeki .qm dosyaları: %s",
             qm_path, mevcut)
 
 

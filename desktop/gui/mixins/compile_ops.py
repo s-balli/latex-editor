@@ -157,7 +157,7 @@ class CompileOpsMixin:
             self._status.showMessage(msg)
             return
         if not self._save_if_open(editor.file_path) or not self._save_if_open(target):
-            self._status.showMessage(_("Kayıt başarısız — derleme iptal"))
+            self._status.showMessage(_("Kayıt başarısız, derleme iptal"))
             return
         # Alt dosyadan kök derlendiyse motoru kökün içeriği belirler
         engine = self._engine_combo.currentText()
@@ -189,7 +189,7 @@ class CompileOpsMixin:
             self._status.showMessage(msg)
             return
         if not self._save_if_open(path) or not self._save_if_open(target):
-            self._status.showMessage(_("Kayıt başarısız — derleme iptal"))
+            self._status.showMessage(_("Kayıt başarısız, derleme iptal"))
             return
         engine = self._engine_combo.currentText()
         if target != path:
@@ -246,9 +246,9 @@ class CompileOpsMixin:
         self._progress.hide()
 
         if result.success:
-            _logger.info("Derleme başarılı (%.1fs) — %s", result.duration, result.pdf_path)
+            _logger.info("Derleme başarılı (%.1fs): %s", result.duration, result.pdf_path)
         else:
-            _logger.warning("Derleme başarısız (%.1fs) — %d hata", result.duration, len(result.errors))
+            _logger.warning("Derleme başarısız (%.1fs): %d hata", result.duration, len(result.errors))
 
         err_count = len(result.errors)
         warn_count = len(result.warnings)
@@ -264,7 +264,7 @@ class CompileOpsMixin:
             if os.path.getsize(result.pdf_path) > 0:
                 if not self._pdf_viewer.load_pdf(result.pdf_path):
                     failed = True
-                    status_msg = _("PDF açılamadı — motoru değiştirip tekrar deneyin")
+                    status_msg = _("PDF açılamadı, motoru değiştirip tekrar deneyin")
                 else:
                     pdf_shown = True
                     self._current_pdf = result.pdf_path
@@ -278,7 +278,7 @@ class CompileOpsMixin:
             elif result.success:
                 # başarı bekleniyordu ama PDF boş çıktı
                 failed = True
-                status_msg = _("PDF oluşturuldu ama boş — motoru değiştirip tekrar deneyin")
+                status_msg = _("PDF oluşturuldu ama boş, motoru değiştirip tekrar deneyin")
 
         # Başarısız derlemede taze PDF yüklenemediyse eski (koddan farklı) PDF'i
         # ekranda bırakma — tutarsız önizleme yanıltıcı olur. Temizle.
@@ -288,7 +288,7 @@ class CompileOpsMixin:
 
         if not status_msg:
             if failed:
-                status_msg = _("Basarisiz") + f" — {err_count} " + _("hata") + f" ({result.duration:.1f}s)"
+                status_msg = _("Basarisiz") + f", {err_count} " + _("hata") + f" ({result.duration:.1f}s)"
             else:
                 status_msg = _("Basarili") + f" ({result.duration:.1f}s)"
                 if warn_count:

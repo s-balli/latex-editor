@@ -116,7 +116,7 @@ class EditOpsMixin:
         """
         if loc:
             path, line = loc
-            return (f"{os.path.basename(path)}:{line} — {label}: {key}", path, line)
+            return (f"{os.path.basename(path)}:{line}  {label}: {key}", path, line)
         return (f"{label}: {key}", "", 0)
 
     @staticmethod
@@ -497,7 +497,7 @@ class EditOpsMixin:
                     with open(path, "rb") as f:
                         raw = f.read()
                 except OSError as exc:
-                    _logger.warning("Yeniden adlandırma — okunamadı: %s — %s", path, exc)
+                    _logger.warning("Yeniden adlandırma, okunamadı: %s (%s)", path, exc)
                     failed.append(path)
                     continue
                 t, enc = _decode_bytes(raw)
@@ -509,7 +509,7 @@ class EditOpsMixin:
                         EditorWidget._write_atomic(path, t, enc)
                         changed += 1
                     except (OSError, UnicodeError) as exc:
-                        _logger.warning("Yeniden adlandırma — yazılamadı: %s — %s", path, exc)
+                        _logger.warning("Yeniden adlandırma, yazılamadı: %s (%s)", path, exc)
                         failed.append(path)
         return changed, failed
 

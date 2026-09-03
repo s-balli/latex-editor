@@ -311,7 +311,7 @@ class FileTree(QWidget):
                 # görünmezdi. exc_info YOK: bu kod her dosya için koşuyor,
                 # sistematik bir hatada yüzlerce traceback log'u doldururdu —
                 # yol + hata mesajı teşhis için yeterli.
-                _logger.warning("Derlenebilirlik denetimi başarısız: %s — %s", path, e)
+                _logger.warning("Derlenebilirlik denetimi başarısız: %s (%s)", path, e)
                 ok = False
             if ok:
                 item.setForeground(0, QColor(self._theme["sem_compilable"]))
@@ -337,7 +337,7 @@ class FileTree(QWidget):
         try:
             entries = os.listdir(dir_path)
         except (PermissionError, OSError) as e:
-            _logger.warning("Klasör listelenemedi (watch): %s — %s", dir_path, e)
+            _logger.warning("Klasör listelenemedi (watch): %s (%s)", dir_path, e)
             return dirs
         dirs.add(dir_path)
         for name in entries:
@@ -372,7 +372,7 @@ class FileTree(QWidget):
         try:
             entries = sorted(os.listdir(dir_path))
         except (PermissionError, OSError) as e:
-            _logger.warning("Klasör taranamadı (tree): %s — %s", dir_path, e)
+            _logger.warning("Klasör taranamadı (tree): %s (%s)", dir_path, e)
             return
 
         # Aynı klasördeki .tex adları: `ana.pdf`i `ana.tex`in çıktısı diye
@@ -451,7 +451,7 @@ class FileTree(QWidget):
                     if not _dosya_gizli_mi(entry, dir_path, self._root, tex_adlari):
                         files.add(full)
         except (PermissionError, OSError) as e:
-            _logger.warning("Dosya toplama başarısız: %s — %s", dir_path, e)
+            _logger.warning("Dosya toplama başarısız: %s (%s)", dir_path, e)
         return files
 
     def _on_double_click(self, item: QTreeWidgetItem, column: int):

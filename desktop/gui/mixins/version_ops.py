@@ -172,7 +172,7 @@ class VersionOpsMixin:
             ).format(nerede=nerede)
 
         dlg = QMessageBox(self)
-        dlg.setWindowTitle(_("Sürümleme — Mevcut Git Deposu"))
+        dlg.setWindowTitle(_("Sürümleme: Mevcut Git Deposu"))
         dlg.setIcon(QMessageBox.Icon.Warning)
         dlg.setText(text)
         btn_ok = dlg.addButton(_("Anladım, Devam Et"), QMessageBox.ButtonRole.AcceptRole)
@@ -205,7 +205,7 @@ class VersionOpsMixin:
             return
 
         if not self._save_all_open():
-            self._status.showMessage(_("Kayıt başarısız — sürümleme iptal"))
+            self._status.showMessage(_("Kayıt başarısız, sürümleme iptal"))
             return
 
         first = not versioning.is_repo(root)
@@ -235,7 +235,7 @@ class VersionOpsMixin:
             self._status.showMessage(_("Sürüm kaydı başarısız") + f": {error}")
             return
         if entry is None:
-            self._status.showMessage(_("Değişiklik yok — sürüm atlandı"))
+            self._status.showMessage(_("Değişiklik yok, sürüm atlandı"))
             return
         self._status.showMessage(
             _("Sürüm kaydedildi") + f": {entry.short} · {entry.nfiles} " + _("dosya"))
@@ -366,7 +366,7 @@ class VersionOpsMixin:
             _logger.error("Sürüm silinemedi: %s", root, exc_info=True)
         if not dropped:
             self._status.showMessage(
-                _("Silinemedi — tek sürüm kaldı ya da sürümleme kapalı"))
+                _("Silinemedi, tek sürüm kaldı ya da sürümleme kapalı"))
             return
         self._status.showMessage(_("En yeni sürüm silindi"))
         _logger.info("En yeni sürüm geçmişten silindi: %s", root)
@@ -382,7 +382,7 @@ class VersionOpsMixin:
         st = versioning.repo_status(root)
         if st.foreign:
             metin = _(
-                "Bu klasördeki .git klasörü — yani SİZİN git deponuz — çöp "
+                "Bu klasördeki .git klasörü (yani SİZİN git deponuz) çöp "
                 "kutusuna taşınacak.\n\nTüm dallar, etiketler ve uzak bağlantı "
                 "ayarları gider; proje dosyalarınız yerinde kalır. Geri almak "
                 "için çöp kutusundan kurtarmanız gerekir."
@@ -404,7 +404,7 @@ class VersionOpsMixin:
             self._status.showMessage(_("Silinecek geçmiş yok"))
             return
         self._status.showMessage(
-            _("Tüm geçmiş silindi — yeni sürümlemede yeniden başlar"))
+            _("Tüm geçmiş silindi, yeni sürümlemede yeniden başlar"))
         _logger.info("Tüm sürüm geçmişi silindi: %s", root)
         self._refresh_history(select_tab=True)
 

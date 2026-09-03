@@ -78,7 +78,7 @@ def _init_once():
         ))
         root.addHandler(ch)
 
-    root.info("LaTeX Editor başlatıldı — log dizini: %s", LOG_DIR)
+    root.info("LaTeX Editor başlatıldı, log dizini: %s", LOG_DIR)
 
 
 def log_path() -> str:

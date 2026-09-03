@@ -77,7 +77,7 @@ class QuickOpenDialog(QDialog):
         self._files = collect_project_files(root)
 
         self._edit = QLineEdit()
-        self._edit.setPlaceholderText(_("Dosya adı yazın — Enter açar, Esc kapatır"))
+        self._edit.setPlaceholderText(_("Dosya adı yazın: Enter açar, Esc kapatır"))
         self._edit.textChanged.connect(self._refilter)
         self._edit.returnPressed.connect(self.accept)
         self._edit.installEventFilter(self)

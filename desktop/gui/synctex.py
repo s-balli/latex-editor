@@ -133,7 +133,7 @@ def _forward_wsl(tex_path: str, line: int, col: int, pdf_path: str,
             return None
         return _parse_forward(r.stdout)
     except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
-        _logger.warning("SyncTeX forward (WSL) başarısız: %s:%d — %s", tex_path, line, e)
+        _logger.warning("SyncTeX forward (WSL) başarısız: %s:%d (%s)", tex_path, line, e)
         return None
 
 
@@ -152,7 +152,7 @@ def _forward_native(tex_path: str, line: int, col: int, pdf_path: str,
             return None
         return _parse_forward(r.stdout)
     except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
-        _logger.warning("SyncTeX forward (native) başarısız: %s:%d — %s", tex_path, line, e)
+        _logger.warning("SyncTeX forward (native) başarısız: %s:%d (%s)", tex_path, line, e)
         return None
 
 
@@ -174,7 +174,7 @@ def _reverse_wsl(page: int, x: float, y: float, pdf_path: str,
             parsed.file_path = wsl_to_windows(parsed.file_path)
         return parsed
     except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
-        _logger.warning("SyncTeX reverse (WSL) başarısız: sayfa %d — %s", page, e)
+        _logger.warning("SyncTeX reverse (WSL) başarısız: sayfa %d (%s)", page, e)
         return None
 
 
@@ -192,5 +192,5 @@ def _reverse_native(page: int, x: float, y: float, pdf_path: str,
             return None
         return _parse_reverse(r.stdout)
     except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
-        _logger.warning("SyncTeX reverse (native) başarısız: sayfa %d — %s", page, e)
+        _logger.warning("SyncTeX reverse (native) başarısız: sayfa %d (%s)", page, e)
         return None
