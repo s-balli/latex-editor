@@ -64,7 +64,13 @@ TANITIM-METINLERI.md
 tanitim-gorselleri/
 RAKIP-ANALIZI.md
 
-# Yazim denetimi denemesi (gecici; karar verilene kadar)
-sozlukler/
+# Yazim denetimi sozlugu: SIKISTIRILMIS hali (.xz) DEPODA, acilmis hali
+# degil. Acmayi scripts/sozluk_ac.py yapiyor, .spec dosyalari yapim basinda
+# cagiriyor. Ham .dic 8.6 MB; deponun butun gecmisi 3.45 MB, ham hali
+# depoyu dorde katlardi.
+sozlukler/*.dic
+sozlukler/*.aff
+
+# Yerel deneme araclari
 yazim_dene.py
 Yazim Dene.bat
