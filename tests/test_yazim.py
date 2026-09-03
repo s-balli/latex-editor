@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""core/yazim.py testleri — LaTeX farkındalıklı yazım denetimi çekirdeği.
+"""core/yazim.py testleri: LaTeX farkındalıklı yazım denetimi çekirdeği.
 
 Qt YOK, spylls de GEREKMİYOR: sözlük gerektiren testler sahte bir sözlük
 nesnesiyle koşuyor. CI'da spylls ve tr_TR sözlüğü bulunmuyor.
@@ -281,7 +281,7 @@ def test_bildirim_yoksa_None():
 
 
 # =====================================================================
-# Denetleyici (sahte sözlükle — spylls gerekmiyor)
+# Denetleyici (sahte sözlükle, spylls gerekmiyor)
 # =====================================================================
 
 

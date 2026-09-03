@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Yazım denetimi çekirdeği — LaTeX farkındalıklı, Qt'süz.
+"""Yazım denetimi çekirdeği: LaTeX farkındalıklı, Qt'süz.
 
 LaTeX'te yazım denetiminin bir numaralı katili YANLIŞ POZİTİFTİR. Düz bir
 denetleyici `\\usepackage`, `\\alpha`, `sec:giris`, `ornek2024` hepsinin
@@ -45,7 +45,7 @@ from dataclasses import dataclass
 try:
     from spylls.hunspell import Dictionary
     SPYLLS_VAR = True
-except ImportError:  # pragma: no cover — uygulama spylls'siz de AÇILMALI
+except ImportError:  # pragma: no cover, uygulama spylls'siz de AÇILMALI
     Dictionary = None
     SPYLLS_VAR = False
 
@@ -83,7 +83,7 @@ _AKSAN_HARF = {
     ("H", "o"): "ő", ("H", "u"): "ű", ("k", "a"): "ą", ("k", "e"): "ę",
 }
 
-# \i (noktasız ı) ve \j — argümansız, tek başına harf
+# \i (noktasız ı) ve \j: argümansız, tek başına harf
 _TEK_HARF_KOMUT = {"i": "ı", "j": "ȷ", "l": "ł", "o": "ø", "O": "Ø",
                    "aa": "å", "AA": "Å", "ss": "ß", "ae": "æ", "AE": "Æ"}
 
@@ -155,6 +155,12 @@ _HARF = re.compile(r"[^\W\d_]", re.UNICODE)
 # DENENDİ VE VAZGEÇİLDİ: "kelime + iki nokta + rakam" kalıbını tanımlayıcı
 # saymak. Aynı kalıba `örn: 192.168.1.1` ve `findstr :8080` düşüyor; `örn`
 # meşru Türkçe kısaltma. Ölçülüp elendi.
+_RE_ADRES = re.compile(
+    r"(?:[\w.+-]+@[\w-]+(?:\.[\w-]+)+"
+    r"|https?://[^\s{}]+"
+    r"|www\.[\w-]+(?:\.[\w-]+)+"
+    r"|10\.\d{4,9}/[^\s,;)}\]]+)", re.UNICODE)
+
 # Kaynakçada tanımlayıcının ÖNÜNDE duran etiketler. Metin değil, alan adı.
 # ÖLÇÜLDÜ: `thebibliography` içindeki 108 bulgunun 57'si tek başına `doi`.
 #
@@ -170,12 +176,6 @@ _HARF = re.compile(r"[^\W\d_]", re.UNICODE)
 _KAYNAKCA_ETIKETI = frozenset("""
 doi isbn issn arxiv pmid orcid eprint url urn preprint ssrn hdl
 """.split())
-
-_RE_ADRES = re.compile(
-    r"(?:[\w.+-]+@[\w-]+(?:\.[\w-]+)+"
-    r"|https?://[^\s{}]+"
-    r"|www\.[\w-]+(?:\.[\w-]+)+"
-    r"|10\.\d{4,9}/[^\s,;)}\]]+)", re.UNICODE)
 
 
 def _harf_mi(ch: str) -> bool:
@@ -342,7 +342,7 @@ class _Tarayici:
                     j += 1
                 return sonuc, j
             return None
-        # harf adlı: SÜSLÜ ŞART (\c{c}, \u{g}) — \usepackage karışmasın
+        # harf adlı: SÜSLÜ ŞART (\c{c}, \u{g}), \usepackage karışmasın
         if _harf_mi(c1):
             j = 2
             ad = c1
@@ -755,7 +755,7 @@ class Denetleyici:
             return []
         try:
             return list(self._sozluk.suggest(kelime))[:tavan]
-        except Exception:                        # pragma: no cover — spylls
+        except Exception:                        # pragma: no cover, spylls
             return []
 
     # -- ana giriş --
