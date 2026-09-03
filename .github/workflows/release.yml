@@ -139,7 +139,7 @@ jobs:
       - uses: actions/checkout@v4
 
       # AppImage'a GÖMÜLEN yorumlayıcı budur. Bu adım YOKKEN build_appimage.sh
-      # runner'ın sistem python3'ünü kullanıyordu — ubuntu-22.04'te 3.10 — yani
+      # runner'ın sistem python3'ünü kullanıyordu (ubuntu-22.04'te 3.10), yani
       # kullanıcıya giden sürüm, runner imajının tesadüfüne bağlıydı. Oysa
       # README "Python 3.12+" diyor, Windows exe'si de 3.12 ile paketleniyor.
       # ubuntu-22.04 BİLEREK korunuyor: AppImage'ın glibc tabanını belirliyor
@@ -217,3 +217,39 @@ jobs:
           name: LaTeX Editor v${{ steps.ver.outputs.VERSION }}
           body_path: release-notes.md
           fail_on_unmatched_files: true
+
+  # Yayin cikinca winget-pkgs'e surum yukseltme PR'i ac. Ilk surum (1.0.19)
+  # ELLE gonderildi (microsoft/winget-pkgs#429063); bu eylem yalniz var olan
+  # bir paketi guncelleyebiliyor, paket yoksa hata verip duruyor.
+  #
+  # NEDEN build-windows'a BAGLI: eylem yayindaki varliklari GitHub API'sinden
+  # okuyup adreslerini komac'a veriyor. Once kosarsa .exe henuz yuklenmemis
+  # olur ve installers-regex hicbir sey bulamaz.
+  #
+  # NEDEN AYRI IS: build-windows duserse winget'e yanlis surum bildirilmesin.
+  #
+  # TOKEN: GITHUB_TOKEN YETMEZ. Eylem baska bir depoya (microsoft/winget-pkgs
+  # catalinizA) yaziyor; is akisinin kendi jetonu yalniz bu depoda gecerli.
+  # WINGET_TOKEN sirri, `public_repo` yetkili klasik bir kisisel erisim
+  # jetonu olmali. Sir tanimli degilse is SESSIZCE ATLANIYOR: yayin akisinin
+  # tamami winget yuzunden kirmizi olmasin.
+  winget:
+    needs: build-windows
+    runs-on: ubuntu-latest
+    # env IS DUZEYINDE, adim duzeyinde DEGIL: `secrets` baglami adim `if`inde
+    # kullanilamiyor (GitHub'in izin verdigi baglamlar arasinda yok), adimin
+    # KENDI env'i de kendi `if`inde guvenilir gorunmuyor. Is duzeyine konunca
+    # ikisi de cozuluyor.
+    env:
+      WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+    steps:
+      - name: WinGet'e surum bildir
+        if: env.WINGET_TOKEN != ''
+        uses: vedantmgoyal9/winget-releaser@v2
+        with:
+          identifier: s-balli.LaTeXEditor
+          # Yalniz Windows .exe. AppImage ve .zsync zaten eslesmiyor ama
+          # desen acikca yaziliyor: yayina ilerde baska bir .exe girerse
+          # (ornegin bir kurulum programi) yanlislikla gonderilmesin.
+          installers-regex: '_Windows\.exe$'
+          token: ${{ secrets.WINGET_TOKEN }}
