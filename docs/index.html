@@ -3,8 +3,35 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>LaTeX Editor: <span class="en">lightweight desktop LaTeX editor with live PDF preview</span><span class="tr">canlı PDF önizlemeli hafif LaTeX editörü</span></title>
+  <!-- <title> METIN disinda element ICEREMEZ. Burada <span class="en"> ve
+       <span class="tr"> vardi; tarayici ve arama motoru bunlari birlestirip
+       "...live PDF previewcanlı PDF önizlemeli..." diye tek bir bozuk basliga
+       ceviriyordu. Statik baslik tek dilde; kullanicinin diline gore
+       script.js icindeki apply() document.title'i degistiriyor. -->
+  <title>LaTeX Editor: desktop LaTeX editor with live PDF preview</title>
   <meta name="description" content="Open-source desktop LaTeX editor (GPL-3.0): live PDF preview, SyncTeX, lualatex/pdflatex/xelatex, 7 themes, Turkish/English UI. Handles Turkish-character issues in IEEE/ASYU templates and Overleaf-imported projects. Windows + Linux." />
+  <link rel="canonical" href="https://s-balli.github.io/latex-editor/" />
+
+  <!-- Open Graph: baglanti WhatsApp, LinkedIn, Discord, Slack gibi yerlerde
+       paylasildiginda onizleme karti bunlarla olusuyor. Yoksa cıplak URL
+       gorunuyor. og:image MUTLAK URL olmali, goreli yol calismiyor. -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="LaTeX Editor" />
+  <meta property="og:url" content="https://s-balli.github.io/latex-editor/" />
+  <meta property="og:title" content="LaTeX Editor: desktop LaTeX editor with live PDF preview" />
+  <meta property="og:description" content="Live PDF preview, SyncTeX, three engines, 7 themes, Turkish and English UI. Free and open source (GPL-3.0) for Windows and Linux." />
+  <meta property="og:image" content="https://s-balli.github.io/latex-editor/assets/01.png" />
+  <meta property="og:image:width" content="1550" />
+  <meta property="og:image:height" content="932" />
+  <meta property="og:image:alt" content="LaTeX Editor main window: source on the left, live PDF preview on the right" />
+  <meta property="og:locale" content="en_US" />
+  <meta property="og:locale:alternate" content="tr_TR" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="LaTeX Editor: desktop LaTeX editor with live PDF preview" />
+  <meta name="twitter:description" content="Live PDF preview, SyncTeX, three engines, 7 themes, Turkish and English UI. Free and open source (GPL-3.0) for Windows and Linux." />
+  <meta name="twitter:image" content="https://s-balli.github.io/latex-editor/assets/01.png" />
+
   <link rel="stylesheet" href="styles.css" />
   <link rel="icon" href="assets/01.png" />
 </head>

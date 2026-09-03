@@ -1,0 +1,14 @@
+# Bu dosya https://s-balli.github.io/latex-editor/robots.txt adresinde
+# yayinlanir. DIKKAT: tarayicilar robots.txt'i yalnizca ALAN ADI KOKUNDE
+# okur, yani https://s-balli.github.io/robots.txt adresinde. Orasi ayri bir
+# depoya (s-balli.github.io) ait ve su an 404 donuyor, yani zaten hicbir
+# kisitlama yok, tarama serbest.
+#
+# Dosya yine de duruyor: ozel alan adina gecilirse (docs/CNAME) burasi
+# KOK olur ve gecerli hale gelir. Sitemap'i Google Search Console ve Bing
+# Webmaster Tools'a dogrudan gondermek her halukarda daha guvenilir.
+
+User-agent: *
+Allow: /
+
+Sitemap: https://s-balli.github.io/latex-editor/sitemap.xml

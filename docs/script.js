@@ -13,9 +13,18 @@
     return nav.indexOf("tr") === 0 ? "tr" : "en";
   }
 
+  // Sekme basligi. <title> element iceremedigi icin iki dilli span numarasi
+  // orada calismiyor; statik baslik HTML'de tek dilde duruyor (arama motoru
+  // onu goruyor) ve kullaniciya gore burada degistiriliyor.
+  var BASLIKLAR = {
+    en: "LaTeX Editor: desktop LaTeX editor with live PDF preview",
+    tr: "LaTeX Editor: canlı PDF önizlemeli masaüstü LaTeX editörü"
+  };
+
   function apply(lang) {
     root.setAttribute("data-lang", lang);
     root.setAttribute("lang", lang);
+    if (BASLIKLAR[lang]) document.title = BASLIKLAR[lang];
     if (btn) btn.textContent = lang === "en" ? "TR" : "EN";
   }
 
