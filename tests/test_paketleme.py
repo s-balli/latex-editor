@@ -28,6 +28,7 @@ import os
 import re
 import shutil
 import subprocess
+import tempfile
 
 import pytest
 
@@ -62,14 +63,33 @@ def _bash_adaylari():
 
 
 def _bash_calisiyor_mu(aday: str) -> bool:
+    """Aday bash, testlerin ondan İSTEDİĞİ şeyi yapabiliyor mu.
+
+    Eskiden `-c "echo ok"` sınanıyordu ve bu YETMİYOR: WSL'in bash'i
+    (C:\\WINDOWS\\system32\\bash.exe) dağıtım kuruluyken bunu sorunsuz
+    geçiyor, ama testlerin verdiği `C:\\...` biçimli betik yolunu açamıyor —
+    `/mnt/c/...` bekliyor, sonuç exit 127 "No such file or directory".
+    Yani aday seçiliyor, sonra üç TestYayinNotu testi düşüyordu; WSL kurulu
+    HER Windows makinesinde. CI bunu yapısal olarak göremiyor çünkü runner
+    imajında dağıtım yok (bkz. ci.yml'deki "WSL durumu" adımı).
+
+    Bu yüzden sonda artık gerçek bir betiği YERLİ YOLUYLA çalıştırıyor.
+    Elenen aday `_bash()` döngüsünde atlanıyor ve sıra Git Bash'e geliyor;
+    o Windows yollarını açabildiği için testler atlanmak yerine KOŞUYOR.
+    """
     if not aday or not os.path.exists(aday):
         return False
-    try:
-        r = subprocess.run([aday, "-c", "echo ok"], capture_output=True,
-                           text=True, encoding="utf-8", errors="replace",
-                           timeout=60)
-    except OSError:
-        return False
+    with tempfile.TemporaryDirectory() as gecici:
+        betik = os.path.join(gecici, "sonda.sh")
+        # Satır sonu LF olmalı: CRLF'te bash `$'\r'` diye takılır.
+        with open(betik, "wb") as f:
+            f.write(b"echo ok\n")
+        try:
+            r = subprocess.run([aday, betik], capture_output=True,
+                               text=True, encoding="utf-8", errors="replace",
+                               timeout=60)
+        except OSError:
+            return False
     return r.returncode == 0 and (r.stdout or "").strip() == "ok"
 
 

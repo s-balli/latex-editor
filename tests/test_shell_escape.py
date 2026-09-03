@@ -298,6 +298,20 @@ def _calisan_bash() -> bool:
 @pytest.mark.skipif(not os.path.exists(DERLE_SH), reason="derle.sh yok")
 @pytest.mark.skipif(not _calisan_bash(), reason="çalışan bash yok")
 def test_derle_sh_sozdizimi():
-    r = subprocess.run(["bash", "-n", DERLE_SH], capture_output=True,
-                       text=True, encoding="utf-8", errors="replace")
-    assert r.returncode == 0, r.stderr or r.stdout
+    # Betiğin YOLU değil İÇERİĞİ veriliyor. Windows'ta PATH'teki `bash`
+    # C:\WINDOWS\system32\bash.exe, yani WSL'inki: muhafızı geçiyor (dağıtım
+    # kurulu, `echo ok` çalışıyor) ama `C:\...` biçimli bir yolu açamıyor,
+    # `/mnt/c/...` bekliyor. Yol argüman olarak verildiğinde test, WSL kurulu
+    # HER Windows makinesinde düşüyordu; CI bunu yapısal olarak göremiyor
+    # çünkü runner imajında dağıtım yok. stdin'de yol diye bir şey olmadığı
+    # için sorun ortadan kalkıyor.
+    #
+    # Bayt olarak veriliyor, metin olarak değil: `text=True` boru hattına
+    # yazarken \n -> \r\n çeviriyor ve bash `$'{\r'` diye takılıyor. Yani
+    # metin kipi bu testi Windows'ta yolu düzeltsen bile düşürüyor.
+    # Doğrulandı: geçerli betik 0, bozuk betik 2 döndürüyor.
+    with open(DERLE_SH, "rb") as f:
+        ham = f.read().replace(b"\r\n", b"\n")
+    r = subprocess.run(["bash", "-n"], input=ham, capture_output=True)
+    ayrinti = (r.stderr or r.stdout).decode("utf-8", "replace")
+    assert r.returncode == 0, ayrinti
