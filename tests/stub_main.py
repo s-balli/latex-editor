@@ -36,13 +36,21 @@ class FakeSettings:
 
 
 class StatusRecorder:
-    """QStatusBar kaydı: son mesaj + currentMessage geri okuma."""
+    """QStatusBar kaydı: son mesaj + currentMessage geri okuma.
+
+    `timeout` ve `clearMessage` GERÇEK QStatusBar'da var; burada yoktu ve
+    handler onları kullanınca test TypeError ile düşüyordu (yazım denetimi
+    mixin'inde yaşandı). Stub gerçeğin imzasını taşımalı.
+    """
 
     def __init__(self):
         self.msg = ""
 
-    def showMessage(self, m):
+    def showMessage(self, m, timeout=0):
         self.msg = m
+
+    def clearMessage(self):
+        self.msg = ""
 
     def currentMessage(self):
         return self.msg

@@ -6,7 +6,7 @@ from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QTabWidget,
     QListWidget, QListWidgetItem, QPlainTextEdit, QMenu,
     QLineEdit, QCheckBox, QLabel, QTableWidget, QTableWidgetItem,
-    QAbstractItemView, QHeaderView,
+    QAbstractItemView, QHeaderView, QComboBox, QPushButton,
 )
 
 from core.error_hints import get_hint
@@ -53,6 +53,12 @@ class OutputPanel(QWidget):
     # Kaynakça sekmesi doldurulmak istiyor (menüden ya da sekmeye tıklayınca).
     # Panel .bib'in nerede olduğunu bilmiyor; MainWindow biliyor.
     bibliography_requested = pyqtSignal()
+    # Yazım denetimi istendi: (dil, ikinci_dil_var_mi)
+    yazim_denetle_requested = pyqtSignal(str, bool)
+    # Bir bulguya öneri istendi: (kelime)
+    yazim_oneri_requested = pyqtSignal(str)
+    # Kelime kullanıcı sözlüğüne eklensin: (kelime)
+    yazim_sozluge_ekle = pyqtSignal(str)
 
     # Doktor satırının UserRole işareti: (dosya, satır) demetiyle karışmasın
     _ENV_DOCTOR_TAG = "__env_doctor__"
@@ -183,6 +189,64 @@ class OutputPanel(QWidget):
         self._bib_table.itemClicked.connect(self._on_bib_click)
         kaynakca_layout.addWidget(self._bib_table)
         self._bib_tab_index = self._tabs.addTab(kaynakca, _("Kaynakça"))
+
+        # --- Yazım sekmesi ---
+        # Denetim CANLI DEĞİL, komutla çalışır: kullanıcı istemeden sözlük
+        # yüklenmez (ölçüldü: tr_TR yüklemesi 3.5 sn) ve ekranda hiçbir şey
+        # değişmez. Dil seçimi ve ikinci dil kutusu burada, çünkü ikisi de
+        # BELGEYE özgü; menüye koymak her belge değişiminde menüye gitmek olurdu.
+        #
+        yazim = QWidget()
+        yazim_layout = QVBoxLayout(yazim)
+        yazim_layout.setContentsMargins(6, 6, 6, 0)
+        yazim_layout.setSpacing(4)
+
+        y_ust = QHBoxLayout()
+        y_ust.setSpacing(6)
+        y_ust.addWidget(QLabel(_("Dil:")))
+        self._yazim_dil = QComboBox()
+        self._yazim_dil.addItem("Türkçe", "tr_TR")
+        self._yazim_dil.addItem("English", "en_US")
+        self._yazim_dil.setToolTip(
+            _("Belge `% !TEX spellcheck = tr_TR` ya da babel ile dilini "
+              "bildiriyorsa açılışta o seçilir"))
+        # İkinci dil: Türk akademik metni yapısı gereği iki dillidir (Türkçe
+        # tezin İngilizce özeti). Kelimeyi ancak o dile AİT GÖRÜNÜYORSA
+        # kurtarır, yani Türkçe yazım hatasını gizlemez (bkz. core/yazim.py).
+        # ÖLÇÜLDÜ: bir ders notu bölümünde 214 bulgu -> 79.
+        self._yazim_ikinci = QCheckBox(_("İkinci dil de var"))
+        self._yazim_ikinci.setToolTip(
+            _("Belgede öteki dilde bölümler varsa (İngilizce özet gibi) "
+              "işaretleme çok azalır"))
+        self._yazim_dugme = QPushButton(_("Denetle"))
+        self._yazim_durum = QLabel("")
+        y_ust.addWidget(self._yazim_dil)
+        y_ust.addWidget(self._yazim_ikinci)
+        y_ust.addWidget(self._yazim_dugme)
+        y_ust.addWidget(self._yazim_durum, 1)
+        yazim_layout.addLayout(y_ust)
+
+        self._yazim_list = QListWidget()
+        self._yazim_list.itemClicked.connect(self._on_result_click)
+        self._yazim_list.setContextMenuPolicy(
+            Qt.ContextMenuPolicy.CustomContextMenu)
+        self._yazim_list.customContextMenuRequested.connect(
+            self._on_yazim_context_menu)
+        yazim_layout.addWidget(self._yazim_list)
+        # Sekme KURULUYOR ama spylls yoksa EKLENMİYOR (menü öğesi de
+        # eklenmiyor): çalışamayacak bir sekme göstermek kullanıcıyı
+        # yanıltır. Kurulmuş olması zararsız ve kodu ikiye bölmüyor.
+        from gui.mixins.yazim_ops import yazim_kullanilabilir
+        # Referans TUTULUYOR: sekmeye eklenmeyen pencere öğesinin ebeveyni
+        # olmuyor, çöp toplayıcı onu ve ÇOCUKLARINI yok ediyor, sonra
+        # show_yazim silinmiş C++ nesnesine dokunup çöküyor. Test yakaladı.
+        self._yazim_widget = yazim
+        self._yazim_tab_index = (self._tabs.addTab(yazim, _("Yazım"))
+                                 if yazim_kullanilabilir() else -1)
+
+        self._yazim_dugme.clicked.connect(self._on_yazim_denetle)
+        self._yazim_ikinci.toggled.connect(self._on_yazim_denetle_varsa)
+
         # Sekmeye tıklayınca boş durmasın: panel .bib'in yerini bilmiyor,
         # dolduracak olan MainWindow. Menü öğesi de aynı sinyale bağlı.
         self._tabs.currentChanged.connect(self._on_tab_changed)
@@ -430,6 +494,81 @@ class OutputPanel(QWidget):
             self._psearch_status.setText(
                 _("{n} sonuç · {d} dosya").format(n=n, d=dosya))
         self._tabs.setCurrentIndex(self._psearch_tab_index)
+
+    # ------------------------------------------------------------------
+    # Yazım denetimi
+    # ------------------------------------------------------------------
+
+    def _on_yazim_denetle(self):
+        self.yazim_denetle_requested.emit(
+            self._yazim_dil.currentData(), self._yazim_ikinci.isChecked())
+
+    def _on_yazim_denetle_varsa(self):
+        """Kutu değişince YENİDEN denetle, ama yalnız bir kez denetlendiyse.
+
+        Aksi hâlde kutuya dokunmak sözlüğü yüklemeye başlar; kullanıcı henüz
+        özelliği kullanmaya karar vermemiş olabilir.
+        """
+        if self._yazim_list.count() or self._yazim_durum.text():
+            self._on_yazim_denetle()
+
+    def yazim_dili_ayarla(self, dil: str):
+        """Belgeden çıkarılan dili seç (kullanıcı yine değiştirebilir)."""
+        i = self._yazim_dil.findData(dil)
+        if i >= 0:
+            self._yazim_dil.setCurrentIndex(i)
+
+    def yazim_mesgul(self, mesaj: str):
+        """Sözlük yüklenirken/denetlenirken durum yaz, düğmeyi kilitle."""
+        self._yazim_durum.setText(mesaj)
+        self._yazim_dugme.setEnabled(not mesaj)
+
+    def show_yazim(self, bulgular, dosya_yolu: str, toplam_kelime: int = 0):
+        """Yazım bulgularını göster.
+
+        Öğe metni "satır:sütun  kelime"; UserRole'de (dosya, satır) durur,
+        yani tıklama mevcut error_clicked yoluna düşüp _goto_line'a gider.
+        """
+        self._yazim_list.clear()
+        self._yazim_dugme.setEnabled(True)
+        renk = QColor(self._theme.get("fg_primary", "#000000"))
+        for b in bulgular:
+            item = QListWidgetItem("%d:%d  %s" % (b.satir, b.sutun, b.kelime))
+            item.setData(Qt.ItemDataRole.UserRole, (dosya_yolu, b.satir))
+            item.setForeground(renk)
+            self._yazim_list.addItem(item)
+
+        n = len(bulgular)
+        if not n:
+            self._yazim_durum.setText(_("temiz"))
+        elif toplam_kelime:
+            # Oran ŞART: çıplak sayı "çok mu az mı" sorusuna cevap vermiyor.
+            # Ölçülen gerçekçi bant %2-5; kullanıcı kendi belgesinde nerede
+            # durduğunu ancak oranla görüyor.
+            self._yazim_durum.setText(
+                _("{n} bulgu · {k} kelime (%{o:.1f})").format(
+                    n=n, k=toplam_kelime, o=100.0 * n / toplam_kelime))
+        else:
+            self._yazim_durum.setText(_("{n} bulgu").format(n=n))
+        if self._yazim_tab_index >= 0:      # sekme eklenmemiş olabilir
+            self._tabs.setCurrentIndex(self._yazim_tab_index)
+
+    def _on_yazim_context_menu(self, pos):
+        item = self._yazim_list.itemAt(pos)
+        if item is None:
+            return
+        kelime = item.text().split("  ", 1)[-1]
+        menu = QMenu(self)
+        # Öneri ÜRETİLMİYOR, İSTENİYOR: ölçüldü, kelime başına 0.1-1.2 sn.
+        # Bütün liste için önden hesaplamak paneli kilitler.
+        menu.addAction(_("Öneriler..."),
+                       lambda: self.yazim_oneri_requested.emit(kelime))
+        menu.addAction(_("Sözlüğe ekle"),
+                       lambda: self.yazim_sozluge_ekle.emit(kelime))
+        menu.addSeparator()
+        menu.addAction(_("Kopyala"),
+                       lambda: QApplication.clipboard().setText(kelime))
+        menu.exec(self._yazim_list.mapToGlobal(pos))
 
     # --- Kaynakça sekmesi ---
 

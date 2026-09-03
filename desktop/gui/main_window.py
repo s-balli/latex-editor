@@ -40,6 +40,7 @@ from gui.mixins.version_ops import VersionOpsMixin
 from gui.mixins.synctex_ops import SyncTexMixin
 from gui.mixins.recovery_ops import RecoveryOpsMixin
 from gui.mixins.project_search_ops import ProjectSearchMixin
+from gui.mixins.yazim_ops import YazimOpsMixin
 
 
 class _PandocCheckSignal(QObject):
@@ -80,6 +81,7 @@ class MainWindow(
     SyncTexMixin,
     RecoveryOpsMixin,
     ProjectSearchMixin,
+    YazimOpsMixin,
     QMainWindow,
 ):
     def __init__(self, open_file: str = ""):
@@ -303,6 +305,15 @@ class MainWindow(
         self._add_action(edit_menu, _("Tabloyu &Hizala"), self._align_table)
         edit_menu.addSeparator()
         self._add_action(edit_menu, _("&Referansları Denetle"), self._audit_references)
+        # Yazım denetimi KOMUTLA çalışır, canlı değil: istenmeden sözlük
+        # yüklenmez (3.5 sn, 9.3 MB) ve ekranda hiçbir şey değişmez.
+        # spylls kurulu değilse öğe HİÇ EKLENMEZ: görünüp tıklanınca hata
+        # vermesindense hiç olmaması dürüst.
+        from gui.mixins.yazim_ops import yazim_kullanilabilir
+        if yazim_kullanilabilir():
+            self._add_action(edit_menu, _("Yazı&mı Denetle"),
+                             self._yazim_denetle, "Ctrl+Shift+Y",
+                             app_shortcut=True)
         self._add_action(edit_menu, _("&Kaynakçayı Listele"), self._show_bibliography)
         self._add_action(edit_menu, _("DOI ile Kaynak &Ekle..."), self._add_by_doi)
         edit_menu.addSeparator()
@@ -493,6 +504,8 @@ class MainWindow(
         self._output_panel.project_search_requested.connect(
             self._on_project_search_requested)
         self._output_panel.bibliography_requested.connect(self._show_bibliography)
+        # Yazım: panel kurulduktan SONRA bağlanmalı (sinyaller ondan geliyor)
+        self._init_yazim()
         self._file_tree.root_changed.connect(self._on_project_root_changed)
         self._file_tree.file_renamed.connect(self._on_file_renamed)
 
@@ -716,6 +729,8 @@ class MainWindow(
         left += "<span style='color:" + dim + "'>" + _("VS Code tarzı inline panel. Üç seçenek: büyük/küçük harf eşleştir, tam kelime, düzenli ifade. Desen kipinde değiştirmede \\1 yakalanan gruba karşılık gelir.") + "</span>"
         left += "<br><br>"
         left += "<b>" + _("Klasörde Ara") + " (Ctrl+Shift+F)</b><br>"
+        left += "<b>" + _("Yazım Denetimi") + " (Ctrl+Shift+N)</b><br>"
+        left += "<span style='color:" + dim + "'>" + _("Yazım sekmesinden Denetle: belge taranır, bulgular satır numarasıyla listelenir, tıklayınca o satıra gidilir. Denetim canlı değildir, siz istemeden çalışmaz. Dil belgeden anlaşılır (% !TEX spellcheck ya da babel); Türkçe tezin İngilizce özeti gibi iki dilli belgelerde 'İkinci dil de var' kutusunu işaretleyin. Bulguya sağ tıklayarak öneri alabilir ya da kelimeyi kendi sözlüğünüze ekleyebilirsiniz.") + "</span><br><br>"
         left += "<span style='color:" + dim + "'>" + _("Klasör ağacındaki TÜM .tex/.bib/.cls/.sty dosyalarının İÇİNDE arar — sekmede açık olmayanlar dahil. Ctrl+F yalnız açık sekmede arar. Sonuca tıklayınca o dosyanın o satırına gidilir.") + "</span>"
         left += "<br><br>"
         left += "<b>" + _("Hızlı Dosya Aç") + " (Ctrl+P)</b><br>"
@@ -740,7 +755,7 @@ class MainWindow(
         left += "<span style='color:" + dim + "'>" + _("Otomatik \\documentclass şablonu ile yeni .tex dosyası.") + "</span>"
         left += "<br><br>"
         left += "<b>" + _("Çıktı Paneli") + "</b><br>"
-        left += "<span style='color:" + dim + "'>" + _("Alt paneldeki sekmeler: Hatalar, Uyarılar, Öneriler, Log, Sürüm Geçmişi, Klasörde Ara ve Kaynakça. Hata ve uyarı satırlarına tıklayınca ilgili dosyanın o satırına gidilir; Öneriler sekmesi hatanın ne anlama geldiğini Türkçe anlatır. Panel ayırıcıdan sürüklenerek büyütülebilir. Esc derlemeyi durdurur.") + "</span>"
+        left += "<span style='color:" + dim + "'>" + _("Alt paneldeki sekmeler: Hatalar, Uyarılar, Öneriler, Log, Sürüm Geçmişi, Klasörde Ara, Kaynakça ve Yazım. Hata ve uyarı satırlarına tıklayınca ilgili dosyanın o satırına gidilir; Öneriler sekmesi hatanın ne anlama geldiğini Türkçe anlatır. Panel ayırıcıdan sürüklenerek büyütülebilir. Esc derlemeyi durdurur.") + "</span>"
         left += "<br><br>"
         left += "<b>" + _("Hata İşareti + F4") + "</b><br>"
         left += "<span style='color:" + dim + "'>" + _("Derleyince hata satırları gutter'da kırmızı işaretlenir. F4/Shift+F4 ile hatalar arasında dolaşın.") + "</span>"
@@ -1287,6 +1302,7 @@ class MainWindow(
                 # Discard → devam et
         self._cleanup_synctex_worker()
         self._cleanup_project_search()
+        self._cleanup_yazim()
         self._pdf_viewer.shutdown()
         shutil.rmtree(self._synctex_dir, ignore_errors=True)
         # Buraya ancak TEMİZ kapanışta gelinir: yukarıdaki döngü her kirli
