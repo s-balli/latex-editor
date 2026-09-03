@@ -151,10 +151,13 @@ def uret(kaynak_metin: str) -> str:
     s = re.sub(r'<span class="en">.*?</span>', "", s, flags=re.S)
     s = _yorumlari_geri_koy(s, yorumlar)
 
-    # 3. Sahiplik dogrulamasi yalniz kokte dursun, kopyalanmasin.
-    s = re.sub(r'\s*<!-- Google Search Console.*?-->\s*\n'
-               r'\s*<meta name="google-site-verification"[^>]*/>\n',
+    # 3. Sahiplik dogrulamalari yalniz ana sayfada dursun, kopyalanmasin.
+    #    Arama motorlari dogrulamayi mulkun ANA sayfasinda ariyor; alt
+    #    sayfaya kopyalamak hicbir ise yaramiyor, yalniz kafa karistiriyor.
+    s = re.sub(r'\s*<!-- Arama motoru sahiplik dogrulamalari.*?-->\s*\n',
                "\n", s, flags=re.S)
+    s = re.sub(r'\s*<meta name="(?:google-site|yandex)-verification"[^>]*/>',
+               "", s)
 
     # 4. Baslik ve aciklama
     s = re.sub(r"<title>[^<]*</title>", "<title>%s</title>" % TR_BASLIK, s)

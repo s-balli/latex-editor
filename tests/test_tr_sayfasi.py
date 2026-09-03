@@ -185,8 +185,17 @@ def test_script_js_DILE_DOKUNMUYOR():
 
 
 def test_dogrulama_metasi_KOPYALANMAMIS(tr):
-    """Search Console dogrulamasi kokte duruyor, /tr/ye tasinmiyor."""
+    """Sahiplik dogrulamalari ana sayfada duruyor, /tr/ye tasinmiyor.
+
+    Arama motorlari dogrulamayi mulkun ANA sayfasinda ariyor; alt sayfaya
+    kopyalamak hicbir ise yaramiyor. Kaynakta ikisi de var (Google ve
+    Yandex), ikisi de cikarilmali.
+    """
+    kaynak = _oku(KAYNAK)
+    assert "google-site-verification" in kaynak, "kaynakta olmali"
+    assert "yandex-verification" in kaynak, "kaynakta olmali"
     assert "google-site-verification" not in tr
+    assert "yandex-verification" not in tr
 
 
 def test_alt_metinleri_TURKCE(tr):
