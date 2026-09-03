@@ -117,14 +117,34 @@ def test_goreli_yollar_BIR_SEVIYE_yukari(tr):
         assert os.path.exists(tam), "kirik yol: " + yol
 
 
-def test_dil_dugmesi_BAGLANTIYA_donusmus(tr):
-    """`/tr/` sayfasinda `.en` span'i yok, JS dugmesinin cevirecegi metin de.
+def test_dil_gecisi_DUZ_BAGLANTI(tr):
+    """Dil degistirme JS degil, iki sayfa arasi baglanti.
 
-    Dugme koke giden baglanti oldu. `?lang=en` SART: kayitli tercih "tr"
-    ise kullanici EN'e tikladigi hâlde yine Turkce sayfa aciliyordu.
+    Once kok sayfada bir JS dugmesi vardi ve `data-lang`i degistiriyordu.
+    /tr/ cikinca bu yanlis oldu: sunucu kok URL'de Ingilizce HTML
+    gonderdigi hâlde tarayici dili Turkce olan ziyaretci ORADA Turkce
+    sayfa goruyordu, hangi URL hangi dil belli degildi.
     """
+    kaynak = _oku(KAYNAK)
     assert 'id="lang-toggle"' not in tr
-    assert 'href="../?lang=en"' in tr
+    assert 'id="lang-toggle"' not in kaynak
+    assert '<a class="lang-toggle" href="../" hreflang="en"' in tr
+    assert '<a class="lang-toggle" href="tr/" hreflang="tr"' in kaynak
+
+
+def test_script_js_DILE_DOKUNMUYOR():
+    """Dil mantigi tamamen kalkti.
+
+    Betik /tr/ sayfasinda da yuklendigi icin kalirsa zararli: kayitli
+    tercih "en" ise CSS BUTUN Turkce span'leri gizliyor ve sayfa bombos
+    aciliyordu. Kalan tek is panoya kopyalama.
+    """
+    js = _oku(os.path.join(KOK, "docs", "script.js"))
+    govde = re.sub(r"//[^\n]*", "", js)          # aciklama satirlarini at
+    assert "data-lang" not in govde
+    assert "localStorage" not in govde
+    assert "lang-toggle" not in govde
+    assert "copy-btn" in govde
 
 
 def test_dogrulama_metasi_KOPYALANMAMIS(tr):

@@ -95,7 +95,15 @@
       <span class="brand-name"><span class="en">Editor</span><span class="tr">Editör</span></span>
     </a>
     <nav class="nav-actions">
-      <button id="lang-toggle" class="lang-toggle" type="button" aria-label="Toggle language">TR</button>
+      <!-- Dil degistirme ARTIK BAGLANTI, JS degil. Once bu bir dugmeydi ve
+           script.js `data-lang`i degistirip Turkce span'leri gosteriyordu;
+           /tr/ sayfasi cikinca bu yanlis oldu: sunucu Ingilizce HTML
+           gonderdigi hâlde tarayici dili Turkce olan ziyaretci KOK URL'de
+           Turkce sayfa goruyordu, /tr/ ise ayri duruyordu. Simdi kok
+           yalniz Ingilizce, TR baglantisi /tr/ye goturuyor.
+           Tarayici diline gore OTOMATIK YONLENDIRME yok: Google bunu
+           onermiyor, tarayici oteki surumu hic goremeyebiliyor. -->
+      <a class="lang-toggle" href="tr/" hreflang="tr" aria-label="Switch to Turkish">TR</a>
       <a class="ghost-btn" href="https://github.com/s-balli/latex-editor" target="_blank" rel="noopener">
         <span class="en">GitHub</span><span class="tr">GitHub</span>
       </a>

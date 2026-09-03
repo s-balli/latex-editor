@@ -70,7 +70,6 @@ OZNITELIK_CEVIRI = {
     "Typing a sentence, saving, and the PDF preview refreshing on its own":
         "Bir cümle yazıp kaydetmek, PDF önizlemenin kendiliğinden "
         "yenilenmesi",
-    "Switch to English": "İngilizce sürüme geç",
 }
 
 # `/tr/` bir alt dizinde, koke gore yollar bir seviye yukari kaymali.
@@ -191,16 +190,27 @@ def uret(kaynak_metin: str) -> str:
                '"description": "%s",' % TR_OG_ACIKLAMA, s)
     s = s.replace('"inLanguage": ["en", "tr"],', '"inLanguage": "tr",')
 
-    # 7. Goreli yollar bir seviye yukari (styles.css, script.js, assets/...)
-    s = GORELI_YOL.sub(lambda m: '%s="../%s"' % (m.group(1), m.group(2)), s)
+    # 7. Dil baglantisi TERS YONE: kaynakta "TR -> tr/", burada "EN -> ../".
+    #    Ustundeki aciklama kok sayfayi anlatiyor, o da cikariliyor.
+    #    YOL DUZELTMESINDEN ONCE: sonra yapilirsa `href="tr/"` coktan
+    #    `href="../tr/"` olmus oluyor ve esleme kaciyor.
+    #    aria-label her sayfada O SAYFANIN dilinde: kokte Ingilizce
+    #    ("Switch to Turkish"), burada Turkce.
+    s = re.sub(r" *<!-- Dil degistirme ARTIK BAGLANTI.*?-->\n", "", s,
+               flags=re.S)
+    eski_baglanti = ('<a class="lang-toggle" href="tr/" hreflang="tr"'
+                     ' aria-label="Switch to Turkish">TR</a>')
+    if eski_baglanti not in s:
+        raise SystemExit(
+            "dil baglantisi kaynakta bulunamadi, degismis olabilir")
+    s = s.replace(eski_baglanti,
+                  '<a class="lang-toggle" href="../" hreflang="en"'
+                  ' aria-label="İngilizce sürüme geç">EN</a>')
 
-    # 8. Dil dugmesi: `/tr/` sayfasinda `.en` span'i yok, JS'in cevirecegi
-    #    metin de yok. Dugme koke giden baglantiya donusuyor.
-    s = re.sub(
-        r'<button id="lang-toggle" class="lang-toggle" type="button"'
-        r' aria-label="[^"]*">TR</button>',
-        '<a class="lang-toggle" href="../?lang=en" hreflang="en"'
-        ' aria-label="Switch to English">EN</a>', s)
+    # 8. Goreli yollar bir seviye yukari (styles.css, script.js, assets/...).
+    #    `../` ile baslayanlar desende zaten haric, yukaridaki baglanti
+    #    ikinci kez kaydirilmiyor.
+    s = GORELI_YOL.sub(lambda m: '%s="../%s"' % (m.group(1), m.group(2)), s)
 
     # 9. hreflang bloku KAYNAKTAN GELIYOR, burada tekrar EKLENMIYOR: iki
     #    sayfada ayni olmasi gerekiyor ve kaynakta zaten var. (Once burada

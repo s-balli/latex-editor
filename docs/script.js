@@ -1,59 +1,18 @@
-// Language toggle (EN / TR). SSS uses native <details>, so JS only handles language.
-(function () {
-  "use strict";
-  var root = document.documentElement;
-  var btn = document.getElementById("lang-toggle");
-  var KEY = "latex-editor-lang";
-
-  // TEK DILLI SAYFADA HIC CALISMA. /tr/ sayfasi bu dosyayi da yukluyor ama
-  // orada `.en` span'leri hic yok ve dugme yerine koke giden bir baglanti
-  // var, yani `#lang-toggle` bulunamiyor. Bu erken cikis olmadan
-  // apply(resolveInitial()) kayitli tercih "en" ise (ya da tarayici dili
-  // Ingilizce ise) data-lang="en" yaziyordu; CSS o durumda BUTUN `.tr`
-  // span'lerini gizledigi icin /tr/ sayfasi bombos aciliyordu.
-  // Statik `data-lang` uretilen sayfada zaten dogru.
-  if (!btn) return;
-
-  function resolveInitial() {
-    // `?lang=en` ACIK BIR SECIMDIR, kayitli tercihi de ezer ve yerine
-    // gecer. /tr/ sayfasindaki "EN" baglantisi buraya bunu ekleyerek
-    // geliyor: onceki tercih "tr" olsaydi kullanici EN'e tikladigi hâlde
-    // yine Turkce sayfa aciliyordu.
-    var q = /[?&]lang=(en|tr)\b/.exec(location.search);
-    if (q) {
-      try { localStorage.setItem(KEY, q[1]); } catch (e) {}
-      return q[1];
-    }
-    var saved = null;
-    try { saved = localStorage.getItem(KEY); } catch (e) {}
-    if (saved === "en" || saved === "tr") return saved;
-    var nav = (navigator.language || "en").toLowerCase();
-    return nav.indexOf("tr") === 0 ? "tr" : "en";
-  }
-
-  // Sekme basligi. <title> element iceremedigi icin iki dilli span numarasi
-  // orada calismiyor; statik baslik HTML'de tek dilde duruyor (arama motoru
-  // onu goruyor) ve kullaniciya gore burada degistiriliyor.
-  var BASLIKLAR = {
-    en: "LaTeX Editor: desktop LaTeX editor with live PDF preview",
-    tr: "LaTeX Editor: canlı PDF önizlemeli masaüstü LaTeX editörü"
-  };
-
-  function apply(lang) {
-    root.setAttribute("data-lang", lang);
-    root.setAttribute("lang", lang);
-    if (BASLIKLAR[lang]) document.title = BASLIKLAR[lang];
-    btn.textContent = lang === "en" ? "TR" : "EN";
-  }
-
-  apply(resolveInitial());
-
-  btn.addEventListener("click", function () {
-    var next = root.getAttribute("data-lang") === "tr" ? "en" : "tr";
-    try { localStorage.setItem(KEY, next); } catch (e) {}
-    apply(next);
-  });
-})();
+// DIL DEGISTIRME BURADA DEGIL. Iki ayri sayfa var: / (Ingilizce) ve /tr/
+// (Turkce, docs/index.html'den uretiliyor). Gecis duz baglantiyla oluyor.
+//
+// Onceden burada bir dil dugmesi mantigi vardi: `data-lang` degistirilip
+// CSS ile oteki dilin span'leri gizleniyordu. /tr/ sayfasi cikinca bu
+// YANLIS oldu ve iki somut kusur uretti:
+//   - sunucu kok URL'de Ingilizce HTML gonderdigi hâlde tarayici dili
+//     Turkce olan (ya da daha once TR'ye tiklamis) ziyaretci orada Turkce
+//     sayfa goruyordu; /tr/ ise ayri duruyordu, hangi URL hangi dil belli
+//     degildi
+//   - ayni betik /tr/ sayfasinda da yukleniyor ve kayitli tercih "en" ise
+//     BUTUN Turkce span'leri gizliyordu: sayfa bombos aciliyordu
+//
+// Artik her sayfanin dili statik HTML'de sabit; JS'in dile dokunmasi yok.
+// SSS icin de JS gerekmiyor, yerlesik <details> kullaniliyor.
 
 // Copy-to-clipboard for command blocks
 document.querySelectorAll(".copy-btn").forEach(function (btn) {
