@@ -54,6 +54,43 @@ def test_uretilen_sayfa_GUNCEL():
         "Uret: python scripts/tr_sayfasi_uret.py")
 
 
+def test_kaynakta_HER_ingilizce_span_ESLESIYOR():
+    """Turkcesi olmayan bir Ingilizce span, /tr/ de icerik KAYBI demek.
+
+    Kaynaga `<span class="en">Yeni ozellik</span>` eklenip Turkcesi
+    unutulursa uretec o span'i siler ve yerine hicbir sey koymaz: bolum
+    Turkce sayfada sessizce yok olur. Hicbir baska kapi bunu gormuyor,
+    cunku uretim yine tutarli calisiyor.
+
+    Beklenen dizilis: her `en` span'ini HEMEN bir `tr` span'i izler.
+    """
+    d = [m.group(1) for m in re.finditer(
+        r'<span class="(en|tr)">', _yorumsuz(_oku(KAYNAK)))]
+    assert d, "kaynakta hic dil span'i yok, desen degismis olabilir"
+    assert len(d) % 2 == 0, "tek sayida span: bir esi eksik"
+    ciftler = list(zip(d[::2], d[1::2]))
+    hatali = [i for i, c in enumerate(ciftler) if c != ("en", "tr")]
+    assert not hatali, (
+        "su span ciftleri (en, tr) sirasinda degil: %s" % hatali[:5])
+
+
+def test_dil_spanlari_IC_ICE_DEGIL():
+    """Uretec `<span class="en">.*?</span>` ile siliyor: non-greedy.
+
+    Bir dil span'i baska bir <span> icerirse desen YANLIS YERDE kapanir,
+    geriye sarkan `</span>` ve Ingilizce metin kalir. Simdilik ic ice
+    span yok; olursa uretecin degismesi gerekir, bu test haber verir.
+    """
+    s = _yorumsuz(_oku(KAYNAK))
+    for m in re.finditer(r'<span class="(en|tr)">', s):
+        kalan = s[m.end():]
+        kapanis = kalan.find("</span>")
+        acilis = kalan.find("<span")
+        assert acilis == -1 or acilis > kapanis, (
+            "dil span'i icinde ic ice span var: "
+            + re.sub(r"\s+", " ", kalan[:80]))
+
+
 def test_ingilizce_span_KALMAMIS(tr):
     """Sayfanin varlik sebebi: statik HTML gercekten Turkce olsun."""
     assert 'class="en"' not in _yorumsuz(tr)
@@ -172,6 +209,33 @@ def test_uretec_KAYNAKTAN_SAPARSA_patliyor():
     bozuk = _oku(KAYNAK).replace("SyncTeX demo", "SyncTeX gosterimi demo")
     with pytest.raises(SystemExit):
         uretec.uret(bozuk)
+
+
+def test_iki_sayfa_YAPISAL_OLARAK_DENK(tr):
+    """Ayni bolumler, ayni gorseller, ayni baglantilar.
+
+    Karsilastirma yapilirken KOKTEN DE Turkce span'ler atilmali: kok
+    sayfanin ham HTML'i iki dili birden tasiyor, span icindeki her
+    `<code>` ve `<a>` iki kez sayiliyor. (Ilk olcumde bunu atlayip
+    "/tr/ de 7 `<code>` eksik" diye yanlis sonuca vardim; hepsi kokteki
+    Ingilizce kopyalardi.)
+    """
+    kaynak_en = re.sub(r'<span class="tr">.*?</span>', "",
+                       _yorumsuz(_oku(KAYNAK)), flags=re.S)
+    trs = _yorumsuz(tr)
+
+    def say(s):
+        return {e: len(re.findall(r"<%s\b" % e, s)) for e in
+                ("section", "details", "summary", "h1", "h2", "h3",
+                 "img", "li", "code")}
+
+    assert say(kaynak_en) == say(trs)
+
+    # Gorseller: /tr/ bir alt dizinde, yol farki normalize ediliyor
+    ga = re.findall(r'<img[^>]*src="([^"]+)"', kaynak_en)
+    gb = [x.replace("../", "")
+          for x in re.findall(r'<img[^>]*src="([^"]+)"', trs)]
+    assert ga == gb
 
 
 def test_sitemap_IKI_SAYFAYI_da_iceriyor():
