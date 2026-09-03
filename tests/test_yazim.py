@@ -197,11 +197,53 @@ def test_url_atlanir():
     assert "Adres" in ks and "burada" in ks
 
 
-def test_kesme_isaretinde_KOK_denetlenir():
-    """Türkçede kesme işareti özel ad + ek ayırır: Ankara'da."""
+def test_kesmeli_kelime_TAM_BICIMIYLE_verilir():
+    """Tarayici kesme isaretinde KIRPMIYOR; kok ayirmayi Denetleyici yapiyor.
+
+    Onceden `k.split("'")[0]` uygulaniyordu. Bu Turkce icin dogru
+    (Ankara'da -> Ankara) ama INGILIZCE KISALTMALARI bozuyordu:
+    `doesn't` -> "doesn" diye yanlis isaretleniyordu. Bu belgelerde
+    Ingilizce metin de var (olculdu, uc sablonda).
+    """
     ks = sozler("Ankara'da yapildi")
-    assert "Ankara" in ks
-    assert "da" not in ks
+    assert "Ankara'da" in ks
+    assert "da" not in ks and "Ankara" not in ks
+
+    assert "doesn't" in sozler("It doesn't work")
+
+
+def test_doi_kelimeye_bolunmez():
+    """`10.17780/ksujes.435734` -> "ksujes" oneriye dusuyordu.
+
+    DOI rakamla basliyor, kelime rakamla BASLAMADIGI icin adres denetimi
+    onu hic gormuyordu; tarayicinin rakam dalinda da bakiliyor artik.
+    """
+    ks = sozler("Bkz. doi: 10.17780/ksujes.435734 sonrasi metin.")
+    assert "ksujes" not in ks
+    assert ks == ["Bkz", "doi", "sonrasi", "metin"]
+
+
+def test_rakamla_baslayan_HER_SEY_yutulmaz():
+    """DOI duzeltmesinin denetimi: sira no ve surum kelime uretmemeli
+    ama ARDINDAKI metni de yutmamali."""
+    assert sozler("Yil 2024 ve sayfa 435 numarali") == [
+        "Yil", "ve", "sayfa", "numarali"]
+    assert sozler("Surum 10.17 kararli surumdur") == [
+        "Surum", "kararli", "surumdur"]
+
+
+def test_yerlesim_ve_sutun_belirteci_atlanir():
+    r"""`\begin{figure}[htbp]` -> "htbp", `{lcccc}` -> "lcccc" cikiyordu."""
+    assert sozler(r"\begin{figure}[htbp] Sekil aciklamasi") == [
+        "Sekil", "aciklamasi"]
+    assert sozler(r"\begin{tabular}{lcccc} Hucre") == ["Hucre"]
+
+
+def test_teorem_basligi_METINDIR():
+    """Belirtec atlama neden LISTEYLE sinirli: her ortamin koseli
+    argumani belirtec degil, `theorem` icin duz metin."""
+    ks = sozler(r"\begin{theorem}[Pisagor Teoremi] icerik")
+    assert "Pisagor" in ks and "Teoremi" in ks
 
 
 # =====================================================================
@@ -373,6 +415,19 @@ def test_ikincil_dil_ingilizce_terimi_kurtarir():
     assert d.dogru_mu("bandwidth") is True
 
 
+def test_ikincil_dil_KESMELI_terimin_KOKUNU_kurtarir():
+    """`byte'lari`: kok Ingilizce, ek Turkce. Turkce akademik metinde yaygin.
+
+    Tam bicimde Turkce harf var, _ikincil_kurtarabilir onu reddediyor;
+    kurtarma KOK uzerinden olmali. Olculdu: template36-ders'te 13 bulgu
+    (codec'leri, byte'lari, router'dur, subnet'lere, network'tur...).
+    """
+    d = _ikili([], ["byte", "router"])
+    assert d.dogru_mu("byte'ları") is True
+    assert d.dogru_mu("router'dür") is True
+    assert d.dogru_mu("codec'leri") is False   # koku ikincilde de yok
+
+
 def test_ikincil_dil_TURKCE_HARFLI_kelimeyi_KURTARAMAZ():
     """İngilizce sözlük Türkçe harf taşıyan kelimeyi kurtarmamalı.
 
@@ -394,6 +449,64 @@ def test_ingilizce_birincilde_TURKCE_ancak_kendi_harfiyle_kurtarir():
     d = _ikili([], ["elit", "ağırlık"], birincil="en_US", ikincil="tr_TR")
     assert d.dogru_mu("elit") is False          # ASCII: Türkçe kurtaramaz
     assert d.dogru_mu("ağırlık") is True        # Türkçe harfli: kurtarır
+
+
+def test_kesmeli_kelime_ONCE_TAM_BICIMLE_sorulur():
+    """`doesn't` sozlukte varsa kok denemesine hic gidilmemeli."""
+    d = _denetleyici(["doesn't"])
+    assert d.dogru_mu("doesn't")
+    assert d._sozluk.sorulan == ["doesn't"]
+
+
+def test_kesmeli_kelimede_KOKE_de_bakilir():
+    """Turkce ozel ad + ek: sozlukte `Ankara` var, `Ankara'da` yok."""
+    d = _denetleyici(["Ankara"])
+    assert d.dogru_mu("Ankara'da")
+    assert "Ankara" in d._sozluk.sorulan
+
+
+def test_kok_de_yoksa_kelime_YANLIS_kalir():
+    """Kok yedegi her kesmeli kelimeyi affetmiyor."""
+    d = _denetleyici(["Ankara"])
+    assert not d.dogru_mu("Bilinmeyen'de")
+
+
+def test_kaynakca_etiketi_isaretlenmez():
+    """`doi` bir alan adi, metin degil.
+
+    Olculdu: `thebibliography` icindeki 108 bulgunun 57'si tek basina
+    `doi`. Sozlukte yok, her belgede tekrar tekrar oneriye dusuyordu.
+    """
+    d = _denetleyici([])
+    assert d.dogru_mu("doi")
+    assert d.dogru_mu("DOI")          # buyuk harfli de ayni etiket
+    assert d.dogru_mu("isbn")
+
+
+def test_kaynakca_LISTESI_DAR_tutuluyor():
+    """Liste kaynakca etiketleriyle sinirli, genel bir terim listesi degil.
+
+    `convolutional`, `graphene` gibi terimler de sozlukte yok ama onlar
+    GERCEK metin, govdede de geciyorlar; yerleri kullanici sozlugu.
+    Listeyi genisletmek yazim denetimini sessizce kor eder.
+    """
+    d = _denetleyici([])
+    assert not d.dogru_mu("convolutional")
+    assert not d.dogru_mu("graphene")
+
+
+def test_kullanici_sozlugu_KOKE_de_bakar(tmp_path):
+    """`codec` bir kez eklenince `codec'leri` de kapanmali.
+
+    Tarayici kesme isaretini kirpmayi biraktiginda kullanici her ek icin
+    ayri kayit yapmak zorunda kaliyordu; olculdu, template36-ders'te
+    `codec'ler` ve `codec'leri` ayri bulgular.
+    """
+    d = _denetleyici([], kullanici_sozlugu=str(tmp_path / "k.txt"))
+    d.kullaniciya_ekle("codec")
+    assert d.dogru_mu("codec'leri")
+    assert d.dogru_mu("codec")
+    assert not d.dogru_mu("jitter'i")
 
 
 def test_ikincil_yokken_davranis_degismez():

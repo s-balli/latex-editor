@@ -119,6 +119,21 @@ title subtitle author date institute affiliation keywords
 shorttitle runningtitle thanks dedication
 """.split())
 
+# `\begin{env}` SONRASINDAKİ argümanları metin değil, YERLEŞİM/SÜTUN belirteci
+# olan ortamlar. `\begin{figure}[htbp]` -> "htbp", `\begin{tabular}{lcccc}` ->
+# "lcccc" diye sahte kelimeler çıkıyordu; ölçüldü, sekiz ve altı şablonda.
+#
+# Liste ŞART, körü körüne atlanamaz: `\begin{theorem}[Pisagor Teoremi]`
+# argümanı GERÇEK METİNDİR ve denetlenmeli.
+#
+# `array`, `lstlisting` ve `tabular*` BİLEREK YOK: onlar _ATLANACAK_ORTAM'da,
+# içleri zaten hiç denetlenmiyor, buraya yazmak ölü girdi olurdu.
+_BELIRTECLI_ORTAM = frozenset("""
+figure figure* table table* tabular tabularx longtable
+minipage wrapfigure subfigure subtable adjustbox sidewaystable sideways
+algorithm algorithmic multicols wraptable threeparttable
+""".split())
+
 # Bu ortamların İÇİ hiç denetlenmez.
 _ATLANACAK_ORTAM = frozenset(
     "verbatim Verbatim lstlisting minted alltt tikzpicture "
@@ -131,10 +146,36 @@ _HARF = re.compile(r"[^\W\d_]", re.UNICODE)
 # yazar e-postası düz metinde geçiyor ve parçalanıyordu: eskinhasan@gmail.com
 # -> "eskinhasan", "gmail", "com" diye üç yanlış işaret. ÖLÇÜLDÜ
 # (template35-asyu): 434 bulgunun 30'u bu sınıftandı.
+#
+# DOI de aynı sınıfta: `10.3389/fpls.2016.01419` içinden "fpls" diye sahte
+# kelimeler çıkıyordu. Biçimi çok belirgin olduğu için atlamak GÜVENLİ
+# (10 + nokta + 4-9 rakam + eğik çizgi). ÖLÇÜLDÜ: template24/35'te altı,
+# template36'da otuz altı yanlış işaret bu kaynaktan.
+#
+# DENENDİ VE VAZGEÇİLDİ: "kelime + iki nokta + rakam" kalıbını tanımlayıcı
+# saymak. Aynı kalıba `örn: 192.168.1.1` ve `findstr :8080` düşüyor; `örn`
+# meşru Türkçe kısaltma. Ölçülüp elendi.
+# Kaynakçada tanımlayıcının ÖNÜNDE duran etiketler. Metin değil, alan adı.
+# ÖLÇÜLDÜ: `thebibliography` içindeki 108 bulgunun 57'si tek başına `doi`.
+#
+# Liste bilerek DAR: yalnız kaynakça tanımlayıcı etiketleri. `convolutional`,
+# `graphene`, `pyrolysis` gibi terimler de sözlükte yok ama onlar GERÇEK
+# metin, gövdede de geçiyorlar; onların yeri kullanıcı sözlüğü.
+#
+# `vol`, `pp`, `ed`, `eds`, `et`, `al`, `cf`, `ibid` BİLEREK YOK: sözlükte
+# zaten varlar (ölçüldü).
+#
+# DENENDİ VE VAZGEÇİLDİ: `thebibliography` ortamını topluca atlamak. Bloğun
+# kendisi bulguların yalnız %0.7'si ve içindeki 51 bulgu gerçek terim.
+_KAYNAKCA_ETIKETI = frozenset("""
+doi isbn issn arxiv pmid orcid eprint url urn preprint ssrn hdl
+""".split())
+
 _RE_ADRES = re.compile(
     r"(?:[\w.+-]+@[\w-]+(?:\.[\w-]+)+"
     r"|https?://[^\s{}]+"
-    r"|www\.[\w-]+(?:\.[\w-]+)+)", re.UNICODE)
+    r"|www\.[\w-]+(?:\.[\w-]+)+"
+    r"|10\.\d{4,9}/[^\s,;)}\]]+)", re.UNICODE)
 
 
 def _harf_mi(ch: str) -> bool:
@@ -373,13 +414,15 @@ class _Tarayici:
         def bosalt():
             nonlocal kelime
             if kelime:
-                k = "".join(kelime)
+                k = "".join(kelime).strip("'’")
                 kelime = []
-                # Türkçede kesme işareti özel ad + ek ayırır (Ankara'da).
-                # Kökü denetle, eki bırak.
-                kok = k.split("'")[0].split("\u2019")[0]
-                if len(kok) >= 2 and any(_harf_mi(c) for c in kok):
-                    return Kelime(kok, bas_satir, bas_sutun, bas_ofset)
+                # Kesme işareti KIRPILMIYOR, tam biçim veriliyor. Kökü burada
+                # ayırmak İNGİLİZCE KISALTMALARI bozuyordu: `doesn't` -> "doesn"
+                # diye yanlış işaretleniyordu (ölçüldü, üç şablonda).
+                # Türkçe özel ad + ek ayrımını (Ankara'da) Denetleyici yapıyor:
+                # önce tam biçime, sonra kesmeden önceki köke bakıyor.
+                if len(k) >= 2 and any(_harf_mi(c) for c in k):
+                    return Kelime(k, bas_satir, bas_sutun, bas_ofset)
             return None
 
         while self.i < self.n:
@@ -444,6 +487,16 @@ class _Tarayici:
                         onsoz = False
                     elif ad == "begin" and ortam in _ATLANACAK_ORTAM:
                         self._ortam_atla(ortam)
+                    elif ad == "begin" and ortam in _BELIRTECLI_ORTAM:
+                        # yerleşim/sütun belirteçleri: [htbp], {lcccc}
+                        while True:
+                            self._bosluk_atla()
+                            if self._bak() == "[":
+                                self._kose_atla()
+                            elif self._bak() == "{":
+                                self._grup_atla()
+                            else:
+                                break
                     continue
 
                 if onsoz:
@@ -509,6 +562,16 @@ class _Tarayici:
             r = bosalt()
             if r:
                 yield r
+            # RAKAMLA başlayan tanımlayıcılar kelime başında yakalanamaz,
+            # çünkü rakam kelime başlatmıyor: tarayıcı `10.17780/` kısmını
+            # karakter karakter geçip `ksujes`te kelimeye başlıyordu.
+            # Burada da denenmeli. Yalnız rakamda deneniyor; her karakterde
+            # düzenli ifade çalıştırmak gereksiz maliyet.
+            if c.isdigit():
+                m = _RE_ADRES.match(self.s, self.i)
+                if m:
+                    self._ilerle(m.end() - m.start())
+                    continue
             self._ilerle()
 
         r = bosalt()
@@ -648,16 +711,42 @@ class Denetleyici:
         sonuc = self._onbellek.get(kelime)
         if sonuc is not None:
             return sonuc
-        if kelime in self._kullanici:
+        # Denenecek biçimler: önce tam biçim, sonra kesme işaretinden önceki
+        # kök. Türkçede kesme özel ad + ek ayırıyor (Ankara'da, TÜBİTAK'ın);
+        # İngilizce kısaltmalar (doesn't) tam biçimle bulunuyor, o yüzden
+        # tam biçim önce deneniyor.
+        bicimler = [kelime]
+        if "'" in kelime or "’" in kelime:
+            kok = kelime.replace("’", "'").split("'")[0]
+            if len(kok) >= 2:
+                bicimler.append(kok)
+
+        if kelime.lower() in _KAYNAKCA_ETIKETI:
+            sonuc = True
+        # Kullanıcı sözlüğü de KÖKE bakmalı: kullanıcı `codec`i bir kez
+        # ekleyince `codec'leri` de kapanmalı, yoksa her ek için ayrı ayrı
+        # eklemesi gerekir.
+        elif any(b in self._kullanici for b in bicimler):
             sonuc = True
         elif self._sozluk is None:
             sonuc = True                         # sözlük yokken kimseyi suçlama
         else:
-            sonuc = bool(self._sozluk.lookup(kelime))
-            if not sonuc and self.ikincil is not None:
-                sonuc = (_ikincil_kurtarabilir(kelime, self.dil,
-                                               self.ikincil.dil)
-                         and self.ikincil.dogru_mu(kelime))
+            sonuc = False
+            for bicim in bicimler:
+                if self._sozluk.lookup(bicim):
+                    sonuc = True
+                    break
+                # İkincil sözlük KÖKE de bakmalı: `codec'leri`, `byte'ları`
+                # gibi İngilizce terim + Türkçe ek Türkçe akademik metinde
+                # yaygın (ölçüldü, 18 kelime, dört şablonda). Tam biçimde
+                # Türkçe harf olduğu için _ikincil_kurtarabilir onu reddeder,
+                # kök (`codec`) ise geçer. Ayrım tam da bu: kök İngilizce,
+                # ek Türkçe.
+                if self.ikincil is not None and _ikincil_kurtarabilir(
+                        bicim, self.dil, self.ikincil.dil) \
+                        and self.ikincil.dogru_mu(bicim):
+                    sonuc = True
+                    break
         self._onbellek[kelime] = sonuc
         return sonuc
 
