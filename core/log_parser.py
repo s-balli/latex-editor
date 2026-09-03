@@ -59,6 +59,19 @@ _RE_ENGINE_WARN = re.compile(r'^\s*(pdfTeX|LuaTeX|XeTeX) warning[^:]*: (.+)', re
 _RE_BOX_WARN = re.compile(r'^\s*(Overfull|Underfull) \\\w+ .+')
 # Font uyarısı
 _RE_FONT_WARN = re.compile(r'^\s*Font .+ not loadable')
+# "Missing character: There is no ş (U+015F) in font ec-lmr10!"
+#
+# XeLaTeX/LuaLaTeX + [T1]{fontenc} birleşiminde Türkçeye özgü harfler PDF'e
+# yazılmadan atlanıyor ve derleme BAŞARILI bitiyor. Kullanıcı okuyana kadar
+# fark etmiyor, o yüzden panele çıkması gerek (ipucu error_hints'te).
+#
+# TEK TEK EKLENMEZ: belge başına yüzlerce, binlerce satır geliyor. Ölçüldü:
+# demo belgemizde 149, template36-ders'te 8226. Hepsini listelemek Uyarılar
+# sekmesini kullanılmaz yapardı. Yazı tipi başına TEK uyarı üretilip kaç kez
+# geçtiği yazılıyor; mesaj ilk gerçek satırı koruyor ki error_hints'teki
+# desen yazı tipi adını çıkarabilsin.
+_RE_MISSING_GLYPH = re.compile(
+    r'^\s*Missing character: There is no .+? in font ([^\s!]+)')
 # Öneri: ==> Eksik paketi: ... veya ==> Eksik dil paketi: ...
 _RE_SUGGESTION = re.compile(r'^==>\s*(Eksik (?:dil )?paket[ie]?): (.+)')
 # Kurulum komutu: "    sudo apt-get install ..."
@@ -80,6 +93,8 @@ def parse_output(raw: str, source_file: str = "") -> CompileResult:
 
     lines = raw.split('\n')
     current_error: LatexError | None = None
+    # yazı tipi -> [ilk ham satır, kaç kez]. Döngü sonunda tek uyarıya iner.
+    eksik_glif: dict[str, list] = {}
 
     for line in lines:
         # Dosya referansı takibi: yalnız .tex kaynak dosyalarını takip et.
@@ -197,6 +212,13 @@ def parse_output(raw: str, source_file: str = "") -> CompileResult:
             ))
             continue
 
+        # Eksik glif: biriktir, döngü sonunda yazı tipi başına tek uyarı
+        m = _RE_MISSING_GLYPH.match(line)
+        if m:
+            kayit = eksik_glif.setdefault(m.group(1), [line.strip(), 0])
+            kayit[1] += 1
+            continue
+
         # Öneri: eksik paketi / dil paketi
         m = _RE_SUGGESTION.match(line)
         if m:
@@ -213,6 +235,17 @@ def parse_output(raw: str, source_file: str = "") -> CompileResult:
 
     if current_error:
         result.errors.append(current_error)
+
+    # Eksik glifler: yazı tipi başına tek uyarı. Mesaj ilk GERÇEK log satırını
+    # koruyor (error_hints deseni yazı tipi adını oradan çıkarıyor); tekrar
+    # sayısı sonuna ekleniyor.
+    for _font, (ilk_satir, adet) in eksik_glif.items():
+        mesaj = ilk_satir if adet == 1 else f"{ilk_satir} (toplam {adet} karakter)"
+        result.warnings.append(LatexWarning(
+            message=mesaj,
+            warning_type="Font",
+            file_path=source_file,
+        ))
 
     # Hata mesajlarında motor gereksinimi tespiti
     _engine_map = {

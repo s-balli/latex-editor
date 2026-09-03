@@ -266,3 +266,72 @@ class TestBetikHatalari:
         r = parse_output("[basarili] main.pdf olusturuldu\n", "main.tex")
         assert r.success is True
         assert r.errors == []
+
+
+# --- Eksik glif: XeTeX + [T1]{fontenc} Türkçe harfleri sessizce düşürüyor ---
+
+
+class TestEksikGlif:
+    """Derleme BAŞARILI biter, PDF açılır, harfler yoktur.
+
+    2026-09-03'te gerçek bir xelatex logu üzerinde ölçüldü: demo belgemiz
+    (T1 fontenc + Türkçe) 55 "Missing character" satırı üretiyor ve PDF'ten
+    92 Türkçe harfin 55'i düşüyor. fontenc satırı çıkınca ikisi de sıfır.
+    """
+
+    _SATIR = 'Missing character: There is no X ("15F) in font %s!'
+
+    def test_tek_gecis_sayi_eklemiyor(self):
+        r = parse_output(self._SATIR % "ec-lmr10")
+        assert len(r.warnings) == 1
+        assert "toplam" not in r.warnings[0].message
+
+    def test_ayni_yazi_tipi_tek_uyariya_iniyor(self):
+        """Panelin boğulmaması gerek: ölçülen en kötü durum 8226 satırdı.
+
+        Satırlar BİRBİRİNDEN FARKLI olmalı: gerçek logda ş, ı, İ, ğ ayrı
+        satırlar üretiyor ama hepsi aynı yazı tipinde. Aynı satırı 45 kez
+        tekrarlayan bir test, anahtar yanlışlıkla satırın tamamı olsa bile
+        geçerdi (bu test önce öyle yazıldı, kırılma denetimi yakaladı).
+        """
+        harfler = ["15F", "131", "130", "11F"] * 12  # 48 satır, 4 farklı harf
+        ham = "\n".join(
+            'Missing character: There is no X ("%s) in font ec-lmr10!' % h
+            for h in harfler)
+        r = parse_output(ham)
+        assert len(r.warnings) == 1, [w.message for w in r.warnings]
+        assert "toplam 48 karakter" in r.warnings[0].message
+
+    def test_farkli_yazi_tipleri_ayri_uyari(self):
+        ham = "\n".join([self._SATIR % "ec-lmr10",
+                         self._SATIR % "ec-lmbx12",
+                         self._SATIR % "ec-lmr10"])
+        r = parse_output(ham)
+        assert len(r.warnings) == 2
+        mesajlar = " ".join(w.message for w in r.warnings)
+        assert "ec-lmr10" in mesajlar and "ec-lmbx12" in mesajlar
+
+    def test_uretilen_mesaj_IPUCUNU_TETIKLIYOR(self):
+        """Boru hattı gerçekten bağlı mı.
+
+        Regression: ipucu deseni error_hints'e eklendi ama log_parser o satırı
+        hiç uyarı saymıyordu. get_hint doğru çalışıyor, parse_output sıfır
+        uyarı üretiyordu; yani ipucu ÖLÜ DOĞMUŞTU, kullanıcı asla göremezdi.
+        Bu test iki modülün birbirine değdiğini denetliyor.
+        """
+        from core.error_hints import get_hint
+
+        r = parse_output(self._SATIR % "ec-lmr10")
+        assert r.warnings, "parse_output uyari uretmiyor: ipucu asla gorunmez"
+        ipucu = get_hint(r.warnings[0].message)
+        assert ipucu is not None, r.warnings[0].message
+        assert ipucu[0] == "missing_glyph"
+        assert ipucu[1] == {"font": "ec-lmr10"}
+
+    def test_sayi_eki_yazi_tipi_adini_bozmuyor(self):
+        """'(toplam N karakter)' eki desenin yazı tipini çıkarmasını engellememeli."""
+        from core.error_hints import get_hint
+
+        ham = "\n".join([self._SATIR % "ec-lmri10"] * 3)
+        r = parse_output(ham)
+        assert get_hint(r.warnings[0].message)[1] == {"font": "ec-lmri10"}
