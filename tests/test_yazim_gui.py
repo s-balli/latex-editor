@@ -51,6 +51,21 @@ class _SahteThread:
 
 
 @pytest.fixture(autouse=True)
+def kullanilabilir(monkeypatch):
+    """Özellik VAR sayılsın, ortamdan bağımsız olarak.
+
+    Menü öğesi ve panel sekmesi `spylls` kuruluysa ekleniyor. CI'da spylls
+    YOK, o yüzden gerçek çağrı False dönüyor ve sekmeyi bekleyen testler
+    düşüyordu (birebir yaşandı: Windows'ta yerelde geçip CI'da düştü).
+    Testler o kararı değil, kararın SONUCUNU sınamalı.
+
+    Yokluk hâlini sınayan test bunu kendisi False'a çeviriyor.
+    """
+    monkeypatch.setattr("gui.mixins.yazim_ops.yazim_kullanilabilir",
+                        lambda: True)
+
+
+@pytest.fixture(autouse=True)
 def sahte_thread(monkeypatch):
     """HİÇBİR testte gerçek QThread başlamasın.
 
