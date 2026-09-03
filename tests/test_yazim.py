@@ -351,6 +351,64 @@ def test_sozluk_yokken_oneri_bos():
 
 
 # =====================================================================
+# İkinci dil (iki dilli belgeler)
+# =====================================================================
+
+
+def _ikili(birincil_dogrular, ikincil_dogrular,
+           birincil="tr_TR", ikincil="en_US"):
+    a = _denetleyici(birincil_dogrular, dil=birincil)
+    b = _denetleyici(ikincil_dogrular, dil=ikincil)
+    a.ikincil = b
+    return a
+
+
+def test_ikincil_dil_ingilizce_terimi_kurtarir():
+    """Türkçe belgede geçen İngilizce terim işaretlenmemeli.
+
+    Ölçüldü: template35-asyu'da 191 bulgunun 142'si İngilizce özetten
+    geliyordu; ikinci dille 49'a iniyor.
+    """
+    d = _ikili([], ["bandwidth"])
+    assert d.dogru_mu("bandwidth") is True
+
+
+def test_ikincil_dil_TURKCE_HARFLI_kelimeyi_KURTARAMAZ():
+    """İngilizce sözlük Türkçe harf taşıyan kelimeyi kurtarmamalı.
+
+    Bu, Türkçe yazım hatasının İngilizce üzerinden gizlenmesini engelliyor.
+    Ölçüldü: İngilizce sözlük 15 Türkçe hatanın sıfırını kabul etti ve
+    kurtardığı 288 kelimenin sıfırında Türkçe harf vardı; kural bedava.
+    """
+    d = _ikili([], ["dönüştürülir"])          # ikincil kabul etse BILE
+    assert d.dogru_mu("dönüştürülir") is False
+
+
+def test_ingilizce_birincilde_TURKCE_ancak_kendi_harfiyle_kurtarir():
+    """Ters yön ASİMETRİK: Latince/ASCII kelimeyi Türkçe kurtaramaz.
+
+    Gerçek kusur: Lorem Ipsum'un `elit, enim, erat, eros, libero, massa`
+    kelimeleri Türkçe sözlükte var. Koşulsuz ikili denetim template5'te
+    132 bulguyu 125'e indirip gerçek gürültüyü gizliyordu.
+    """
+    d = _ikili([], ["elit", "ağırlık"], birincil="en_US", ikincil="tr_TR")
+    assert d.dogru_mu("elit") is False          # ASCII: Türkçe kurtaramaz
+    assert d.dogru_mu("ağırlık") is True        # Türkçe harfli: kurtarır
+
+
+def test_ikincil_yokken_davranis_degismez():
+    d = _denetleyici(["var"])
+    assert d.dogru_mu("yok") is False
+
+
+def test_ikincil_sonucu_da_onbelleklenir():
+    d = _ikili([], ["cache"])
+    d.dogru_mu("cache")
+    d.dogru_mu("cache")
+    assert d.ikincil._sozluk.sorulan.count("cache") == 1
+
+
+# =====================================================================
 # Uçtan uca: gerçek belge kalıbı
 # =====================================================================
 

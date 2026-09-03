@@ -525,6 +525,43 @@ def kelimeleri_cikar(metin: str) -> list[Kelime]:
 # Denetleyici
 # --------------------------------------------------------------------------
 
+# Dile ÖZGÜ harfler. İkinci sözlüğün bir kelimeyi kurtarabilmesi için kelimenin
+# o dile ait GÖRÜNMESİ şartı buradan geliyor (bkz. _ikincil_kurtarabilir).
+_AYIRT_EDICI = {
+    "tr_TR": set("çğıöşüÇĞİÖŞÜ"),
+    "en_US": set(),
+    "en_GB": set(),
+}
+
+
+def _ikincil_kurtarabilir(kelime: str, birincil: str, ikincil: str) -> bool:
+    """İkinci sözlük bu kelimeyi kurtarmaya YETKİLİ mi.
+
+    İki dilli belge bu kitlede kuraldır (Türkçe tezin İngilizce özeti), ama
+    ikinci sözlüğe koşulsuz düşmek ASİMETRİK olarak tehlikeli. Ölçüldü
+    (2026-09-03):
+
+      TR birincil, EN ikincil : İngilizce sözlük 15 Türkçe yazım hatasının
+        SIFIRINI kabul etti; kurtardığı 288 kelimenin sıfırında Türkçe harf
+        vardı. Yani güvenli ve çok kazançlı (template35-asyu 191 -> 49).
+
+      EN birincil, TR ikincil : Türkçe sözlük Lorem Ipsum'un LATİNCE
+        kelimelerini kabul ediyor (elit, enim, erat, eros, libero, massa).
+        Koşulsuz düşmek template5'te 132 bulguyu 125'e indiriyordu, yani
+        gerçek gürültüyü gizliyordu.
+
+    Kural: ikinci dilin ayırt edici harfleri VARSA kelime onlardan taşımalı;
+    yoksa (İngilizce gibi) kelime birincil dilin ayırt edici harflerini
+    TAŞIMAMALI. Ölçüldü: Türkçe belgelerde kazancın tamamını koruyor,
+    İngilizce belgelerde Lorem Ipsum kurtarmalarını engelliyor.
+    """
+    ik = _AYIRT_EDICI.get(ikincil, set())
+    if ik:
+        return any(c in ik for c in kelime)
+    bir = _AYIRT_EDICI.get(birincil, set())
+    return not any(c in bir for c in kelime)
+
+
 @dataclass(frozen=True)
 class Bulgu:
     kelime: str
@@ -548,6 +585,9 @@ class Denetleyici:
         self._sozluk = None
         self._kullanici: set[str] = set()
         self._kullanici_yuklendi = False
+        # İkinci dil: kullanıcının AÇIKÇA seçtiği seçenek, sessiz varsayılan
+        # değil. Türk akademik metni yapısı gereği iki dillidir.
+        self.ikincil: "Denetleyici | None" = None
         # ÖRNEK BAŞINA önbellek. functools.lru_cache bir METODA konursa
         # önbellek sınıf düzeyinde olur: bütün örnekler paylaşır (dil
         # değişince eski sonuçlar kalır) ve `self` sonsuza dek canlı tutulur.
@@ -614,6 +654,10 @@ class Denetleyici:
             sonuc = True                         # sözlük yokken kimseyi suçlama
         else:
             sonuc = bool(self._sozluk.lookup(kelime))
+            if not sonuc and self.ikincil is not None:
+                sonuc = (_ikincil_kurtarabilir(kelime, self.dil,
+                                               self.ikincil.dil)
+                         and self.ikincil.dogru_mu(kelime))
         self._onbellek[kelime] = sonuc
         return sonuc
 
