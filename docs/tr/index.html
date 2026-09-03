@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="tr" data-lang="tr">
+<head>
+  <!-- BU DOSYA URETILMISTIR, ELLE DUZENLEMEYIN.
+       Kaynak: docs/index.html
+       Ureten: scripts/tr_sayfasi_uret.py
+       Kapi:   tests/test_tr_sayfasi.py -->
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- <title> METIN disinda element ICEREMEZ. Burada <span class="en"> ve
+       <span class="tr"> vardi; tarayici ve arama motoru bunlari birlestirip
+       "...live PDF previewcanlı PDF önizlemeli..." diye tek bir bozuk basliga
+       ceviriyordu. Statik baslik tek dilde; kullanicinin diline gore
+       script.js icindeki apply() document.title'i degistiriyor. -->
+  <title>LaTeX Editor: canlı PDF önizlemeli masaüstü LaTeX editörü</title>
+  <meta name="description" content="Açık kaynak masaüstü LaTeX editörü (GPL-3.0): canlı PDF önizleme, SyncTeX, lualatex/pdflatex/xelatex, 7 tema, Türkçe/İngilizce arayüz. IEEE/ASYU şablonlarındaki Türkçe karakter sorunlarını ve Overleaf'ten aktarılan projeleri düzeltir. Windows + Linux." />
+  <link rel="canonical" href="https://s-balli.github.io/latex-editor/tr/" />
+
+  <!-- Ingilizce surum kokte: /. Bu sayfa ondan
+       uretiliyor (scripts/tr_sayfasi_uret.py), ELLE DUZENLENMIYOR.
+       hreflang bloku iki sayfada da AYNI: Google karsilikli bildirim
+       istiyor, tek yonlu hreflang'i yok sayiyor. -->
+  <link rel="alternate" hreflang="en" href="https://s-balli.github.io/latex-editor/" />
+  <link rel="alternate" hreflang="tr" href="https://s-balli.github.io/latex-editor/tr/" />
+  <link rel="alternate" hreflang="x-default" href="https://s-balli.github.io/latex-editor/" />
+
+  <!-- Open Graph: baglanti WhatsApp, LinkedIn, Discord, Slack gibi yerlerde
+       paylasildiginda onizleme karti bunlarla olusuyor. Yoksa cıplak URL
+       gorunuyor. og:image MUTLAK URL olmali, goreli yol calismiyor. -->
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="LaTeX Editor" />
+  <meta property="og:url" content="https://s-balli.github.io/latex-editor/tr/" />
+  <meta property="og:title" content="LaTeX Editor: canlı PDF önizlemeli masaüstü LaTeX editörü" />
+  <meta property="og:description" content="Canlı PDF önizleme, SyncTeX, üç motor, 7 tema, Türkçe ve İngilizce arayüz. Windows ve Linux için ücretsiz ve açık kaynak (GPL-3.0)." />
+  <!-- Kart gorseli 1200x630. Ekran goruntusu 1550x932, yani oran 1.66;
+       kartlarin bekledigi 1.905. Kirparak sigdirmak dikeyde ~%13 keserdi
+       (alttaki panel giderdi), o yuzden tamami kucultulup yanlara 76 px
+       dolgu konuldu. Dolgu rengi goruntunun kendi ust kenar rengi (#2d2d2d),
+       dikis gorunmuyor. Ureten betik: scratchpad/og_kart.py -->
+  <meta property="og:image" content="https://s-balli.github.io/latex-editor/assets/og-card.png" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta property="og:image:alt" content="LaTeX Editor ana penceresi: solda kaynak, sağda canlı PDF önizleme" />
+  <meta property="og:locale" content="tr_TR" />
+  <meta property="og:locale:alternate" content="en_US" />
+
+  <meta name="twitter:card" content="summary_large_image" />
+  <meta name="twitter:title" content="LaTeX Editor: canlı PDF önizlemeli masaüstü LaTeX editörü" />
+  <meta name="twitter:description" content="Canlı PDF önizleme, SyncTeX, üç motor, 7 tema, Türkçe ve İngilizce arayüz. Windows ve Linux için ücretsiz ve açık kaynak (GPL-3.0)." />
+  <meta name="twitter:image" content="https://s-balli.github.io/latex-editor/assets/og-card.png" />
+
+  <link rel="stylesheet" href="../styles.css" />
+  <!-- Uygulamanin kendi ikonu (desktop/linux/latex-editor.ico kopyasi).
+       Onceden buraya assets/01.png konmustu: 1550x932'lik bir EKRAN
+       GORUNTUSU, 16x16'ya inince bulanik bir lekeydi. .ico icinde 16, 32,
+       48, 64, 128 ve 256 boyutlari var, tarayici uygun olani seciyor. -->
+  <link rel="icon" href="../favicon.ico" sizes="any" />
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "LaTeX Editor",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "Windows, Linux",
+    "url": "https://s-balli.github.io/latex-editor/tr/",
+    "downloadUrl": "https://github.com/s-balli/latex-editor/releases",
+    "sameAs": "https://github.com/s-balli/latex-editor",
+    "image": "https://s-balli.github.io/latex-editor/assets/og-card.png",
+    "description": "Canlı PDF önizleme, SyncTeX, üç motor, 7 tema, Türkçe ve İngilizce arayüz. Windows ve Linux için ücretsiz ve açık kaynak (GPL-3.0).",
+    "license": "https://www.gnu.org/licenses/gpl-3.0.html",
+    "isAccessibleForFree": true,
+    "inLanguage": "tr",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "author": {
+      "@type": "Person",
+      "name": "s-balli",
+      "url": "https://github.com/s-balli"
+    }
+  }
+  </script>
+</head>
+<body>
+  <!-- ===== NAV ===== -->
+  <header class="nav">
+    <a class="brand" href="#top">
+      <span class="brand-mark">L<span class="brand-tex">a</span>T<span class="brand-tex">e</span>X</span>
+      <span class="brand-name"><span class="tr">Editör</span></span>
+    </a>
+    <nav class="nav-actions">
+      <a class="lang-toggle" href="../?lang=en" hreflang="en" aria-label="İngilizce sürüme geç">EN</a>
+      <a class="ghost-btn" href="https://github.com/s-balli/latex-editor" target="_blank" rel="noopener">
+        <span class="tr">GitHub</span>
+      </a>
+      <a class="primary-btn" href="https://github.com/s-balli/latex-editor/releases">
+        <span class="tr">İndir</span>
+      </a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <!-- ===== HERO ===== -->
+    <section class="hero">
+      <div class="hero-text">
+        <h1>
+          
+          <span class="tr">Canlı PDF önizlemeli hafif bir LaTeX editörü</span>
+        </h1>
+        <p class="lead">
+          
+          <span class="tr">Düzenle, derle ve önizle; tek masaüstü uygulamasında SyncTeX, offline kullanım ve Türkçe karakter desteği yerleşik.</span>
+        </p>
+        <div class="hero-cta">
+          <a class="primary-btn lg" href="https://github.com/s-balli/latex-editor/releases">
+            <span class="tr">↓ İndir</span>
+          </a>
+          <a class="ghost-btn lg" href="https://github.com/s-balli/latex-editor" target="_blank" rel="noopener">
+            <span class="tr">GitHub'da gör</span>
+          </a>
+        </div>
+        <div class="badges">
+          <img alt="License" src="https://img.shields.io/github/license/s-balli/latex-editor?style=flat-square" />
+          <img alt="Version" src="https://img.shields.io/github/v/release/s-balli/latex-editor?label=version&color=green&style=flat-square" />
+          <img alt="CI" src="https://img.shields.io/github/actions/workflow/status/s-balli/latex-editor/ci.yml?branch=main&label=CI&style=flat-square" />
+        </div>
+      </div>
+      <div class="hero-media">
+        <img class="hero-img" src="../assets/01.png" alt="LaTeX Editor ana penceresi: sözdizimi renklendirmeli editör ve canlı PDF önizleme" loading="lazy" />
+      </div>
+    </section>
+
+    <!-- ===== SYNCTEX SPOTLIGHT ===== -->
+    <section class="section spotlight">
+      <div class="spotlight-text">
+        <h2 class="section-title"><span class="tr">Yerleşik SyncTeX</span></h2>
+        <p class="lead">
+          
+          <span class="tr">Editörde bir satıra tıkla, PDF o konuma (sayfalar arası bile) zıplasın. PDF'e tıkla, editör tam o kaynak satıra geri dönsün. Overleaf'teki o sevdiğin özellik; ama offline ve masaüstünde.</span>
+        </p>
+        <ul class="check-list">
+          <li><span class="tr">İleri sync: kaynak → PDF</span></li>
+          <li><span class="tr">Geri sync: PDF → kaynak</span></li>
+          <li><span class="tr">Otomatik atlama: derleme sonrası PDF imlecin olduğu yere kayar</span></li>
+          <li><span class="tr">Çok sayfalı belgelerde çalışır</span></li>
+        </ul>
+      </div>
+      <div class="spotlight-media">
+        <img src="../assets/ss1.gif" alt="SyncTeX gösterimi" loading="lazy" />
+      </div>
+    </section>
+
+    <!-- ===== KLASORDE ARA SPOTLIGHT ===== -->
+    <section class="section spotlight">
+      <div class="spotlight-text">
+        <h2 class="section-title"><span class="tr">Klasörün tamamında ara</span></h2>
+        <p class="lead">
+          
+          <span class="tr">Ctrl+Shift+F proje klasöründeki tüm kaynak dosyaların içinde arar, hiç açmadıklarınız dahil. Sonuçlar dosya ve satır olarak listelenir, tıklayınca oraya gidilir.</span>
+        </p>
+        <ul class="check-list">
+          <li><span class="tr">.tex, .bib, .cls ve .sty dosyalarını kapsar</span></li>
+          <li><span class="tr">Türkçe noktalı İ doğru eşleşir</span></li>
+          <li><span class="tr">Arka planda koşar, büyük projede pencere donmaz</span></li>
+        </ul>
+      </div>
+      <div class="spotlight-media">
+        <img src="../assets/ss2-klasorde-ara.gif" alt="Proje klasöründeki bütün dosyalarda arama ve sonuca gitme" loading="lazy" />
+      </div>
+    </section>
+
+    <!-- ===== KAYNAKCA SPOTLIGHT ===== -->
+    <section class="section spotlight">
+      <div class="spotlight-text">
+        <h2 class="section-title"><span class="tr">Sütunlara ayrılmış kaynakça</span></h2>
+        <p class="lead">
+          
+          <span class="tr">.bib dosyanız sıralanabilir bir tabloya dökülür: anahtar, tür, yazar, yıl, başlık. Yazdıkça süzülür. DOI yapıştırınca kayıt çekilir, onayınıza sunulur ve dosyaya eklenir.</span>
+        </p>
+        <ul class="check-list">
+          <li><span class="tr">Elle yazılmış \bibitem girdileri de listelenir</span></li>
+          <li><span class="tr">Mükerrer anahtar ve eksik zorunlu alan bildirilir</span></li>
+          <li><span class="tr">Çekilen kayıt yazılmadan önce düzenlenebilir</span></li>
+        </ul>
+      </div>
+      <div class="spotlight-media">
+        <img src="../assets/ss3-kaynakca.gif" alt="Kaynakça sekmesi: süzme ve DOI ile kaynak ekleme" loading="lazy" />
+      </div>
+    </section>
+
+    <!-- ===== OTOMATIK DERLEME SPOTLIGHT ===== -->
+    <section class="section spotlight">
+      <div class="spotlight-text">
+        <h2 class="section-title"><span class="tr">Kaydet, PDF otomatik derlensin</span></h2>
+        <p class="lead">
+          
+          <span class="tr">Otomatik derleme açıkken kaydetmek belgeyi yeniden derler ve önizlemeyi kendiliğinden tazeler. PDF ayrıca imlecinizin olduğu yere kayar, yazdığınız paragrafın üstüne düşersiniz.</span>
+        </p>
+        <ul class="check-list">
+          <li><span class="tr">Hata ve uyarılar alttaki panele düşer, tıklayınca gidilir</span></li>
+          <li><span class="tr">Başarısız derleme okuduğunuz PDF'i ezmez</span></li>
+          <li><span class="tr">Esc uzayan derlemeyi durdurur</span></li>
+        </ul>
+      </div>
+      <div class="spotlight-media">
+        <img src="../assets/ss4-otomatik-derleme.gif" alt="Bir cümle yazıp kaydetmek, PDF önizlemenin kendiliğinden yenilenmesi" loading="lazy" />
+      </div>
+    </section>
+
+    <!-- ===== DIFFERENTIATORS ===== -->
+    <section class="section">
+      <h2 class="section-title"><span class="tr">Neden bu editör</span></h2>
+      <div class="why-intro">
+        <p>
+          
+          <span class="tr">Akademik makale, tez ve teknik rapor yazımında dünya standardı olan LaTeX, güçlü ve profesyonel çıktılar sunuyor. Ancak bu alandaki yaygın araçların büyük bir bölümü çevrim içi ve bulut tabanlı çalışıyor; bu durum, sürekli internet bağlantısı gerektirmesi, gizlilik taşıyan çalışmaların yine sunucularda tutulması ve abonelik ya da kayıt modellerine bağımlılık gibi konularda akademisyen ve öğrenciler için kısıtlamalar doğuruyor.</span>
+        </p>
+        <p>
+          
+          <span class="tr">Tamamen açık kaynaklı ve bağımsız bir masaüstü uygulaması olan LaTeX Editor, belgelerin yazılmasını, derlenmesini ve PDF olarak önizlenmesini internet bağlantısı olmadan, kullanıcının kendi bilgisayarında gerçekleştiriyor. Yazılımda herhangi bir bulut hizmetine, kullanıcı hesabına veya çevrim içi oturuma ihtiyaç yok; kurulduktan sonra tamamen çevrim dışı çalışıyor. Bu yönüyle internet erişiminin kısıtlı olduğu alanlarda ve veri gizliliğinin önemli olduğu çalışmalarda özgür bir alternatif sunuyor.</span>
+        </p>
+      </div>
+      <div class="card-grid grid-4">
+        <article class="card diff">
+          <div class="diff-icon">ş&nbsp;ğ&nbsp;ı</div>
+          <h3><span class="tr">Türkçe karakter dostu</span></h3>
+          <p><span class="tr">IEEE/ASYU tarzı şablonlarda derlemeyi bozan ş, ğ, ı kodlama sorununu çözer.</span></p>
+        </article>
+        <article class="card diff">
+          <div class="diff-icon">↻</div>
+          <h3><span class="tr">Overleaf'ten yerel ortama</span></h3>
+          <p><span class="tr">Overleaf'ten indirilen projeleri otomatik düzeltir; yerelde derlenir.</span></p>
+        </article>
+        <article class="card diff">
+          <div class="diff-icon">↔</div>
+          <h3>SyncTeX</h3>
+          <p><span class="tr">Kaynak satıra Ctrl-tıkla → PDF'e geç. PDF'e Ctrl-tıkla → geri dön. Sayfalar arası bile.</span></p>
+        </article>
+        <article class="card diff">
+          <div class="diff-icon">⚡</div>
+          <h3><span class="tr">Offline &amp; hafif</span></h3>
+          <p><span class="tr">Tarayıcı sekmesi değil, masaüstü uygulaması. İnternetsiz çalışır; Overleaf derleme limiti yok.</span></p>
+        </article>
+      </div>
+    </section>
+
+    <!-- ===== FEATURES ===== -->
+    <section class="section">
+      <h2 class="section-title"><span class="tr">Özellikler</span></h2>
+      <div class="card-grid grid-auto">
+        <article class="card feat"><span class="feat-emoji">🎨</span><h3><span class="tr">Sözdizimi renklendirme</span></h3><p><span class="tr">Komutlar, yorumlar, matematik, ortamlar.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">👁</span><h3><span class="tr">Canlı PDF önizleme</span></h3><p><span class="tr">Yan panelde PDF; kaydet, derle.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">⚡</span><h3><span class="tr">Otomatik derleme</span></h3><p><span class="tr">Ctrl+S kaydeder ve derler.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">🔧</span><h3><span class="tr">Üçlü motor</span></h3><p><span class="tr">lualatex (öntanımlı), pdflatex ve xelatex; otomatik algılanır.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">📁</span><h3><span class="tr">Proje yönetimi</span></h3><p><span class="tr">Klasör aç, dosya ağacı, çoklu sekme.</span></p></article><article class="card feat"><span class="feat-emoji">🗃️</span><h3><span class="tr">Dosya ağacı işlemleri</span></h3><p><span class="tr">Ağaçta sağ tık: yeni dosya, yeni klasör, yeniden adlandır, sil. Açık bir dosyayı yeniden adlandırınca sekme de taşınır. Şekil PDF'leri ağaçta görünür, derleme çıktısı gizli kalır.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">🧭</span><h3><span class="tr">Belge anahattı</span></h3><p><span class="tr">Yan panelde bölüm ağacı; başlığa tıkla, oraya atla.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">🔍</span><h3><span class="tr">Bul/değiştir, hızlı aç</span></h3><p><span class="tr">Ctrl+F ve Ctrl+H; büyük/küçük harf eşleştir, tam kelime ve düzenli ifade seçenekleriyle. Ctrl+P ile projedeki dosyayı adıyla aç.</span></p></article><article class="card feat"><span class="feat-emoji">🔦</span><h3><span class="tr">Klasörde ara</span></h3><p><span class="tr">Ctrl+Shift+F klasördeki tüm .tex/.bib/.cls/.sty dosyalarının içinde arar; açmadıklarınız dahil. Sonuca tıklayınca o satıra gidilir.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">⚠️</span><h3><span class="tr">Hata görüntüleme</span></h3><p><span class="tr">Hatalar ve uyarılar ayrı sekmelerde.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">📦</span><h3><span class="tr">Eksik paket tespiti</span></h3><p><span class="tr">Derleme eksik bir .sty ya da font yüzünden düşerse uygulama kurulacak paketi adıyla söyler ve komutu verir.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">🩺</span><h3><span class="tr">Ortam denetimi</span></h3><p><span class="tr">Tek ekranda WSL, TeX motorları, biber, pandoc ve synctex hazır mı gösterir; eksik olana kurulum komutu önerir.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">🌗</span><h3><span class="tr">7 tema</span></h3><p><span class="tr">Koyu, Açık, Solarized, Dracula, Monokai, Nord, Gruvbox.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">🌐</span><h3><span class="tr">TR / EN arayüz</span></h3><p><span class="tr">Türkçe ve İngilizce arayüz.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">🔖</span><h3><span class="tr">PDF yer imleri</span></h3><p><span class="tr">Bölüm/başlık yapısı yan panelde.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">🔎</span><h3><span class="tr">PDF arama</span></h3><p><span class="tr">Ctrl+F metin arama, vurgulu.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">✋</span><h3><span class="tr">Metin seçme</span></h3><p><span class="tr">Sürükle-seç, Ctrl+C ile kopyala.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">📖</span><h3><span class="tr">İki sayfa görünümü</span></h3><p><span class="tr">Yan yana sayfalar.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">💡</span><h3><span class="tr">Otomatik tamamlama</span></h3><p><span class="tr">Ctrl+Space ile komut, \ref/\cite anahtarı ve \input / \includegraphics yollarını tamamlar.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">⇥</span><h3><span class="tr">Akıllı girintileme</span></h3><p><span class="tr">Otomatik girinti ve \begin/\end hizalama.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">🔢</span><h3><span class="tr">Kelime sayacı</span></h3><p><span class="tr">Durum çubuğunda canlı kelime/karakter sayısı.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">🖼️</span><h3><span class="tr">Resim yapıştır</span></h3><p><span class="tr">Ctrl+V ile panodaki resmi media/'a figure olarak yapıştırır.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">🐛</span><h3><span class="tr">Hata işaretleri</span></h3><p><span class="tr">Derleme hataları gutter'da işaretlenir; F4 ile dolaşılır.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">🔗</span><h3><span class="tr">Tanıma git</span></h3><p><span class="tr">Bir \ref veya \cite'e Alt-tıkla; labelına veya kaynakça girdisine atla.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">✏️</span><h3><span class="tr">Proje genelinde yeniden adlandırma</span></h3><p><span class="tr">\label ya da \cite anahtarı üzerinde F2: projedeki tüm dosyalarda, kullanıldığı her yerde değişir.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">🧹</span><h3><span class="tr">Referans denetimi</span></h3><p><span class="tr">Tanımsız \ref/\cite, kullanılmayan .bib girdisi ve label'ları, mükerrer .bib anahtarını ve eksik zorunlu alanı bulur; bulguya tıkla, yerine atla. İsteğe bağlı olarak her derlemeden sonra da çalışır.</span></p></article><article class="card feat"><span class="feat-emoji">📚</span><h3><span class="tr">Kaynakça sekmesi</span></h3><p><span class="tr">.bib girdileri sıralanabilir sütunlarda: anahtar, tür, yazar, yıl, başlık. Süz, satıra tıkla, dosyadaki yerine git. Elle yazılmış kaynakçalar (\bibitem) da listelenir.</span></p></article><article class="card feat"><span class="feat-emoji">📥</span><h3><span class="tr">DOI ile kaynak ekle</span></h3><p><span class="tr">DOI yapıştır, girdi getirilip .bib dosyasına eklensin. Ay makrosu, sayfa aralığı ve anahtar çakışması yolda düzeltilir; yazılmadan önce girdiyi görürsün.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">👆</span><h3><span class="tr">PDF bağlantıları</span></h3><p><span class="tr">PDF içinde \cite/\ref linklerine tıkla; hedefe atla.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">🖥️</span><h3><span class="tr">Sunum modu</span></h3><p><span class="tr">F5 ile PDF'i sunum için tam ekran aç.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">🌙</span><h3><span class="tr">Koyu PDF</span></h3><p><span class="tr">Önizleme renklerini ters çevir; gece koyu temayla PDF de uyumlu olsun.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">📤</span><h3><span class="tr">Dışa aktarma</span></h3><p><span class="tr">Pandoc ile DOCX, Markdown veya düz metne çevir.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">🔄</span><h3><span class="tr">Canlı yeniden yükleme</span></h3><p><span class="tr">Dosyadaki dış değişiklikleri algılar, güvenle yeniden yükler.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">🗂️</span><h3><span class="tr">Sürümleme</span></h3><p><span class="tr">Ctrl+K ile adlandırılmış sürüm kaydet; farkları gör, dosyayı geri yükle, eski içeriği kopyala. Git bilgisi gerekmez.</span></p></article><article class="card feat"><span class="feat-emoji">🛟</span><h3><span class="tr">Çökme kurtarma</span></h3><p><span class="tr">Kaydedilmemiş değişiklikler 30 saniyede bir yedeklenir. Uygulama öldürülür ya da elektrik giderse bir sonraki açılışta geri yüklemen önerilir.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">🧮</span><h3><span class="tr">Tablo sihirbazı</span></h3><p><span class="tr">Ctrl+T ile hücre grid'inden, CSV'den veya yapıştırılan koddan tablo üret; mevcut tabloları hizalar.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">💬</span><h3><span class="tr">Anlaşılır hatalar</span></h3><p><span class="tr">Yaygın LaTeX hatalarına sade dilde açıklama ve çözüm eklenir.</span></p></article>
+        <article class="card feat"><span class="feat-emoji">🌳</span><h3><span class="tr">Çok dosyalı derleme</span></h3><p><span class="tr">% !TEX root ile herhangi bir bölüm dosyasından kök belge derlenir.</span></p></article>
+      </div>
+    </section>
+
+    <!-- ===== THEMES ===== -->
+    <section class="section">
+      <h2 class="section-title"><span class="tr">7 yerleşik tema</span></h2>
+      <p class="section-sub"><span class="tr">Gözüne uygun paleti seç.</span></p>
+      <div class="card-grid grid-auto themes">
+        <article class="card theme"><div class="swatch swatch-dark"></div><h3><span class="tr">Koyu</span></h3></article>
+        <article class="card theme"><div class="swatch swatch-light"></div><h3><span class="tr">Açık</span></h3></article>
+        <article class="card theme"><div class="swatch swatch-solarized"></div><h3><span class="tr">Solarized Açık</span></h3></article>
+        <article class="card theme"><div class="swatch swatch-dracula"></div><h3>Dracula</h3></article>
+        <article class="card theme"><div class="swatch swatch-monokai"></div><h3>Monokai</h3></article>
+        <article class="card theme"><div class="swatch swatch-nord"></div><h3>Nord</h3></article>
+        <article class="card theme"><div class="swatch swatch-gruvbox"></div><h3>Gruvbox</h3></article>
+      </div>
+    </section>
+
+    <!-- ===== DOWNLOAD / REQUIREMENTS ===== -->
+    <section class="section">
+      <h2 class="section-title"><span class="tr">İndir</span></h2>
+      <div class="card-grid grid-2 download">
+        <article class="card dl">
+          <h3>🪟 Windows</h3>
+          <p><span class="tr">Taşınabilir <code>.exe</code>. Derleme için <a href="https://learn.microsoft.com/en-us/windows/wsl/install" target="_blank" rel="noopener">WSL</a> + TeX Live gerekir.</span></p>
+          <a class="primary-btn" href="https://github.com/s-balli/latex-editor/releases"><span class="tr">↓ Windows .exe</span></a>
+        </article>
+        <article class="card dl">
+          <h3>🐧 Linux</h3>
+          <p><span class="tr"><code>.AppImage</code>. Derleme için TeX Live gerekir.</span></p>
+          <a class="primary-btn" href="https://github.com/s-balli/latex-editor/releases"><span class="tr">↓ Linux AppImage</span></a>
+        </article>
+      </div>
+      <p class="note"><span class="tr">⚠ İndirme yalnızca arayüzü içerir. LaTeX derleyicisi (<code>lualatex</code>/<code>pdflatex</code>/<code>xelatex</code>) TeX Live ile ayrıca kurulur.</span></p>
+    </section>
+
+    <!-- ===== SETUP ===== -->
+    <section class="section">
+      <h2 class="section-title"><span class="tr">Kurulum</span></h2>
+      <p class="section-sub"><span class="tr">İndirme yalnızca arayüzü içerir: LaTeX derlemesi için TeX Live gerekir. Tek seferlik kurulum:</span></p>
+      <div class="card-grid grid-2 setup">
+        <article class="card setup-col">
+          <h3>🪟 <span class="tr">Windows (WSL ile)</span></h3>
+          <ol class="steps">
+            <li>
+              
+              <span class="tr">WSL kur: <strong>PowerShell'i yönetici olarak</strong> aç, çalıştır, sonra yeniden başlat:</span>
+              <div class="cmd"><pre><code>wsl --install</code></pre><button class="copy-btn" type="button"><span class="tr">Kopyala</span></button></div>
+            </li>
+            <li>
+              
+              <span class="tr">Başlat menüsünden Ubuntu uygulamasını aç (PowerShell'de <code>wsl</code> yazarak da girebilirsin). İlk açılışta bir Linux kullanıcı adı/parolası belirle. Sonra paket listesini yenile ve TeX Live'ı kur (büyük indirme, birkaç GB):</span>
+              <div class="cmd"><pre><code>sudo apt-get update
+sudo apt-get install texlive-base texlive-binaries texlive-latex-base \
+  texlive-latex-extra texlive-latex-recommended texlive-lang-european texlive-luatex texlive-xetex \
+  texlive-fonts-extra texlive-science texlive-bibtex-extra texlive-font-utils \
+  texlive-extra-utils biber texlive-publishers texlive-humanities texlive-pstricks python3-pygments pandoc</code></pre><button class="copy-btn" type="button"><span class="tr">Kopyala</span></button></div>
+            </li>
+          </ol>
+        </article>
+        <article class="card setup-col">
+          <h3>🐧 <span class="tr">Linux</span></h3>
+          <ol class="steps">
+            <li>
+              
+              <span class="tr">Paket listesini yenile ve TeX Live'ı kur (büyük indirme, birkaç GB):</span>
+              <div class="cmd"><pre><code>sudo apt-get update
+sudo apt-get install texlive-base texlive-binaries texlive-latex-base \
+  texlive-latex-extra texlive-latex-recommended texlive-lang-european texlive-luatex texlive-xetex \
+  texlive-fonts-extra texlive-science texlive-bibtex-extra texlive-font-utils \
+  texlive-extra-utils biber texlive-publishers texlive-humanities texlive-pstricks python3-pygments pandoc</code></pre><button class="copy-btn" type="button"><span class="tr">Kopyala</span></button></div>
+            </li>
+            <li>
+              
+              <span class="tr">İndirdiğin AppImage'ı çalıştırılabilir yap:</span>
+              <div class="cmd"><pre><code>chmod +x LaTeX_Editor_v*_Linux_x86_64.AppImage</code></pre><button class="copy-btn" type="button"><span class="tr">Kopyala</span></button></div>
+            </li>
+          </ol>
+        </article>
+      </div>
+      <p class="note"><span class="tr">Sonra uygulamayı aç, <code>.tex</code> dosyanın bulunduğu klasörü aç ve derlemek için <strong>Ctrl+S</strong>'e bas.</span></p>
+    </section>
+
+    <!-- ===== FAQ ===== -->
+    <section class="section">
+      <h2 class="section-title"><span class="tr">SSS</span></h2>
+      <div class="faq">
+        <details>
+          <summary><span class="tr">Windows neden WSL istiyor?</span></summary>
+          <p><span class="tr">Arayüz yerel; ama LaTeX derlemesi Windows ve Linux'ta tutarlı bir toolchain için WSL içindeki TeX Live üzerinden çalışır.</span></p>
+        </details>
+        <details>
+          <summary><span class="tr">Overleaf ile birlikte kullanılır mı?</span></summary>
+          <p><span class="tr">Evet, Overleaf'te yazın (iş birliği), sonra indirip yerelde derleyin. Editör Overleaf'ten indirilen dosyaları otomatik düzeltir.</span></p>
+        </details>
+        <details>
+          <summary><span class="tr">İnternet bağlantısı gerekir mi?</span></summary>
+          <p><span class="tr">Sadece isteğe bağlı güncelleme kontrolü internete bağlanır. Düzenleme ve derleme tamamen offline.</span></p>
+        </details>
+        <details>
+          <summary><span class="tr">TeXstudio'dan farkı ne?</span></summary>
+          <p><span class="tr">Daha hafif; yerleşik SyncTeX, IEEE/ASYU şablonları için Türkçe karakter desteği ve Overleaf-içe-aktarma düzeltmesi ile. Ayrıca sizi toolchain çukurundan uzak tutmaya çalışır: düşen bir derleme hangi paketi kuracağınızı söyler, ortam denetimi makinenizde neyin eksik olduğunu kurulum komutuyla birlikte raporlar. GPL-3.0 altında açık kaynak.</span></p>
+        </details>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="footer">
+    <p>
+      <a href="https://github.com/s-balli/latex-editor">LaTeX Editor</a>
+      · <span class="tr">GPL-3.0</span>
+      · <span class="tr">PyQt6 ile yazıldı</span>
+    </p>
+    <p class="footer-sub">
+      
+      <span class="tr">Geliştiren: Prof. Dr. Serkan BALLI · Burdur Mehmet Akif Ersoy Üniversitesi, Yazılım Mühendisliği</span>
+    </p>
+    <p class="footer-sub"><span class="tr">Açık kaynak · geri bildirime açık</span></p>
+  </footer>
+
+  <script src="../script.js"></script>
+</body>
+</html>

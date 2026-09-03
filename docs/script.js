@@ -5,7 +5,25 @@
   var btn = document.getElementById("lang-toggle");
   var KEY = "latex-editor-lang";
 
+  // TEK DILLI SAYFADA HIC CALISMA. /tr/ sayfasi bu dosyayi da yukluyor ama
+  // orada `.en` span'leri hic yok ve dugme yerine koke giden bir baglanti
+  // var, yani `#lang-toggle` bulunamiyor. Bu erken cikis olmadan
+  // apply(resolveInitial()) kayitli tercih "en" ise (ya da tarayici dili
+  // Ingilizce ise) data-lang="en" yaziyordu; CSS o durumda BUTUN `.tr`
+  // span'lerini gizledigi icin /tr/ sayfasi bombos aciliyordu.
+  // Statik `data-lang` uretilen sayfada zaten dogru.
+  if (!btn) return;
+
   function resolveInitial() {
+    // `?lang=en` ACIK BIR SECIMDIR, kayitli tercihi de ezer ve yerine
+    // gecer. /tr/ sayfasindaki "EN" baglantisi buraya bunu ekleyerek
+    // geliyor: onceki tercih "tr" olsaydi kullanici EN'e tikladigi hâlde
+    // yine Turkce sayfa aciliyordu.
+    var q = /[?&]lang=(en|tr)\b/.exec(location.search);
+    if (q) {
+      try { localStorage.setItem(KEY, q[1]); } catch (e) {}
+      return q[1];
+    }
     var saved = null;
     try { saved = localStorage.getItem(KEY); } catch (e) {}
     if (saved === "en" || saved === "tr") return saved;
@@ -25,18 +43,16 @@
     root.setAttribute("data-lang", lang);
     root.setAttribute("lang", lang);
     if (BASLIKLAR[lang]) document.title = BASLIKLAR[lang];
-    if (btn) btn.textContent = lang === "en" ? "TR" : "EN";
+    btn.textContent = lang === "en" ? "TR" : "EN";
   }
 
   apply(resolveInitial());
 
-  if (btn) {
-    btn.addEventListener("click", function () {
-      var next = root.getAttribute("data-lang") === "tr" ? "en" : "tr";
-      try { localStorage.setItem(KEY, next); } catch (e) {}
-      apply(next);
-    });
-  }
+  btn.addEventListener("click", function () {
+    var next = root.getAttribute("data-lang") === "tr" ? "en" : "tr";
+    try { localStorage.setItem(KEY, next); } catch (e) {}
+    apply(next);
+  });
 })();
 
 // Copy-to-clipboard for command blocks

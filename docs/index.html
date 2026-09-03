@@ -16,6 +16,17 @@
   <meta name="description" content="Open-source desktop LaTeX editor (GPL-3.0): live PDF preview, SyncTeX, lualatex/pdflatex/xelatex, 7 themes, Turkish/English UI. Handles Turkish-character issues in IEEE/ASYU templates and Overleaf-imported projects. Windows + Linux." />
   <link rel="canonical" href="https://s-balli.github.io/latex-editor/" />
 
+  <!-- Turkce surum AYRI URL'de: /tr/. Bu sayfanin HTML'inde Turkce metin
+       `<span class="tr">` icinde var ama CSS ile gizli, arama motoru onu
+       degersizlestiriyor ve statik sayfa `lang="en"` diyor. hreflang iki
+       sayfayi birbirine bagliyor; Google KARSILIKLI bildirim istiyor, tek
+       yonlu hreflang'i yok sayiyor, o yuzden ayni blok /tr/ sayfasinda da
+       var. /tr/ dosyasi scripts/tr_sayfasi_uret.py ile BU dosyadan
+       uretiliyor, elle duzenlenmiyor. -->
+  <link rel="alternate" hreflang="en" href="https://s-balli.github.io/latex-editor/" />
+  <link rel="alternate" hreflang="tr" href="https://s-balli.github.io/latex-editor/tr/" />
+  <link rel="alternate" hreflang="x-default" href="https://s-balli.github.io/latex-editor/" />
+
   <!-- Open Graph: baglanti WhatsApp, LinkedIn, Discord, Slack gibi yerlerde
        paylasildiginda onizleme karti bunlarla olusuyor. Yoksa cıplak URL
        gorunuyor. og:image MUTLAK URL olmali, goreli yol calismiyor. -->

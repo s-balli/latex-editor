@@ -1,7 +1,24 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+<!-- Iki dilli site: her URL kendi hreflang alternatiflerini bildiriyor.
+     xhtml:link satirlari HER url blogunda TEKRARLANMALI ve her blok
+     KENDISINI de listelemeli; Google eksik bildirimli hreflang gruplarini
+     yok sayiyor. tr sayfasi scripts/tr_sayfasi_uret.py ile uretiliyor. -->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
   <url>
     <loc>https://s-balli.github.io/latex-editor/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://s-balli.github.io/latex-editor/" />
+    <xhtml:link rel="alternate" hreflang="tr" href="https://s-balli.github.io/latex-editor/tr/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://s-balli.github.io/latex-editor/" />
+    <lastmod>2026-09-03</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+  <url>
+    <loc>https://s-balli.github.io/latex-editor/tr/</loc>
+    <xhtml:link rel="alternate" hreflang="en" href="https://s-balli.github.io/latex-editor/" />
+    <xhtml:link rel="alternate" hreflang="tr" href="https://s-balli.github.io/latex-editor/tr/" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://s-balli.github.io/latex-editor/" />
     <lastmod>2026-09-03</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
