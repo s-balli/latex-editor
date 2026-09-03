@@ -1,4 +1,4 @@
-"""Yazım denetimi mixin — "Denetle" komutu, Yazım sekmesi, kullanıcı sözlüğü.
+"""Yazım denetimi mixin: "Denetle" komutu, Yazım sekmesi, kullanıcı sözlüğü.
 
 Çekirdek core/yazim.py'dedir (Qt'süz, LaTeX farkındalıklı tarayıcı + spylls).
 Burada yalnız arayüz bağlantısı var.
@@ -73,9 +73,43 @@ def _sozluk_dizini_gerekli_mi(dil: str) -> str:
     eklenirse kod değişmeden çalışır.
     """
     dizin = sozluk_dizini()
+    _sikistirilmisi_ac(dizin, dil)
     if os.path.isfile(os.path.join(dizin, dil + ".dic")):
         return dizin
     return ""
+
+
+def _sikistirilmisi_ac(dizin: str, dil: str) -> None:
+    """Ham sözlük yoksa `.xz`den aç.
+
+    Sözlük depoda SIKIŞTIRILMIŞ duruyor (ham `.dic` 8.6 MB, deponun bütün
+    geçmişi 3.45 MB idi). Paketlenmiş uygulamada `.spec` yapım sırasında
+    açtığı için ham dosyalar zaten var ve buraya hiç girilmiyor.
+
+    Ama KAYNAKTAN çalıştıran biri için ham dosya YOK: taze bir kopyada
+    `sozlukler/` içinde yalnız `.xz` bulunuyor, `_sozluk_dizini_gerekli_mi`
+    boş dönüyor ve yükleme anlaşılmaz bir hata diyaloğuyla düşüyordu.
+    """
+    hedef = os.path.join(dizin, dil + ".dic")
+    if os.path.isfile(hedef):
+        return
+    import lzma
+    for ad in (dil + ".dic", dil + ".aff"):
+        kaynak = os.path.join(dizin, ad + ".xz")
+        cikti = os.path.join(dizin, ad)
+        if not os.path.isfile(kaynak) or os.path.isfile(cikti):
+            continue
+        try:
+            with lzma.open(kaynak, "rb") as f:
+                veri = f.read()
+            with open(cikti, "wb") as f:
+                f.write(veri)
+            log.info("Sözlük açıldı: %s", cikti)
+        except OSError:
+            # Salt okunur dizin ya da bozuk arşiv: özellik kapalı kalır,
+            # uygulama çalışmaya devam eder.
+            log.warning("Sözlük açılamadı: %s", kaynak, exc_info=True)
+            return
 
 
 def kullanici_sozlugu_yolu(dil: str) -> str:
@@ -121,7 +155,7 @@ class YazimOpsMixin:
 
     def _init_yazim(self):
         self._yazim_denetleyici = None
-        self._yazim_anahtar = None          # (dil, ikinci) — yüklü olanın
+        self._yazim_anahtar = None          # (dil, ikinci), yüklü olanın
         self._yazim_thread = None
         self._output_panel.yazim_denetle_requested.connect(
             self._on_yazim_denetle_requested)

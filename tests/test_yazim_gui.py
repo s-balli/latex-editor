@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Yazım denetimi arayüz katmanı — panel sekmesi ve mixin bağlantısı.
+"""Yazım denetimi arayüz katmanı: panel sekmesi ve mixin bağlantısı.
 
 GERÇEK MainWindow KURULMUYOR: bu depoda o yol CI'ı çökertti (pencere close()
 ile yok olmuyor, sonra başka bir testin içinde çöp toplama sırasında SIGABRT).
@@ -258,6 +258,36 @@ def test_tr_TR_icin_dizin_dosya_VARSA_verilir(qapp, tmp_path, monkeypatch):
     assert _sozluk_dizini_gerekli_mi("tr_TR") == ""      # dosya yok
     (tmp_path / "tr_TR.dic").write_text("x", encoding="utf-8")
     assert _sozluk_dizini_gerekli_mi("tr_TR") == str(tmp_path)
+
+
+def test_taze_kopyada_sozluk_XZ_den_ACILIYOR(qapp, tmp_path, monkeypatch):
+    """Depoda yalniz `.xz` var; kaynaktan calistiran ham dosyayi bulamaz.
+
+    Sozluk depoda SIKISTIRILMIS duruyor (ham `.dic` 8.6 MB). Paketlenmis
+    uygulamada `.spec` yapim sirasinda aciyor, ama TAZE BIR KOPYADA
+    `sozlukler/` icinde yalniz `.xz` bulunuyordu:
+    `_sozluk_dizini_gerekli_mi` bos donuyor, Denetleyici dizinsiz
+    kuruluyor ve yukleme anlasilmaz bir hata diyaloguyla dusuyordu.
+    """
+    import lzma
+    monkeypatch.setattr("gui.mixins.yazim_ops.sozluk_dizini",
+                        lambda: str(tmp_path))
+
+    (tmp_path / "tr_TR.dic.xz").write_bytes(lzma.compress(b"1\nkelime\n"))
+    (tmp_path / "tr_TR.aff.xz").write_bytes(lzma.compress(b"SET UTF-8\n"))
+    assert not (tmp_path / "tr_TR.dic").exists()
+
+    assert _sozluk_dizini_gerekli_mi("tr_TR") == str(tmp_path)
+    assert (tmp_path / "tr_TR.dic").read_bytes() == b"1\nkelime\n"
+    assert (tmp_path / "tr_TR.aff").read_bytes() == b"SET UTF-8\n"
+
+
+def test_xz_YOKSA_sessizce_geciliyor(qapp, tmp_path, monkeypatch):
+    """Acma denemesi, sozluk hic yokken hata vermemeli."""
+    monkeypatch.setattr("gui.mixins.yazim_ops.sozluk_dizini",
+                        lambda: str(tmp_path))
+    assert _sozluk_dizini_gerekli_mi("tr_TR") == ""
+    assert not list(tmp_path.iterdir())
 
 
 def test_kullanici_sozlugu_dile_gore_ayri(qapp):
