@@ -8,8 +8,6 @@ Testlerin çoğu 2026-09-03'te GERÇEK ŞABLONLARDA ölçülmüş kusurları kor
 hangisinin neyi koruduğu tek tek yazılı.
 """
 
-import pytest
-
 from core.yazim import (Bulgu, Denetleyici, belgeden_dil,
                         kelimeleri_cikar)
 
