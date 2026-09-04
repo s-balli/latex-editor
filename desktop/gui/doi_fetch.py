@@ -34,7 +34,39 @@ class DoiRunner(QObject):
         super().__init__(parent)
         self._thread = None
 
-    def start(self, doi: str, mevcut_anahtarlar):
+    def start(self, doi: str, mevcut_anahtarlar) -> bool:
+        """Getirmeyi başlat. Dönüş: iş gerçekten başlatıldı mı.
+
+        SÜREN İŞ VARKEN İKİNCİSİ BAŞLATILMIYOR. Kardeş işçilerde (
+        `_ExportRunner`, `_SnapshotRunner`) bu koruma ÇAĞIRANDA duruyor
+        (`_export_busy`, `_snapshot_busy`); burada hiç yoktu ve
+        `edit_ops._add_by_doi` de denetim yapmıyor. Ağ çağrısı ölçülen
+        sürede ~0.5 sn ama zaman aşımı 8 sn: kullanıcı "bir şey olmadı"
+        sanıp komutu tekrar veriyor, ki bu olağan bir davranış.
+
+        Korumasız hâlde ölçüldü: iki `done` sinyali yayılıyor ve İKİSİ DE
+        AYNI anahtarı taşıyor (`mevcut_anahtarlar` her iki çağrıda da ilk
+        yazımdan ÖNCE okunuyor, `normallestir` belirlenimci). Sonuç, .bib'e
+        aynı anahtarlı iki girdi; uygulamanın kendi denetimi bunu "Mükerrer
+        .bib anahtarı" diye işaretliyor, çünkü BibTeX sessizce ilkini alıp
+        ikinciyi yok sayıyor.
+
+        Ayrıca `self._thread` eziliyordu: `_doi_runner` kapanışta
+        `_BG_WRITERS` üzerinden bekleniyor ama `wait()` yalnız SON iş
+        parçacığını görüyor, birincisi izlenemez kalıyordu.
+
+        KUYRUĞA ALMAK DEĞİL, REDDETMEK: ikinci istek neredeyse her zaman
+        aynı DOI (sabırsızlık), kuyruğa almak tam da önlediğimiz mükerrer
+        girdiyi üretirdi.
+
+        Çağıran şu an dönüşü kullanmıyor; sessiz ret doğru davranış, çünkü
+        durum çubuğunda zaten "DOI getiriliyor..." yazıyor ve o mesaj
+        gerçekten süren iş için doğru.
+        """
+        if self._thread is not None and self._thread.is_alive():
+            _logger.info("DOI getirme zaten sürüyor, ikinci istek atlandı")
+            return False
+
         anahtarlar = list(mevcut_anahtarlar or ())
 
         def work():
@@ -52,6 +84,7 @@ class DoiRunner(QObject):
 
         self._thread = threading.Thread(target=work, name="doi-fetch", daemon=True)
         self._thread.start()
+        return True
 
     def wait(self, timeout_ms: int) -> bool:
         """İş bitene kadar bekle. True = bitti/zaten boştaydı."""
