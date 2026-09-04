@@ -100,10 +100,14 @@
            itiyordu. -->
       <a class="at-badge" href="https://alternativeto.net/software/latex-editor/about/?utm_source=badge&amp;utm_medium=referral"
          target="_blank" rel="noopener" aria-label="AlternativeTo">
-        <!-- loading="lazy" YOK. Rozet ust barda, yani HER ZAMAN ilk ekranda;
-             lazy yalniz kaydirma altindaki gorseller icin anlamli. Canli
-             sayfada olculdu: lazy ile naturalWidth 0 kaliyor ve rozet hic
-             gorunmuyordu, nitelik kalkinca aninda yukleniyor (244 px). -->
+        <!-- loading="lazy" YOK. Rozet ust barda, yani her zaman ilk ekranda;
+             lazy yalniz kaydirma altindaki gorseller icin anlamli.
+             SOMUT KUSUR: rozet <=560 px'te display:none. Sayfa DAR acilip
+             sonra pencere genisletilirse lazy gorsel bir daha hic
+             istenmiyor, rozet yeniden yuklemeye kadar BOS kaliyor (canli
+             sayfada olculdu: naturalWidth 0). Nitelik kalkinca ayni
+             senaryoda 244 px olarak geliyor. Genis acilista lazy de
+             yukluyordu, yani kusur yalniz bu gecis. -->
         <img src="https://alternativeto.net/static/badges/badge-compact-color.svg"
              alt="LaTeX Editor | AlternativeTo" width="124" height="40">
       </a>
