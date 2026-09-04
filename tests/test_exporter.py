@@ -1,6 +1,7 @@
 """exporter.py — pandoc dışa aktarma testleri."""
 
 import os
+import re
 import subprocess
 import sys
 from unittest.mock import MagicMock, patch, mock_open
@@ -115,17 +116,22 @@ class TestPandocArgs:
 
 
 class TestExtractGraphicsPaths:
-    @patch("builtins.open", new_callable=mock_open, read_data=r"\graphicspath{{media/}{images/}}")
+    # read_data artık BAYT: `_extract_graphics_paths` dosyayı ikili açıp
+    # `coz()` ile çözüyor (eski kodlamalı .tex'lerde `errors="replace"`
+    # Türkçe dizin adlarını bozuyordu). Metin taklidi bırakılsaydı
+    # `coz()` `.decode()` bulamayıp istisna atardı ve fonksiyon [] dönerdi:
+    # `test_no_graphicspath` o hâlde YANLIŞ SEBEPTEN geçerdi.
+    @patch("builtins.open", new_callable=mock_open, read_data=rb"\graphicspath{{media/}{images/}}")
     def test_multiple_paths(self, mock_f):
         result = _extract_graphics_paths("test.tex")
         assert result == ["media/", "images/"]
 
-    @patch("builtins.open", new_callable=mock_open, read_data=r"\graphicspath{{media/}}")
+    @patch("builtins.open", new_callable=mock_open, read_data=rb"\graphicspath{{media/}}")
     def test_single_path(self, mock_f):
         result = _extract_graphics_paths("test.tex")
         assert result == ["media/"]
 
-    @patch("builtins.open", new_callable=mock_open, read_data="no graphicspath here")
+    @patch("builtins.open", new_callable=mock_open, read_data=b"no graphicspath here")
     def test_no_graphicspath(self, mock_f):
         result = _extract_graphics_paths("test.tex")
         assert result == []
@@ -765,3 +771,218 @@ class TestMdResimYollari:
         md.write_text("![u](https://ornek.org/x.png)\n", encoding="utf-8")
         duzelt(str(tex), str(md))
         assert self._yollar(md) == ["https://ornek.org/x.png"]
+
+
+# ---------------------------------------------------------------------------
+# ESKİ TÜRKÇE KODLAMALAR
+#
+# Üç okuma da `errors="replace"` kullanıyordu. cp1254/iso-8859-9 bir .tex'te
+# her Türkçe harf U+FFFD oluyor ve `_preprocess_tex` o hâli GEÇİCİ DOSYAYA
+# YAZIP pandoc'a veriyordu: dışa aktarma "başarılı" dönüyor, çıktıda Türkçe
+# harfler yok.
+#
+# Bozulma tam olarak ÖNİŞLEMEYE bağlıydı; önişleme tetiklenmeyen belgeler
+# temiz geçiyordu. Yani kusuru üreten, çıktıyı iyileştirmek için eklenmiş
+# adımın kendisiydi.
+#
+# BU TESTLER GERÇEK DOSYA KULLANIR. Dosyadaki mock tabanlı testler bu sınıfı
+# göremez: `read_data` ne verilirse o okunur, kodlama zinciri hiç çalışmaz.
+# ---------------------------------------------------------------------------
+
+_TR_BASLIKLI = (
+    "\\documentclass{article}\n"
+    "\\title{Başlık: Öğrenci Çalışması}\n"
+    "\\begin{document}\n"
+    "\\begin{abstract}\nÖzet: çğıöşü ÇĞİÖŞÜ\n\\end{abstract}\n"
+    "Gövde: Çağrı Öztürk şekil üzerinde çalıştı.\n"
+    "\\end{document}\n"
+)
+
+
+def _yaz(yol, icerik, kodlama):
+    yol.write_bytes(icerik.encode(kodlama))
+    return str(yol)
+
+
+class TestEskiKodlama:
+    @pytest.mark.parametrize("kodlama", ["cp1254", "iso-8859-9"])
+    def test_onisleme_turkce_harfleri_korumali(self, tmp_path, kodlama):
+        """Geçici dosya U+FFFD taşımamalı; pandoc onu okuyor."""
+        p = _yaz(tmp_path / "makale.tex", _TR_BASLIKLI, kodlama)
+        tmp = _preprocess_tex(p)
+        assert tmp != p, "önişleme tetiklenmedi, test bir şey sınamıyor"
+        try:
+            icerik = open(tmp, encoding="utf-8").read()
+            assert icerik.count("\ufffd") == 0, "Türkçe harfler bozuldu"
+            assert "Çağrı Öztürk" in icerik
+            # Önişlemenin asıl işi de yapılmış olmalı
+            assert "\\section*{Başlık: Öğrenci Çalışması}" in icerik
+        finally:
+            os.unlink(tmp)
+
+    def test_utf8_belge_bozulmadi(self, tmp_path):
+        """Karşı durum: utf-8 yolu birebir aynı kalmalı."""
+        p = _yaz(tmp_path / "makale.tex", _TR_BASLIKLI, "utf-8")
+        tmp = _preprocess_tex(p)
+        try:
+            icerik = open(tmp, encoding="utf-8").read()
+            assert icerik.count("\ufffd") == 0
+            assert "Çağrı Öztürk" in icerik
+        finally:
+            os.unlink(tmp)
+
+    def test_onisleme_gerekmiyorsa_orijinal_yol(self, tmp_path):
+        """Karşı durum: değişiklik yoksa geçici dosya üretilmemeli."""
+        sade = ("\\documentclass{article}\n"
+                "\\begin{document}\nÇağrı\n\\end{document}\n")
+        p = _yaz(tmp_path / "sade.tex", sade, "utf-8")
+        assert _preprocess_tex(p) == p
+
+    def test_cp1254_belgede_turkce_adli_bib_bulunuyor(self, tmp_path):
+        """Bulunamazsa kaynakça HİÇ çözülmez, referans listesi üretilmez."""
+        belge = ("\\documentclass{article}\n\\bibliography{kaynakça}\n"
+                 "\\begin{document}x\\end{document}\n")
+        p = _yaz(tmp_path / "makale.tex", belge, "cp1254")
+        (tmp_path / "kaynakça.bib").write_text("@article{a,\n}\n", encoding="utf-8")
+        assert _find_bibliography(p) == str(tmp_path / "kaynakça.bib")
+
+    def test_cp1254_belgede_turkce_graphicspath(self, tmp_path):
+        """Bozulursa o dizindeki hiçbir görsel bulunamaz."""
+        belge = ("\\documentclass{article}\n\\graphicspath{{şekiller/}}\n"
+                 "\\begin{document}x\\end{document}\n")
+        p = _yaz(tmp_path / "makale.tex", belge, "cp1254")
+        assert _extract_graphics_paths(p) == ["şekiller/"]
+
+    @pytest.mark.skipif(not _PANDOC, reason="pandoc gerekli")
+    def test_uctan_uca_cp1254_ciktisi_temiz(self, tmp_path):
+        """Asıl değişmez: kullanıcının aldığı dosyada Türkçe harfler durmalı.
+
+        Kusur "başarısız" olarak değil, BAŞARILI dönerek bozuyordu.
+        """
+        p = _yaz(tmp_path / "makale.tex", _TR_BASLIKLI, "cp1254")
+        hedef = tmp_path / "cikti.txt"
+        ok, err = export(p, str(hedef))
+        assert ok is True, err
+        cikti = hedef.read_text(encoding="utf-8", errors="replace")
+        assert cikti.count("\ufffd") == 0, "çıktıda değiştirme karakteri var"
+        assert "Öztürk" in cikti
+        assert "ÇĞİÖŞÜ" in cikti
+
+
+# ---------------------------------------------------------------------------
+# UZANTI HARF DUYARLILIĞI
+#
+# `export()` `dest_path.endswith(".md")` diyordu, oysa AYNI dosyadaki
+# `_pandoc_args` `os.path.splitext(...)[1].lower()` kullanıyor. Kullanıcı
+# hedefi "rapor.MD" diye yazınca (uzantı Windows'ta harf duyarsız) pandoc
+# markdown üretiyor ama son işlemler atlanıyordu.
+# ---------------------------------------------------------------------------
+
+_MD_BELGE = ("\\documentclass{article}\n"
+             "\\begin{document}\n"
+             "Bir çalışma \\cite{ornek2024} bunu gösterdi.\n"
+             "\\begin{figure}\\includegraphics{logo}\\end{figure}\n"
+             "\\bibliography{kaynaklar}\n"
+             "\\end{document}\n")
+_MD_BIB = ("@article{ornek2024,\n  author = {Ozturk, Cagri},\n"
+           "  title = {Bir calisma},\n  year = {2024},\n"
+           "  journal = {Test Dergisi}\n}\n")
+
+
+def _md_proje(tmp_path):
+    p = tmp_path / "makale.tex"
+    p.write_text(_MD_BELGE, encoding="utf-8")
+    (tmp_path / "kaynaklar.bib").write_text(_MD_BIB, encoding="utf-8")
+    (tmp_path / "logo.png").write_bytes(b"\x89PNG\r\n")
+    return str(p)
+
+
+def _md_ozet(tmp_path, hedef):
+    icerik = hedef.read_text(encoding="utf-8", errors="replace")
+    return {
+        "resim_mutlak": str(tmp_path).replace(os.sep, "/") in icerik,
+        "citation_cozuldu": "@ornek2024" not in icerik,
+        "references_var": "## References" in icerik,
+    }
+
+
+class TestUzantiHarfDuyarliligi:
+    @pytest.mark.skipif(not _PANDOC, reason="pandoc gerekli")
+    @pytest.mark.parametrize("ad", ["cikti.md", "cikti.MD", "cikti.Md"])
+    def test_md_son_islemleri_uzanti_harfinden_bagimsiz(self, tmp_path, ad):
+        """Resim yolları mutlaklanmalı, citation çözülmeli, References gelmeli.
+
+        Büyük harfli uzantıda üçü birden atlanıyordu ve dışa aktarma yine
+        "başarılı" diyordu.
+        """
+        p = _md_proje(tmp_path)
+        hedef = tmp_path / ad
+        ok, err = export(p, str(hedef))
+        assert ok is True, err
+        assert _md_ozet(tmp_path, hedef) == {
+            "resim_mutlak": True,
+            "citation_cozuldu": True,
+            "references_var": True,
+        }
+
+    @pytest.mark.skipif(not _PANDOC, reason="pandoc gerekli")
+    @pytest.mark.parametrize("ad", ["cikti.docx", "cikti.DOCX"])
+    def test_docx_uyumluluk_dali_uzanti_harfinden_bagimsiz(self, tmp_path, ad):
+        r"""Word'ün açabilmesi için `_fix_docx_compat` her iki yazımda da koşmalı.
+
+        SARKAN ANCHOR üzerinden sınanıyor: olmayan bir etikete `\ref`,
+        pandoc'ta karşılığı bookmark olmayan bir hyperlink üretiyor ve Word
+        böyle bir dosyayı açmayı reddediyor. `_fix_docx_compat` onu düz
+        metne çeviriyor.
+
+        Test KENDİ ÖNKOŞULUNU da doğruluyor: düzeltme devre dışıyken sarkan
+        anchor'ın GERÇEKTEN oluştuğu ayrıca sınanıyor. Yoksa ileride pandoc
+        o hyperlink'i hiç üretmez olursa test sessizce boşa düşerdi.
+        """
+        import zipfile
+
+        belge = ("\\documentclass{article}\n"
+                 "\\begin{document}\n"
+                 "Şekil \\ref{olmayan-etiket} incelendi.\n"
+                 "\\end{document}\n")
+        p = tmp_path / "makale.tex"
+        p.write_text(belge, encoding="utf-8")
+
+        def _sarkan(docx):
+            with zipfile.ZipFile(str(docx)) as z:
+                doc = z.read("word/document.xml").decode("utf-8")
+            bookmarks = set(re.findall(
+                r'<w:bookmarkStart[^>]*w:name="([^"]+)"', doc))
+            anchorlar = re.findall(r'<w:hyperlink[^>]*w:anchor="([^"]+)"', doc)
+            return [a for a in anchorlar if a not in bookmarks]
+
+        # Önkoşul: düzeltme koşmazsa sarkan anchor oluşuyor mu
+        ham = tmp_path / ("ham_" + ad)
+        with patch("core.exporter._fix_docx_compat"):
+            ok, err = export(str(p), str(ham))
+        assert ok is True, err
+        assert _sarkan(ham), "senaryo artık sarkan anchor üretmiyor, test boş"
+
+        # Asıl sınama: düzeltme koştuğunda sarkan anchor kalmamalı
+        hedef = tmp_path / ad
+        ok, err = export(str(p), str(hedef))
+        assert ok is True, err
+        assert zipfile.is_zipfile(str(hedef))
+        assert _sarkan(hedef) == [], "sarkan anchor kaldı, Word açamaz"
+        assert not (tmp_path / (ad + ".tmp")).exists(), "geçici dosya kaldı"
+
+    def test_uzanti_kurali_dosya_icinde_TEK(self):
+        """`export` ile `_pandoc_args` aynı kuralı kullanmalı.
+
+        Ayrışmanın kendisi kusurdu: bir dosyada iki kural vardı.
+        """
+        for ad in ("r.md", "r.MD", "r.docx", "r.DOCX", "r.HtMl", "r.TXT"):
+            beklenen = os.path.splitext(ad)[1].lower()
+            args = _pandoc_args("/x/a.tex", "/x/" + ad)
+            # _pandoc_args'ın kararı uzantının küçük harfli hâline dayanmalı
+            if beklenen == ".html":
+                assert "--standalone" in args, ad
+            elif beklenen == ".txt":
+                assert "-t" in args and "plain" in args, ad
+            else:
+                assert "--standalone" not in args, ad

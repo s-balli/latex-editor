@@ -9,6 +9,10 @@ import sys
 
 from core.log import get_logger
 from core.paths import clean_child_env
+# Bu depodaki TEK çözücü zinciri (utf-8 -> cp1254 -> iso-8859-9). Modül
+# düzeyinde alınıyor: üç ayrı yerde gerekiyor ve project_search yalnız
+# stdlib'e dayanıyor, döngü ya da açılış maliyeti yok.
+from core.project_search import coz
 
 _logger = get_logger("exporter")
 
@@ -62,18 +66,26 @@ def export(tex_path: str, dest_path: str) -> tuple[bool, str]:
     # Bibliography (.bib) tespit et ki referanslar çözülsün.
     bib = _find_bibliography(tex_path)
     tmp_tex = _preprocess_tex(tex_path)
+    # Uzantı KÜÇÜK HARFE çevrilerek karşılaştırılır, `_pandoc_args` zaten
+    # öyle yapıyordu; burada `endswith(".md")` deniyordu ve aynı dosyada iki
+    # ayrı kural vardı. Kullanıcı hedefi 'rapor.MD' diye yazınca (uzantı
+    # Windows'ta harf duyarsız) pandoc dosyayı markdown üretiyor ama son
+    # işlemler ATLANIYORDU. Ölçüldü, .MD çıktısında: resim yolları göreli
+    # kalıyor (bağlantılar kırık), `[@anahtar]` çözülmüyor ve References
+    # bölümü hiç eklenmiyor.
+    hedef_ext = os.path.splitext(dest_path)[1].lower()
     ok, err = False, ""
     try:
         if PLATFORM == "win32":
             ok, err = _export_wsl(tmp_tex, dest_path, bib)
         else:
             ok, err = _export_native(tmp_tex, dest_path, bib)
-        if ok and dest_path.endswith(".md"):
+        if ok and hedef_ext == ".md":
             _fix_md_image_paths(tex_path, dest_path)
             if bib:
                 # tmp_tex citeproc referans üretimi için lazım; silinmeden önce çağır.
                 _resolve_md_citations(dest_path, tmp_tex, bib)
-        elif ok and dest_path.endswith(".docx"):
+        elif ok and hedef_ext == ".docx":
             _fix_docx_compat(dest_path)
     except Exception as e:
         # export() asla istisna fırlatmamalı: çağıran arka plan thread'i
@@ -321,9 +333,16 @@ def _preprocess_tex(tex_path: str) -> str:
     Değişiklik yoksa orijinal dosyayı döndürür; varsa aynı dizinde geçici dosyaya
     yazar ve onun yolunu döndürür.
     """
+    # KODLAMAYI ÇÖZ, `errors="replace"` ile okuma. Burası dosyayı yeniden
+    # YAZAN tek yer: cp1254/iso-8859-9 bir .tex `replace` ile okununca her
+    # Türkçe harf U+FFFD oluyor ve o hâliyle geçici dosyaya yazılıyordu.
+    # Ölçüldü: başlıklı bir cp1254 belgede dışa aktarma BAŞARILI dönüyor
+    # ama çıktıda 28 değiştirme karakteri var ve 'Öztürk' hiç yok. Önişleme
+    # tetiklenmeyen belgelerde bozulma yoktu, yani kusuru üreten tam da
+    # çıktıyı iyileştirmek için yapılan bu adımdı.
     try:
-        with open(tex_path, "r", encoding="utf-8", errors="replace") as f:
-            content = f.read()
+        with open(tex_path, "rb") as f:
+            content = coz(f.read())
     except OSError:
         return tex_path
 
@@ -355,9 +374,13 @@ def _find_bibliography(tex_path: str) -> str:
     geçirilince citations çözülür ve referans listesi üretilir.
     """
     tex_dir = os.path.dirname(os.path.abspath(tex_path))
+    # Çözücü zinciri: cp1254 bir .tex'te Türkçe adlı bir .bib
+    # (`\bibliography{kaynakça}`) `replace` okumasıyla bozuluyor, dosya
+    # diskte bulunamıyor ve "" dönüyordu. Sonuç: kaynakça HİÇ çözülmüyor,
+    # referans listesi üretilmiyor (ölçüldü).
     try:
-        with open(tex_path, "r", encoding="utf-8", errors="replace") as f:
-            content = f.read()
+        with open(tex_path, "rb") as f:
+            content = coz(f.read())
     except OSError:
         return ""
     for pat in (r'\\addbibresource\s*\{([^}]+\.bib)\}', r'\\bibliography\s*\{([^}]+)\}'):
@@ -426,8 +449,11 @@ def _extract_graphics_paths(tex_path: str) -> list[str]:
     r"""\graphicspath{{dir1/}{dir2/}} içindeki yolları çıkar."""
     import re
     try:
-        with open(tex_path, "r", encoding="utf-8", errors="replace") as f:
-            content = f.read()
+        # Çözücü zinciri: `\graphicspath{{şekiller/}}` cp1254 bir belgede
+        # `replace` okumasıyla bozuluyor ve o dizindeki hiçbir görsel
+        # bulunamıyordu (ölçüldü: 'şekiller/' yerine '�ekiller/').
+        with open(tex_path, "rb") as f:
+            content = coz(f.read())
         paths = []
         for m in re.finditer(r'\\graphicspath\s*\{(.+)\}', content):
             for inner in re.finditer(r'\{([^}]+)\}', m.group(1)):
