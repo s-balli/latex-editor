@@ -242,6 +242,71 @@ def test_wizard_replaces_wrapped_table_whole(qapp, monkeypatch):
     assert captured["meta"] == ("Eski başlık", "tab:eski")
 
 
+def _tablo_kilifi(ortam, govde="a & b"):
+    return ("\\begin{%s}[htbp]\n    \\caption{Bir}\n    \\label{tab:x}\n"
+            "    \\begin{tabular}{ll}\n    %s\\\\\n    \\end{tabular}\n"
+            "\\end{%s}\n" % (ortam, govde, ortam))
+
+
+def test_YILDIZLI_table_kilifi_de_bulunuyor(qapp):
+    r"""`\begin{table*}` kılıfı da bulunmalı, `\begin{table}` gibi.
+
+    `_table_wrapper_range` yakalanan ortam adını regex'e DÜZ METİN olarak
+    ekliyordu; `table*` içindeki yıldız quantifier'e dönüşüyor ve desen
+    `\end{table*}` ile eşleşmiyordu. Kılıf bulunamayınca sihirbaz kılıflı
+    kodu mevcut kılıfın İÇİNE koyup iç içe yüzen ortam üretiyordu, ki bu
+    işlevin var olma sebebi tam onu önlemek.
+    """
+    metin = "oncesi\n" + _tablo_kilifi("table*") + "sonrasi\n"
+    blok = parse_tabular_at(metin, metin.index("a & b"))
+    aralik = TableOpsMixin._table_wrapper_range(metin, blok)
+
+    assert aralik is not None, "table* kılıfı bulunamadı"
+    assert metin[aralik[0]:aralik[1]].startswith("\\begin{table*}")
+    assert metin[aralik[0]:aralik[1]].rstrip().endswith("\\end{table*}")
+
+
+def test_yildizli_kilif_SONRAKI_tabloya_TASMIYOR(qapp, monkeypatch):
+    r"""Belgede sonradan bir `\end{table}` varsa ona eşleşmemeli.
+
+    Yıldız quantifier olunca desen `\end{tabl` + `e*` + `}` oluyordu ve
+    ilerideki `\end{table}` ile eşleşiyordu. Kılıf aralığı aradaki metni
+    yutuyor, "Ekle" onu SİLİYORDU: ölçüldü, 214 karakterlik aralık seçilip
+    aradaki paragraf ve ikinci tablo gidiyordu.
+    """
+    import gui.table_wizard as tw
+
+    arada = "Bu paragraf iki tablonun ARASINDA ve kaybolmamali.\n"
+    metin = ("oncesi\n" + _tablo_kilifi("table*")
+             + arada + _tablo_kilifi("table", "x & y") + "sonrasi\n")
+    ed = EditorWidget()
+    ed.setText(metin)
+    ed.setCursorPosition(metin[:metin.index("a & b")].count("\n"), 5)
+    stub = _Stub([ed])
+
+    yeni = ("\\begin{table*}[htbp]\n    \\begin{tabular}{ll}\n"
+            "    YENI & TABLO\\\\\n    \\end{tabular}\n\\end{table*}")
+
+    class FakeDlg:
+        def __init__(self, *a, **k): pass
+        def apply_theme(self, t): pass
+        def load_block(self, b): pass
+        def set_meta(self, caption, label): pass
+        def exec(self): return True
+        def result_text(self): return yeni
+
+    monkeypatch.setattr(tw, "TableWizardDialog", FakeDlg)
+    stub._table_wizard()
+
+    t = ed.text()
+    assert arada.strip() in t, "aradaki paragraf silindi"
+    assert "x & y" in t, "ikinci tablo silindi"
+    assert "YENI & TABLO" in t
+    # iç içe yüzen ortam üretilmemeli: her kılıftan birer tane
+    assert t.count("\\begin{table*}") == 1
+    assert t.count("\\begin{table}") == 1
+
+
 def test_wizard_replaces_existing_block(qapp, monkeypatch):
     import gui.table_wizard as tw
 

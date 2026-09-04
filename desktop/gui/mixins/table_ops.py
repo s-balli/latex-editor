@@ -50,7 +50,19 @@ class TableOpsMixin:
         """
         import re as _re
         for m in _re.finditer(r"\\begin\{(table\*?)\}", text):
-            end_m = _re.search(r"\\end\{" + m.group(1) + r"\}", text[m.end():])
+            # `_re.escape` ŞART: yakalanan ad `table*` olabiliyor ve yıldız
+            # düz metin gibi eklenince regex QUANTIFIER'ine dönüşüyordu
+            # (desen `\end{tabl` + `e*` + `}`). Ölçüldü:
+            #   \end{table*} -> EŞLEŞMİYOR   (aranan tam da buydu)
+            #   \end{table}  -> eşleşiyor    (aranmayan)
+            # İki sonucu vardı: (1) `table*` kılıfı hiç bulunamıyor, sihirbaz
+            # kılıflı kodu mevcut kılıfın İÇİNE koyup iç içe yüzen ortam
+            # üretiyordu (bu işlevin var olma sebebi tam bunu önlemek);
+            # (2) belgede sonradan bir `\end{table}` varsa ONA eşleşiyor,
+            # kılıf aralığı aradaki metni yutuyor ve "Ekle" onu SİLİYORDU.
+            # Aynı kalıp core/latex_tables.py:300'de zaten escape'li.
+            end_m = _re.search(r"\\end\{" + _re.escape(m.group(1)) + r"\}",
+                               text[m.end():])
             if not end_m:
                 continue
             w_start, w_end = m.start(), m.end() + end_m.end()
