@@ -165,7 +165,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/apt-arsiv
-          key: apt-appimage-ubuntu-22.04-v1
+          key: apt-appimage-ubuntu-22.04-v2
 
       - name: Install system dependencies
         run: |
@@ -177,7 +177,20 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             python3-venv inkscape \
             libxcb-cursor0 libgl1 libegl1 libglib2.0-0 \
-            libdbus-1-3 libxkbcommon0 libfontconfig1
+            libdbus-1-3 libxkbcommon0 libfontconfig1 \
+            libxkbcommon-x11-0 libxcb-icccm4 libxcb-keysyms1 libxcb-xkb1
+
+      # ALTTAKI DORT PAKET AppImage'IN ACILMASI ICIN SART. Qt'nin xcb
+      # platform eklentisi onlara bagli ve PyInstaller yalniz YAPIM SIRASINDA
+      # SISTEMDE BULABILDIGI kutuphaneleri paketliyor; kurulu olmayanlari
+      # sessizce atliyor. Yoklarken uretilen AppImage, o paketleri tasimayan
+      # her Linux'ta COKUYORDU:
+      #   qt.qpa.plugin: Could not load the Qt platform plugin "xcb"
+      #   cikis kodu 134, core dumped
+      # Dordunun de onceligi `optional`/`extra`, yani temel kurulumda YOKLAR;
+      # gelistirici makinelerinde bulunduklari icin kusur gorunmuyordu.
+      # OLCULDU (2026-09-04, temiz Ubuntu 24.04): paketler kuruluyken yapilan
+      # surum aciliyor, kurulu degilken cokuyor. Toplam maliyet 66 KB.
 
       # apt kurulumdan SONRA .deb'leri siliyor, o yuzden Keep-Downloaded sart.
       # actions/cache is sonunda ~/apt-arsiv'i kendiliginden sakliyor.
@@ -191,6 +204,31 @@ jobs:
       - name: Build AppImage
         working-directory: desktop
         run: bash build_appimage.sh
+
+      # AppImage KENDI KENDINE YETIYOR MU. Qt'nin xcb eklentisi cozulemeyen
+      # bir bagimlilik tasiyorsa uygulama, o kutuphaneyi tasimayan sistemde
+      # hic acilmiyor; hata da Qt'nin anlasilmaz "could not load the Qt
+      # platform plugin" mesaji oluyor. Bir kez yasandi (2026-09-04): dort
+      # X11 kutuphanesi yapim makinesinde kurulu olmadigi icin PyInstaller
+      # onlari sessizce atlamis, uretilen AppImage temiz Ubuntu'da cokuyordu.
+      #
+      # Bu kapi yalnizca EKSIK PAKETI degil, PyQt6 yukseltmesinin getirdigi
+      # YENI bir sistem bagimliligini da yakalar. Yayindan once, burada.
+      - name: AppImage bagimliliklari cozuluyor mu
+        working-directory: desktop
+        run: |
+          eklenti=$(find dist/latex-editor/_internal -name libqxcb.so | head -1)
+          test -n "$eklenti" || { echo "::error::libqxcb.so bulunamadi"; exit 1; }
+          eksik=$(LD_LIBRARY_PATH="$PWD/dist/latex-editor/_internal" \
+                  ldd "$eklenti" | grep "not found" || true)
+          if [ -n "$eksik" ]; then
+            echo "::error::AppImage kendi kendine yetmiyor, eksik kutuphaneler:"
+            echo "$eksik"
+            echo "Cozum: eksik paketleri yukaridaki apt listesine ekleyin ve"
+            echo "onbellek anahtarindaki surumu artirin."
+            exit 1
+          fi
+          echo "xcb eklentisinin butun bagimliliklari cozuluyor"
 
       - name: Generate release notes
         shell: bash
