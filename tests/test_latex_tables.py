@@ -1,6 +1,8 @@
 """latex_tables çekirdek testleri — üretim, kaçış, parse, hizalama, CSV, label."""
 
 
+import re
+
 import pytest
 
 from core.latex_tables import (
@@ -359,3 +361,99 @@ def test_ikili_dosya_copluk_uretmiyor(tmp_path):
 
 def test_bos_dosya_hata_vermiyor(tmp_path):
     assert csv_to_rows(_csv_yaz(tmp_path, "bos.csv", b"")) == []
+
+
+# ---------------------------------------------------------------------------
+# ÜRETİLEN TABLONUN DERLENEBİLİRLİĞİ
+#
+# Aşağıdaki iki sınıf, üretimin LaTeX'i BOZDUĞU iki yolu sabitliyor. Her ikisi
+# de gerçek pdflatex ile ölçüldü; buradaki testler ucuz (dizge düzeyi)
+# karşılıkları. Gerçek derleme kapısı tests/test_tablo_derleme.py'de ve CI'da
+# `derle` işi onu koşuyor.
+# ---------------------------------------------------------------------------
+
+
+class TestDuzensizSatirlar:
+    """CSV'den gelen satırlar farklı uzunlukta olabilir.
+
+    Eskiden `ncols = len(rows[0])` alınıyor ve satırlar olduğu gibi
+    yazılıyordu: bir satırda fazladan virgül olan bir CSV (Excel
+    çıktılarında olağan) üretilen bloğu DERLENMEZ yapıyordu
+    ("! Extra alignment tab has been changed to \\cr").
+    """
+
+    RAGGED = [["Ad", "Yil", "Deger"],
+              ["Ozturk", "2024", "12", "FAZLA"],
+              ["Cagri", "2023", "9"]]
+
+    @staticmethod
+    def _hucre_sayilari(kod):
+        return {s.count(" & ") + 1 for s in kod.split("\n") if s.endswith(" \\\\")}
+
+    def test_tum_satirlar_ayni_hucre_sayisinda(self):
+        kod = build_tabular(self.RAGGED, ["l", "c", "r"])
+        assert self._hucre_sayilari(kod) == {4}
+
+    def test_kolon_belirtimi_en_uzun_satira_gore(self):
+        kod = build_tabular(self.RAGGED, ["l", "c", "r"])
+        assert "{lcrc}" in kod
+
+    def test_fazla_veri_dusmuyor(self):
+        """Kırpmak yerine doldurmak seçildi: kullanıcının verisi kaybolmasın."""
+        kod = build_tabular(self.RAGGED, ["l", "c", "r"])
+        assert "FAZLA" in kod
+
+    @pytest.mark.parametrize("satirlar", [
+        [["a", "b", "c"], ["d"]],            # ilk satır EN UZUN
+        [["a"], ["b", "c", "d"]],            # ilk satır EN KISA
+        [["a", "b"], ["c", "d"]],            # düzenli (karşı durum)
+        [["a"]],                             # tek hücre
+        [["a", ""], ["", "b"]],              # boş hücreler
+    ])
+    def test_her_bicimde_hucre_sayisi_esit(self, satirlar):
+        kod = build_tabular(satirlar, ["l"])
+        assert len(self._hucre_sayilari(kod)) == 1
+
+
+class TestSapkaVeTilde:
+    r"""`^` derlemeyi kırıyordu, `~` çıktıyı sessizce değiştiriyordu.
+
+    `^` : metin kipinde "! Missing $ inserted." veriyor. `$` zaten
+          kaçırıldığı için hücrede matematik kipi hiç açılamıyor, yani `^`
+          bir hücrede hiçbir zaman meşru olamaz.
+    `~` : derleniyor ama bağlayıcı boşluğa dönüşüyor; '5~10' çıktıda
+          '5 10' oluyor (ölçüldü).
+
+    KAÇIŞ BİÇİMİ ÖNEMLİ: `\^` tek başına aksan komutudur ve şapkayı BİR
+    SONRAKİ harfin üstüne koyar ('R\^2' -> 'R2̂', ölçüldü). Doğrusu `\^{}`.
+    """
+
+    def test_sapka_kacisi_suslu_parantezli(self):
+        assert escape_cell("R^2") == r"R\^{}2"
+
+    def test_tilde_kacisi_suslu_parantezli(self):
+        assert escape_cell("5~10") == r"5\~{}10"
+
+    def test_naif_kacis_URETILMIYOR(self):
+        """`\\^2` biçimi derlenir ama yanlış karakteri basar; çıkmamalı."""
+        kod = escape_cell("R^2")
+        assert "\\^2" not in kod
+
+    def test_eski_kacislar_bozulmadi(self):
+        assert escape_cell("%&_#$") == r"\%\&\_\#\$"
+
+    def test_backslash_hala_serbest(self):
+        """LaTeX komut serbestliği korunmalı (modülün bilinçli tercihi)."""
+        assert escape_cell(r"\textbf{x}") == r"\textbf{x}"
+
+    @pytest.mark.parametrize("ham", [
+        "R^2", "5~10", "a^b~c", "a^b^c", "%50", "a&b", "x_1", "#3", "$5",
+        "a^b~c%d&e_f#g$h", r"\textbf{x}", "düz metin", "",
+    ])
+    def test_roundtrip(self, ham):
+        assert unescape_cell(escape_cell(ham)) == ham.strip()
+
+    def test_uretilen_tabloda_ham_sapka_kalmiyor(self):
+        kod = build_tabular([["Olcut", "Deger"], ["R^2", "0,91"]], ["l", "r"])
+        # Kaçırılmamış tek başına `^` kalmamalı
+        assert re.search(r"(?<!\\)\^(?!\{\})", kod) is None

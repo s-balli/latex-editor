@@ -151,8 +151,11 @@ jobs:
     # GERÇEK TeX gerektiren entegrasyon testleri: matrix job'da TeX
     # kurulmadığından ikisi de orada hep skip oluyor, yani yalnız
     # geliştirici makinesinde deneniyordu.
-    #   test_derle_sh.py     — derleme betiği zinciri
-    #   test_synctex_live.py — ileri/geri arama, koordinat→piksel, highlight
+    #   test_derle_sh.py       — derleme betiği zinciri
+    #   test_synctex_live.py   — ileri/geri arama, koordinat→piksel, highlight
+    #   test_tablo_derleme.py  — tablo sihirbazının ÜRETTİĞİ blok derleniyor mu
+    #                            (düzensiz CSV satırı ve hücredeki `^` ikisi de
+    #                            derlemeyi kırıyordu; dizge testi yakalayamaz)
     # Paket seti test belgelerinin gerçek bağımlılıkları: article
     # (latex-base), fontspec (latex-recommended), biblatex+biber
     # (bibtex-extra), minted+Pygments (latex-extra + python3-pygments);
@@ -223,7 +226,7 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r desktop/requirements.txt pytest
 
-      - name: Gerçek TeX entegrasyon testleri (derle.sh + SyncTeX)
+      - name: Gerçek TeX entegrasyon testleri (derle.sh + SyncTeX + tablo)
         env:
           QT_QPA_PLATFORM: offscreen
-        run: python -m pytest tests/test_derle_sh.py tests/test_synctex_live.py -v
+        run: python -m pytest tests/test_derle_sh.py tests/test_synctex_live.py tests/test_tablo_derleme.py -v

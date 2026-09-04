@@ -13,25 +13,38 @@ from dataclasses import dataclass
 # --- Hücre kaçışı ---
 
 # & satır ayracı, % yorum başlatır, _/# alt çizli/düz moduna sokar, $ math açar.
-# Ters eğik çizgi KAÇIRILMAZ: hücreye \alpha, \textbf vb. bilinçli LaTeX yazma
-# serbestliği korunur.
-_ESCAPE_RE = re.compile(r"([%&_#$])")
+# Ters eğik çizgi KAÇIRILMAZ: hücreye \textbf{...} vb. bilinçli LaTeX yazma
+# serbestliği korunur. (Bu serbestlik METİN KİPİ ile sınırlı: `\alpha` gibi
+# matematik komutları hücrede derlenmez, ölçüldü.)
+#
+# `^` ve `~` SONRADAN eklendi:
+#   ^ : metin kipinde üst simge açar ve "! Missing $ inserted." verir, yani
+#       DERLEMEYİ KIRAR. `$` zaten kaçırıldığı için hücrede matematik kipi hiç
+#       açılamıyor; dolayısıyla `^` bir hücrede hiçbir zaman meşru olamaz.
+#   ~ : derleniyor ama bağlayıcı boşluğa dönüşüyor: '5~10' çıktıda '5 10'
+#       oluyor (ölçüldü), yani metin yazıldığı gibi görünmüyor.
+#
+# İkisi de `\` + karakter ile kaçırılamaz: `R\^2` DERLENİR ama şapkayı bir
+# SONRAKİ harfin üstüne koyar ('R2̂', ölçüldü). Doğru biçim `\^{}` / `\~{}`.
+_ESCAPE_MAP = {"^": "\\^{}", "~": "\\~{}"}
+_ESCAPE_RE = re.compile(r"([%&_#$^~])")
 
 
 def escape_cell(text: str) -> str:
     """Hücre metnindeki LaTeX özel karakterlerini kaçır (ters eğik çizgi hariç)."""
-    return _ESCAPE_RE.sub(r"\\\1", text.strip())
+    return _ESCAPE_RE.sub(
+        lambda m: _ESCAPE_MAP.get(m.group(1), "\\" + m.group(1)), text.strip())
 
 
-_UNESCAPE_RE = re.compile(r"\\([%&_#$])")
+_UNESCAPE_RE = re.compile(r"\\([%&_#$])|\\([\^~])\{\}")
 
 
 def unescape_cell(text: str) -> str:
     """escape_cell'in tersi: \\% → % vb. (grid'e yüklerken kullanılır).
 
-    \\alpha gibi komutlar dokunulmaz; yalnız kaçırılmış özel karakterler açılır.
+    \\textbf gibi komutlar dokunulmaz; yalnız kaçırılmış özel karakterler açılır.
     """
-    return _UNESCAPE_RE.sub(r"\1", text.strip())
+    return _UNESCAPE_RE.sub(lambda m: m.group(1) or m.group(2), text.strip())
 
 
 # --- Kolon belirtimi ---
@@ -79,7 +92,13 @@ def build_tabular(rows: list[list[str]], aligns: list[str],
     if not rows:
         return ""
     opts = opts or TableOptions()
-    ncols = len(rows[0])
+    # Kolon sayısı EN UZUN satıra göre; satırlar da ona doldurulur. Eskiden
+    # `len(rows[0])` alınıyor ve satırlar olduğu gibi yazılıyordu: CSV'den
+    # gelen düzensiz bir tabloda (bir satırda fazladan virgül, Excel
+    # çıktılarında olağan) üretilen blok DERLENMİYORDU
+    # ("! Extra alignment tab has been changed to \\cr", ölçüldü). Kırpmak
+    # yerine doldurmak seçildi: kullanıcının verisi sessizce düşmesin.
+    ncols = max(len(r) for r in rows)
     aligns = (aligns + ["c"] * ncols)[:ncols]
 
     top = "\\toprule" if opts.booktabs else "\\hline"
@@ -96,6 +115,7 @@ def build_tabular(rows: list[list[str]], aligns: list[str],
     lines = [begin, f"{ind}{top}"]
     for i, row in enumerate(rows):
         cells = [escape_cell(c) for c in row]
+        cells += [""] * (ncols - len(cells))     # kısa satırlar boş hücreyle
         lines.append(f"{ind}{' & '.join(cells)} \\\\")
         if opts.header_row and i == 0 and len(rows) > 1:
             lines.append(f"{ind}{mid}")
