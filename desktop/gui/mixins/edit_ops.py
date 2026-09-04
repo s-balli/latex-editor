@@ -63,7 +63,20 @@ class EditOpsMixin:
             pos_start = editor.SendScintilla(editor.SCI_GETSELECTIONSTART)
             pos_end = editor.SendScintilla(editor.SCI_GETSELECTIONEND)
             line_from, _ = editor.lineIndexFromPosition(pos_start)
-            line_to, _ = editor.lineIndexFromPosition(pos_end)
+            line_to, son_sutun = editor.lineIndexFromPosition(pos_end)
+            # Seçim SONRAKİ satırın başında bitiyorsa o satır kapsam dışı:
+            # aşağı doğru sürüklerken oluşan olağan durum ve o satırdan
+            # hiçbir karakter seçili değil. Eskiden o satır da yorumlanıyor,
+            # kullanıcı ekranda görmediği bir değişiklikle karşılaşıyordu.
+            #
+            # `line_to > line_from` bugün ULAŞILAMAZ ve bilerek duruyor: bu
+            # dala yalnız boş OLMAYAN seçimle giriliyor, öyle bir seçim 0.
+            # sütunda bitiyorsa en az iki satıra yayılmıştır. Ölçüldü, koşul
+            # kaldırılınca hiçbir test düşmüyor. Yine de kalıyor, çünkü
+            # varsayım bozulursa alternatif SESSİZ: `line_to` bir eksiğe
+            # düşer, döngü boşalır ve toggle hiçbir şey yapmaz.
+            if line_to > line_from and son_sutun == 0:
+                line_to -= 1
         else:
             line_from = line
             line_to = line
@@ -75,9 +88,18 @@ class EditOpsMixin:
         for ln in range(line_from, line_to + 1):
             text = editor.text(ln)
             if is_commented:
-                idx = text.find('%')
-                if idx >= 0:
-                    editor.setSelection(ln, idx, ln, idx + 1)
+                # YALNIZ satırın ilk anlamlı karakteri `%` ise ve TAM onu
+                # kaldır. Eskiden `text.find('%')` idi: satırdaki ilk `%`'yi
+                # buluyordu, yorum işareti mi kaçış mı ayırmadan. Yön kararı
+                # ilk satıra bakıp bütün seçime uygulandığı için karışık bir
+                # seçimde yorum OLMAYAN satırlar da kırpılıyordu (ölçüldü):
+                #   `Kâr oranı \%15 arttı` -> `\15`, tanımsız kontrol dizisi,
+                #     belge DERLENMİYOR
+                #   `x = 5 % açıklama`     -> `x = 5  açıklama`, yorum metne
+                #     dönüyor ve derlemeye giriyor
+                indent = len(text) - len(text.lstrip())
+                if text[indent:indent + 1] == '%':
+                    editor.setSelection(ln, indent, ln, indent + 1)
                     editor.removeSelectedText()
             else:
                 indent = len(text) - len(text.lstrip())
