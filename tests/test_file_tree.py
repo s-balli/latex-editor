@@ -45,7 +45,16 @@ def test_collect_files_skip_ve_derinlik_kurallari(qapp, tmp_path):
     files = tree._collect_files(str(tmp_path))
 
     got = {os.path.relpath(f, str(tmp_path)).replace(os.sep, "/") for f in files}
-    assert got == {"ana.tex", "bolum/giris.tex"}
+    # KLASÖRLER de anlık görüntüde. Ağaç HER klasörü çiziyor (boş olanı da);
+    # anlık görüntü yalnız dosya toplarken ikisi klasörlerde ayrışıyordu ve
+    # dışarıdan yaratılan/silinen klasör ağaca hiç yansımıyordu.
+    # ATLAMA KURALLARI DEĞİŞMEDİ, bu testin asıl işi o: SKIP_DIRS klasörleri
+    # ve nokta klasörleri yok, _MAX_DEPTH'i aşan 'cok_derin.tex' de yok.
+    assert got == {
+        "ana.tex", "bolum", "bolum/giris.tex",
+        "d0", "d0/d1", "d0/d1/d2", "d0/d1/d2/d3", "d0/d1/d2/d3/d4",
+        "d0/d1/d2/d3/d4/d5",
+    }
 
 
 def test_input_ref_ok_tek_okumayla_iki_denetim(qapp, tmp_path, monkeypatch):
@@ -496,3 +505,250 @@ def test_input_agaci_TEX_OLMAYAN_dosyada_gizli_kaliyor(qapp, tmp_path):
     tree.update_input_tree(str(tmp_path / "refs.bib"),
                            "\\documentclass{article}\n\\input{bolum1}\n")
     assert tree._input_tree.isHidden()
+
+
+# --- KLASÖR yeniden adlandırma: içindeki açık dosyalar da bildirilmeli ---
+#
+# `file_renamed` alıcısı (file_ops._on_file_renamed) yolu BİREBİR
+# karşılaştırıyor. Klasörü tek başına bildirmek içindeki açık sekmeleri
+# ÖKSÜZ bırakıyordu: sekme var olmayan bir yola bağlı kalıyor, dosya
+# izleyici de tam o koşula bakıp (file_watch._process_single, `not
+# os.path.isfile(path)`) dosyayı SİLİNMİŞ sayıyor ve kullanıcıya "dosya
+# diskten silindi" diyerek sekmeyi kapatıyordu. Oysa dosya silinmedi,
+# yalnız taşındı.
+
+
+def _sekme_izleyici(tree, sekmeler):
+    """file_ops._on_file_renamed ile AYNI birebir yol mantığı.
+
+    Sinyalin şeklini değil, alıcının GERÇEKTEN doğru sonuca varmasını
+    sınıyoruz: kusur tam olarak bu eşleşmenin tutmamasıydı.
+    """
+    def on(eski, yeni):
+        eski_n = os.path.normpath(eski)
+        for i, yol in enumerate(sekmeler):
+            if os.path.normpath(yol) == eski_n:
+                sekmeler[i] = yeni
+    tree.file_renamed.connect(on)
+
+
+def _kur(tmp_path, yapilar):
+    for rel, ic in yapilar:
+        tam = tmp_path / rel
+        tam.parent.mkdir(parents=True, exist_ok=True)
+        tam.write_text(ic, encoding="utf-8")
+
+
+class TestKlasorYenidenAdlandirma:
+    def test_klasordeki_acik_dosyalar_yeni_yola_tasiniyor(
+            self, qapp, tmp_path, monkeypatch):
+        _kur(tmp_path, [("main.tex", "m"),
+                        ("bolumler/giris.tex", "g"),
+                        ("bolumler/yontem.tex", "y")])
+        tree = _agac(qapp, tmp_path)
+        sekmeler = [str(tmp_path / "bolumler" / "giris.tex"),
+                    str(tmp_path / "bolumler" / "yontem.tex")]
+        _sekme_izleyici(tree, sekmeler)
+        monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: None)
+        monkeypatch.setattr(QInputDialog, "getText",
+                            lambda *a, **k: ("chapters", True))
+
+        tree._yeniden_adlandir(str(tmp_path / "bolumler"))
+
+        oksuz = [y for y in sekmeler if not os.path.isfile(y)]
+        assert oksuz == [], "sekme var olmayan yola bağlı kaldı: %s" % oksuz
+        assert sekmeler == [str(tmp_path / "chapters" / "giris.tex"),
+                            str(tmp_path / "chapters" / "yontem.tex")]
+
+    def test_ic_ice_klasorler_de_tasiniyor(self, qapp, tmp_path, monkeypatch):
+        _kur(tmp_path, [("a/b/c/derin.tex", "d"), ("a/yuzey.tex", "y")])
+        tree = _agac(qapp, tmp_path)
+        sekmeler = [str(tmp_path / "a" / "b" / "c" / "derin.tex"),
+                    str(tmp_path / "a" / "yuzey.tex")]
+        _sekme_izleyici(tree, sekmeler)
+        # Uyarı kutusu susturuluyor: modal kutu headless koşuda testi
+        # düşürmek yerine SONSUZA KADAR ASAR (ölçüldü, Windows'ta bu test
+        # tam olarak öyle asıldı).
+        monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: None)
+        monkeypatch.setattr(QInputDialog, "getText", lambda *a, **k: ("z", True))
+
+        tree._yeniden_adlandir(str(tmp_path / "a"))
+
+        assert [y for y in sekmeler if not os.path.isfile(y)] == []
+        assert sekmeler[0] == str(tmp_path / "z" / "b" / "c" / "derin.tex")
+
+    def test_alt_klasoru_olan_klasor_de_adlandirilabiliyor(
+            self, qapp, tmp_path, monkeypatch):
+        """Dosya izleyici klasör tanıtıcılarını AÇIK tutuyordu.
+
+        Windows, altında açık tanıtıcı bulunan bir dizini yeniden
+        adlandırtmıyor: ağaçtaki alt klasörü OLAN her klasörde
+        "[WinError 5] Erişim engellendi" çıkıyor, kullanıcının uygulama
+        içinden başka yolu kalmıyordu. Yaprak klasörde sorun yoktu,
+        Linux'ta hiç yoktu; o yüzden mevcut testlerin hiçbiri görmüyordu.
+        """
+        _kur(tmp_path, [("a/b/c/derin.tex", "d")])
+        tree = _agac(qapp, tmp_path)
+        assert str(tmp_path / "a" / "b") in tree._watcher.directories(), \
+            "alt klasör izlenmiyorsa bu test bir şey sınamıyor"
+        uyarilar = []
+        monkeypatch.setattr(QMessageBox, "warning",
+                            lambda *a, **k: uyarilar.append(a))
+        monkeypatch.setattr(QInputDialog, "getText", lambda *a, **k: ("z", True))
+
+        tree._yeniden_adlandir(str(tmp_path / "a"))
+
+        assert uyarilar == [], "yeniden adlandırma başarısız: %s" % (uyarilar,)
+        assert (tmp_path / "z" / "b" / "c" / "derin.tex").is_file()
+        assert not (tmp_path / "a").exists()
+        # İzleme geri kurulmuş olmalı, yoksa ağaç bir daha kendiliğinden
+        # tazelenmez.
+        assert str(tmp_path / "z") in tree._watcher.directories()
+
+    def test_basarisiz_adlandirmada_izleme_geri_kuruluyor(
+            self, qapp, tmp_path, monkeypatch):
+        """Hata yolunda izleme bırakılmış hâlde kalmamalı."""
+        _kur(tmp_path, [("a/b/x.tex", "x"), ("hedef/y.tex", "y")])
+        tree = _agac(qapp, tmp_path)
+        monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: None)
+        monkeypatch.setattr(QInputDialog, "getText",
+                            lambda *a, **k: ("hedef", True))
+
+        tree._yeniden_adlandir(str(tmp_path / "a"))
+
+        assert (tmp_path / "a" / "b" / "x.tex").is_file()
+        assert str(tmp_path / "a") in tree._watcher.directories()
+
+    def test_klasor_carpismasinda_hicbir_sinyal_yayilmiyor(
+            self, qapp, tmp_path, monkeypatch):
+        """Başarısız işlem sekmeleri var olmayan yola taşımamalı."""
+        _kur(tmp_path, [("a/x.tex", "x"), ("b/y.tex", "y")])
+        tree = _agac(qapp, tmp_path)
+        sinyaller = []
+        tree.file_renamed.connect(lambda e, y: sinyaller.append((e, y)))
+        monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: None)
+        monkeypatch.setattr(QInputDialog, "getText", lambda *a, **k: ("b", True))
+
+        tree._yeniden_adlandir(str(tmp_path / "a"))
+
+        assert sinyaller == [], "başarısız işlem sinyal yaydı"
+        assert (tmp_path / "a" / "x.tex").is_file()
+
+    def test_tek_dosya_yolu_bozulmadi(self, qapp, tmp_path, monkeypatch):
+        """Karşı durum: dosyada tek çift yayılmaya devam etmeli."""
+        _kur(tmp_path, [("eski.tex", "x")])
+        tree = _agac(qapp, tmp_path)
+        sinyaller = []
+        tree.file_renamed.connect(lambda e, y: sinyaller.append((e, y)))
+        monkeypatch.setattr(QInputDialog, "getText",
+                            lambda *a, **k: ("yeni.tex", True))
+
+        tree._yeniden_adlandir(str(tmp_path / "eski.tex"))
+
+        assert sinyaller == [(str(tmp_path / "eski.tex"),
+                              str(tmp_path / "yeni.tex"))]
+
+    def test_bos_klasorde_tek_sinyal(self, qapp, tmp_path, monkeypatch):
+        _kur(tmp_path, [("main.tex", "m")])
+        (tmp_path / "bos").mkdir()
+        tree = _agac(qapp, tmp_path)
+        sinyaller = []
+        tree.file_renamed.connect(lambda e, y: sinyaller.append((e, y)))
+        monkeypatch.setattr(QInputDialog, "getText", lambda *a, **k: ("bos2", True))
+
+        tree._yeniden_adlandir(str(tmp_path / "bos"))
+
+        assert sinyaller == [(str(tmp_path / "bos"), str(tmp_path / "bos2"))]
+        assert (tmp_path / "bos2").is_dir()
+
+
+# --- Anlık görüntü KLASÖRLERİ de görmeli ---
+#
+# `_collect_files`in kendi yorumu "görünürlük kuralı ağaç çizimiyle AYNI
+# olmak zorunda" diyor. Kural dosyalarda hizalanmıştı, klasörlerde değil:
+# ağaç HER klasörü çiziyor (boş olanı da, bilinçli) ama anlık görüntü
+# yalnız dosya topluyordu. Sonuç: dışarıdan yaratılan klasör ağaca hiç
+# düşmüyor, silinen klasör HAYALET olarak kalıyordu.
+
+
+def _snapshot_degisti(tree, kok) -> bool:
+    """_do_deferred_refresh'in sorduğu soru."""
+    return tree._collect_files(str(kok)) != tree._last_snapshot
+
+
+def test_anlik_goruntu_klasor_degisikliklerini_goruyor(qapp, tmp_path):
+    (tmp_path / "ana.tex").write_text("x", encoding="utf-8")
+    tree = _agac(qapp, tmp_path)
+
+    (tmp_path / "sekiller").mkdir()
+    assert _snapshot_degisti(tree, tmp_path), "boş klasör yaratma görülmedi"
+
+    # Yalnız gizli uzantılı dosya içeren klasör de ağaçta GÖRÜNÜYOR
+    # (test_yalniz_gizli_uzantili_klasor_gorunuyor bunu sabitliyor),
+    # dolayısıyla anlık görüntüde de olmalı.
+    tree.refresh()
+    (tmp_path / "cikti").mkdir()
+    (tmp_path / "cikti" / "ana.aux").write_text("x", encoding="utf-8")
+    assert _snapshot_degisti(tree, tmp_path), "gizli dosyalı klasör görülmedi"
+
+    tree.refresh()
+    (tmp_path / "sekiller").rmdir()
+    assert _snapshot_degisti(tree, tmp_path), "klasör silme görülmedi"
+
+
+def test_anlik_goruntu_agacta_cizilenle_ayni(qapp, tmp_path):
+    """Asıl değişmez: iki yürüyüş AYNI kümeyi üretmeli.
+
+    Ayrışırlarsa ağaç bayat kalır (ya da tersi: her derlemede boşuna
+    yeniden taranır).
+    """
+    (tmp_path / "ana.tex").write_text("x", encoding="utf-8")
+    (tmp_path / "bolum").mkdir()
+    (tmp_path / "bolum" / "giris.tex").write_text("g", encoding="utf-8")
+    (tmp_path / "bos").mkdir()
+    for skip in ("node_modules", "build", "__pycache__"):
+        (tmp_path / skip).mkdir()
+        (tmp_path / skip / "x.tex").write_text("x", encoding="utf-8")
+    (tmp_path / ".gizli").mkdir()
+
+    tree = _agac(qapp, tmp_path)
+
+    snap = {os.path.relpath(f, str(tmp_path)).replace(os.sep, "/")
+            for f in tree._collect_files(str(tmp_path))}
+
+    agacta = []
+
+    def gez(oge, yol=""):
+        for i in range(oge.childCount()):
+            c = oge.child(i)
+            ad = c.text(0).split(" ", 1)[1]
+            tam = (yol + "/" + ad) if yol else ad
+            agacta.append(tam)
+            gez(c, tam)
+
+    gez(tree._tree.invisibleRootItem())
+
+    assert snap == set(agacta), (
+        "anlık görüntü ile ağaç ayrıştı: yalnız snapshot'ta %s, yalnız ağaçta %s"
+        % (sorted(snap - set(agacta)), sorted(set(agacta) - snap)))
+    # Atlama kuralları hâlâ geçerli
+    assert not [x for x in snap if x.split("/")[0] in
+                ("node_modules", "build", "__pycache__")]
+    assert not [x for x in snap if x.startswith(".")]
+
+
+def test_ayni_adli_klasor_dosya_degisimi_goruluyor(qapp, tmp_path):
+    """Klasör silinip yerine AYNI adlı dosya konursa fark edilmeli.
+
+    Klasör girdisi ayraçla bitiyor; ayraçsız olsaydı bu geçiş anlık
+    görüntüde görünmezdi.
+    """
+    (tmp_path / "ana.tex").write_text("x", encoding="utf-8")
+    (tmp_path / "x").mkdir()
+    tree = _agac(qapp, tmp_path)
+    once = tree._collect_files(str(tmp_path))
+
+    (tmp_path / "x").rmdir()
+    (tmp_path / "x").write_text("artık dosya", encoding="utf-8")
+
+    assert tree._collect_files(str(tmp_path)) != once

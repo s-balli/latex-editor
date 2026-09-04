@@ -454,6 +454,15 @@ class FileTree(QWidget):
                     continue
                 full = os.path.join(dir_path, entry)
                 if os.path.isdir(full):
+                    # KLASÖRÜN KENDİSİ de anlık görüntüye giriyor. Ağaç HER
+                    # klasörü çiziyor (boş olanı da, bilinçli), anlık görüntü
+                    # ise yalnız dosya topluyordu; ikisi klasörlerde ayrışıyordu.
+                    # Sonuç: dışarıdan yaratılan boş bir klasör (ya da yalnız
+                    # .aux/.log içeren bir çıktı klasörü) ağaca hiç düşmüyor,
+                    # dışarıdan silinen klasör de ağaçta HAYALET olarak
+                    # kalıyordu; ikisi de elle "Yenile" gerektiriyordu.
+                    # Ayraçla bitirmek dosya yollarıyla çakışmayı engelliyor.
+                    files.add(full + os.sep)
                     files |= self._collect_files(full, depth + 1)
                 elif os.path.isfile(full):
                     if not _dosya_gizli_mi(entry, dir_path, self._root, tex_adlari):
@@ -645,21 +654,55 @@ class FileTree(QWidget):
         yeni_ad = self._ad_iste(baslik, _("Yeni ad:"), eski_ad)
         if not yeni_ad or yeni_ad == eski_ad:
             return
+        # İZLEMEYİ ÖNCE BIRAK. QFileSystemWatcher izlediği her klasörün
+        # tanıtıcısını açık tutuyor ve Windows, altında açık tanıtıcı bulunan
+        # bir dizini YENİDEN ADLANDIRTMIYOR. ÖLÇÜLDÜ: alt klasörü olan her
+        # klasörde "[WinError 5] Erişim engellendi", yaprak klasörde sorun
+        # yok, Linux'ta hiç yok. Yani ağaçtaki bir klasörü yeniden
+        # adlandırmak Windows'ta hiç çalışmıyordu ve kullanıcının uygulama
+        # içinden başka yolu yoktu.
+        izlenen = self._watcher.directories()
+        if izlenen:
+            self._watcher.removePaths(izlenen)
         try:
             yeni_yol = fs_ops.yeniden_adlandir(path, yeni_ad)
         except FileExistsError:
+            self._update_watcher()
             QMessageBox.warning(self, baslik,
                                 _("'{name}' zaten var.").format(name=yeni_ad))
             return
         except OSError as e:
+            self._update_watcher()
             _logger.error("Yeniden adlandırılamadı: %s → %s", path, yeni_ad, exc_info=True)
             QMessageBox.warning(self, baslik,
                                 _("Yeniden adlandırılamadı: {e}").format(e=e))
             return
 
         # Sinyal ÖNCE: açık sekme yeni yola bağlansın, sonra ağaç tazelensin.
-        self.file_renamed.emit(path, yeni_yol)
+        for eski_alt, yeni_alt in self._tasinan_yollar(path, yeni_yol):
+            self.file_renamed.emit(eski_alt, yeni_alt)
         self.refresh()
+
+    @staticmethod
+    def _tasinan_yollar(eski: str, yeni: str):
+        """Bu yeniden adlandırmadan etkilenen (eski_yol, yeni_yol) çiftleri.
+
+        Dosyada tek çift. KLASÖRDE altındaki her dosya da taşınıyor ve
+        onlar da bildirilmek zorunda: `file_renamed` alıcısı yolu BİREBİR
+        karşılaştırıyor (file_ops._on_file_renamed), yani klasörü tek başına
+        bildirmek içindeki açık sekmeleri ÖKSÜZ bırakıyordu. Sekme var
+        olmayan bir yola bağlı kalıyor, dosya izleyici de tam o koşula
+        bakıp (`not os.path.isfile(path)`) dosyayı SİLİNMİŞ sayıyor ve
+        kullanıcıya "dosya diskten silindi" diyerek sekmeyi kapatıyordu.
+        Oysa dosya silinmedi, yalnız taşındı (ölçüldü: iki sekme de öksüz).
+        """
+        yield eski, yeni
+        if not os.path.isdir(yeni):
+            return
+        for kok, _dizinler, dosyalar in os.walk(yeni):
+            for ad in dosyalar:
+                y = os.path.join(kok, ad)
+                yield os.path.join(eski, os.path.relpath(y, yeni)), y
 
     def _delete_file(self, path: str):
         """Dosyayı veya klasörü geri dönüşüm kutusuna gönder."""
