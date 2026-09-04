@@ -124,6 +124,26 @@ def _maybe_add_full_install_hint(results: list[CheckResult]) -> None:
         ))
 
 
+def _wsl_sonraki_adim(results: list[CheckResult]) -> None:
+    """WSL eksikken SONRAKI adımı da söyle: TeX Live kurulumu.
+
+    Eskiden burada hiçbir şey yazmıyordu; gerekçesi "WSL yokken araç
+    durumu bilinmiyor" idi ve o doğru. Ama kullanıcı açısından eksik:
+    taze kurulan bir WSL'de TeX de yok, yani `wsl --install`tan sonra
+    mutlaka bu adım geliyor. Yedi ayrı `apt-get install` satırını tek tek
+    çalıştırmak yerine tek komut veriliyor.
+
+    "info" olarak ekleniyor, "missing" değil: bu bir eksiklik tespiti değil,
+    yol tarifi. Araç durumu gerçekten bilinmiyor.
+    """
+    results.append(CheckResult(
+        "Sonraki adım", "info",
+        "WSL kurulduktan sonra TeX Live de gerekiyor; taze bir dağıtımda "
+        "hiçbir TeX aracı bulunmuyor",
+        "sudo apt-get update && " + _FULL_INSTALL,
+    ))
+
+
 def run_checks(runner=None) -> list[CheckResult]:
     """Tüm ortam kontrollerini koş. runner(cmd) -> (rc, stdout) test enjeksiyonu."""
     runner = runner or _run
@@ -150,17 +170,22 @@ def run_checks(runner=None) -> list[CheckResult]:
                 CheckResult(t, "error", "WSL olmadığından denetlenemedi",
                             f"sudo apt-get install {APT_HINTS[t]}")
                 for t in TOOLS)
+            _wsl_sonraki_adim(results)
             return results
         if rc != 0:
+            # `wsl --install` DEĞİL: wsl'in kendisi var, eksik olan dağıtım.
+            # O komut burada "zaten kurulu" deyip çıkıyor ve kullanıcı tıkanıyordu.
             results.append(CheckResult(
                 "WSL", "missing",
                 "çalıştırılamadı (dağıtım kurulu olmayabilir)",
-                "wsl --install",
+                "wsl --install -d Ubuntu   "
+                "(kurulu dağıtımları görmek için: wsl --list --verbose)",
             ))
             results.extend(
                 CheckResult(t, "error", "WSL çalışmadığından denetlenemedi",
                             f"sudo apt-get install {APT_HINTS[t]}")
                 for t in TOOLS)
+            _wsl_sonraki_adim(results)
             return results
         results.append(CheckResult("WSL", "ok", "çalışıyor"))
         paths = _parse_tool_lines(out)

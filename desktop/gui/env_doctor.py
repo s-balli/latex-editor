@@ -48,6 +48,11 @@ def _yerellestir(metin: str) -> str:
             _("hiç motor kurulu değil; eksik paketleri tek tek kurmak yerine "
               "README'nin tam kurulumu önerilir"),
         "TeX Live kurulumu": _("TeX Live kurulumu"),
+        "Sonraki adım": _("Sonraki adım"),
+        "WSL kurulduktan sonra TeX Live de gerekiyor; taze bir dağıtımda "
+        "hiçbir TeX aracı bulunmuyor":
+            _("WSL kurulduktan sonra TeX Live de gerekiyor; taze bir "
+              "dağıtımda hiçbir TeX aracı bulunmuyor"),
     }
     if metin in tablo:
         return tablo[metin]

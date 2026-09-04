@@ -49,6 +49,44 @@ def test_win32_wsl_calismiyorsa_ayni_sekilde_korunur(monkeypatch):
     assert all(r.status == "error" for r in results if r.name in TOOLS)
 
 
+def test_iki_WSL_durumu_AYRI_komut_veriyor(monkeypatch):
+    """"wsl yok" ile "dagitim yok" ayni sey degil.
+
+    Ikisine de `wsl --install` deniyordu. Ikinci durumda wsl'in KENDISI
+    kurulu; o komut "zaten kurulu" deyip cikiyor ve kullanici tikaniyor.
+    Eksik olan dagitim, dolayisiyla `-d Ubuntu` gerekiyor.
+    """
+    monkeypatch.setattr(sys, "platform", "win32")
+
+    yok = {r.name: r for r in
+           run_checks(runner=lambda cmd: (None, "wsl bulunamadı"))}
+    dagitimsiz = {r.name: r for r in run_checks(runner=lambda cmd: (1, ""))}
+
+    assert "-d Ubuntu" not in yok["WSL"].fix_hint
+    assert "-d Ubuntu" in dagitimsiz["WSL"].fix_hint
+    assert yok["WSL"].fix_hint != dagitimsiz["WSL"].fix_hint
+
+
+def test_WSL_eksikken_SONRAKI_ADIM_da_soyleniyor(monkeypatch):
+    """WSL kurulunca is bitmiyor: taze dagitimda TeX de yok.
+
+    Eskiden yedi ayri `apt-get install` satiri veriliyordu ama tek komutluk
+    tam kurulum hic gosterilmiyordu; gerekcesi "WSL yokken arac durumu
+    bilinmiyor" idi. Dogru ama eksik: sonraki adim her hâlukârda TeX Live.
+
+    "info" olarak ekleniyor, "missing" degil: arac durumu gercekten
+    bilinmiyor, bu bir tespit degil yol tarifi.
+    """
+    monkeypatch.setattr(sys, "platform", "win32")
+    for runner in (lambda cmd: (None, "wsl bulunamadı"), lambda cmd: (1, "")):
+        by = {r.name: r for r in run_checks(runner=runner)}
+        adim = by.get("Sonraki adım")
+        assert adim is not None, "sonraki adım satırı yok"
+        assert adim.status == "info"
+        assert "texlive-base" in adim.fix_hint
+        assert "apt-get update" in adim.fix_hint
+
+
 def test_win32_wsl_probu_tek_cagriyla_araclari_getirir(monkeypatch):
     monkeypatch.setattr(sys, "platform", "win32")
     seen = []
