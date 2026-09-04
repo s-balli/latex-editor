@@ -101,7 +101,17 @@ class SyncTexWorker(QThread):
                 else:  # pragma: no cover — beklenmeyen kind
                     _logger.warning("SyncTeX worker bilinmeyen kind: %s", kind)
                     result = None
-            except Exception:  # pragma: no cover — bridge zaten yakalıyor, güvende olmak için
+            # BU KOL YÜK TAŞIYOR, "her ihtimale karşı" değil. Ölçüldü:
+            # `except Exception` daraltılınca (ör. `except ZeroDivisionError`)
+            # köprüden kaçan bir RuntimeError iş parçacığını öldürmekle
+            # kalmıyor, SÜRECİ öldürüyor — PyQt6 sanal metot (QThread.run)
+            # içindeki yakalanmamış istisnada qFatal çağırıyor. Test koşusu
+            # bu mutasyonla temiz bir hata değil, çıkış 127 veriyor.
+            #
+            # Üstelik tek uzun ömürlü işçi var ve onu yeniden başlatan yok:
+            # kol kaldırılsaydı tek bir köprü hatası hem uygulamayı
+            # kapatırdı hem de öncesinde SyncTeX'i tamamen ölü bırakırdı.
+            except Exception:
                 _logger.exception("SyncTeX worker beklenmeyen hata (kind=%s)", kind)
                 result = None
 
