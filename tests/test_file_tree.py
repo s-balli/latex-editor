@@ -468,3 +468,31 @@ class TestYenidenAdlandir:
         monkeypatch.setattr(QInputDialog, "getText", lambda *a, **k: ("yeni", True))
         tree._yeniden_adlandir(str(d))
         assert (tmp_path / "yeni" / "ic.tex").is_file()
+
+
+def test_input_agaci_BUYUK_HARFLI_uzantida_da_gosteriliyor(qapp, tmp_path):
+    r"""`.TEX` kök dosyada `\input` bağımlılık ağacı gizlenmemeli.
+
+    Uzantı süzgeci harf duyarlıydı: `.TEX` dosyası açılınca panel tamamen
+    gizleniyordu. Sahada gerçek dosya var (template34-tez). Aynı sınıf
+    `63173f9`'da bu dosyanın 254. satırı için düzeltilmiş, burası
+    atlanmıştı.
+    """
+    (tmp_path / "bolum1.tex").write_text("x", encoding="utf-8")
+    icerik = "\\documentclass{article}\n\\input{bolum1}\n"
+
+    gizli = {}
+    for uz in (".tex", ".TEX", ".Tex"):
+        tree = FileTree(theme=THEMES["dark"])
+        tree.update_input_tree(str(tmp_path / ("TEZ" + uz)), icerik)
+        gizli[uz] = tree._input_tree.isHidden()
+
+    assert gizli == {".tex": False, ".TEX": False, ".Tex": False}
+
+
+def test_input_agaci_TEX_OLMAYAN_dosyada_gizli_kaliyor(qapp, tmp_path):
+    """Karşı durum: .bib gibi dosyalarda ağaç hâlâ gizlenmeli."""
+    tree = FileTree(theme=THEMES["dark"])
+    tree.update_input_tree(str(tmp_path / "refs.bib"),
+                           "\\documentclass{article}\n\\input{bolum1}\n")
+    assert tree._input_tree.isHidden()

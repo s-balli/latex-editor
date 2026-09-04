@@ -184,6 +184,54 @@ def test_f2_in_bib_file_on_entry(qapp):
     assert caught == ["karaca2024"]
 
 
+def test_f2_BUYUK_HARFLI_bib_dosyasinda_da_calisiyor(qapp):
+    """`.BIB` uzantısı da .bib sayılmalı; F2 sessizce ölmemeli.
+
+    Uzantı süzgeci harf duyarlıydı: `.BIB` dosyasında F2 bib dalına hiç
+    girmiyor, satırı `\\label`/`\\bibitem` diye arayıp bulamıyor ve
+    hiçbir şey yapmıyordu.
+    """
+    ed = EditorWidget()
+    ed._file_path = "/x/refs.BIB"
+    ed.setText("@article{karaca2024,\n title={X},\n}\n")
+    caught = []
+    ed.rename_cite_requested.connect(caught.append)
+    ed.setCursorPosition(0, len("@article{karaca2024") - 1)
+    ed._request_rename()
+    assert caught == ["karaca2024"]
+
+
+def test_rename_cite_BUYUK_HARFLI_bib_editorunden_TEX_i_de_degistiriyor(
+        qapp, tmp_path):
+    r"""`.BIB` editöründen F2: makaledeki `\cite` de değişmeli.
+
+    `_on_rename_cite` dal kararını `ed.file_path.endswith('.bib')` ile
+    veriyordu. `.BIB` yanlış dala girince `base_path` .bib'in KENDİSİ
+    oluyor, `find_bib_path` bir .bib içinde `\bibliography` arayıp boş
+    dönüyor ve değiştirilecek listede yalnız .bib kalıyordu: girdi yeni
+    ada geçiyor, makaledeki `\cite{eski}` olduğu gibi kalıyor ve
+    kaynakçada `[?]` basılıyordu.
+    """
+    bib = tmp_path / "refs.BIB"
+    bib.write_text("@article{karaca2024,\n title={X},\n}\n", encoding="utf-8")
+    tex = tmp_path / "m.tex"
+    tex.write_text("\\addbibresource{refs.BIB}\n\\cite{karaca2024}\n",
+                   encoding="utf-8")
+    ed = EditorWidget()
+    ed._file_path = str(bib)
+    ed.setText(bib.read_text(encoding="utf-8"))
+
+    stub = _StubMain(editors=[ed])
+    with patch("gui.mixins.edit_ops.QInputDialog.getText",
+               return_value=("yeni2024", True)):
+        MainWindow._on_rename_cite(stub, "karaca2024")
+
+    assert ed.text().startswith("@article{yeni2024,"), ".bib girdisi değişmedi"
+    tex_disk = tex.read_text(encoding="utf-8")
+    assert "yeni2024" in tex_disk, "makaledeki \\cite değişmedi (sarkan atıf)"
+    assert "\\cite{karaca2024}" not in tex_disk
+
+
 def test_rename_cite_updates_tex_chain_and_bib(qapp, tmp_path):
     """Ana dosya sekmede, çocuk + .bib diskte → üçü de değişir."""
     bib = tmp_path / "refs.bib"

@@ -232,7 +232,7 @@ class EditorWidget(QsciScintilla):
                 if pos >= 0:
                     line, col = self.lineIndexFromPosition(pos)
                     line_text = self.text(line)
-                    if self._file_path.endswith('.bib'):
+                    if self._file_path.lower().endswith('.bib'):
                         key = self._bib_key_at(line_text, col)
                         if key:
                             self.goto_definition_requested.emit(key, "cite-usage")
@@ -380,7 +380,7 @@ class EditorWidget(QsciScintilla):
         """
         line, col = self.getCursorPosition()
         line_text = self.text(line)
-        if self._file_path.endswith('.bib'):
+        if self._file_path.lower().endswith('.bib'):
             key = self._bib_key_at(line_text, col)
             if not key:
                 m = _RE_BIBENTRY.search(line_text)

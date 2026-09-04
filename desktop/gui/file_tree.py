@@ -227,7 +227,11 @@ class FileTree(QWidget):
         """Aktif dosyanın \\input/\\include bağımlılıklarını göster."""
         self._input_tree.clear()
 
-        if not file_path or not file_path.endswith('.tex'):
+        # KÜÇÜK HARFE ÇEVİRİP bak: `.TEX` uzantılı kök dosyalarda (sahada var:
+        # template34-tez) `\input` bağımlılık ağacı hiç gösterilmiyordu. Bu
+        # dosyanın 419. satırı zaten `.lower()` kullanıyor; aynı sınıf
+        # `63173f9`'da 254. satır için düzeltilmiş, burası atlanmıştı.
+        if not file_path or not file_path.lower().endswith('.tex'):
             self._input_header.hide()
             self._input_tree.hide()
             return

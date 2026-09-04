@@ -641,7 +641,12 @@ class EditOpsMixin:
         if ed is None:
             return
 
-        if ed.file_path.endswith('.bib'):
+        # KUCUK HARFE CEVIRIP bak, bkz. editor.py'deki kardesleri.
+        # Burasi editor.py:383 ile BAGLI: orasi duzeltilip burasi
+        # birakilsaydi `.BIB` dosyasi bu dala hic girmez, `base_path`
+        # .bib'in kendisi olur ve makaledeki `\cite{eski}` degismeden
+        # kalirdi (kaynakcada `[?]`). Ikisi birlikte duzeltildi.
+        if ed.file_path.lower().endswith('.bib'):
             bib_path = ed.file_path
             usage = find_cite_usage(bib_path, key)
             base_path = usage[0] if usage else ""
