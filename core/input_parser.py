@@ -74,8 +74,23 @@ def parse_inputs(content: str, base_dir: str, visited: set | None = None,
     return refs
 
 
-def group_by_directory(refs: list[dict], base_dir: str) -> list[dict]:
-    """Düz dosya listesini dizin yapısına göre grupla."""
+def group_by_directory(refs: list[dict], base_dir: str,
+                       root_dir: str | None = None) -> list[dict]:
+    r"""Düz dosya listesini dizin yapısına göre grupla.
+
+    ``root_dir`` ana belgenin dizinidir ve ``parse_inputs``taki ile aynı
+    anlamı taşır: yollar ONA göre çözülmüştür. Özyinelemede DEĞİŞMEZ.
+
+    Eskiden bir dosyanın çocukları o dosyanın KENDİ dizinine göre gruplanıyordu.
+    Yollar köke göre çözüldüğü için, alt dizindeki bir bölüm başka bir dizine
+    ``\input`` ettiğinde ``relpath`` ``..`` ile başlıyor ve ağaca ``..`` adlı
+    sahte bir klasör giriyordu (dosya ağacında ``📁 ..`` diye görünüyordu):
+
+        bolumler/b1.tex içinde \input{ekler/ek1}  ->  bolumler > b1.tex > .. > ekler
+        bolumler/b1.tex içinde \input{makrolar}   ->  bolumler > b1.tex > ..
+    """
+    if root_dir is None:
+        root_dir = base_dir
     result = []
     dir_groups: dict[str, list[dict]] = {}
 
@@ -86,7 +101,12 @@ def group_by_directory(refs: list[dict], base_dir: str) -> list[dict]:
         if len(parts) == 1:
             entry = {'name': ref['name'], 'path': ref['path']}
             if ref.get('children'):
-                entry['children'] = group_by_directory(ref['children'], os.path.dirname(ref['path']))
+                # Çocuklar KÖKE göre gruplanıyor; parse_inputs onları köke göre
+                # çözdü. (parts == 1 olduğu için dirname(ref['path']) zaten
+                # base_dir'e eşitti, yani buradaki tek fark kök ile base_dir'in
+                # ayrıştığı özyineleme dallarında ortaya çıkıyor.)
+                entry['children'] = group_by_directory(
+                    ref['children'], root_dir, root_dir)
             result.append(entry)
         else:
             first = parts[0]
@@ -100,7 +120,7 @@ def group_by_directory(refs: list[dict], base_dir: str) -> list[dict]:
             'name': dir_name,
             'path': dir_path,
             'is_dir': True,
-            'children': group_by_directory(dir_refs, dir_path),
+            'children': group_by_directory(dir_refs, dir_path, root_dir),
         })
 
     return result

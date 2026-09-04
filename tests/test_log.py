@@ -203,3 +203,104 @@ class TestYolYazimi:
 
         d = _recovery_dizini()
         assert d == os.path.normpath(d), f"karışık ayraç: {d!r}"
+
+
+class TestLogDiziniImportAnindanBagimsiz:
+    r"""LOG_DIR uygulamanın SABİTİ olmalı, ``core.log`` ne zaman import
+    edilirse edilsin.
+
+    ``AppLocalDataLocation`` uygulamanın ADINI yola katıyor ve ad
+    ``main.py:135``'te (``setApplicationName``), bu modül import edildikten
+    (``main.py:16`` zinciri) SONRA veriliyordu. Yani doğru değer yalnızca
+    "import önce oldu" tesadüfüne dayanıyordu. Ölçüldü (2026-09-05, Windows
+    ve Linux), aynı modül farklı anlarda import edilince ÜÇ ayrı yol:
+
+        import önce                .../AppData/Local/LatexEditor
+        import sonra               .../AppData/Local/LaTeX Editor/LatexEditor
+        import sonra + org adı     .../AppData/Local/LatexEditor/LaTeX Editor/LatexEditor
+
+    Kurtarma klasörü LOG_DIR'den türüyor (recovery_ops.py:_recovery_dizini);
+    LOG_DIR kayarsa çökme anlık görüntüleri başka bir ağaca yazılır ve
+    açılışta aranmaz. Aynı tuzak bu depoda bir kez ısırdı, gerekçesi
+    recovery_ops'ta yorumda duruyor.
+
+    ALT SÜREÇ ŞART: QCoreApplication süreç başına tek ve adı geri alınamıyor,
+    modül de bir kez import ediliyor. Sıra ancak taze süreçte değiştirilebilir.
+    """
+
+    # Ortak baş: depo kökünü yola koy, Qt'yi başsız çalıştır.
+    _BAS = (
+        "import os, sys\n"
+        "os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')\n"
+        "sys.path.insert(0, %r)\n"
+    )
+
+    _ONCE = (
+        "import core.log as log\n"
+        "from PyQt6.QtWidgets import QApplication\n"
+        "app = QApplication(sys.argv)\n"
+        "app.setApplicationName('LaTeX Editor')\n"
+        "print(log.LOG_DIR)\n"
+    )
+    _SONRA = (
+        "from PyQt6.QtWidgets import QApplication\n"
+        "app = QApplication(sys.argv)\n"
+        "app.setApplicationName('LaTeX Editor')\n"
+        "import core.log as log\n"
+        "print(log.LOG_DIR)\n"
+    )
+    _SONRA_ORG = (
+        "from PyQt6.QtWidgets import QApplication\n"
+        "app = QApplication(sys.argv)\n"
+        "app.setApplicationName('LaTeX Editor')\n"
+        "app.setOrganizationName('LatexEditor')\n"
+        "import core.log as log\n"
+        "print(log.LOG_DIR)\n"
+    )
+
+    @classmethod
+    def _log_dir(cls, govde):
+        import subprocess
+        import sys
+
+        kok = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        r = subprocess.run([sys.executable, "-c", (cls._BAS % kok) + govde],
+                           cwd=kok, capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", timeout=180)
+        assert r.returncode == 0, r.stderr[-800:]
+        satirlar = [s for s in r.stdout.splitlines() if s.strip()]
+        assert satirlar, "alt süreç LOG_DIR yazmadı: %s" % r.stderr[-400:]
+        return satirlar[-1].strip()
+
+    def test_import_ani_LOG_DIRi_degistirmiyor(self):
+        pytest.importorskip("PyQt6")
+        once = self._log_dir(self._ONCE)
+        sonra = self._log_dir(self._SONRA)
+        assert once == sonra, (
+            "LOG_DIR import anına göre değişiyor:\n"
+            "  import önce : %s\n  import sonra: %s" % (once, sonra))
+
+    def test_organizationName_de_LOG_DIRi_degistirmiyor(self):
+        pytest.importorskip("PyQt6")
+        assert self._log_dir(self._SONRA_ORG) == self._log_dir(self._ONCE)
+
+    def test_uygulama_adi_yola_SIZMIYOR(self):
+        """Karşı yön: bozuk hal, ada özgü bir parça eklenmesiydi.
+
+        Eşitlik testi tek başına yetmez (ikisi birden bozulsa yine eşit
+        çıkarlar). Yolda uygulama adının kendisi geçmemeli.
+        """
+        pytest.importorskip("PyQt6")
+        from core.log import LOG_DIR
+
+        parcalar = os.path.normpath(LOG_DIR).split(os.sep)
+        assert "LaTeX Editor" not in parcalar, LOG_DIR
+        # klasör adı tam olarak bu, ve yalnızca bir kez geçiyor
+        assert parcalar[-1] == "LatexEditor", LOG_DIR
+        assert parcalar.count("LatexEditor") == 1, LOG_DIR
+
+    def test_QApplication_hic_kurulmadan_da_ayni(self):
+        """Testler ve yardımcı betikler QApplication kurmadan import ediyor."""
+        pytest.importorskip("PyQt6")
+        assert self._log_dir("import core.log as log\nprint(log.LOG_DIR)\n") \
+            == self._log_dir(self._ONCE)

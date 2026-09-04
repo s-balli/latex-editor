@@ -156,6 +156,9 @@ jobs:
     #   test_tablo_derleme.py  — tablo sihirbazının ÜRETTİĞİ blok derleniyor mu
     #                            (düzensiz CSV satırı ve hücredeki `^` ikisi de
     #                            derlemeyi kırıyordu; dizge testi yakalayamaz)
+    #   test_ipucu_derleme.py  — hata ipucu GERÇEKTEN tanımsız olan komutu mu
+    #                            gösteriyor (pdflatex bağlam satırını suçlu
+    #                            komuttan sonra kesiyor; kod ilkini alıyordu)
     # Paket seti test belgelerinin gerçek bağımlılıkları: article
     # (latex-base), fontspec (latex-recommended), biblatex+biber
     # (bibtex-extra), minted+Pygments (latex-extra + python3-pygments);
@@ -226,7 +229,7 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r desktop/requirements.txt pytest
 
-      - name: Gerçek TeX entegrasyon testleri (derle.sh + SyncTeX + tablo)
+      - name: Gerçek TeX entegrasyon testleri (derle.sh + SyncTeX + tablo + ipucu)
         env:
           QT_QPA_PLATFORM: offscreen
-        run: python -m pytest tests/test_derle_sh.py tests/test_synctex_live.py tests/test_tablo_derleme.py -v
+        run: python -m pytest tests/test_derle_sh.py tests/test_synctex_live.py tests/test_tablo_derleme.py tests/test_ipucu_derleme.py -v

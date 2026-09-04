@@ -1,5 +1,7 @@
 """error_hints + OutputPanel ipucu sunumu testleri."""
 
+import re
+
 import pytest
 
 from core.error_hints import get_hint
@@ -333,3 +335,79 @@ def test_hint_localized_to_english(qapp):
         assert "Tanımsız komut" not in en_text
     finally:
         app.removeTranslator(t)
+
+
+# =====================================================================
+# Tanımsız komut: bağlam satırındaki SON komut suçludur, ilki değil
+#
+# TeX bağlam satırını hatanın olduğu YERDE kesiyor ve "Undefined control
+# sequence" komut okunur okunmaz atılıyor; yani aranan komut satırın SON
+# belirteci oluyor. Kod ilkini alıyordu. Depodaki 59 gerçek şablonun 135330
+# komut geçişi üzerinde ölçüldü: %49.8 doğru, %10.8 boş, %39.4 YANLIŞ komut.
+#
+# Yanlış olan en kötüsü, çünkü sessiz değil: panelde "Tanımsız komut
+# (\textbf): ... paketi yüklenmemiş olabilir" yazıyordu ve kullanıcı gayet
+# çalışan bir çekirdek komut için olmayan bir paketin peşine düşüyordu.
+#
+# Bağlam dizgeleri GERÇEK pdflatex çıktısından alındı; aynı vakalar canlı
+# derlemeyle tests/test_ipucu_derleme.py'de de koşuyor.
+# =====================================================================
+
+
+class TestTanimsizKomutSonBelirtec:
+    @pytest.mark.parametrize("ctx,beklenen", [
+        # tek komut: ilk = son, eski davranışla aynı sonuç
+        (r"l.3 \bilinmeyenkomut", r"\bilinmeyenkomut"),
+        # önce düz metin var: eskiden komut adı HİÇ yazılmıyordu
+        (r"l.3 Merhaba \bilinmeyenkomut", r"\bilinmeyenkomut"),
+        (r"l.5 Bu bolumde \ozelKomut", r"\ozelKomut"),
+        # önce GEÇERLİ komut var: eskiden O suçlanıyordu
+        (r"l.3 \textbf{Kalin} \bilinmeyenkomut", r"\bilinmeyenkomut"),
+        (r"l.3 \emph{a} \textit{b} \textbf{c} \sonuncu", r"\sonuncu"),
+        # başka bir komutun argümanı içinde
+        (r"l.3 \textbf{\icerdekiKomut", r"\icerdekiKomut"),
+        # matematik içinde
+        (r"l.3 $x = \alpha + \tanimsizFonksiyon", r"\tanimsizFonksiyon"),
+        # köşeli parantezde bitişik komut (template1'de gerçekten var)
+        (r"l.44 \author[1\orc", r"\orc"),
+    ])
+    def test_son_komut_aliniyor(self, ctx, beklenen):
+        h = get_hint("Undefined control sequence.", ctx)
+        assert h[0] == "undefined_control"
+        assert h[1] == {"cmd": beklenen}, ctx
+
+    @pytest.mark.parametrize("ctx", [
+        r"l.3 \textbf{Kalin} \bilinmeyenkomut",
+        r"l.3 \emph{a} \textit{b} \textbf{c} \sonuncu",
+        r"l.44 \author[1\orc",
+    ])
+    def test_ilk_komut_ARTIK_suclanmiyor(self, ctx):
+        """Karşı yön: eski davranışın verdiği yanıt artık çıkmamalı.
+
+        Vaka önkoşulunu da doğruluyor, yoksa kapı boşalır: satırda birden
+        fazla komut YOKSA ilk ile son aynı olur ve test hiçbir şey ölçmez.
+        """
+        komutlar = re.findall(r"\\[A-Za-z]+", ctx)
+        assert len(komutlar) > 1, "vakada tek komut var, ayrım sınanamaz"
+        assert get_hint("Undefined control sequence.", ctx)[1]["cmd"] \
+            != komutlar[0]
+
+    @pytest.mark.parametrize("ctx", [
+        "",                       # bağlam yok
+        "l.7 duz metin",          # satırda hiç komut yok
+        r"\foo \bar",             # l. işaretçisi yok
+    ])
+    def test_cikarilamayan_baglamda_parametre_yok(self, ctx):
+        """Şablon '{cmd}' yer tutucusunu boşa indiriyor; sessiz kalmalı."""
+        assert get_hint("Undefined control sequence.", ctx) == \
+            ("undefined_control", {})
+
+    def test_kontrol_sozcugu_yalniz_harf(self):
+        r"""TeX'te `\foo_bar` = `\foo` + `_bar`; alt çizgi ada dahil değil."""
+        h = get_hint("Undefined control sequence.", r"l.5 metin \foo_bar")
+        assert h[1] == {"cmd": r"\foo"}
+
+    def test_baglam_yalniz_undefined_control_icin_okunuyor(self):
+        """Diğer ipuçlarına yanlışlıkla cmd sızmamalı."""
+        h = get_hint("Missing $ inserted.", r"l.3 \textbf{x} \foo")
+        assert h == ("missing_math", {})

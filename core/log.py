@@ -14,8 +14,23 @@ from PyQt6.QtCore import QStandardPaths
 # log satırlarında ve hata mesajlarında görünüyor, üstelik bu yol tek başına
 # kalmadı: çökme kurtarma dizini de buradan türüyor
 # (gui/mixins/recovery_ops.py:_recovery_dizini). Aynı klasör, düzgün yazım.
+#
+# GenericDataLocation, AppLocalDataLocation DEĞİL. AppLocalData uygulamanın
+# ADINI yola katıyor ve ad main.py:135'te, bu modül import edildikten SONRA
+# veriliyor; yani doğru değer yalnızca "import önce oldu" tesadüfüne
+# dayanıyordu. Aynı modül farklı anlarda import edilince ÜÇ ayrı yol çıkıyor
+# (ölçüldü, 2026-09-05, iki platformda da):
+#
+#   import önce                  .../AppData/Local/LatexEditor
+#   import sonra                 .../AppData/Local/LaTeX Editor/LatexEditor
+#   import sonra + org adı da    .../AppData/Local/LatexEditor/LaTeX Editor/LatexEditor
+#
+# GenericDataLocation ada hiç bakmıyor: dördü de aynı yolu veriyor ve o yol
+# bugünkü değerin BİREBİR aynısı (Windows'ta AppData/Local, Linux'ta
+# ~/.local/share), yani taşınacak dosya yok. Bu tuzak burada bir kez ısırdı:
+# kurtarma klasörü uzun süre başka bir ağaca yazılıyordu, bkz. recovery_ops.py.
 LOG_DIR = os.path.normpath(os.path.join(
-    QStandardPaths.writableLocation(QStandardPaths.StandardLocation.AppLocalDataLocation),
+    QStandardPaths.writableLocation(QStandardPaths.StandardLocation.GenericDataLocation),
     "LatexEditor",
 ))
 LOG_FILE = os.path.join(LOG_DIR, "latex-editor.log")

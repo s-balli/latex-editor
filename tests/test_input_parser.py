@@ -1,5 +1,7 @@
 """input_parser modülü testleri."""
 
+import os
+
 from core.input_parser import parse_inputs, group_by_directory
 from core.latex_utils import strip_comments as _strip_comments
 
@@ -216,3 +218,112 @@ class TestAltDizinZinciri:
         (tmp_path / "gizli.tex").write_text("sir\n", encoding="utf-8")
         refs = parse_inputs("\\input{../gizli}\n", str(kok))
         assert refs == []
+
+
+class TestGruplamaKokeGore:
+    r"""Gruplama da KÖKE göre olmalı; yoksa ağaca ``..`` adlı klasör giriyor.
+
+    ``parse_inputs`` yolları ana belgenin dizinine göre çözüyor (LaTeX
+    uzlaşımı). ``group_by_directory`` ise çocukları üst DOSYANIN kendi
+    dizinine göre grupluyordu. Alt dizindeki bir bölüm başka bir dizine
+    ``\input`` edince ``relpath`` ``..`` ile başlıyor ve dosya ağacında
+    ``📁 ..`` diye var olmayan bir klasör beliriyordu (file_tree.py
+    ``_populate_input_tree`` her ``is_dir`` düğümünü klasör olarak çiziyor).
+    """
+
+    @staticmethod
+    def _kur(kok, dosyalar):
+        for ad, icerik in dosyalar.items():
+            yol = kok / ad
+            yol.parent.mkdir(parents=True, exist_ok=True)
+            yol.write_text(icerik, encoding="utf-8")
+        icerik = (kok / "main.tex").read_text(encoding="utf-8")
+        return group_by_directory(parse_inputs(icerik, str(kok)), str(kok))
+
+    @staticmethod
+    def _adlar(agac):
+        out = []
+        for r in agac:
+            out.append(r["name"])
+            out += TestGruplamaKokeGore._adlar(r.get("children", []))
+        return out
+
+    def test_kardes_dizine_input_eden_bolum(self, tmp_path):
+        agac = self._kur(tmp_path, {
+            "main.tex": "\\input{bolumler/b1}\n",
+            "bolumler/b1.tex": "\\input{ekler/ek1}\n",
+            "ekler/ek1.tex": "ek\n",
+        })
+        # önkoşul: torun gerçekten bulunmuş olmalı, yoksa test boşa döner
+        assert "ek1.tex" in self._adlar(agac), agac
+        assert ".." not in self._adlar(agac), agac
+        assert self._adlar(agac) == ["bolumler", "b1.tex", "ekler", "ek1.tex"]
+
+    def test_kokteki_ortak_makroyu_input_eden_bolum(self, tmp_path):
+        agac = self._kur(tmp_path, {
+            "main.tex": "\\input{bolumler/b1}\n",
+            "bolumler/b1.tex": "\\input{makrolar}\n",
+            "makrolar.tex": "\\newcommand{\\x}{y}\n",
+        })
+        assert "makrolar.tex" in self._adlar(agac), agac
+        assert ".." not in self._adlar(agac), agac
+
+    def test_uc_seviye_zincir(self, tmp_path):
+        agac = self._kur(tmp_path, {
+            "main.tex": "\\input{bir/b}\n",
+            "bir/b.tex": "\\input{iki/c}\n",
+            "iki/c.tex": "\\input{uc/d}\n",
+            "uc/d.tex": "son\n",
+        })
+        assert self._adlar(agac) == \
+            ["bir", "b.tex", "iki", "c.tex", "uc", "d.tex"], agac
+
+    def test_hicbir_dugum_kok_disina_isaret_etmiyor(self, tmp_path):
+        r"""Asıl değişmez: her düğümün yolu kökün ALTINDA kalmalı.
+
+        ``..`` düğümünün yolu ``<kök>/bolumler/..`` idi; normalize edilince
+        kökün kendisi çıkıyor, yani ağaç kendi kökünü çocuk gösteriyordu.
+        """
+        agac = self._kur(tmp_path, {
+            "main.tex": "\\input{bolumler/b1}\n",
+            "bolumler/b1.tex": "\\input{ekler/ek1}\n",
+            "ekler/ek1.tex": "ek\n",
+        })
+        kok = os.path.normpath(str(tmp_path))
+
+        def gez(rs):
+            for r in rs:
+                yol = os.path.normpath(r["path"])
+                assert yol != kok, "düğüm kökün kendisini gösteriyor: %r" % r
+                assert yol.startswith(kok + os.sep), \
+                    "düğüm kök dışına çıkıyor: %r" % r
+                assert ".." not in yol.split(os.sep), \
+                    "normalize edilmemiş yol: %r" % r
+                gez(r.get("children", []))
+
+        gez(agac)
+
+    # --- karşı durumlar: eskiden doğru olan davranış aynen sürmeli
+
+    def test_tek_seviye_alt_dizin_degismedi(self, tmp_path):
+        """En yaygın şablon yapısı; depodaki 59 şablonun tamamı böyle."""
+        agac = self._kur(tmp_path, {
+            "main.tex": "\\input{bolumler/b1}\n\\input{bolumler/b2}\n",
+            "bolumler/b1.tex": "", "bolumler/b2.tex": "",
+        })
+        assert self._adlar(agac) == ["bolumler", "b1.tex", "b2.tex"]
+
+    def test_ayni_dizinde_torun_degismedi(self, tmp_path):
+        agac = self._kur(tmp_path, {
+            "main.tex": "\\input{bolumler/b1}\n",
+            "bolumler/b1.tex": "\\input{bolumler/b2}\n",
+            "bolumler/b2.tex": "",
+        })
+        assert self._adlar(agac) == ["bolumler", "b1.tex", "bolumler", "b2.tex"]
+
+    def test_root_dir_ucuncu_arguman_istege_bagli(self, tmp_path):
+        """İki argümanlı eski çağrı bozulmadı (file_tree ve web onu kullanıyor)."""
+        refs = [{"name": "a.tex", "path": str(tmp_path / "a.tex"),
+                 "children": []}]
+        assert group_by_directory(refs, str(tmp_path)) == \
+            group_by_directory(refs, str(tmp_path), str(tmp_path))
