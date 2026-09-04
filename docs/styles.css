@@ -123,6 +123,14 @@ p { margin: 0 0 1em; }
 .ghost-btn:hover { border-color: var(--accent); color: var(--accent); text-decoration: none; transform: translateY(-1px); }
 .lg { padding: 12px 22px; font-size: 1rem; }
 
+/* AlternativeTo rozeti: 171x55 dogar, ust barda 40 px'e iniyor. Bar
+   dugmeleri 44 px; rozetin kendi ic boslugu oldugu icin birebir esitlemek
+   onu dugmelerden BUYUK gosteriyordu. `display:block`, satir ici img'nin
+   taban cizgisi bosluguyla bari bir piksel buyutmesini onluyor. */
+.at-badge { display: inline-flex; align-items: center; }
+.at-badge img { display: block; height: 40px; width: auto; }
+.at-badge:hover { opacity: .85; }
+
 /* ===== Hero ===== */
 .hero {
   display: grid;
@@ -297,6 +305,10 @@ p { margin: 0 0 1em; }
   .grid-4, .grid-2 { grid-template-columns: 1fr; }
   .nav { flex-wrap: wrap; }
   .nav-actions { width: 100%; justify-content: flex-end; }
+  /* Dar ekranda rozet gizleniyor: bar zaten TR + GitHub + Indir tasiyor,
+     dorduncu oge "Indir"i ikinci satira itiyordu. Rozet altbilgide degil
+     yalniz burada gizli, yani masaustunde her sayfada gorunur kaliyor. */
+  .at-badge { display: none; }
   .section { padding: 44px 18px; }
   .lead { font-size: 1.05rem; }
 }

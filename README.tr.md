@@ -5,6 +5,8 @@
 [![Version](https://img.shields.io/github/v/release/s-balli/latex-editor?label=version&color=green)](https://github.com/s-balli/latex-editor/releases)
 [![Downloads](https://img.shields.io/github/downloads/s-balli/latex-editor/total)](https://github.com/s-balli/latex-editor/releases)
 
+[![LaTeX Editor | AlternativeTo](https://alternativeto.net/static/badges/badge-compact-color.svg)](https://alternativeto.net/software/latex-editor/about/?utm_source=badge&utm_medium=referral)
+
 > 🌐 **Tanıtım sayfası:** https://s-balli.github.io/latex-editor/
 
 > **English:** [README.md](README.md) | **Türkçe:** README.tr.md (şu an buradasınız)
