@@ -150,6 +150,24 @@ def init_repo(root: str) -> Repo:
     return repo
 
 
+def _commit_nfiles(repo, commit) -> int:
+    """Kayıtta değişen dosya sayısı: üst ağaçla fark (ilk kayıtta tümü).
+
+    Sayının TEK KAYNAĞI burasıdır. Eskiden 'Sürümle' sayıyı ``status``
+    çıktısındaki girdi sayısından, geçmiş paneli ise buradan alıyordu ve
+    ikisi ÇELİŞEBİLİYORDU: dulwich'in status'u tümüyle izlenmeyen bir DİZİNİ
+    tek girdi ('bolumler/') olarak döndürüyor, içindeki dosyaları değil.
+    Bölümlerini alt klasöre ayıran bir belgede aynı kayıt için durum çubuğu
+    "2 dosya", geçmiş paneli "6 dosya" diyordu (ölçüldü).
+    """
+    from dulwich.diff_tree import tree_changes
+
+    parent_tree = (repo.object_store[commit.parents[0]].tree
+                   if commit.parents else None)
+    return sum(1 for _ in tree_changes(repo.object_store, parent_tree,
+                                       commit.tree))
+
+
 def _status_paths(status) -> set[str]:
     """GitStatus'ten değişen/izlenmeyen göreli yolları (POSIX ayraçlı) topla."""
     paths: set[bytes] = set()
@@ -161,10 +179,18 @@ def _status_paths(status) -> set[str]:
 
 
 def changed_files(root: str) -> set[str]:
-    """Son kayıttan beri değişen/eklenen/silinen dosyalar (boş küme = temiz)."""
+    """Son kayıttan beri değişen/eklenen/silinen DOSYALAR (boş küme = temiz).
+
+    ``untracked_files="all"`` şart: dulwich'in öntanımlı "normal" kipi tümüyle
+    izlenmeyen bir dizini tek girdi ('bolumler/') olarak döndürüyor, yani
+    fonksiyon adının vaat ettiği dosya listesini vermiyordu. Bu kip yavaş
+    (2000 izlenmeyen dosyada 6 ms yerine 1 sn, ölçüldü) ama burası yalnız
+    listeyi gerçekten isteyenler için; 'değişiklik var mı' sorusu snapshot
+    içinde ucuz kiple cevaplanıyor.
+    """
     if not DULWICH_AVAILABLE or not is_repo(root):
         return set()
-    return _status_paths(porcelain.status(Repo(root)))
+    return _status_paths(porcelain.status(Repo(root), untracked_files="all"))
 
 
 def snapshot(root: str, message: str) -> VersionEntry | None:
@@ -175,14 +201,18 @@ def snapshot(root: str, message: str) -> VersionEntry | None:
     """
     _require()
     repo = Repo(root)
-    changed = _status_paths(porcelain.status(repo))
-    if not changed:
+    # Burada YALNIZCA "değişiklik var mı" sorusu soruluyor, liste değil; o
+    # yüzden ucuz olan öntanımlı kip yeterli (dizinleri toplayan kip de boş
+    # ile dolu arasını doğru ayırır). Dosya SAYISI kayıttan sonra kaydın
+    # kendisinden okunuyor, bkz. _commit_nfiles.
+    if not _status_paths(porcelain.status(repo)):
         return None
     porcelain.add(repo)
     sha = porcelain.commit(repo, message=message.encode("utf-8"),
                            author=_AUTHOR, committer=_AUTHOR, all=True)
     return VersionEntry(sha=sha.decode(), timestamp=int(time.time()),
-                        message=message, nfiles=len(changed))
+                        message=message,
+                        nfiles=_commit_nfiles(repo, repo[sha]))
 
 
 def history(root: str, limit: int = 100) -> list[VersionEntry]:
@@ -193,20 +223,11 @@ def history(root: str, limit: int = 100) -> list[VersionEntry]:
     entries = []
     for entry in repo.get_walker(max_entries=limit):
         c = entry.commit
-        # Kayıttaki dosya sayısı: üst ağaçla fark (ilk kayıtta tüm dosyalar)
-        parents = c.parents
-        if parents:
-            parent = repo.object_store[parents[0]]
-            parent_tree = parent.tree
-        else:
-            parent_tree = None
-        from dulwich.diff_tree import tree_changes
-        nfiles = sum(1 for _ in tree_changes(repo.object_store, parent_tree, c.tree))
         entries.append(VersionEntry(
             sha=c.id.decode(),
             timestamp=c.commit_time,
             message=c.message.decode("utf-8", "replace").strip(),
-            nfiles=nfiles,
+            nfiles=_commit_nfiles(repo, c),
         ))
     return entries
 

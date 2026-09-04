@@ -16,6 +16,7 @@ recovery_ops.py) zamanlayıcıyı ve diyaloğu sağlar. Böylece testler pencere
 açmadan koşar.
 """
 
+import codecs
 import json
 import os
 import tempfile
@@ -129,15 +130,33 @@ def oku(dizin: str) -> list[Snapshot]:
             # demetinde yok: tek bozuk dosya acilisi komple engelliyordu.
             if not isinstance(g, dict) or g.get("version") != SURUM:
                 continue
+            file_path = g["file_path"]
+            content = g["content"]
+            encoding = g.get("encoding", "utf-8")
+            newline = g.get("newline", "lf")
+            # DEĞERLERİN TÜRÜ de doğrulanmalı, yalnız gövdenin sözlük olması
+            # değil. `oku` bu alanları doğrudan `kayip_var_mi`ye veriyor;
+            # orada `content.replace(...)` ve `open(..., encoding=...)`
+            # çağrılıyor. Yanlış türde bir değer AttributeError / TypeError /
+            # LookupError atıyor, bunlar aşağıdaki demette YOK ve çağıran
+            # (recovery_ops._recovery_prompt) da sarmıyor: tek bozuk dosya
+            # AÇILIŞI KOMPLE ENGELLİYOR. Bir önceki tur aynı sınıfın "JSON
+            # nesne değil" hâlini kapatmıştı, değerler açıkta kalmıştı.
+            if not all(isinstance(x, str)
+                       for x in (file_path, content, encoding, newline)):
+                continue
+            codecs.lookup(encoding)   # tanınmayan kodlama -> LookupError
             out.append(Snapshot(
                 snap_id=ad[:-len(_UZANTI)],
-                file_path=g["file_path"],
-                content=g["content"],
-                encoding=g.get("encoding", "utf-8"),
-                newline=g.get("newline", "lf"),
+                file_path=file_path,
+                content=content,
+                encoding=encoding,
+                newline=newline,
                 saved_at=float(g.get("saved_at", 0.0)),
             ))
-        except (OSError, ValueError, KeyError, TypeError):
+        except (OSError, ValueError, LookupError, TypeError):
+            # LookupError hem eksik alanı (KeyError) hem tanınmayan kodlamayı
+            # kapsıyor; KeyError onun alt sınıfı.
             continue
     out.sort(key=lambda s: s.saved_at, reverse=True)
     return out

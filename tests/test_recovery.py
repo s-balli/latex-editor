@@ -529,3 +529,96 @@ def test_json_nesne_olmayan_dosya_acilisi_engellemiyor(tmp_path):
     snaplar = recovery.oku(str(tmp_path))
 
     assert [s.snap_id for s in snaplar] == ["saglam"]
+
+
+# --- Bozuk anlık görüntü: gövde sözlük OLSA BİLE değerler bozuk olabilir ---
+#
+# Yukarıdaki test gövdenin sözlük olmasını sınıyor. Koruma orada kalmıştı:
+# değerlerin TÜRÜ doğrulanmıyordu ve bu alanlar doğrudan `kayip_var_mi`ye
+# gidiyor, orada `content.replace(...)` ve `open(..., encoding=...)`
+# çağrılıyor. Yanlış türde bir değer AttributeError / TypeError /
+# LookupError atıyor; bunlar ne `oku`nun except demetinde vardı ne de
+# çağıranda (recovery_ops._recovery_prompt onları sarmıyor). Yani tek bozuk
+# dosya yine AÇILIŞI komple engelliyordu.
+
+
+def _govde(hedef, **ust):
+    g = {"version": recovery.SURUM, "file_path": str(hedef),
+         "encoding": "utf-8", "newline": "lf", "saved_at": 1.0,
+         "content": "kaydedilmemiş içerik"}
+    g.update(ust)
+    return g
+
+
+def test_bozuk_alan_turleri_eleniyor(tmp_path):
+    hedef = tmp_path / "belge.tex"
+    hedef.write_text("diskteki içerik\n", encoding="utf-8")
+
+    bozuklar = [
+        _govde(hedef, content=123),           # AttributeError: int.replace
+        _govde(hedef, content=None),          # AttributeError: None.replace
+        _govde(hedef, content=["a", "b"]),    # AttributeError: list.replace
+        _govde(hedef, encoding=42),           # TypeError: open(encoding=int)
+        _govde(hedef, encoding=None),
+        _govde(hedef, encoding="utf-99"),     # LookupError: unknown encoding
+        _govde(hedef, file_path=7),
+        _govde(hedef, newline=1),
+    ]
+    for i, g in enumerate(bozuklar):
+        (tmp_path / ("b%d.snapshot.json" % i)).write_text(
+            json.dumps(g), encoding="utf-8")
+
+    assert recovery.oku(str(tmp_path)) == []
+
+
+def test_bozuk_dosya_saglami_golgelemiyor(tmp_path):
+    """Asıl değişmez: bozukların yanındaki SAĞLAM görüntü kurtarılabilmeli.
+
+    Ve açılış akışı (`oku` + `kayip_var_mi`) istisna ATMADAN geçmeli.
+    """
+    hedef = tmp_path / "belge.tex"
+    hedef.write_text("diskteki içerik\n", encoding="utf-8")
+
+    (tmp_path / "bozuk1.snapshot.json").write_text(
+        json.dumps(_govde(hedef, content=123)), encoding="utf-8")
+    (tmp_path / "bozuk2.snapshot.json").write_text(
+        json.dumps(_govde(hedef, encoding="utf-99")), encoding="utf-8")
+    (tmp_path / "bozuk3.snapshot.json").write_text(
+        "{bu geçerli json değil", encoding="utf-8")
+
+    recovery.yaz(str(tmp_path), "saglam", file_path=str(hedef),
+                 content="kurtarılacak\n", encoding="utf-8", newline="lf")
+
+    snaplar = recovery.oku(str(tmp_path))
+    assert [s.snap_id for s in snaplar] == ["saglam"]
+
+    # recovery_ops._recovery_prompt tam olarak bunu yapıyor ve SARMIYOR
+    kayipli = [s for s in snaplar if recovery.kayip_var_mi(s)]
+    assert [s.content for s in kayipli] == ["kurtarılacak\n"]
+
+
+def test_gecerli_kodlamalar_elenmiyor(tmp_path):
+    """Karşı durum: uygulamanın gerçekten yazdığı kodlamalar geçmeli."""
+    hedef = tmp_path / "belge.tex"
+    hedef.write_bytes("Öztürk\n".encode("cp1254"))
+    for i, enc in enumerate(("utf-8", "UTF-8", "cp1254", "iso-8859-9")):
+        (tmp_path / ("e%d.snapshot.json" % i)).write_text(
+            json.dumps(_govde(hedef, encoding=enc)), encoding="utf-8")
+
+    assert len(recovery.oku(str(tmp_path))) == 4
+
+
+def test_cp1254_kurtarma_akisi_bozulmadi(tmp_path):
+    """Karşı durum: legacy kodlamalı dosyada kayıp tespiti doğru çalışmalı."""
+    hedef = tmp_path / "eski.tex"
+    hedef.write_bytes("Öztürk\n".encode("cp1254"))
+
+    recovery.yaz(str(tmp_path), "ayni", file_path=str(hedef),
+                 content="Öztürk\n", encoding="cp1254", newline="lf")
+    (ayni,) = recovery.oku(str(tmp_path))
+    assert recovery.kayip_var_mi(ayni) is False
+
+    recovery.yaz(str(tmp_path), "ayni", file_path=str(hedef),
+                 content="Çağrı\n", encoding="cp1254", newline="lf")
+    (farkli,) = recovery.oku(str(tmp_path))
+    assert recovery.kayip_var_mi(farkli) is True
