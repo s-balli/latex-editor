@@ -116,6 +116,23 @@ def test_collect_input_paths_skips_hidden_dirs(tmp_path):
     assert latex_refs.collect_input_paths(str(main)) == []
 
 
+def test_collect_input_paths_BUYUK_HARFLI_uzanti(tmp_path):
+    """`.TEX` / `.Tex` de önerilmeli, uzantı süzgeci harf duyarlı olmamalı.
+
+    Sahada var: template34-tez kök dosyasını `iufenbil_tez_sablonu.TEX`
+    diye taşıyor. Aynı sınıf `63173f9`'da file_tree ve file_ops için
+    düzeltilmişti; o turun denetim listesinde latex_refs yoktu. Aynı
+    dosyanın `collect_image_paths`i zaten `.lower()` kullanıyordu.
+    """
+    main = tmp_path / "main.tex"
+    main.write_text("x", encoding="utf-8")
+    (tmp_path / "buyuk.TEX").write_text("x", encoding="utf-8")
+    (tmp_path / "karisik.Tex").write_text("x", encoding="utf-8")
+    (tmp_path / "kucuk.tex").write_text("x", encoding="utf-8")
+    assert latex_refs.collect_input_paths(str(main)) == [
+        "buyuk", "karisik", "kucuk"]
+
+
 # --- collect_image_paths (\includegraphics tamamlama) ---
 
 def test_collect_image_paths_basic(tmp_path):
@@ -210,6 +227,22 @@ def test_find_cite_usage_multi_key(tmp_path):
     tex = tmp_path / "m.tex"
     tex.write_text("\\cite{a, b, c}\n", encoding="utf-8")
     assert latex_refs.find_cite_usage(str(bib), "b") == (str(tex), 1)
+
+
+def test_find_cite_usage_BUYUK_HARFLI_uzanti(tmp_path):
+    r"""`.TEX` içindeki `\cite` de bulunmalı.
+
+    Bulunamayınca bedeli ağır: `.bib` editöründen F2 ile anahtar
+    değiştirirken `edit_ops._on_rename_cite` değiştirilecek dosya listesini
+    `find_cite_usage`in dönüşünden kuruyor. Boş dönünce listede yalnız
+    `.bib` kalıyor: girdi yeni ada geçiyor, makaledeki `\cite{eski}` olduğu
+    gibi kalıyor ve kaynakçada `[?]` basılıyor (ölçüldü).
+    """
+    bib = tmp_path / "refs.bib"
+    bib.write_text("@article{k,\n author={A},\n}\n", encoding="utf-8")
+    tex = tmp_path / "TEZ.TEX"
+    tex.write_text("baslik\nMetin \\cite{k} burada.\n", encoding="utf-8")
+    assert latex_refs.find_cite_usage(str(bib), "k") == (str(tex), 2)
 
 
 def test_find_cite_usage_in_subdir_tex(tmp_path):

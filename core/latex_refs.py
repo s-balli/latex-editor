@@ -277,7 +277,14 @@ def collect_input_paths(base_path: str) -> list[str]:
     for root, dirs, files in os.walk(bdir):
         dirs[:] = [d for d in dirs if not d.startswith('.')]
         for fn in files:
-            if not fn.endswith('.tex'):
+            # KÜÇÜK HARFE ÇEVİRİP bak: `.TEX` uzantılı kök dosyalar sahada
+            # var (template34-tez: `iufenbil_tez_sablonu.TEX`) ve harf duyarlı
+            # süzgeç onları hiç önermiyordu. Aynı dosyanın
+            # `collect_image_paths`i zaten `.lower()` kullanıyor; tutarsızlık
+            # dosyanın içindeydi. Aynı sınıf `63173f9`'da file_tree ve
+            # file_ops için düzeltilmişti, o turun denetim listesinde burası
+            # yoktu.
+            if not fn.lower().endswith('.tex'):
                 continue
             rel = os.path.relpath(os.path.join(root, fn), bdir)
             if rel == base_name:
@@ -458,7 +465,13 @@ def find_cite_usage(bib_path: str, key: str) -> tuple[str, int] | None:
         dirs[:] = sorted(x for x in dirs
                          if not x.startswith('.') and x not in SKIP_DIRS)
         for fn in sorted(files):
-            if not fn.endswith('.tex'):
+            # KÜÇÜK HARFE ÇEVİRİP bak, bkz. `collect_input_paths`. Burada
+            # bedeli daha ağır: `.bib` editöründen F2 ile anahtar değiştirme
+            # `find_cite_usage`in bulduğu dosyadan yola çıkıyor. Bulamayınca
+            # `edit_ops._on_rename_cite` yalnız `.bib`i değiştiriyor,
+            # makaledeki `\cite{eski}` olduğu gibi kalıyor ve kaynakçada
+            # `[?]` basılıyor (ölçüldü).
+            if not fn.lower().endswith('.tex'):
                 continue
             path = os.path.join(root, fn)
             # FIFO'yu okumak sonsuza dek bloklardi (bkz.
