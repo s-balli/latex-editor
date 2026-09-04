@@ -251,7 +251,16 @@ class FileWatchMixin:
             if not editor.open_file(path):
                 _logger.warning("Diskten yükleme başarısız, hash korunuyor: %s", path)
                 return
-            editor.setCursorPosition(line, col)
+            # Geçerli aralığa KELEPÇELE: diskteki sürüm daha kısa olabilir
+            # (dal değiştirme, geri alma, senkron istemcisi) ve QScintilla
+            # aralık dışı konumu makul biçimde kırpmıyor. Ölçüldü: 6 satırlık
+            # belge 2 satıra düşünce (5, 2) isteği imleci (0, 1)'e, yani
+            # belgenin BAŞINA atıyordu. version_ops._restore_version aynı
+            # durumda zaten kelepçeliyor; buradaki eksikti.
+            line = min(line, editor.lines() - 1)
+            line_text = editor.text(line).rstrip("\n")
+            editor.setCursorPosition(line, min(col, len(line_text)))
+            editor.ensureLineVisible(line)
             self._save_hashes[path] = new_hash
             self._detect_engine(path)
             _logger.info("Dosya diskten yeniden yüklendi: %s", path)

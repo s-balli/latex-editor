@@ -251,7 +251,21 @@ class ImageOpsMixin:
         if img.isNull():
             return  # panoda resim yok; metin yapıştırma editörde zaten yapıldı
         media_dir = os.path.join(os.path.dirname(editor.file_path), "media")
-        os.makedirs(media_dir, exist_ok=True)
+        try:
+            os.makedirs(media_dir, exist_ok=True)
+        except OSError:
+            # `exist_ok` yalnız zaten DİZİN varsa affediyor; `media` adında
+            # bir DOSYA varsa FileExistsError atıyor. Salt okunur klasör,
+            # izin reddi ve dolu disk de buraya düşüyor.
+            #
+            # Bu bir Qt SLOTU (editor.image_paste_requested). Ölçüldü:
+            # PyQt6'da slot içindeki yakalanmamış istisna süreci öldürüyor ve
+            # bu uygulamada global excepthook yok, yani öbür sekmelerdeki
+            # kaydedilmemiş iş de giderdi. Hemen aşağıdaki `img.save`
+            # başarısızlığı zaten aynı mesajı veriyor; yeni bir kullanıcı
+            # metni eklemeye gerek yok.
+            self._status.showMessage(_("Panodaki resim kaydedilemedi"))
+            return
         n = 1
         while True:
             path = os.path.join(media_dir, f"image_{n}.png")

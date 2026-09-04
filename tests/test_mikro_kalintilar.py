@@ -581,11 +581,19 @@ class TestPromptReloadOkumaHatasi:
 
         monkeypatch.setattr("gui.mixins.file_watch.QMessageBox", _Sahte(_Dlg))
 
+        # `lines`/`text`/`ensureLineVisible`: yeniden yükleme imleci geçerli
+        # aralığa kelepçeliyor (diskteki sürüm daha kısa olabilir) ve bunun
+        # için belgeyi ölçüyor. Taklit gerçek EditorWidget'ın taşıdığı bu üçünü
+        # taşımıyordu; bu testin kendi konusu hash, ama taklit eksik kalınca
+        # AttributeError ile düşüyordu.
         editor = SimpleNamespace(
             isModified=lambda: False,
             getCursorPosition=lambda: (4, 2),
             setCursorPosition=lambda l, c: None,
             open_file=lambda p: acilir,
+            lines=lambda: 10,
+            text=lambda ln: "bir satir\n",
+            ensureLineVisible=lambda ln: None,
         )
         stub = _WatchStub()
         stub._save_hashes["/x/a.tex"] = "ESKI"
