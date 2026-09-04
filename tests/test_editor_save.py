@@ -5,6 +5,7 @@ korunur (truncate edilmez), geçici dosya geride kalmaz.
 """
 
 import os
+import stat
 
 import pytest
 
@@ -168,3 +169,133 @@ def test_basarili_save_file_as_yeni_kimligi_aliyor(qapp, tmp_path, monkeypatch):
     assert ed.file_path == str(hedef)
     assert ed._encoding == "utf-8"
     assert hedef.read_text(encoding="utf-8") == "icerik\n"
+
+
+# --- Dosya kimliği: os.replace hedefin YERİNE geçiyor ---
+
+
+@pytest.fixture
+def symlink_kurulabilir(tmp_path):
+    """symlink yaratılamıyorsa (Windows ayrıcalığı, dosya sistemi) testi atla."""
+    deneme = tmp_path / "_deneme_link"
+    try:
+        os.symlink(tmp_path / "_deneme_hedef", deneme)
+    except (OSError, NotImplementedError, AttributeError):
+        pytest.skip("symlink oluşturulamıyor")
+    os.unlink(deneme)
+
+
+def test_symlink_kayittan_sonra_yerinde_kaliyor(qapp, tmp_path, symlink_kurulabilir):
+    """Kayıt symlink'i düz dosyayla DEĞİŞTİRMEMELİ.
+
+    os.replace bağlantının KENDİSİNİ değiştiriyordu: proje dizinindeki
+    main.tex düz dosyaya dönüşüyor, kullanıcının yazdığı ise bağlantının
+    işaret ettiği gerçek dosyaya HİÇ ulaşmıyordu. Paylaşılan ya da
+    senkronize bir dizine bağlanmış belge sessizce eski içerikte kalıyor,
+    kullanıcı ise kaydettiğini biliyordu.
+    """
+    gercek = tmp_path / "gercek.tex"
+    gercek.write_text("ESKI\n", encoding="utf-8")
+    link = tmp_path / "link.tex"
+    os.symlink(gercek, link)
+
+    ed = _editor()
+    ed._file_path = str(link)
+    ed.setText("YENI\n")
+    assert ed.save_file() is True
+
+    assert link.is_symlink(), "symlink düz dosyaya dönüştü"
+    assert gercek.read_text(encoding="utf-8") == "YENI\n", \
+        "kayıt bağlantının işaret ettiği dosyaya ulaşmadı"
+    assert not (tmp_path / "link.tex.tmp").exists()
+    assert not (tmp_path / "gercek.tex.tmp").exists()
+
+
+def test_symlink_bytes_dalinda_da_korunuyor(qapp, tmp_path, symlink_kurulabilir):
+    """bytes dalı (sürümden geri yükleme, toplu yeniden adlandırma) aynı yol.
+
+    version_ops._restore_version ve edit_ops._apply_renamings da bu
+    fonksiyonu çağırıyor; symlink orada da kopmamalı.
+    """
+    gercek = tmp_path / "bolum.tex"
+    gercek.write_bytes(b"\\label{eski}\n")
+    link = tmp_path / "link-bolum.tex"
+    os.symlink(gercek, link)
+
+    EditorWidget._write_atomic(str(link), b"\\label{yeni}\n")
+
+    assert link.is_symlink()
+    assert gercek.read_bytes() == b"\\label{yeni}\n"
+
+
+def test_symlink_zinciri_ve_kirik_baglanti(qapp, tmp_path, symlink_kurulabilir):
+    """Zincirin her halkası ve henüz var olmayan hedef de korunmalı."""
+    gercek = tmp_path / "uc.tex"
+    gercek.write_text("eski\n", encoding="utf-8")
+    l1 = tmp_path / "z1.tex"
+    l2 = tmp_path / "z2.tex"
+    os.symlink(gercek, l1)
+    os.symlink(l1, l2)
+    EditorWidget._write_atomic(str(l2), "zincir\n")
+    assert l1.is_symlink() and l2.is_symlink()
+    assert gercek.read_text(encoding="utf-8") == "zincir\n"
+
+    # Kırık bağlantı: hedefi yaratmalı, bağlantıyı düz dosyaya çevirmemeli
+    henuz_yok = tmp_path / "henuz-yok.tex"
+    kirik = tmp_path / "kirik.tex"
+    os.symlink(henuz_yok, kirik)
+    EditorWidget._write_atomic(str(kirik), "artik var\n")
+    assert kirik.is_symlink()
+    assert henuz_yok.read_text(encoding="utf-8") == "artik var\n"
+
+
+@pytest.mark.skipif(os.name == "nt", reason="izin bitleri POSIX'e özgü")
+def test_kisitli_izinler_kayittan_sonra_korunuyor(qapp, tmp_path):
+    """os.replace geride YENİ dosya bırakıyor; izinler umask'a düşmemeli.
+
+    0o600 işaretli bir belge kayıttan sonra 0o644 oluyordu, yani çok
+    kullanıcılı bir makinede başkaları okuyabilir hale geliyordu.
+    """
+    hedef = tmp_path / "gizli.tex"
+    hedef.write_text("gizli\n", encoding="utf-8")
+    os.chmod(hedef, 0o600)
+
+    ed = _editor()
+    ed._file_path = str(hedef)
+    ed.setText("gizli 2\n")
+    assert ed.save_file() is True
+
+    assert stat.S_IMODE(os.stat(hedef).st_mode) == 0o600
+    assert hedef.read_text(encoding="utf-8") == "gizli 2\n"
+
+
+@pytest.mark.skipif(os.name == "nt", reason="izin bitleri POSIX'e özgü")
+def test_izinler_devralinliyor_sabitlenmiyor(qapp, tmp_path):
+    """Hedefin izni neyse o: 0o664 dosya 0o600'e de düşmemeli."""
+    hedef = tmp_path / "grup.tex"
+    hedef.write_text("x\n", encoding="utf-8")
+    os.chmod(hedef, 0o664)
+    EditorWidget._write_atomic(str(hedef), "y\n")
+    assert stat.S_IMODE(os.stat(hedef).st_mode) == 0o664
+
+
+@pytest.mark.skipif(os.name != "nt",
+                    reason="Windows'a özgü: salt okunur dosya silinemiyor")
+def test_salt_okunur_hedefte_gecici_dosya_kalmiyor(qapp, tmp_path):
+    """İzinler hedeften devralınınca .tmp da salt okunur işaretleniyor.
+
+    Windows salt okunur bir dosyayı SİLDİRMİYOR. Temizlik yolu yazma bitini
+    geri vermezse, başarısız kayıttan sonra .tmp kullanıcının belgesinin
+    yanında kalıyor. (İzin devralma eklenirken bu gerileme ölçümle
+    yakalandı; testi onun için var.)
+    """
+    hedef = tmp_path / "doc.tex"
+    hedef.write_text("ORIJINAL\n", encoding="utf-8")
+    os.chmod(hedef, stat.S_IREAD)
+    try:
+        with pytest.raises(OSError):
+            EditorWidget._write_atomic(str(hedef), "YENI\n")
+        assert not (tmp_path / "doc.tex.tmp").exists(), "geçici dosya geride kaldı"
+        assert hedef.read_text(encoding="utf-8") == "ORIJINAL\n"
+    finally:
+        os.chmod(hedef, stat.S_IWRITE)

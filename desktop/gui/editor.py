@@ -3,6 +3,7 @@
 import bisect
 import os
 import re
+import stat
 from pathlib import Path
 
 from PyQt6.QtCore import Qt
@@ -781,7 +782,12 @@ class EditorWidget(QsciScintilla):
             # Satır sonu stilini hatırla: kayıtta aynen korunur (Windows text-
             # mode yazımı \n'i \r\n'e çevirip \r\r\n üretmesin diye — bu dosyayı
             # derlemez hale getiriyordu)
-            self._newline = "crlf" if b"\r\n" in raw[:8192] else "lf"
+            # İLK satır sonuna bakılır, sabit bir pencereye değil: 8192 baytlık
+            # pencere, ilk satırı uzun olan (pgfplots koordinat listesi gibi)
+            # tamamen CRLF bir dosyayı 'lf' sanıyordu; kayıt da dosyanın TÜM
+            # satır sonlarını sessizce LF'ye çeviriyordu.
+            i = raw.find(b"\n")
+            self._newline = "crlf" if i > 0 and raw[i - 1] == 0x0D else "lf"
             # Belge bütünüyle değişiyor: lexer'ın satır-durum önbelleği eski
             # belgeye ait; erken çıkış yanlış eşleşme yapmasın diye sıfırla.
             lexer = self.lexer()
@@ -817,7 +823,13 @@ class EditorWidget(QsciScintilla):
         için); bu durumda UnicodeEncodeError da temizlik için yakalanır.
         content bytes ise olduğu gibi yazılır (kodlama dönüşümü YOK — sürümden
         geri yüklemede ham blob'u değiştirmeden yazmanın tek güvenli yolu).
+
+        Hedef bir symlink ise ÖNCE çözülür: os.replace bağlantının KENDİSİNİ
+        düz dosyayla değiştirdiği için, kullanıcının kaydı bağlantının işaret
+        ettiği gerçek dosyaya hiç ulaşmıyordu (paylaşılan/senkronize dizine
+        bağlanmış bir main.tex sessizce eski içerikte kalıyordu).
         """
+        path = os.path.realpath(path)
         tmp = path + ".tmp"
         try:
             if isinstance(content, bytes):
@@ -832,9 +844,26 @@ class EditorWidget(QsciScintilla):
                     f.write(content)
                     f.flush()
                     os.fsync(f.fileno())
+            # İzin bitlerini hedeften devral: os.replace geride YENİ dosyayı
+            # bırakıyor, hedefin 0o600 gibi kısıtlı izinleri umask
+            # varsayılanına (0o644) düşüyordu. replace'ten ÖNCE yapılır ki
+            # dosya bir an bile gevşek izinle görünmesin. Hedef yoksa (yeni
+            # dosya) ya da dosya sistemi izin taşımıyorsa sessizce geçilir.
+            try:
+                os.chmod(tmp, stat.S_IMODE(os.stat(path).st_mode))
+            except OSError:
+                pass
             os.replace(tmp, path)
         except (OSError, UnicodeError):
             # Geçici dosya kalmasın; orijinal dokunulmadı (truncate edilmedi).
+            # Yazma bitini önce geri ver: izinler hedeften devralındığı için
+            # salt okunur bir hedefte geçici dosya da salt okunur işaretleniyor
+            # ve Windows böyle bir dosyayı SİLDİRMİYOR (ölçüldü: .tmp belgenin
+            # yanında kalıyordu).
+            try:
+                os.chmod(tmp, stat.S_IWRITE | stat.S_IREAD)
+            except OSError:
+                pass
             try:
                 os.unlink(tmp)
             except OSError:
