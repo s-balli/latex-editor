@@ -267,6 +267,88 @@ def test_kayit_yokken_sifirlama_yaniltmiyor(tmp_path, monkeypatch):
     assert "sıfırlandı" not in stub._status.msg
 
 
+# --------------------------------------------- kök ile hedef uyuşmazlığı
+#
+# Karar, DERLENEN belgenin projesine bağlanmalı; ağaç kökü yalnızca bir
+# gezinme durumu. Eskiden kök doluysa hedefe hiç bakılmıyordu ve bu, tam da
+# bu özelliğin engellemek için yazıldığı senaryoyu geri getiriyordu:
+# kullanıcı Dosya > Aç ile ağacın dışından bir şablon açıp derleyince, başka
+# bir projeye verilmiş izin ona da uygulanıyordu.
+
+
+@gui
+def test_agac_KOKU_DISINDAKI_belgeye_izin_sizmiyor(tmp_path, monkeypatch):
+    """A'ya verilen izin, ağaç A'dayken derlenen B belgesine geçmemeli."""
+    guvenilir = tmp_path / "A_proje"
+    indirilen = tmp_path / "B_indirilen"
+    _yaz(guvenilir, "tez.tex", "\\usepackage{minted}\n")
+    _yaz(indirilen, "main.tex", "\\usepackage{minted}\n")
+
+    stub = _karar_stub(guvenilir, {
+        CompileOpsMixin._SE_IZINLI: [os.path.normpath(str(guvenilir))]})
+    mb = _sor(monkeypatch, stub, _SahteMB.StandardButton.No)
+
+    assert stub._shell_escape_karari(str(indirilen / "main.tex")) is False
+    assert len(mb.sorular) == 1, "indirilen şablona sorulmadan izin verildi"
+
+
+@gui
+def test_agac_koku_ALTINDAKI_alt_klasor_ayni_proje(tmp_path, monkeypatch):
+    """Alt klasör aynı projedir: proje başına TEK karar, klasör başına değil.
+
+    Düzeltme fazla iş yapıp her alt klasörü ayrı proje sayarsa, kullanıcı
+    aynı tez içinde bölüm değiştirdikçe yeniden sorguya çekilirdi.
+    """
+    proje = tmp_path / "tez"
+    _yaz(proje, "ana.tex", "\\usepackage{minted}\n")
+    _yaz(proje / "bolumler", "bolum1.tex", "\\section{Giris}\n")
+
+    stub = _karar_stub(proje, {
+        CompileOpsMixin._SE_IZINLI: [os.path.normpath(str(proje))]})
+    mb = _sor(monkeypatch, stub, _SahteMB.StandardButton.No)
+
+    assert stub._shell_escape_karari(
+        str(proje / "bolumler" / "bolum1.tex")) is True
+    assert mb.sorular == []
+
+
+@gui
+def test_minted_taramasi_DERLENEN_belgenin_klasorunde(tmp_path, monkeypatch):
+    """Tarama ağaç kökünde yapılırsa yanlış klasöre bakılır.
+
+    Ağaç minted'siz bir klasördeyken minted kullanan bir belge derlenince
+    tarama boş dönüyor, bayrak hiç gönderilmiyor ve derleme minted yüzünden
+    düşüyordu.
+    """
+    mintedsiz = tmp_path / "C_mintedsiz"
+    hedef = tmp_path / "B_minted"
+    _yaz(mintedsiz, "not.tex", "\\documentclass{article}\n")
+    _yaz(hedef, "main.tex", "\\usepackage{minted}\n")
+
+    stub = _karar_stub(mintedsiz)
+    mb = _sor(monkeypatch, stub, _SahteMB.StandardButton.Yes)
+
+    assert stub._shell_escape_karari(str(hedef / "main.tex")) is True
+    assert len(mb.sorular) == 1, "yanlış klasör tarandı, minted görülmedi"
+
+
+@gui
+def test_kok_altindayken_ANAHTAR_BICIMI_degismedi(tmp_path):
+    """Kök altındaki belge için anahtar eskisiyle birebir aynı olmalı.
+
+    Anahtar QSettings'te tutuluyor; biçimi değişseydi kayıtlı cevaplar
+    eşleşmez ve daha önce karar vermiş HERKESE bir kez daha sorulurdu.
+    """
+    proje = tmp_path / "tez"
+    _yaz(proje / "bolumler", "bolum1.tex", "\\section{Giris}\n")
+    stub = _karar_stub(proje)
+
+    assert stub._shell_escape_kok(str(proje / "bolumler" / "bolum1.tex")) \
+        == os.path.normpath(str(proje))
+    # Argümansız çağrı (_reset_shell_escape yolu) da kökü vermeli
+    assert stub._shell_escape_kok() == os.path.normpath(str(proje))
+
+
 # ------------------------------------------------------------- derle.sh
 
 def test_derle_sh_no_shell_escape_bayragini_taniyor():

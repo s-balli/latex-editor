@@ -116,9 +116,45 @@ class CompileOpsMixin:
             self._settings.setValue(anahtar, liste)
         return izin
 
+    @staticmethod
+    def _kok_kapsiyor_mu(kok: str, dizin: str) -> bool:
+        """``dizin``, ``kok``un altında mı (kökün kendisi de sayılır)."""
+        try:
+            ortak = os.path.commonpath(
+                [os.path.normcase(os.path.abspath(kok)),
+                 os.path.normcase(os.path.abspath(dizin))])
+        except ValueError:
+            # Windows'ta ayrı sürücüler: ortak yol yok, kapsamıyor demektir.
+            return False
+        return ortak == os.path.normcase(os.path.abspath(kok))
+
     def _shell_escape_kok(self, hedef: str = "") -> str:
-        return os.path.normpath(
-            getattr(self._file_tree, "_root", "") or os.path.dirname(hedef))
+        """Kabuk erişimi kararının YAZILDIĞI/OKUNDUĞU anahtar.
+
+        Ağaç kökü yalnız derlenen belge ONUN ALTINDAYSA kullanılıyor. Eskiden
+        kök doluysa hedefe HİÇ bakılmıyordu ve karar, belgenin projesine
+        değil o an ağaçta açık olan klasöre bağlanıyordu. Ölçüldü, iki ayrı
+        sonucu vardı:
+
+          - A projesine bir kez 'Evet' diyen kullanıcı, ağaç A'dayken Dosya >
+            Aç ile açtığı indirilmiş bir şablonu derlerse ona SORULMADAN
+            `-shell-escape` veriliyordu. Bu, özelliğin engellemek için
+            yazıldığı senaryonun kendisi (bkz. `_shell_escape_karari`).
+          - `minted_kullaniliyor` da kökü tarıyor: ağaç minted'siz bir
+            klasördeyken minted kullanan bir belge derlenince tarama boş
+            dönüyor, bayrak hiç gönderilmiyor ve derleme düşüyordu.
+
+        Belge kökün altındaysa (olağan hâl, alt klasörler dahil) davranış
+        AYNEN duruyor: proje başına tek karar, alt klasör başına değil.
+        Dönen değer QSettings anahtarı olduğu için normalleştirme
+        DEĞİŞTİRİLMEDİ; değişse kayıtlı cevaplar eşleşmez ve kullanıcıya
+        bir kez daha sorulurdu.
+        """
+        kok = getattr(self._file_tree, "_root", "") or ""
+        hedef_dizin = os.path.dirname(hedef) if hedef else ""
+        if kok and hedef_dizin and not self._kok_kapsiyor_mu(kok, hedef_dizin):
+            return os.path.normpath(hedef_dizin)
+        return os.path.normpath(kok or hedef_dizin)
 
     def _reset_shell_escape(self):
         """Bu proje için kayıtlı kabuk erişimi cevabını unut."""
