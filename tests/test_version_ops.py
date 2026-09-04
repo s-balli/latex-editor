@@ -4,6 +4,7 @@ dulwich yoksa atlar; MainWindow kurulumu yerine StubMain + VersionOpsMixin.
 """
 
 from types import SimpleNamespace
+import os
 import time
 
 import pytest
@@ -403,3 +404,58 @@ def test_snapshot_busy_iken_ikinci_cagri_reddedilir(qapp, tmp_path, monkeypatch)
     assert "bekleyin" in stub._status.msg
     _snap(qapp, stub)   # gercek cagri zaten red edildi; busy'nin dusmesi bekle
     assert stub._output_panel._history_list.count() == 2
+
+
+# ------------------------------------------------- ayrı sürücüdeki dosya
+#
+# `os.path.relpath` Windows'ta iki yol AYRI SÜRÜCÜDEYSE ValueError atıyor ve
+# dosya sistemine hiç bakmıyor, salt yol matematiği yapıyor. `_on_version_action`
+# önce denetim yapmadan çağırıyordu.
+#
+# ÖLÇÜLDÜ: PyQt6'da slot içindeki yakalanmamış istisna traceback basıp devam
+# ETMİYOR, süreci öldürüyor; bu uygulamada global excepthook da yok. Yani
+# C:'de proje açıkken D:'deki bir dosyayı açıp Sürüm Geçmişi'nden bir eyleme
+# basmak, öbür sekmelerdeki kaydedilmemiş işi de götürüyordu.
+
+
+class _AyriSurucuStub(VersionOpsMixin):
+    """Sadece `_on_version_action`ın relpath yoluna girmesi için gereken kadar."""
+
+    def __init__(self, kok, dosya):
+        self._file_tree = SimpleNamespace(_root=kok)
+        self._ed = SimpleNamespace(file_path=dosya, _encoding="utf-8")
+        self.mesajlar = []
+        self._status = SimpleNamespace(
+            showMessage=lambda m, *a: self.mesajlar.append(m))
+
+    def _current_editor(self):
+        return self._ed
+
+
+@pytest.mark.skipif(os.name != "nt",
+                    reason="sürücü kavramı Windows'a özgü; relpath başka "
+                           "yerde ValueError atmıyor")
+@pytest.mark.parametrize("eylem", ["diff", "restore", "copy"])
+def test_AYRI_SURUCUDEKI_dosya_uygulamayi_oldurmuyor(qapp, monkeypatch, eylem):
+    """Üç eylem de istisna değil, kullanıcıya mesaj üretmeli."""
+    monkeypatch.setattr(
+        "gui.mixins.version_ops.QMessageBox.question",
+        staticmethod(lambda *a, **k: 16384))  # Yes
+    stub = _AyriSurucuStub("C:\\proje", "D:\\usb\\yazi.tex")
+
+    stub._on_version_action(eylem, "abc1234")     # ValueError atmamalı
+
+    assert stub.mesajlar, "kullanıcıya hiçbir şey söylenmedi"
+
+
+@pytest.mark.skipif(os.name != "nt", reason="Windows'a özgü")
+def test_ayri_surucu_SILME_eylemini_etkilemiyor(qapp, monkeypatch):
+    """`drop` dosya istemiyor, relpath yoluna hiç girmemeli."""
+    monkeypatch.setattr(
+        "gui.mixins.version_ops.QMessageBox.question",
+        staticmethod(lambda *a, **k: 65536))  # No: gerçek silmeye gitmesin
+    stub = _AyriSurucuStub("C:\\proje", "D:\\usb\\yazi.tex")
+
+    stub._on_version_action("drop", "abc1234")    # patlamamalı
+
+    assert stub.mesajlar == []                    # No dendi, mesaj da yok

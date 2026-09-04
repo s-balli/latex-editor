@@ -278,7 +278,24 @@ class VersionOpsMixin:
             if not editor or not editor.file_path:
                 self._status.showMessage(_("Açık dosya yok"))
                 return
-            rel = os.path.relpath(editor.file_path, root).replace(os.sep, "/")
+            try:
+                rel = os.path.relpath(editor.file_path, root).replace(os.sep, "/")
+            except ValueError:
+                # Windows'ta AYRI SÜRÜCÜ: relpath ortak yol bulamayıp
+                # ValueError atıyor (dosya sistemine hiç bakmadan, salt yol
+                # matematiğiyle). Kullanıcı C:'de proje açıkken D:'deki bir
+                # dosyayı açıp Sürüm Geçmişi'nden bir eyleme basınca oluyor.
+                #
+                # Yakalanmazsa sonuç traceback DEĞİL: ölçüldü, PyQt6'da slot
+                # içindeki yakalanmamış istisna süreci öldürüyor ve bu
+                # uygulamada global excepthook yok, yani öbür sekmelerdeki
+                # kaydedilmemiş iş de gidiyor.
+                #
+                # Ayrı sürücüdeki dosya bu deponun içinde OLAMAZ; boş `rel`
+                # ile devam edilince aşağıdaki yollar zaten "Dosya bu sürümde
+                # bulunamadı" diyor. Yeni bir kullanıcı metni eklemek yerine
+                # var olan doğru mesaja düşülüyor.
+                rel = ""
             if action == "diff":
                 self._show_version_diff(root, sha, rel)
             elif action == "restore":
