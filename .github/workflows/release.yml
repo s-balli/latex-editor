@@ -274,6 +274,21 @@ jobs:
   winget:
     needs: build-windows
     runs-on: ubuntu-latest
+    # SURUMU ENGELLEMEZ. winget yayina EK bir kanal; surumun kendisi ondan
+    # bagimsiz ve dosyalar bu is kosmadan once zaten yuklenmis oluyor.
+    # Token yokken isi atlamanin gerekcesi neyse bu da o: yayin akisinin
+    # tamami winget yuzunden kirmizi olmasin.
+    #
+    # SU AN ONEMLI: paket winget-pkgs'te HENUZ YOK (ilk PR moderator onayi
+    # bekliyor, olculdu: yeni paket kuyrugunun ortancasi ~7 gun). Eylem
+    # paketi bulamayinca hata verip duruyor, yani o gun gelene kadar HER
+    # surum bu isten kirmizi donerdi.
+    #
+    # Basarisizlik GIZLENMIYOR: is listede sari uyariyla duruyor, yalnizca
+    # akisi durdurmuyor. Paket kabul edildikten sonra o surumun `winget`
+    # isini Actions ekranindan tek basina yeniden calistirmak yeterli;
+    # eylem yayin bilgisini API'den okuyor, yayin zaten yerinde.
+    continue-on-error: true
     # env IS DUZEYINDE, adim duzeyinde DEGIL: `secrets` baglami adim `if`inde
     # kullanilamiyor (GitHub'in izin verdigi baglamlar arasinda yok), adimin
     # KENDI env'i de kendi `if`inde guvenilir gorunmuyor. Is duzeyine konunca
