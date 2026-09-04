@@ -226,6 +226,15 @@ jobs:
       #
       # Bu kapi yalnizca EKSIK PAKETI degil, PyQt6 yukseltmesinin getirdigi
       # YENI bir sistem bagimliligini da yakalar. Yayindan once, burada.
+      #
+      # DAHA SIKI BIR KAPI DENENDI VE YANLIS CIKTI (2026-09-04, on ucus
+      # akisinda). "Her NEEDED girdisi _internal ICINDE dosya olarak bulunsun"
+      # sartinin ldd'ye gore daha saglam oldugu dusunulmustu; kosunca
+      # `libGL.so.1` ve `libxcb.so.1` yuzunden dustu. Ikisi de AppImage'in
+      # resmi dislama listesinde ve SISTEMDEN gelmeleri gerekiyor: libGL
+      # ekran surucusune bagli, paketlenirse donanim hizlandirmasi bozulur.
+      # Yani "paketin icinde olmamak" burada kusur degil kural. ldd'ye
+      # dayanan asagidaki kapi dogru olan.
       - name: AppImage bagimliliklari cozuluyor mu
         working-directory: desktop
         run: |
