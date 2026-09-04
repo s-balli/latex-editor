@@ -359,3 +359,62 @@ def test_denetleyici_yokken_sozluge_ekleme_cokmez(qapp):
 def test_cleanup_thread_yokken_cokmez(qapp):
     s = _Stub()
     s._cleanup_yazim()                      # patlamamalı
+
+
+# =====================================================================
+# Öneri uygulama: belge BOZULMAMALI
+#
+# `_yazim_degistir` düz `metin.replace(eski, yeni)` yapıyordu ve
+# `str.replace` kelime sınırı tanımıyor. Ölçüldü: `sec` -> `seç` düzeltmesi
+# `\section`ı `\seçtion` yapıp belgeyi DERLENEMEZ hâle getiriyordu.
+# Tarayıcı komutların ve verbatim'in içini bilerek hiç denetlemiyor, yani
+# oralarda bir bulgu hiç oluşmuyor; değişim de oralara girmemeli.
+# =====================================================================
+
+
+def _yazan_editor(metin, yol="C:/x/main.tex"):
+    """Yazılanı SAKLAYAN editör.
+
+    `_editor`ın setText'i yutuyor; öneri testleri belgenin SON hâline bakmak
+    zorunda, yoksa "bozuldu mu" sorusu hiç sorulamaz.
+    """
+    kutu = {"m": metin}
+    return SimpleNamespace(text=lambda: kutu["m"], file_path=yol,
+                           display_name="main.tex",
+                           setText=lambda s: kutu.__setitem__("m", s),
+                           getCursorPosition=lambda: (0, 0))
+
+
+def _oneri_uygula(metin, eski, yeni):
+    s = _Stub(editor=_yazan_editor(metin))
+    d = Denetleyici()
+    d._sozluk = _SahteSozluk([])
+    s._yazim_denetleyici = d
+    s._yazim_anahtar = ("tr_TR", "")
+    s._yazim_degistir(eski, yeni)
+    return s._current_editor().text()
+
+
+def test_oneri_LATEX_KOMUTUNU_bozmuyor(qapp):
+    """`sec` -> `seç` düzeltmesi `\\section`a dokunmamalı.
+
+    Bozulduğunda belge derlenmiyor ve sebep öneri diyaloğundan çok uzakta
+    olduğu için kullanıcı bağlantıyı kuramıyor.
+    """
+    sonuc = _oneri_uygula("\\section{Giris}\nBu sec kelimesi yanlis.\n",
+                          "sec", "seç")
+    assert sonuc == "\\section{Giris}\nBu seç kelimesi yanlis.\n"
+    assert "\\section" in sonuc
+
+
+def test_oneri_VERBATIM_icine_girmiyor(qapp):
+    """Verbatim bloğu aynen kalmalı, dışındaki kelime değişmeli.
+
+    `verbatim` _ATLANACAK_ORTAM'da: içi hiç denetlenmiyor, yani orada bir
+    bulgu hiç olmuyor. Değişimin oraya sızması kullanıcının kod örneğini
+    sessizce bozardı.
+    """
+    sonuc = _oneri_uygula(
+        "\\begin{verbatim}\nsec kod\n\\end{verbatim}\nsec metin\n",
+        "sec", "seç")
+    assert sonuc == "\\begin{verbatim}\nsec kod\n\\end{verbatim}\nseç metin\n"

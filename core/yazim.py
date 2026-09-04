@@ -775,8 +775,20 @@ class Denetleyici:
         yarısı özel ad: İngilizce şablonlarda %10.0'ın 4.5 puanı, Türkçe
         template36'da 125 işaretin 34'ü.
         """
+        return self.denetle_kelimeler(kelimeleri_cikar(metin),
+                                      buyuk_atla=buyuk_atla, en_az=en_az)
+
+    def denetle_kelimeler(self, kelimeler, *, buyuk_atla: bool = False,
+                          en_az: int = 3) -> list[Bulgu]:
+        """``denetle`` ile aynı, ama TARANMIŞ kelime listesini alır.
+
+        Çağıran taramanın sonucuna ayrıca ihtiyaç duyduğunda (örneğin toplam
+        kelime sayısı) belgeyi ikinci kez taramak zorunda kalmasın diye
+        ayrıldı: arayüz katmanı tam bunu yapıyordu ve tarama denetim başına
+        iki kez koşuyordu.
+        """
         bulgular = []
-        for k in kelimeleri_cikar(metin):
+        for k in kelimeler:
             if len(k.kelime) < en_az:
                 continue
             if buyuk_atla and k.kelime[:1].isupper():

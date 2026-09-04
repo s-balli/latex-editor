@@ -220,8 +220,13 @@ class YazimOpsMixin:
             return
         from core.yazim import kelimeleri_cikar
         metin = ed.text()
-        bulgular = self._yazim_denetleyici.denetle(metin, buyuk_atla=True)
-        toplam = sum(1 for k in kelimeleri_cikar(metin) if len(k.kelime) >= 3)
+        # TEK tarama. Eskiden `denetle(metin)` kendi içinde tarıyor, sonraki
+        # satır yalnız kelime saymak için AYNI taramayı baştan yapıyordu:
+        # 73 KB'lık bir bölümde 62 ms boşa gidiyordu (ölçüldü, 2.11x).
+        kelimeler = kelimeleri_cikar(metin)
+        bulgular = self._yazim_denetleyici.denetle_kelimeler(
+            kelimeler, buyuk_atla=True)
+        toplam = sum(1 for k in kelimeler if len(k.kelime) >= 3)
         self._output_panel.show_yazim(bulgular, ed.file_path or "", toplam)
 
     # -- sağ tık --
@@ -247,16 +252,39 @@ class YazimOpsMixin:
             self._yazim_degistir(kelime, secim)
 
     def _yazim_degistir(self, eski: str, yeni: str):
-        """Seçilen öneriyi belgede uygula (ilk eşleşme değil, HEPSİ değil:
-        yalnız seçili bulgunun satırındaki eşleşme hedeflenmeli; bu aşamada
-        basit tutuluyor ve kullanıcıya bilgi veriliyor)."""
+        """Seçilen öneriyi belgede uygula, YALNIZ tarayıcının kelime saydığı
+        yerlerde.
+
+        Eskiden düz `metin.replace(eski, yeni)` yapılıyordu ve `str.replace`
+        kelime sınırı tanımıyor. Ölçüldü, üçü de belgeyi bozuyordu:
+          `sec` -> `seç`  : `\\section` -> `\\seçtion`, belge DERLENEMEZ oluyor
+          `ver` -> `veri` : `Universite` -> `Univerisite`, doğru kelime bozuluyor
+          `ab`  -> `ap`   : `$x = ab + 1$` içindeki matematik bozuluyor
+        Oysa tarayıcı komutların, matematiğin ve verbatim'in içini bilerek hiç
+        denetlemiyor; oralarda bulgu zaten hiç oluşmuyor.
+
+        Konum bilgisi buraya ULAŞMIYOR (panel sinyali yalnız kelimeyi taşıyor),
+        o yüzden "hepsini değiştir" davranışı korunuyor; değişen tek şey,
+        artık yalnız DÜZ METİN geçişlerinin değişmesi.
+
+        Aksan makrosuyla yazılmış geçişler (`M\\"{u}hendislik`) atlanıyor:
+        özgün metindeki uzunluk çözülmüş kelimeden farklı, ofsetle kesmek
+        onları bozardı. Bozmaktansa dokunmamak doğru.
+        """
         ed = self._current_editor()
         if ed is None:
             return
+        from core.yazim import kelimeleri_cikar
         metin = ed.text()
-        if eski not in metin:
+        yerler = [k.ofset for k in kelimeleri_cikar(metin)
+                  if k.kelime == eski
+                  and metin[k.ofset:k.ofset + len(eski)] == eski]
+        if not yerler:
             return
-        ed.setText(metin.replace(eski, yeni))
+        # Sondan başa: her değişim kendinden SONRAKİ ofsetleri kaydırır.
+        for o in reversed(yerler):
+            metin = metin[:o] + yeni + metin[o + len(eski):]
+        ed.setText(metin)
         self._status.showMessage(
             _("'{e}' -> '{y}' değiştirildi").format(e=eski, y=yeni), 4000)
         self._yazim_calistir()

@@ -74,3 +74,6 @@ sozlukler/*.aff
 # Yerel deneme araclari
 yazim_dene.py
 Yazim Dene.bat
+
+# Denetim turlarinin gecici betikleri (kanit/dogrulama). Depoya girmez.
+.temp_files/
