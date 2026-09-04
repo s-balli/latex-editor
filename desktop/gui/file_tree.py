@@ -251,7 +251,11 @@ class FileTree(QWidget):
         (tam okuma) + detect_root (30 satir okuma) iki ayri acilis yapiyordu.
         Simdi dosya TEK okusla okunup iki denetim de icerikten yapiliyor.
         """
-        if not path.endswith(".tex"):
+        # KUCUK HARFE CEVIRIP bakiliyor: gercek sablonlarda buyuk harfli
+        # uzanti var (template34-tez: `iufenbil_tez_sablonu.TEX`). Windows
+        # dosya sistemi harf duyarsiz, karsilastirma duyarliydi; o dosya
+        # "derlenemez" sayiliyordu.
+        if not path.lower().endswith(".tex"):
             return False
         try:
             with open(path, "r", encoding="utf-8", errors="replace") as f:

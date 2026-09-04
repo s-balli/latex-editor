@@ -81,6 +81,25 @@ def test_input_ref_ok_tek_okumayla_iki_denetim(qapp, tmp_path, monkeypatch):
     assert tree._input_ref_ok(str(parcacik)) is False
 
 
+def test_input_ref_ok_BUYUK_HARFLI_uzantiyi_da_goruyor(qapp, tmp_path):
+    """`.TEX` de `.tex` kadar gecerli bir LaTeX dosyasi.
+
+    Gercek sablonda var: `template34-tez` (Istanbul Universitesi Fen
+    Bilimleri tez sablonu) kok dosyasini `iufenbil_tez_sablonu.TEX` diye
+    tasiyor. Windows dosya sistemi harf duyarsiz ama karsilastirma
+    duyarliydi; o dosya "derlenemez" sayilip agacta oyle isaretleniyordu.
+
+    2026-09-04'te MiKTeX olcumu sirasinda bulundu.
+    """
+    from gui.file_tree import FileTree
+
+    buyuk = tmp_path / "BELGE.TEX"
+    buyuk.write_text("\\begin{document}tam belge\\end{document}\n",
+                     encoding="utf-8")
+    tree = FileTree(theme=THEMES["dark"])
+    assert tree._input_ref_ok(str(buyuk)) is True
+
+
 # ---------------------------------------------------------------------------
 # Bağlam menüsü işlemleri: yeni dosya / yeni klasör / yeniden adlandır
 #

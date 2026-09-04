@@ -194,7 +194,10 @@ class FileOpsMixin:
 
     def _detect_engine(self, path: str):
         """Dosya ve .cls içeriğinden uygun derleme motorunu algıla."""
-        if not path.endswith(".tex"):
+        # KUCUK HARFE CEVIRIP bakiliyor, bkz. file_tree._input_ref_ok:
+        # buyuk harfli `.TEX` acilinca motor algilama HIC kosmuyordu ve
+        # bir onceki belgenin motoru kaliyordu.
+        if not path.lower().endswith(".tex"):
             return
         engine = _detect_engine_auto(path)
         if engine is None:

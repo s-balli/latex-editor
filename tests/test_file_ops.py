@@ -480,3 +480,34 @@ def test_oturum_geri_yuklemede_sorulmuyor(qapp, tmp_path, monkeypatch):
 
     assert sorulan == [], "oturum geri yüklemede sorulmamalı"
     assert stub._editor_tabs.count() == 1
+
+
+def test_motor_algilama_BUYUK_HARFLI_uzantida_da_kosuyor(qapp, tmp_path,
+                                                         monkeypatch):
+    """`.TEX` acilinca motor algilama HIC kosmuyordu.
+
+    Guard `path.endswith(".tex")` idi, yani harf duyarli. Gercek sablonda
+    var: `template34-tez` kok dosyasi `iufenbil_tez_sablonu.TEX`. O belge
+    acilinca bir onceki belgenin motoru kaliyor, yanlis motorla derleniyordu.
+
+    2026-09-04'te MiKTeX olcumu sirasinda bulundu.
+    """
+    from gui.mixins import file_ops as fo
+
+    cagrilan = []
+    monkeypatch.setattr(fo, "_detect_engine_auto",
+                        lambda p: cagrilan.append(p) or "lualatex")
+
+    stub = _Stub([])
+    # Guard'i gectikten sonra motor kutusuna dokunuyor; testin derdi o degil,
+    # yalniz algilamanin CAGRILIP cagrilmadigi. En kucuk sahte yeterli.
+    stub._engine_combo = SimpleNamespace(findText=lambda s: -1,
+                                         currentIndex=lambda: 0)
+
+    for ad in ("kucuk.tex", "BUYUK.TEX"):
+        yol = tmp_path / ad
+        yol.write_text("\\documentclass{article}\n", encoding="utf-8")
+        fo.FileOpsMixin._detect_engine(stub, str(yol))
+
+    assert len(cagrilan) == 2, (
+        "buyuk harfli uzantida algilama atlandi: %s" % cagrilan)
