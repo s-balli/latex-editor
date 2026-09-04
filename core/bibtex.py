@@ -427,21 +427,62 @@ def normallestir(ham: str, *, mevcut_anahtarlar=()) -> tuple[str, str]:
     return "\n".join(satirlar), anahtar
 
 
+# Dosyanın kendi kodlaması. `core.project_search.coz` ve
+# `gui.editor._decode_bytes` ile AYNI sıra; buradaki fark, yazabilmek için
+# kodlamanın ADININ da gerekmesi.
+_KODLAMALAR = ("utf-8", "cp1254", "iso-8859-9")
+
+
+def _coz_adiyla(ham: bytes) -> tuple[str, str]:
+    """(metin, kodlama adı). Hiçbiri tutmazsa utf-8 + replace."""
+    for enc in _KODLAMALAR:
+        try:
+            return ham.decode(enc), enc
+        except (UnicodeDecodeError, LookupError):
+            continue
+    return ham.decode("utf-8", errors="replace"), "utf-8"
+
+
 def bibe_ekle(yol: str, girdi_metni: str) -> None:
     """Girdiyi .bib dosyasının SONUNA ekle.
 
     Dosya yeniden yazılmıyor, yalnız ekleniyor: mevcut yorumlar, `@string`
     makroları ve girdi sırası olduğu gibi kalıyor.
+
+    EKLEME DOSYANIN KENDİ KODLAMASIYLA yapılıyor. Eskiden okuma `coz()` ile
+    kodlamayı ALGILIYOR ama yazma koşulsuz utf-8'di; cp1254 ile yazılmış bir
+    .bib'e utf-8 baytlar eklenince dosya KARMA KODLAMALI oluyordu. Ölçüldü:
+    dosya sonrasında ne utf-8 ne cp1254 olarak çözülüyor, `coz()`
+    iso-8859-9'a düşüyor ve YENİ eklenen girdi mojibake okunuyor
+    (`Yılmaz, Şule` -> `YÄ±lmaz, Å\x9eule`) — hem Kaynakça sekmesinde hem
+    derlenen kaynakçada.
+
+    Bu depo eski Türkçe kodlamaları üç ayrı yerde ciddiye alıyor
+    (`project_search.coz`, `editor._decode_bytes`, `editor.save_file_as`);
+    `bibe_ekle` o zincirin dışında kalmıştı.
     """
-    from core.project_search import coz
-    var_olan = ""
+    var_olan, kodlama = "", "utf-8"
     if os.path.isfile(yol):
         with open(yol, "rb") as f:
-            var_olan = coz(f.read())
+            var_olan, kodlama = _coz_adiyla(f.read())
     ayrac = "" if (not var_olan or var_olan.endswith("\n\n")) else (
         "\n" if var_olan.endswith("\n") else "\n\n")
-    with open(yol, "a", encoding="utf-8", newline="") as f:
-        f.write(ayrac + girdi_metni + "\n")
+    eklenecek = ayrac + girdi_metni + "\n"
+
+    try:
+        veri = eklenecek.encode(kodlama)
+    except UnicodeEncodeError:
+        # Yeni girdi eski kodlamaya SIĞMIYOR (ör. cp1254'te karşılığı olmayan
+        # bir harf; DOI ile gelen kayıtlarda olağan). Karma kodlamalı dosya
+        # üretmektense dosyanın TAMAMI utf-8'e çevriliyor: metin birebir
+        # korunuyor, yalnız baytlar değişiyor ve dosya tek kodlamada kalıyor.
+        with open(yol, "wb") as f:
+            f.write((var_olan + eklenecek).encode("utf-8"))
+        return
+
+    # İkili ekleme: satır sonu çevirisi yok (eski `newline=""` ile aynı).
+    with open(yol, "ab") as f:
+        f.write(veri)
 
 
 @dataclass

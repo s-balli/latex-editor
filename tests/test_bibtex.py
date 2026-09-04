@@ -490,13 +490,65 @@ class TestBibeEkle:
         assert [g.anahtar for g in girdiler] == ["eski", anahtar]
         assert girdiler[1].alanlar["pages"] == "770--778"
 
+    @staticmethod
+    def _tek_kodlama(yol):
+        """Dosyanın tümü hangi kodlamayla çözülüyor; hiçbiri tutmazsa None."""
+        ham = yol.read_bytes()
+        for enc in ("utf-8", "cp1254", "iso-8859-9"):
+            try:
+                ham.decode(enc)
+                return enc
+            except UnicodeDecodeError:
+                continue
+        return None
+
+    @staticmethod
+    def _basliklar(yol):
+        from core.project_search import coz
+        return {g.anahtar: g.alanlar.get("title", "")
+                for g in parse_entries(coz(yol.read_bytes()))}
+
     def test_cp1254_dosyaya_eklenince_bozulmuyor(self, tmp_path):
-        """Türkçe .bib'ler cp1254 olabiliyor; okuma çözücüden geçiyor."""
+        """Türkçe .bib'ler cp1254 olabiliyor; ekleme de o kodlamayla olmalı.
+
+        Bu test eskiden yalnız `b"@article{yeni," in ham` diyordu; o dizge
+        SAF ASCII, yani bozulma varken de geçiyordu. Ölçüldü: okuma
+        `coz()` ile kodlamayı algılıyor ama yazma koşulsuz utf-8'di, dosya
+        karma kodlamalı kalıyor ve YENİ girdi mojibake okunuyordu
+        (`Ölçüm` -> `Ã–lÃ§Ã¼m`). Artık iki girdinin de içeriği sınanıyor.
+        """
         p = tmp_path / "refs.bib"
         p.write_bytes("@article{eski, title={Şekil}}\n".encode("cp1254"))
+
         bibe_ekle(str(p), "@article{yeni,\n  title = {Ölçüm},\n}")
-        ham = p.read_bytes()
-        assert b"@article{yeni," in ham
+
+        assert self._basliklar(p) == {"eski": "Şekil", "yeni": "Ölçüm"}
+        assert self._tek_kodlama(p) is not None, "dosya karma kodlamalı kaldı"
+
+    def test_eski_kodlamaya_SIGMAYAN_girdide_dosya_utf8_e_ceviriliyor(self, tmp_path):
+        """DOI ile gelen kayıtta cp1254'te karşılığı olmayan harf olabiliyor.
+
+        O durumda karma kodlamalı dosya üretmek yerine dosyanın tamamı
+        utf-8'e çevriliyor: metin birebir korunuyor, dosya tek kodlamada
+        kalıyor.
+        """
+        p = tmp_path / "refs.bib"
+        p.write_bytes("@article{eski, title={Şekil}}\n".encode("cp1254"))
+
+        bibe_ekle(str(p), "@article{cince,\n  title = {张伟},\n}")
+
+        assert self._basliklar(p) == {"eski": "Şekil", "cince": "张伟"}
+        assert self._tek_kodlama(p) == "utf-8"
+
+    def test_utf8_dosyada_davranis_korunuyor(self, tmp_path):
+        """Karşı durum: olağan hâlde hiçbir şey değişmemeli."""
+        p = tmp_path / "refs.bib"
+        p.write_bytes("@article{eski, title={Şekil}}\n".encode("utf-8"))
+
+        bibe_ekle(str(p), "@article{yeni,\n  title = {Ölçüm},\n}")
+
+        assert self._basliklar(p) == {"eski": "Şekil", "yeni": "Ölçüm"}
+        assert self._tek_kodlama(p) == "utf-8"
 
 
 # --- DOI kullanıcıdan gelir: URL'e girmeden önce denetlenir ---
