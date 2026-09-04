@@ -3,6 +3,11 @@
 import os
 import sys
 
+# Hiç tercih kaydedilmemişken açılacak dil. TEK KAYNAK: arayüzdeki dil
+# seçici de bunu okuyor. İkisi ayrı ayrı yazılıydı ve ayrışabilirlerdi;
+# ayrışsalardı arayüz bir dilde açılır, seçicide başka dil yazardı.
+VARSAYILAN_DIL = "en"
+
 _backend = None
 _trans_dir = None
 
@@ -25,10 +30,14 @@ def init(app=None):
 
     _trans_dir = os.path.normpath(_find_trans_dir())
 
-    # Ayarlardan dil al, yoksa kaynak dil (Türkçe)
+    # Ayarlardan dil al, yoksa VARSAYILAN_DIL. Eskiden kaynak dil (Türkçe)
+    # açılıyordu ve sistem dili hiç sorulmuyordu, yani uygulama dünyanın her
+    # yerinde Türkçe başlıyordu. AppImageHub'ın CI'ı uygulamayı İngilizce bir
+    # makinede çalıştırıp ekran görüntüsü alınca görüldü. Türkçe araç
+    # çubuğundaki seçiciden tek tıkla geri geliyor ve tercih kaydediliyor.
     settings = QSettings("LatexEditor", "LatexEditor")
     lang = settings.value("language", "")
-    locale = lang if lang else "tr"
+    locale = lang if lang else VARSAYILAN_DIL
     qm_path = os.path.normpath(
         os.path.join(_trans_dir, f"latexeditor_{locale}.qm"))
 

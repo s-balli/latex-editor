@@ -69,6 +69,31 @@ class UpdateCheckThread(QThread):
             self.finished_network_error.emit()
 
 
+def ekrana_sigan_boyut(genislik: int, yukseklik: int, alan=None):
+    """İstenen ilk pencere boyutunu kullanılabilir ekran alanına sığdırır.
+
+    Boyut sabit 1400x900 idi ve ekrana HİÇ bakılmıyordu. 1366x768 gibi hâlâ
+    yaygın dizüstü ekranlarında pencere ilk açılışta taşıyor, bir kısmı
+    ekranın dışında kalıyordu. Sonraki açılışlarda `restoreGeometry` devreye
+    girdiği için yalnızca İLK açılış etkileniyordu; kaydedilmiş boyutu olan
+    hiç kimse görmüyordu. AppImageHub'ın 800x600'lük Xvfb ekranında aldığı
+    ekran görüntüsünde ortaya çıktı.
+
+    `availableGeometry` görev çubuğunu zaten dışlıyor. Pencere çerçevesi
+    (başlık çubuğu) `resize`a dahil değil, o yüzden çok dar ekranlarda
+    yükseklikte çerçeve kadar taşma kalabilir; asıl kusur olan genişlik
+    taşması tamamen kapanıyor.
+
+    `alan` yalnızca test için: ekransız ortamda gerçek bir QScreen yok.
+    """
+    if alan is None:
+        ekran = QApplication.primaryScreen()
+        if ekran is None:
+            return genislik, yukseklik
+        alan = ekran.availableGeometry()
+    return min(genislik, alan.width()), min(yukseklik, alan.height())
+
+
 class MainWindow(
     FileWatchMixin,
     FileOpsMixin,
@@ -87,7 +112,7 @@ class MainWindow(
     def __init__(self, open_file: str = ""):
         super().__init__()
         self.setWindowTitle(f"LaTeX Editor v{VERSION}")
-        self.resize(1400, 900)
+        self.resize(*ekrana_sigan_boyut(1400, 900))
         self.setMinimumSize(800, 500)
         self._set_window_icon()
 
@@ -444,13 +469,16 @@ class MainWindow(
         self._lang_label.setStyleSheet(f"color: {t['fg_label']}; font-weight: bold;")
         toolbar.addWidget(self._lang_label)
         self._lang_combo = QComboBox()
-        from core.i18n import available_languages
+        from core.i18n import VARSAYILAN_DIL, available_languages
         from PyQt6.QtCore import QSettings
         self._lang_combo.addItem("Türkçe", "tr")
         for code, name in available_languages():
             if code != "tr":
                 self._lang_combo.addItem(name, code)
-        saved_lang = QSettings("LatexEditor", "LatexEditor").value("language", "tr")
+        # Varsayılan i18n ile AYNI kaynaktan geliyor: burada "tr" yazılıydı,
+        # ayrışsaydı arayüz İngilizce açılır ama seçicide Türkçe görünürdü.
+        saved_lang = QSettings("LatexEditor", "LatexEditor").value(
+            "language", VARSAYILAN_DIL)
         idx = self._lang_combo.findData(saved_lang)
         if idx >= 0:
             self._lang_combo.setCurrentIndex(idx)

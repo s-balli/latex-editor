@@ -31,7 +31,7 @@ if "core.i18n" in sys.modules:
     del sys.modules["core.i18n"]
 
 from core.i18n import (
-    init, translator, _translate, available_languages,
+    VARSAYILAN_DIL, init, translator, _translate, available_languages,
     set_language, _find_trans_dir, _lang_name,
 )
 
@@ -90,8 +90,15 @@ class TestInit:
 
     @patch("core.i18n.os.path.isfile", return_value=True)
     @patch("core.i18n.os.path.getsize", return_value=1000)
-    def test_uses_system_locale_when_no_setting(self, mock_size, mock_exists):
-        """Ayarda dil yoksa sistem locale kullanılmalı."""
+    def test_ayar_yoksa_VARSAYILAN_DIL_yukleniyor(self, mock_size, mock_exists):
+        """Kayıtlı tercih yokken VARSAYILAN_DIL'in kataloğu yüklenmeli.
+
+        Bu test eskiden `test_uses_system_locale_when_no_setting` adındaydı,
+        QLocale'i taklit ediyordu ve "sistem locale kullanılmalı" diyordu.
+        İkisi de yanlıştı: kod QLocale'e HİÇ bakmıyor, iddiası da yalnızca
+        yolda "latexeditor_" geçiyor mu idi, yani hangi dil yüklenirse
+        yüklensin geçiyordu. Varsayılan dil sessizce değişse yakalamazdı.
+        """
         mock_app = MagicMock()
         mock_translator = MagicMock()
         mock_translator.load.return_value = True
@@ -99,12 +106,25 @@ class TestInit:
         with patch("PyQt6.QtCore.QTranslator", return_value=mock_translator):
             with patch("PyQt6.QtCore.QSettings") as MockSettings:
                 MockSettings.return_value.value.return_value = ""
-                with patch("PyQt6.QtCore.QLocale") as MockLocale:
-                    MockLocale.system.return_value.name.return_value = "en_US"
-                    init(app=mock_app)
+                init(app=mock_app)
 
         call_args = mock_translator.load.call_args[0][0]
-        assert "latexeditor_" in call_args
+        assert call_args.endswith(f"latexeditor_{VARSAYILAN_DIL}.qm"), call_args
+
+    @patch("core.i18n.os.path.isfile", return_value=True)
+    @patch("core.i18n.os.path.getsize", return_value=1000)
+    def test_kayitli_tercih_varsayilani_EZIYOR(self, mock_size, mock_exists):
+        """Türkçeyi seçmiş kullanıcı varsayılan değişince Türkçe kalmalı."""
+        mock_app = MagicMock()
+        mock_translator = MagicMock()
+        mock_translator.load.return_value = True
+
+        with patch("PyQt6.QtCore.QTranslator", return_value=mock_translator):
+            with patch("PyQt6.QtCore.QSettings") as MockSettings:
+                MockSettings.return_value.value.return_value = "tr"
+                init(app=mock_app)
+
+        assert mock_translator.load.call_args[0][0].endswith("latexeditor_tr.qm")
 
 
 # --- translator ---
@@ -498,3 +518,46 @@ class TestCeviriAdiGolgelenmiyor:
             encoding="utf-8")
         bozuk.unlink()
         assert not self._bulgular(str(tmp_path))
+
+
+# --- Varsayilan dil ---
+
+
+class TestVarsayilanDil:
+    """Ilk acilis dili: TEK KAYNAK ve diskte karsiligi var mi."""
+
+    def test_ingilizce(self):
+        """Varsayilan INGILIZCE.
+
+        Kaynak dil Turkce ve varsayilan da Turkce idi; sistem diline hic
+        bakilmadigi icin uygulama dunyanin her yerinde Turkce aciliyordu.
+        AppImageHub'in CI'i uygulamayi Ingilizce bir makinede calistirip
+        ekran gorüntusu alinca gorüldu. Degistirmek bilincli bir karar
+        olmali, o yuzden deger burada sabitleniyor.
+        """
+        assert VARSAYILAN_DIL == "en"
+
+    def test_katalogu_diskte_var(self):
+        """Varsayilan dilin .qm dosyasi bulunmali.
+
+        Yoksa yukleme sessizce dusuyor ve arayuz kaynak dilde (Turkce)
+        aciliyor: varsayilan degisikligi hicbir sey yapmamis oluyor, ustelik
+        yalnizca bir WARNING satiriyla.
+        """
+        yol = os.path.join(_find_trans_dir(), f"latexeditor_{VARSAYILAN_DIL}.qm")
+        assert os.path.isfile(yol), yol
+
+    def test_arayuz_secici_AYNI_kaynagi_okuyor(self):
+        """Dil secicinin varsayilani ayri yazilmamali.
+
+        Ikisi ayri ayri "tr" yaziyordu. Ayrisirlarsa arayuz bir dilde
+        acilir ama seciciyle baska dil gorunur; kullanici da dogru olani
+        secmek icin once yanlisa gecip geri donmek zorunda kalir.
+        """
+        kok = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        with open(os.path.join(kok, "desktop", "gui", "main_window.py"),
+                  encoding="utf-8") as f:
+            kaynak = f.read()
+        assert "VARSAYILAN_DIL" in kaynak, "secici sabiti okumuyor"
+        assert 'value("language", "' not in kaynak, \
+            "secici kendi dil varsayilanini yaziyor"
