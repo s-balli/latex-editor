@@ -702,3 +702,174 @@ def test_kapi_capali_desenlerde_muhafazakar():
 
     assert not _desen_guvenli(r"(\ref\{[a-z]+\})+")
     assert not _desen_guvenli(r"(fig\{[0-9]+\})+")
+
+
+# --- ARAMA ÇAPASI: aramanın NEREDEN başladığı ---
+#
+# findFirst eşleşmeyi seçiyor ve imleci onun SONUNA bırakıyor. Aramayı
+# imleçten başlatmak, o anda VURGULU olan eşleşmeyi atlıyordu.
+#
+# Bu üç kusur da o tek kök nedenden çıktı ve mevcut 52 test hiçbirini
+# görmüyordu, çünkü hepsi arayüzün HİÇ girmediği bir başlangıç durumundan
+# kuruluyor: `setCursorPosition(0, 0)` ile imleci elle başa alıyor ve arama
+# kutusunu `setText("bir")` ile TEK SEFERDE dolduruyorlar. Kullanıcı ise
+# harf harf yazıyor ve imleci elle oynatmıyor.
+
+_SATIR = "bir iki bir uc bir"          # eşleşmeler: sütun 0, 8, 15
+
+
+def _yaz(bar, s):
+    """Arama kutusuna HARF HARF yaz (gerçek kullanıcı yolu)."""
+    for i in range(1, len(s) + 1):
+        bar._find_input.setText(s[:i])
+
+
+class TestAramaCapasi:
+    def test_yazarken_vurgu_belgede_yurumuyor(self, qapp):
+        """Harf harf yazmak vurguyu bir sonraki eşleşmeye İTMEMELİ.
+
+        Her tuş vuruşu `_do_find` çağırıyor; arama imleçten başlayınca
+        imleç de bir önceki (daha kısa) eşleşmenin sonunda olduğu için
+        vurgu belgede ileri yürüyordu: 'bir' yazınca ilk 'bir' değil
+        üçüncüsü seçiliyordu (ölçüldü).
+        """
+        metin = ("\\section{Giris}\n"
+                 "Burada bir sekil var.\n"
+                 "Ikinci bir paragraf.\n"
+                 "Ucuncu bir cumle.\n")
+        bar, ed = _bar(metin)
+        bar.show_find()
+        _yaz(bar, "bir")
+        assert ed.getSelection()[0] == 1, "vurgu ilk eşleşmeyi aştı"
+
+    def test_degistir_VURGULANAN_eslesmeyi_degistiriyor(self, qapp):
+        """"Değiştir" kullanıcının GÖRDÜĞÜ eşleşmeyi değiştirmeli.
+
+        Konumdan bağımsız sınanıyor: beklenen metin, panelin o an
+        vurguladığı aralıktan TÜRETİLİYOR. Sabit bir dizge beklemek
+        yanıltıcı olurdu, çünkü vurgunun nerede durduğu da düzeltmenin
+        parçası.
+        """
+        bar, ed = _bar(_SATIR + "\n", "bir", "X")
+        bar.show_replace()
+        sec = ed.getSelection()
+        beklenen = _SATIR[:sec[1]] + "X" + _SATIR[sec[3]:]
+        bar._replace_next()
+        assert ed.text().strip() == beklenen
+
+    def test_gezindikten_sonra_da_vurgulanan_degisiyor(self, qapp):
+        """İleri tuşuyla gezindikten sonra da geçerli.
+
+        Kullanıcı son eşleşmeye gidip "Değiştir"e bastığında EN BAŞTAKİ
+        değişiyordu: değişiklik ekranda görünmeyen bir yerde oluyordu.
+        """
+        bar, ed = _bar(_SATIR + "\n", "bir", "X")
+        bar.show_replace()
+        bar._find_next()
+        bar._find_next()
+        sec = ed.getSelection()
+        assert sec[1] == 15, "iki ileri SON eşleşmeye götürmeliydi"
+        bar._replace_next()
+        assert ed.text().strip() == "bir iki bir uc X"
+
+    def test_geri_tusu_geriye_dolasiyor(self, qapp):
+        """"<" düğmesi hiç kıpırdamıyordu.
+
+        Geriye arama da imleçten başlıyordu; imleç eşleşmenin SONUNDA
+        olduğu için geriye arama hep AYNI eşleşmeyi buluyordu. Dört
+        basışta da aynı sütun ölçüldü.
+        """
+        bar, ed = _bar(_SATIR + "\n", "bir")
+        bar.show_find()
+        sutunlar = []
+        for _ in range(3):
+            bar._find_prev()
+            sutunlar.append(ed.getSelection()[1])
+        assert sutunlar == [15, 8, 0]
+
+    def test_ileri_tusu_hala_ilerliyor(self, qapp):
+        """Çapa ileri tuşunu BAĞLAMAMALI: onun işi zaten ilerlemek.
+
+        İleri tuşu da seçimin başından arasaydı aynı eşleşmede sayardı.
+        """
+        bar, ed = _bar(_SATIR + "\n", "bir")
+        bar.show_find()
+        sutunlar = [ed.getSelection()[1]]
+        for _ in range(3):
+            bar._find_next()
+            sutunlar.append(ed.getSelection()[1])
+        assert sutunlar == [0, 8, 15, 0], "başa sarma dahil sırayla gezmeli"
+
+    def test_secim_yokken_imlecten_ariyor(self, qapp):
+        """Seçim yoksa eski yol (imleç) korunuyor."""
+        bar, ed = _bar("bir iki bir\n", "bir", "X")
+        ed.setCursorPosition(0, 0)
+        bar._replace_next()
+        assert ed.text().strip() == "X iki bir"
+
+    def test_alakasiz_secimde_sonraki_eslesme(self, qapp):
+        """Kullanıcının editördeki seçimi eşleşme değilse ondan sonrakine gider."""
+        bar, ed = _bar("kirmizi bir mavi bir\n", "bir", "X")
+        ed.setSelection(0, 0, 0, 7)          # 'kirmizi' seçili, eşleşme değil
+        bar._replace_next()
+        assert ed.text().strip() == "kirmizi X mavi bir"
+
+
+# --- Güvenlik kapısının reddettiği desende "Tümünü Değiştir" ---
+
+
+class TestReddedilenDesendeDegistir:
+    def test_red_bilgisi_kayboluyordu(self, qapp):
+        r"""Kapı deseni reddedince etiket "0 değişiklik" diyordu.
+
+        Bul paneli aynı desen için "Geçersiz desen" diyor, "Tümünü
+        Değiştir" bunu eziyordu: kullanıcı belgede eşleşme olmadığını
+        sanıyor, oysa arama hiç yapılmamış.
+        """
+        belge = "\\ref{sek:bir} aaaa\n"
+        bar, ed = _bar(belge, "", "Z")
+        bar._cb_regex.setChecked(True)
+        bar._find_input.setText(r"(a+)+")
+        bar.show_replace()
+        assert bar._lbl_count.text() == "Geçersiz desen"
+
+        bar._replace_all()
+        assert bar._lbl_count.text() == "Geçersiz desen", "red bilgisi kayboldu"
+        assert ed.text() == belge, "reddedilen desende belge değişmemeli"
+
+    def test_kapinin_muhafazakar_reddettigi_desende_de(self, qapp):
+        r"""Dosyanın kendi "fazla-reddetme" örneği de sessiz kalmamalı.
+
+        `(\ref\{[a-z]+\})+` gerçekte patlamıyor ama kapı yine reddediyor;
+        bedeli AÇIK BİR UYARI olarak tarif edilmiş, bu yolda uyarı yoktu.
+        """
+        belge = "\\ref{sek:bir}\\ref{sek:iki}\n"
+        bar, ed = _bar(belge, "", "Z")
+        bar._cb_regex.setChecked(True)
+        bar._find_input.setText(r"(\\ref\{[a-z]+\})+")
+        bar._replace_all()
+        assert bar._lbl_count.text() == "Geçersiz desen"
+        assert ed.text() == belge
+
+    def test_guvenli_desen_etkilenmedi(self, qapp):
+        """Karşı durum: geçerli desende değiştirme ve sayı olduğu gibi."""
+        bar, ed = _bar("sekil1 sekil2\n", "", "Z")
+        bar._cb_regex.setChecked(True)
+        bar._find_input.setText(r"sekil(\d)")
+        bar._replace_all()
+        assert ed.text() == "Z Z\n"
+        assert bar._lbl_count.text() == "2 değişiklik"
+
+    def test_duz_kipte_kapi_devrede_degil(self, qapp):
+        """Düz kipte aynı metin desen değil, düz karakter dizisi."""
+        bar, ed = _bar("(a+)+ var\n", "(a+)+", "Z")
+        bar._replace_all()
+        assert ed.text() == "Z var\n"
+
+    def test_eslesmesiz_guvenli_desen_hala_sifir_diyor(self, qapp):
+        """"0 değişiklik" mesajı GERÇEKTEN eşleşme yokken korunmalı."""
+        bar, ed = _bar("abc\n", "", "Z")
+        bar._cb_regex.setChecked(True)
+        bar._find_input.setText(r"zzz(\d)")
+        bar._replace_all()
+        assert bar._lbl_count.text() == "0 değişiklik"

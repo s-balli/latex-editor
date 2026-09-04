@@ -401,6 +401,25 @@ class FindReplaceBar(QWidget):
         except _re.error:
             return False
 
+    def _arama_baslangici(self) -> tuple[int, int]:
+        """Aramanın başlayacağı yer: seçim varsa BAŞI, yoksa imleç.
+
+        findFirst eşleşmeyi seçiyor ve imleci onun SONUNA bırakıyor. Yeni
+        aramayı imleçten başlatmak, o anda VURGULU olan eşleşmeyi atlıyordu:
+
+          - kutuya harf harf yazarken vurgu belgede ileri yürüyordu
+            ('bir' yazınca ilk 'bir' değil üçüncüsü seçiliyordu),
+          - "Değiştir" kullanıcının gördüğü eşleşmeyi değil ONDAN SONRAKİNİ
+            değiştiriyordu; son eşleşmedeyken de başa sarıp EN BAŞTAKİNİ.
+
+        İleri/geri tuşları bilerek bu yolu kullanmıyor: onların işi zaten
+        ilerlemek, oradan çağrılsa aynı eşleşmede sayarlardı.
+        """
+        if self._editor.hasSelectedText():
+            line, col, _bitis_satiri, _bitis_sutunu = self._editor.getSelection()
+            return line, col
+        return self._editor.getCursorPosition()
+
     def _find_first(self, text, *, wrap, forward=True, line=None, col=None):
         """findFirst'ü seçenek bayraklarıyla çağır (imleçten ya da verilen yerden).
 
@@ -434,8 +453,11 @@ class FindReplaceBar(QWidget):
             self._match_count = 0
             self._update_current_match()
             return
-        # İlk eşleşmeyi bul
-        bulundu = self._find_next_in_text(text, forward=True, wrap=True)
+        # İlk eşleşmeyi bul. Vurgulu eşleşmenin BAŞINDAN arıyoruz
+        # (bkz. _arama_baslangici): yoksa her tuş vuruşu vurguyu bir sonraki
+        # eşleşmeye itiyordu.
+        bulundu = self._find_next_in_text(text, forward=True, wrap=True,
+                                          mevcuttan=True)
 
         # "Geçersiz desen" YALNIZ hiçbir şey bulunamayınca söyleniyor: Python'ın
         # `re`si ile Scintilla'nın ECMAScript'i birebir aynı değil (adlandırılmış
@@ -451,11 +473,17 @@ class FindReplaceBar(QWidget):
         self._count_text = text
         self._count_timer.start()
 
-    def _find_next_in_text(self, text, forward=True, wrap=True) -> bool:
+    def _find_next_in_text(self, text, forward=True, wrap=True, *,
+                           mevcuttan=False) -> bool:
         if not self._editor or not text:
             return False
 
-        found = self._find_first(text, wrap=wrap, forward=forward)
+        if mevcuttan:
+            line, col = self._arama_baslangici()
+            found = self._find_first(text, wrap=wrap, forward=forward,
+                                     line=line, col=col)
+        else:
+            found = self._find_first(text, wrap=wrap, forward=forward)
         if not found:
             # wrap=True ile bulunamadıysa belgede GERÇEKTEN eşleşme yok:
             # sayaç 0'dır ve etiket panelin geri kalanıyla aynı dili konuşur.
@@ -480,7 +508,11 @@ class FindReplaceBar(QWidget):
         text = self._find_input.text()
         if not text:
             return
-        self._find_next_in_text(text, forward=False, wrap=True)
+        # Geriye arama VURGULU eşleşmenin BAŞINDAN başlamalı. İmleç eşleşmenin
+        # SONUNDA durduğu için geriye arama hep AYNI eşleşmeyi buluyordu: "<"
+        # tuşu hiç kıpırdamıyordu (ölçüldü, aynı sütun dört basışta da).
+        # İleri tuşu tam tersini istiyor, o yüzden orada imleç kullanılıyor.
+        self._find_next_in_text(text, forward=False, wrap=True, mevcuttan=True)
         self._update_current_match()
 
     def _do_count_matches(self):
@@ -558,8 +590,11 @@ class FindReplaceBar(QWidget):
         self._editor.setFocus()
         self._editor.beginUndoAction()
 
-        # İleriye doğru ara (wrap=False)
-        found = self._find_first(find_text, wrap=False)
+        # Vurgulu eşleşmenin BAŞINDAN ileriye ara (wrap=False). İmleçten
+        # başlamak kullanıcının gördüğü eşleşmeyi atlıyordu; bkz.
+        # _arama_baslangici.
+        line, col = self._arama_baslangici()
+        found = self._find_first(find_text, wrap=False, line=line, col=col)
 
         # Bulunamazsa başa dönüp tekrar ara
         if not found or not self._editor.hasSelectedText():
@@ -584,6 +619,17 @@ class FindReplaceBar(QWidget):
         find_text = self._find_input.text()
         replace_text = self._replace_input.text()
         if not find_text:
+            return
+
+        # Güvenlik kapısı deseni reddettiyse SÖYLE. Eskiden döngü hiç
+        # dönmüyor ve etiket "0 değişiklik" yazıyordu: kullanıcı belgede
+        # eşleşme olmadığını sanıyordu, oysa arama hiç yapılmamıştı. Bul
+        # paneli aynı desen için "Geçersiz desen" diyor; iki mesaj
+        # birbiriyle çelişiyordu.
+        if self._cb_regex.isChecked() and not _desen_guvenli(find_text):
+            self._gecersiz_desen = True
+            self._match_count = 0
+            self._update_current_match()
             return
 
         self._editor.setFocus()
