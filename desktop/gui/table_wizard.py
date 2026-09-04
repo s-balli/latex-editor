@@ -159,6 +159,27 @@ class TableWizardDialog(QDialog):
 
     # --- boyut/hizalama senkronu ---
 
+    def _sinirlari_genislet(self, nsatir: int, nkolon: int):
+        """Spinbox üst sınırlarını yüklenen veriye göre büyüt.
+
+        SPINBOX ile GRID AYRIŞMAMALI. Eskiden `setValue` sınıra kırpılıyor
+        ama grid gerçek boyutu alıyordu; hangisi sonra çalışırsa o kazanıyor
+        ve fazlalık SESSİZCE gidiyordu. Ölçüldü:
+
+          1200 satırlık CSV: grid 1200 alıyor, spinbox 1000'de kalıyor.
+            Kullanıcı spinbox'a dokununca `_resize_grid` 1000'e indiriyor,
+            200 satır uyarısız kayboluyor.
+          35 kolonlu CSV: `_on_cols_changed` yüklemeden HEMEN SONRA gridi
+            30'a indiriyor, 5 kolon anında gidiyor.
+
+        Sınırı büyütmek YENİ MALİYET getirmiyor: grid zaten bugün de gerçek
+        satır sayısıyla kuruluyor, sınırlı olan yalnızca spinbox'tı.
+        """
+        if nsatir > self._rows.maximum():
+            self._rows.setMaximum(nsatir)
+        if nkolon > self._cols.maximum():
+            self._cols.setMaximum(nkolon)
+
     def _resize_grid(self):
         self._grid.setRowCount(self._rows.value())
 
@@ -228,9 +249,10 @@ class TableWizardDialog(QDialog):
             return
         self._updating = True
         try:
+            ncols = max(len(r) for r in rows)
+            self._sinirlari_genislet(len(rows), ncols)
             self._rows.setValue(len(rows))
             self._grid.setRowCount(len(rows))
-            ncols = max(len(r) for r in rows)
             self._cols.setValue(ncols)
             self._grid.setColumnCount(ncols)
             self._grid.clearContents()
@@ -337,9 +359,12 @@ class TableWizardDialog(QDialog):
         self._updating = True
         try:
             rows = block["rows"]
-            self._rows.setValue(max(1, len(rows)))
-            self._grid.setRowCount(max(1, len(rows)))
+            nrows = max(1, len(rows))
             ncols = max(1, max((len(r) for r in rows), default=1))
+            # Yapıştırılan tablo da sınırları aşabilir; bkz. _sinirlari_genislet
+            self._sinirlari_genislet(nrows, ncols)
+            self._rows.setValue(nrows)
+            self._grid.setRowCount(nrows)
             self._cols.setValue(ncols)
             self._grid.setColumnCount(ncols)
             self._grid.clearContents()

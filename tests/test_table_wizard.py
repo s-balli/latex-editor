@@ -493,3 +493,109 @@ def test_shortcuts_not_consumed_while_modal_dialog_open(qapp):
         assert calls == []
     finally:
         dlg.close()
+
+
+# ---------------------------------------------------------------------------
+# SPINBOX SINIRI ile GRID AYRIŞMAMALI
+#
+# `setValue` spinbox üst sınırına kırpılıyor, `setRowCount`/`setColumnCount`
+# gerçek boyutu alıyor. İkisi ayrışınca hangisi sonra çalışırsa o kazanıyor ve
+# fazlalık SESSİZCE gidiyor. Ölçüldü: 35 kolonlu CSV'de 5 kolon yükleme
+# sırasında anında düşüyor; 1200 satırlıkta kullanıcı spinbox'a dokununca
+# 200 satır uyarısız kayboluyor.
+#
+# BOYUTLAR SINIRA GÖRE TÜRETİLİYOR, sabit yazılmıyor. Yukarıdaki
+# `test_csv_load_beyond_old_limits` 120x18 kullanıyor; o değerler yazıldığı
+# gün sınırın (100/15) üstündeydi ama sınır 1000/30'a çıkınca test sessizce
+# hiçbir şey sınamaz oldu. Aynı şey bir daha olmasın diye burada eşik
+# çalışma anında okunuyor.
+# ---------------------------------------------------------------------------
+
+
+def _sinir_ustu_olcu():
+    """Mevcut spinbox üst sınırlarının biraz üstü (satır, kolon)."""
+    d = TableWizardDialog()
+    return d._rows.maximum() + 200, d._cols.maximum() + 5
+
+
+def _csv_yaz(tmp_path, nsatir, nkolon):
+    satirlar = [",".join("h%d_%d" % (i, j) for j in range(nkolon))
+                for i in range(nsatir)]
+    p = tmp_path / "buyuk.csv"
+    p.write_text("\n".join(satirlar), encoding="utf-8")
+    return p
+
+
+def test_csv_sinir_ustunde_satir_ve_kolon_kaybolmuyor(qapp, tmp_path, monkeypatch):
+    """Yükleme anında kayıp olmamalı: grid, spinbox ve cells() aynı boyutta."""
+    import gui.table_wizard as tw
+
+    nsatir, nkolon = _sinir_ustu_olcu()
+    p = _csv_yaz(tmp_path, nsatir, nkolon)
+    monkeypatch.setattr(
+        tw.QFileDialog, "getOpenFileName",
+        staticmethod(lambda *a, **k: (str(p), "")))
+
+    dlg = TableWizardDialog()
+    dlg._load_csv()
+
+    assert dlg._grid.rowCount() == nsatir
+    assert dlg._rows.value() == nsatir, "spinbox grid'den ayrıştı"
+    assert dlg._grid.columnCount() == nkolon
+    assert dlg._cols.value() == nkolon, "spinbox grid'den ayrıştı"
+    assert dlg._align_box.count() == nkolon, "hizalama kutuları eksik"
+
+    hucreler = dlg.cells()
+    assert len(hucreler) == nsatir
+    assert len(hucreler[0]) == nkolon
+    assert hucreler[-1][-1] == "h%d_%d" % (nsatir - 1, nkolon - 1)
+
+
+def test_spinboxa_dokununca_satir_kaybi_yok(qapp, tmp_path, monkeypatch):
+    """Asıl değişmez: yüklemeden SONRA spinbox'a dokunmak veri silmemeli.
+
+    Kırpılmış bir spinbox değeri `_resize_grid` üzerinden grid'i küçültüyor
+    ve fazlalık uyarısız gidiyordu.
+    """
+    import gui.table_wizard as tw
+
+    nsatir, nkolon = _sinir_ustu_olcu()
+    p = _csv_yaz(tmp_path, nsatir, 3)
+    monkeypatch.setattr(
+        tw.QFileDialog, "getOpenFileName",
+        staticmethod(lambda *a, **k: (str(p), "")))
+
+    dlg = TableWizardDialog()
+    dlg._load_csv()
+    once = len(dlg.cells())
+    assert once == nsatir
+
+    dlg._rows.setValue(dlg._rows.value())   # aynı değeri set etmek bile yeter
+    dlg._resize_grid()
+
+    assert len(dlg.cells()) == once, "spinbox'a dokununca satır kayboldu"
+
+
+def test_koddan_yuklemede_de_kolon_kaybi_yok(qapp):
+    """`load_block` yolu da aynı ayrışmayı taşıyordu."""
+    from core.latex_tables import parse_first_tabular
+
+    _, nkolon = _sinir_ustu_olcu()
+    govde = "\n".join(
+        " & ".join("c%d_%d" % (i, j) for j in range(nkolon)) + " \\\\"
+        for i in range(4))
+    kod = "\\begin{tabular}{%s}\n%s\n\\end{tabular}" % ("l" * nkolon, govde)
+
+    dlg = TableWizardDialog()
+    dlg.load_block(parse_first_tabular(kod))
+
+    assert dlg._grid.columnCount() == nkolon
+    assert dlg._cols.value() == nkolon, "spinbox grid'den ayrıştı"
+    assert len(dlg.cells()[0]) == nkolon
+
+
+def test_varsayilan_sinirlar_buyutulmeden_duruyor(qapp):
+    """Karşı durum: sınır yalnız GEREKİNCE büyümeli, kendiliğinden değil."""
+    dlg = TableWizardDialog()
+    assert dlg._rows.maximum() == 1000
+    assert dlg._cols.maximum() == 30
