@@ -199,3 +199,63 @@ def test_gercekci_belge_tam_isabet():
     # Sonuclar(1) Giris(1) Dogruluk orani %92 oldu.(4)
     # Yontem Skor Agac 0.87 (4) Maliyet dusuktur.(2) = 12
     assert words(text) == 12
+
+
+# --- Kod bloğu içindeki \end{document} gövdeyi kesmemeli ---
+#
+# Gövde `_RE_BODY` ile çıkarılıyor ve desen NON-GREEDY: ilk `\end{document}`te
+# duruyor. Kod ortamları eskiden gövdeden SONRA atıldığı için, iskeleti
+# verbatim içinde gösteren belgelerde gövde blok içinde kesiliyor ve blok
+# sonrasındaki bütün metin sayımdan düşüyordu. ÖLÇÜLDÜ: aynı görünür metin
+# 27 kelime yerine 4 sayılıyordu, %85 kayıp.
+#
+# LaTeX kılavuzları, sınıf/paket belgeleri ve şablonlar iskeleti tam olarak
+# böyle gösteriyor; `lstlisting` ve `minted` de aynı desende.
+
+_KOD_ICERIGI = ("\\documentclass{article}\n"
+                "\\begin{document}\n"
+                "merhaba\n"
+                "\\end{document}\n")
+
+
+def _belge(blok: str) -> str:
+    return ("\\documentclass{article}\n"
+            "\\begin{document}\n"
+            "Giris paragrafi burada.\n"
+            + blok +
+            "Bundan sonra gelen metin de sayilmali.\n"
+            "\\end{document}\n")
+
+
+@pytest.mark.parametrize(
+    "ortam", ["verbatim", "lstlisting", "minted", "Verbatim", "alltt"])
+def test_kod_blogundaki_end_document_govdeyi_KESMIYOR(ortam):
+    """Blok sonrasındaki metin sayıma girmeli."""
+    blok = ("\\begin{%s}\n" % ortam) + _KOD_ICERIGI + ("\\end{%s}\n" % ortam)
+    # Kod bloğu olmayan aynı belge: görünür metin aynı, doğru sayı bu.
+    assert words(_belge(blok)) == words(_belge(""))
+
+
+def test_kod_blogunun_ICERIGI_yine_sayilmiyor():
+    """Düzeltme "bloğu hiç atma" yönüne kaymamalı.
+
+    Blok artık daha erken atılıyor; atılmayıp sayılmaya başlasaydı bu test
+    düşer. İçerik bilerek çok kelimeli seçildi.
+    """
+    blok = ("\\begin{verbatim}\n"
+            "alfa beta gama delta epsilon zeta eta teta iota kappa\n"
+            "\\end{verbatim}\n")
+    assert words(_belge(blok)) == words(_belge(""))
+
+
+def test_govdesiz_parca_dosyada_da_kod_blogu_atiliyor():
+    r"""`\input` ile çağrılan bölüm dosyasında `\begin{document}` yok.
+
+    O yolda metnin tamamı sayılıyor; kod bloğu yine elenmeli.
+    """
+    parca = ("Bir iki uc.\n"
+             "\\begin{lstlisting}\n"
+             "alfa beta gama delta\n"
+             "\\end{lstlisting}\n"
+             "Dort bes alti.\n")
+    assert words(parca) == 6

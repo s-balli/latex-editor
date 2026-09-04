@@ -86,6 +86,15 @@ def _latex_wordcount(text: str) -> tuple[int, int]:
     ayraçlarını eler; kaçışlı noktalamayı (\\%, \\$, \\&) görünür karakter
     olarak korur.
     """
+    # Kod ortamları GERÇEKTEN en önce, GÖVDE ÇIKARIMINDAN DA önce. Eskiden
+    # gövdeden sonra atılıyordu ve `_RE_BODY` non-greedy olduğu için ilk
+    # `\end{document}`te duruyordu: o eşleşme verbatim BLOĞUNUN İÇİNDEYSE
+    # gövde orada kesilip blok sonrasındaki bütün metin sayımdan düşüyordu.
+    # LaTeX kılavuzları, sınıf/paket belgeleri ve şablonlar iskeleti tam da
+    # böyle gösteriyor. ÖLÇÜLDÜ: aynı görünür metin 27 kelime yerine 4
+    # sayılıyordu (%85 kayıp), `lstlisting` ve `minted` ile de aynı.
+    text = _RE_VERBATIM_BLOCK.sub(' ', text)
+
     body = _RE_BODY.search(text)
     if body:
         baslik = ' '.join(m.group(1) for m in _RE_TITLE_META.finditer(text[:body.start()]))
@@ -93,7 +102,6 @@ def _latex_wordcount(text: str) -> tuple[int, int]:
     else:
         t = text
 
-    t = _RE_VERBATIM_BLOCK.sub(' ', t)   # içindeki % yorum değil: en önce
     t = _RE_LINEBREAK.sub(' ', t)        # "\\%" dizisi doğru çözümlensin diye önce
     t = _RE_ESCAPED.sub(lambda m: chr(1 + _ESC_CHARS.index(m.group(1))), t)
 
