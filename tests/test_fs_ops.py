@@ -181,3 +181,68 @@ class TestYenidenAdlandir:
         yeni = fs_ops.yeniden_adlandir(str(p), "Rapor.tex")
         assert os.path.basename(yeni) == "Rapor.tex"
         assert os.path.isfile(yeni)
+
+
+# ---------------------------------------------------------------------------
+# AD UZUNLUĞU: BİRİM ÖNEMLİ
+#
+# Dosya sistemleri 255 sayıyor ama BİRİMİ farklı: ext4/APFS 255 BAYT, NTFS
+# 255 UTF-16 KOD BİRİMİ. Eskiden yalnız `len(ad)` (karakter) bakılıyordu ve
+# koddaki yorum gerekçeyi TERS kurmuştu ("karakter sınırı daha dar").
+#
+# Ölçüldü (ext4): 128 Türkçe harf = 256 bayt, `ad_hatasi` "geçerli" diyor
+# ama `yeni_dosya` OSError atıyor. Kullanıcı anlaşılır "Ad çok uzun" yerine
+# ham "Oluşturulamadı: [Errno 36] File name too long" görüyordu. Türkçe
+# adlar bu editörün asıl hedef kitlesi.
+# ---------------------------------------------------------------------------
+
+
+class TestAdUzunluguBirimi:
+    @pytest.mark.parametrize("ad", [
+        "ş" * 128,                     # 256 bayt, 128 karakter
+        "ğ" * 130 + ".tex",            # ~264 bayt
+        "ç" * 200 + ".tex",            # ~404 bayt
+    ])
+    def test_bayt_sinirini_asan_turkce_ad_reddediliyor(self, ad):
+        assert len(ad) <= 255, "vaka karakter sınırının altında olmalı"
+        assert len(ad.encode("utf-8")) > 255, "vaka bayt sınırını aşmalı"
+        assert fs_ops.ad_hatasi(ad) == fs_ops.COK_UZUN
+
+    @pytest.mark.parametrize("ad", [
+        "a" * 255,                     # tam sınırda ASCII
+        "a" * 250 + ".tex",
+        "ş" * 100 + ".tex",            # ~204 bayt, sınırın altında
+    ])
+    def test_sinirin_altindaki_adlar_gecerli(self, ad):
+        assert len(ad.encode("utf-8")) <= 255
+        assert fs_ops.ad_hatasi(ad) == ""
+
+    def test_ascii_davranisi_degismedi(self):
+        """Karşı durum: ASCII'de eski davranış birebir aynı."""
+        assert fs_ops.ad_hatasi("a" * 255) == ""
+        assert fs_ops.ad_hatasi("a" * 256) == fs_ops.COK_UZUN
+
+    def test_kural_iki_tarafin_KESISIMI(self):
+        """Kural bilerek her iki platformdan da katı.
+
+        128 Türkçe harf NTFS'te (255 UTF-16 birimi) YARATILABİLİR ama
+        ext4/APFS'te (255 bayt) yaratılamaz. Reddediyoruz, çünkü modülün
+        baştaki ilkesi bu: proje Windows'ta yazılıp WSL'de derleniyor ve
+        git ile paylaşılıyor; hata dosyayı yaratan makinede değil KARŞI
+        TARAFTA patlıyor.
+
+        (Bu testin ilk hâli "reddedilen ad diskte de yaratılamaz" diyordu;
+        Windows CI onu düşürdü ve haklıydı: o, kodun değil yerel dosya
+        sisteminin özelliği.)
+        """
+        ad = "ş" * 128
+        assert len(ad.encode("utf-16-le")) // 2 <= 255     # NTFS'e sığar
+        assert len(ad.encode("utf-8")) > 255               # ext4'e sığmaz
+        assert fs_ops.ad_hatasi(ad) == fs_ops.COK_UZUN
+
+    def test_gecerli_denen_ad_gercekten_yaratilabiliyor(self, tmp_path):
+        """Değişmezin diğer yönü: "geçerli" dediğimiz ad diske yazılabilmeli."""
+        for ad in ("ş" * 100 + ".tex", "a" * 250, "Öztürk-çalışma.tex"):
+            assert fs_ops.ad_hatasi(ad) == "", ad
+            yol = fs_ops.yeni_dosya(str(tmp_path), ad)
+            assert os.path.isfile(yol)

@@ -25,23 +25,55 @@ _RE_MINTED = re.compile(
 # derle.sh `grep -r --include` ile tarıyor; aynı uzantı kümesi.
 _UZANTILAR = (".tex", ".cls", ".sty")
 
-# Taramanın sınırları: derleme öncesi her seferinde koşuyor, arayüzü
-# bekletmemeli. project_search'ün SKIP_DIRS'i tek kaynaktan geliyor.
-_MAX_DOSYA_BAYT = 4 * 1024 * 1024
-_MAX_DERINLIK = 5
+# ATLANAN DİZİNLER: yalnızca LaTeX KAYNAĞI BARINDIRAMAYACAK olanlar.
+#
+# Eskiden `project_search.SKIP_DIRS` kullanılıyordu ve orada `build` ile
+# `dist` de var; oysa üretilen `.tex` oraya konabiliyor. Ayrıca 5 seviye
+# derinlik ve 4 MB dosya sınırı vardı. Üçü birden bu modülün docstring'inde
+# ilan edilen "derle.sh ile AYNI ölçüt" değişmezini bozuyordu. ÖLÇÜLDÜ,
+# Python "minted yok" derken derle.sh buluyordu:
+#
+#   6 seviye derinde .tex    build/ içinde       5 MB'lik dosya
+#   8 seviye derinde .tex    dist/ içinde
+#
+# Bunların her birinde GUI bayrak göndermiyor ve derle.sh `-shell-escape`i
+# KULLANICIYA SORMADAN açıyor (derle.sh: "bayrak verilmezse eski davranış
+# sürüyor") — yani özelliğin engellemek için yazıldığı senaryonun kendisi.
+#
+# MALİYET KABACA AYNI (ölçüldü, gerçek uygulamayla önce/sonra): gerçek
+# şablonda 84 -> 96 ms, tüm şablonlarda 1018 -> 1085 ms, 19 bin dosyalık
+# kökte 1094 -> 975 ms. Yani daha geniş tarama bedelsiz geliyor; sınırların
+# koruduğu şey zaten `duz_dosya_mi`nin stat çağrıları kadar bile değildi.
+_ATLANAN_DIZINLER = frozenset({
+    ".git", ".svn", ".hg", "node_modules", "__pycache__",
+    ".venv", "venv", ".env", ".mypy_cache", ".pytest_cache", ".tox",
+})
+
+# Derinlik sınırı KALDIRILDI: `os.walk` symlink izlemiyor, döngü riski yok.
+# Boyut sınırı 4 MB'den 64 MB'ye çıkarıldı; bu ölçekte bir `.tex` kaynağı
+# gerçekçi değil ama 4 MB gerçekçiydi (birleştirilmiş tez, üretilmiş tablo).
+_MAX_DOSYA_BAYT = 64 * 1024 * 1024
 
 
 def minted_kullaniliyor(kok: str) -> bool:
-    """Proje klasöründe minted geçen bir kaynak dosya var mı."""
-    from core.project_search import SKIP_DIRS, duz_dosya_mi
+    """Proje klasöründe minted geçen bir kaynak dosya var mı.
+
+    YANLIŞ "hayır" GÜVENLİK AÇIĞIDIR: çağıran o durumda derle.sh'e hiçbir
+    bayrak göndermiyor ve derle.sh kendi (sınırsız) taramasıyla minted'i
+    bulup `-shell-escape`i sormadan açıyor. Bu yüzden tarama derle.sh'ten
+    DAR olmamalı; bkz. _ATLANAN_DIZINLER.
+    """
+    from core.project_search import duz_dosya_mi
 
     if not kok or not os.path.isdir(kok):
         return False
     for dizin, altlar, dosyalar in os.walk(kok):
-        altlar[:] = [a for a in altlar
-                     if a not in SKIP_DIRS and not a.startswith(".")]
-        if dizin[len(kok):].count(os.sep) >= _MAX_DERINLIK:
-            altlar[:] = []
+        # NOKTA DİZİNLERİ DE TARANIYOR. `.git`, `.venv` gibi gerçekten büyük
+        # olanlar zaten ADLA eleniyor; geriye kalan nokta dizinleri
+        # kullanıcının kendi klasörleri ve minted taşıyabilirler (derle.sh'in
+        # grep'i de onları tarıyor). ÖLÇÜLDÜ, gerçek bir .git deposu olan
+        # gerçek bir şablonda fark 7.6 -> 8.1 ms, yani yok sayılır.
+        altlar[:] = [a for a in altlar if a not in _ATLANAN_DIZINLER]
         for ad in dosyalar:
             if not ad.lower().endswith(_UZANTILAR):
                 continue

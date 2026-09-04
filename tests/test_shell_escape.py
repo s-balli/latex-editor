@@ -7,10 +7,13 @@ belgedeki `\\write18`i çalıştırmaya yetiyordu. Kararın kullanıcıda kalmas
 """
 
 import os
+import re
+import shutil
 import subprocess
 
 import pytest
 
+from core import shell_escape
 from core.shell_escape import minted_kullaniliyor
 
 DERLE_SH = os.path.join(os.path.dirname(__file__), "..", "core", "derle.sh")
@@ -65,14 +68,123 @@ def test_olmayan_klasor(tmp_path):
     assert not minted_kullaniliyor("")
 
 
-def test_derleme_ciktisi_atlaniyor(tmp_path):
-    # .git / build gibi klasörler SKIP_DIRS'te; oradaki artık soru sordurmamalı
-    from core.project_search import SKIP_DIRS
+@pytest.mark.parametrize("atlanan", sorted(shell_escape._ATLANAN_DIZINLER))
+def test_arac_dizinleri_atlaniyor(tmp_path, atlanan):
+    """Araç klasörlerindeki artık soru sordurmamalı.
 
-    atlanan = next(iter(SKIP_DIRS))
+    Eskiden bu test `next(iter(SKIP_DIRS))` ile kümeden RASTGELE bir eleman
+    alıyordu; hangi klasörün sınandığı hash tohumuna göre değişiyordu. Küme
+    daralınca test tohuma bağlı olarak düşer oldu (ölçüldü: 8 tohumun
+    2'sinde). Artık hepsi tek tek sınanıyor.
+    """
     _yaz(tmp_path, os.path.join(atlanan, "eski.tex"), "\\usepackage{minted}\n")
     assert not minted_kullaniliyor(str(tmp_path))
 
+
+@pytest.mark.parametrize("klasor", ["build", "dist"])
+def test_build_dist_ARTIK_taraniyor(tmp_path, klasor):
+    r"""`build`/`dist` KASITLI olarak taranıyor: üretilen `.tex` oraya konabilir.
+
+    Bu klasörler `project_search.SKIP_DIRS`'te var ve tarama eskiden onu
+    kullanıyordu; `derle.sh`in grep'i ise onları tarıyordu. Ayrışmanın bedeli
+    ölçüldü: Python "minted yok" der, GUI bayrak göndermez, `derle.sh` kendi
+    taramasıyla minted'i bulup `-shell-escape`i KULLANICIYA SORMADAN açar.
+    """
+    _yaz(tmp_path, os.path.join(klasor, "uretilen.tex"),
+         "\\usepackage{minted}\n")
+    assert minted_kullaniliyor(str(tmp_path))
+
+
+
+# ---------------------------------------------------------------------------
+# TARAMA `derle.sh`TEN DAR OLMAMALI
+#
+# Modülün docstring'i "derle.sh:minted_kontrol ile AYNI ölçüt" diyor ve
+# ayrışmanın bedelini de yazıyor. Zincir ölçüldü:
+#
+#   minted_kullaniliyor False  ->  _shell_escape_karari None
+#   -> derle.sh'e BAYRAK GÖNDERİLMEZ
+#   -> derle.sh "bayrak verilmezse eski davranış (minted görülünce
+#      kendiliğinden aç)" ile kendi sınırsız grep'ini kullanır
+#   -> `-shell-escape` KULLANICIYA SORULMADAN açılır
+#
+# Yani YANLIŞ "hayır" bir güvenlik açığı. Eskiden 5 seviye derinlik, 4 MB
+# dosya sınırı ve `build`/`dist` atlaması bu yanlış "hayır"ı üretiyordu.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("rel", [
+    "a/b/c/d/e/f/bolum.tex",              # 6 seviye: eski derinlik sınırı 5'ti
+    "a/b/c/d/e/f/g/h/bolum.tex",          # 8 seviye
+    ".gizli/bolum.tex",                   # nokta klasörü (derle.sh tarıyor)
+    "sekiller/alt/derin/bolum.tex",       # sıradan alt klasör (karşı durum)
+])
+def test_derinlik_ve_nokta_klasoru_minted_gizlemiyor(tmp_path, rel):
+    _yaz(tmp_path, "ana.tex", "\\documentclass{article}\n")
+    _yaz(tmp_path, rel.replace("/", os.sep), "\\usepackage{minted}\n")
+    assert minted_kullaniliyor(str(tmp_path))
+
+
+def test_buyuk_dosya_minted_gizlemiyor(tmp_path):
+    """Eski 4 MB sınırı gerçekçiydi: birleştirilmiş tez, üretilmiş tablo."""
+    _yaz(tmp_path, "buyuk.tex",
+         "\\usepackage{minted}\n" + "x" * (5 * 1024 * 1024))
+    assert minted_kullaniliyor(str(tmp_path))
+
+
+def _derle_sh_deseni() -> str:
+    """`derle.sh:minted_kontrol`ün grep desenini KAYNAKTAN oku.
+
+    Sabit yazmak yerine dosyadan okunuyor: desen orada değişirse test
+    yeni desenle karşılaştırır ve gerçek ayrışmayı görür.
+    """
+    with open(DERLE_SH, encoding="utf-8") as f:
+        kaynak = f.read()
+    m = re.search(r"grep -rlEq '([^']+)'", kaynak)
+    assert m, "derle.sh içinde minted grep deseni bulunamadı"
+    return m.group(1)
+
+
+@pytest.mark.skipif(shutil.which("grep") is None, reason="grep gerekli")
+@pytest.mark.parametrize("rel", [
+    "bolum.tex",
+    "build/uretilen.tex",
+    "dist/uretilen.tex",
+    "a/b/c/d/e/f/derin.tex",
+    ".gizli/bolum.tex",
+    "stiller/tez.sty",
+])
+def test_derle_sh_ile_ayni_sonuc(tmp_path, rel):
+    """Asıl değişmez: iki tespit AYNI cevabı vermeli.
+
+    Karşılaştırma `derle.sh`in kendi komutuyla yapılıyor, taklitle değil.
+    """
+    _yaz(tmp_path, "ana.tex", "\\documentclass{article}\n")
+    _yaz(tmp_path, rel.replace("/", os.sep), "\\usepackage{minted}\n")
+
+    r = subprocess.run(
+        ["grep", "-rlEq", _derle_sh_deseni(), str(tmp_path),
+         "--include=*.tex", "--include=*.cls", "--include=*.sty"],
+        capture_output=True)
+    bash_buldu = r.returncode == 0
+
+    assert bash_buldu, "senaryo derle.sh'e göre minted içermiyor, test boş"
+    assert minted_kullaniliyor(str(tmp_path)) is bash_buldu, (
+        "tarama derle.sh'ten DAR: shell-escape sorulmadan açılır")
+
+
+@pytest.mark.skipif(shutil.which("grep") is None, reason="grep gerekli")
+def test_derle_sh_ile_ayni_sonuc_minted_YOKKEN(tmp_path):
+    """Karşı durum: ikisi de 'yok' demeli (fazladan soru sordurmamalı)."""
+    _yaz(tmp_path, "ana.tex", "\\usepackage{listings}\n")
+    _yaz(tmp_path, os.path.join("build", "x.tex"), "\\section{a}\n")
+
+    r = subprocess.run(
+        ["grep", "-rlEq", _derle_sh_deseni(), str(tmp_path),
+         "--include=*.tex", "--include=*.cls", "--include=*.sty"],
+        capture_output=True)
+    assert r.returncode != 0
+    assert minted_kullaniliyor(str(tmp_path)) is False
 
 # ------------------------------------------------------- karar ve hafıza
 

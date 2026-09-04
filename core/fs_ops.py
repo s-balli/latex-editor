@@ -26,8 +26,16 @@ _AYGIT_ADLARI = frozenset(
     + [f"LPT{i}" for i in range(1, 10)]
 )
 
-# Çoğu dosya sisteminin ad sınırı (bayt değil karakter; UTF-8'de Türkçe
-# harfler 2 bayt tuttuğu için karakter sınırı daha dar olanı seçiyor).
+# Çoğu dosya sisteminin ad sınırı: 255. BİRİMİ ÖNEMLİ ve iki tarafta farklı:
+# ext4/APFS 255 BAYT, NTFS 255 UTF-16 KOD BİRİMİ sayıyor.
+#
+# Eskiden yalnız `len(ad)` (karakter) bakılıyordu ve buradaki yorum gerekçeyi
+# TERS kurmuştu ("karakter sınırı daha dar olanı seçiyor"). Ölçüldü, tersi
+# doğru: 128 Türkçe harf 256 BAYT eder ve dosya ext4'te YARATILAMIYOR, ama
+# `ad_hatasi` onu "geçerli" sayıyordu. Kullanıcı anlaşılır "Ad çok uzun"
+# uyarısı yerine ham `OSError` görüyordu ("Oluşturulamadı: [Errno 36] ...").
+#
+# Modülün baştaki ilkesi gereği İKİ KURALIN KESİŞİMİ uygulanıyor.
 _MAX_AD = 255
 
 # Hata gerekçeleri. Çeviri GUI'nin işi: bu katman Qt'ye bağlı değil ve
@@ -61,7 +69,9 @@ def ad_hatasi(ad: str) -> str:
     govde = ad.split(".", 1)[0].upper()
     if govde in _AYGIT_ADLARI:
         return AYGIT_ADI
-    if len(ad) > _MAX_AD:
+    utf8_bayt = len(ad.encode("utf-8"))              # ext4/APFS sınırı
+    utf16_birim = len(ad.encode("utf-16-le")) // 2   # NTFS sınırı
+    if max(utf8_bayt, utf16_birim) > _MAX_AD:
         return COK_UZUN
     return ""
 
