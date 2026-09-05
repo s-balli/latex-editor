@@ -38,6 +38,11 @@ _GUI = _REPO / "desktop" / "gui"
 _PDFIUM_METOTLARI = {
     "get_textpage", "get_charbox", "get_text_range", "get_index",
     "count_chars", "get_width", "get_height", "get_toc", "get_next",
+    # RENDER YOLU ve yer imi okuma da pdfium'a giriyor, ikisi de listede
+    # yoktu. ÖLÇÜLDÜ (2026-09-05): beş kilitsiz çağrı taşıyan sentetik bir
+    # kaynakta kapı SIFIR bulgu verdi. Kör nokta en kötü yerdeydi, çünkü
+    # CI'da gerçekleşen segfault'un bir tarafı tam da render işçisiydi.
+    "render", "to_pil", "get_rotation", "get_title", "get_dest",
 }
 # pdfium'a giden fonksiyonların TAMAMI. gui/pdf_links.py'deki dördü de burada
 # olmalı: ikisi eksikti ve _events.py'deki iki korumasız çağrı kapıdan geçti
@@ -123,9 +128,13 @@ class X:
         n = len(self._doc)                        # örtük: FPDF_GetPageCount
         a = resolve_link_action(self._pdf.raw, k) # ad listesi + ham handle
         b = get_dest_page_index(self._pdf.raw, d) # ad listesi + ham handle
+        r = page.render(scale=2.0)                # RENDER yolu
+        p = r.to_pil()                            # RENDER yolu
+        d2 = page.get_rotation()                  # dönme okuma
+        t = bm.get_title()                        # yer imi okuma
         c = self._metin.count("x")                # KONTROL: pdfium değil
         e = len(self._page_labels)                # KONTROL: pdfium değil
-        return n, a, b, c, e
+        return n, a, b, r, p, d2, t, c, e
 '''
 
 
@@ -139,7 +148,10 @@ def test_kapi_kacan_uc_bicimi_taniyor():
     """
     bulunan = {ne for _ln, ne in _pdfium_dokunuslari(ast.parse(_ORNEK_KAYNAK))}
     for beklenen in ("len(self._doc)", "resolve_link_action()",
-                     "get_dest_page_index()", "self._pdf.raw"):
+                     "get_dest_page_index()", "self._pdf.raw",
+                     # Render yolu 2026-09-05'e kadar kapının kör noktasıydı.
+                     ".render()", ".to_pil()", ".get_rotation()",
+                     ".get_title()"):
         assert beklenen in bulunan, (
             f"kapı '{beklenen}' biçimini artık tanımıyor — kapsam daralmış. "
             f"Gördükleri: {sorted(bulunan)}")
@@ -236,3 +248,120 @@ def test_uc_thread_ayni_anda_pdfium_kullanabiliyor(tmp_path):
         assert not t.is_alive(), "thread bitmedi (kilitlenme?)"
 
     assert not hatalar, f"eşzamanlı pdfium kullanımında hata: {hatalar}"
+
+
+# --- Render yolu: fonksiyon kilidi KENDİ alıyor mu ---
+#
+# `render_page_to_qimage` uzun süre kilidi çağıranlarına bırakıyordu ve
+# yukarıdaki statik kapı `render`/`to_pil` adlarını tanımadığı için bunu
+# GÖREMİYORDU (ölçüldü 2026-09-05: beş kilitsiz çağrı taşıyan sentetik
+# kaynakta kapı sıfır bulgu verdi). CI'da gerçekleşen segfault'un bir tarafı
+# tam da render işçisiydi, yani korumanın en çok gerektiği yol kapının kör
+# noktasındaydı.
+#
+# Kapı artık o adları tanıyor; bu testler ayrıca fonksiyonun KENDİNİ
+# savunduğunu sabitliyor, çünkü ikisi ayrı korumadır: kapı çağrının nerede
+# yazıldığına bakar, buradaki test fonksiyonun tek başına çağrılabilir
+# olduğunu sınar.
+
+_RENDER_YOLU = _GUI / "pdf_render.py"
+
+
+def _kendi_kilidini_aliyor(fn_adi, yol):
+    """`yol` dosyasındaki `fn_adi` fonksiyonu gövdesinde pdfium_lock alıyor mu."""
+    for n in ast.parse(yol.read_text(encoding="utf-8")).body:
+        if isinstance(n, ast.FunctionDef) and n.name == fn_adi:
+            return any(
+                isinstance(x, ast.With)
+                and any("pdfium_lock" in ast.dump(i.context_expr)
+                        for i in x.items)
+                for x in ast.walk(n))
+    raise AssertionError(f"{fn_adi} bulunamadı: {yol}")
+
+
+@pytest.mark.parametrize("fn", ["render_page_to_qimage", "render_page_to_pixmap"])
+def test_render_fonksiyonlari_kendi_kilidini_aliyor(fn):
+    """Tek başına çağrılabilir olmalı; RLock iç içe almayı bedava yapıyor."""
+    assert _kendi_kilidini_aliyor(fn, _RENDER_YOLU), (
+        f"{fn} pdfium'a kilitsiz giriyor; `with pdfium_lock:` içine alın")
+
+
+def test_render_gercekten_kilit_altinda_calisiyor(tmp_path):
+    """Çalışma zamanı: fonksiyon koşarken kilit GERÇEKTEN tutuluyor mu.
+
+    Statik kapı `with pdfium_lock:` yazısını görür; bu test kilidin o an
+    tutulduğunu ölçer. Kilit RLock olduğu için sahibi olan thread onu
+    yeniden alabilir: başka bir thread'den `acquire(blocking=False)`
+    denenirse BAŞARISIZ olmalı.
+    """
+    pypdfium2 = pytest.importorskip("pypdfium2")
+    from gui.pdf_render import render_page_to_qimage
+    from gui.pdfium_lock import pdfium_lock
+
+    pdf = pypdfium2.PdfDocument.new()
+    pdf.new_page(80, 80)
+    sayfa = pdf[0]
+
+    tutuluyordu = []
+
+    def deneyen():
+        # Başka thread: kilit içerideyken alınamamalı
+        alindi = pdfium_lock.acquire(blocking=False)
+        tutuluyordu.append(not alindi)
+        if alindi:
+            pdfium_lock.release()
+
+    gercek_render = type(sayfa).render
+
+    def izleyen(self, *a, **kw):
+        t = threading.Thread(target=deneyen)
+        t.start()
+        t.join(2)
+        return gercek_render(self, *a, **kw)
+
+    type(sayfa).render = izleyen
+    try:
+        render_page_to_qimage(sayfa, 1.0)
+    finally:
+        type(sayfa).render = gercek_render
+        pdf.close()
+
+    assert tutuluyordu == [True], (
+        "render sırasında pdfium_lock tutulmuyordu: %s" % tutuluyordu)
+
+
+def test_kapi_render_yolunu_kilit_disinda_YAKALIYOR():
+    """Kapının kendi işini yaptığının doğrudan kanıtı.
+
+    Yukarıdaki `test_tum_pdfium_cagrilari_kilit_altinda` yalnız depoyu
+    tarıyor; depo temizken o test, kapı hiçbir şey görmese de yeşil kalır.
+    Burada kapıya KİLİTSİZ bir kaynak veriliyor ve işaretlemesi bekleniyor.
+    """
+    kaynak = '''
+class X:
+    def f(self, page):
+        return page.render(scale=2.0).to_pil()
+'''
+    agac = ast.parse(kaynak)
+    araliklar = _kilit_araliklari(agac)
+    dokunuslar = list(_pdfium_dokunuslari(agac))
+    assert dokunuslar, "kapı render yolunu hiç görmüyor"
+    korumasiz = [ne for ln, ne in dokunuslar
+                 if not any(a <= ln <= b for a, b in araliklar)]
+    assert len(korumasiz) == 2, (
+        "kilitsiz render/to_pil işaretlenmedi: %s" % dokunuslar)
+
+
+def test_kilitli_kaynak_yanlislikla_isaretlenmiyor():
+    """Karşı durum: aynı çağrılar kilit altındayken temiz geçmeli."""
+    kaynak = '''
+class X:
+    def f(self, page):
+        with pdfium_lock:
+            return page.render(scale=2.0).to_pil()
+'''
+    agac = ast.parse(kaynak)
+    araliklar = _kilit_araliklari(agac)
+    korumasiz = [ne for ln, ne in _pdfium_dokunuslari(agac)
+                 if not any(a <= ln <= b for a, b in araliklar)]
+    assert not korumasiz, korumasiz

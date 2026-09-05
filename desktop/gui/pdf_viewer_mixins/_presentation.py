@@ -50,9 +50,15 @@ class PdfPresentationMixin:
         if idx >= self._page_count:
             return
 
+        # size(), availableSize() DEĞİL. Pencere `showFullScreen()` ile
+        # açılıyor ve görev çubuğunun ÜSTÜNÜ de kaplıyor; availableSize ise
+        # görev çubuğunu düşüyor. ÖLÇÜLDÜ (2026-09-05, gerçek tam ekran
+        # pencere açılıp yüksekliği okundu): ekran 2560x1080, availableSize
+        # 2560x1050, pencere 2560x1080. A4 slayt 1080 px'lik pencerede 1030
+        # px çiziliyordu, yani altta 50 px kullanılmayan bant ve %2.8 kayıp.
         screen = self._presentation_widget.screen()
         if screen:
-            screen_size = screen.availableSize()
+            screen_size = screen.size()
         else:
             screen_size = self._presentation_widget.size()
 

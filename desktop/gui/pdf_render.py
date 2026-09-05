@@ -15,11 +15,22 @@ def render_page_to_qimage(page, scale: float, invert: bool = False) -> QImage:
     QPixmap'e sarar. .copy() buffer'ı ayrıştırır; QImage iş parçacıkları
     arası sinyalle taşınabilir.
     """
-    bitmap = page.render(scale=scale)
-    pil_img = bitmap.to_pil()
-    raw = pil_img.tobytes()
-    w, h = pil_img.size
-    img = QImage(raw, w, h, w * 3, QImage.Format.Format_RGB888).copy()
+    # Kilit BURADA da alınıyor, kardeşi `render_page_to_pixmap` gibi: çağıran
+    # zaten tutuyor olsa bile (RLock) bu fonksiyon tek başına çağrılabilir
+    # olmalı. Eskiden yalnız çağıranlara güveniliyordu ve statik kapı
+    # (tests/test_pdfium_lock.py) `render`/`to_pil` adlarını tanımadığı için
+    # buradaki iki çağrıyı hiç GÖRMÜYORDU. CI'da gerçekleşen segfault'un bir
+    # tarafı tam da render işçisiydi (bkz. gui/pdfium_lock.py), yani korumanın
+    # en çok gerektiği yol kapının kör noktasındaydı.
+    #
+    # `.copy()` ham tamponu ayrıştırıyor; kilit oraya kadar yetiyor,
+    # invertPixels saf Qt.
+    with pdfium_lock:
+        bitmap = page.render(scale=scale)
+        pil_img = bitmap.to_pil()
+        raw = pil_img.tobytes()
+        w, h = pil_img.size
+        img = QImage(raw, w, h, w * 3, QImage.Format.Format_RGB888).copy()
     if invert:
         img.invertPixels()
     return img

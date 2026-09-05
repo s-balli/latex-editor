@@ -173,3 +173,100 @@ def test_yer_imleri_pdfium_KILIDI_altinda_okunuyor(viewer, monkeypatch):
 
     assert gorulen, "çıkarma hiç çalışmadı (test boş ölçüm)"
     assert all(gorulen), "pdfium okumaları kilidin DIŞINDA yapıldı"
+
+
+# --------------------------------------------------------------------------
+# Sunum modu slaytı TAM EKRANI ölçüt almalı
+#
+# Pencere `showFullScreen()` ile açılıyor ve görev çubuğunun ÜSTÜNÜ de
+# kaplıyor; ölçü ise `screen.availableSize()` (görev çubuğu HARİÇ) ile
+# alınıyordu. ÖLÇÜLDÜ (2026-09-05, gerçek tam ekran pencere açılıp yüksekliği
+# okundu): ekran 2560x1080, availableSize 2560x1050, pencere 2560x1080. A4
+# slayt 1080 px'lik pencerede 1030 px çiziliyordu; altta 50 px kullanılmayan
+# bant, %2.8 kayıp.
+#
+# CI koşucusunda görev çubuğu yok (offscreen platformda size == availableSize),
+# yani "sayı farklı mı" diye bakan bir test orada hiçbir şey ölçmez. Bu yüzden
+# testler sahte bir ekranla çalışıyor: farkı test kendisi üretiyor.
+# --------------------------------------------------------------------------
+
+
+class _SahteEkran:
+    """screen() yerine geçen vekil: size ve availableSize AYRI."""
+
+    def __init__(self, tam_h, kullanilabilir_h, w=1000):
+        from PyQt6.QtCore import QSize
+        self._tam = QSize(w, tam_h)
+        self._kul = QSize(w, kullanilabilir_h)
+
+    def size(self):
+        return self._tam
+
+    def availableSize(self):
+        return self._kul
+
+
+def _slayt_yuksekligi(viewer, qapp, ekran):
+    """Sunum modunda çizilen slaytın piksel yüksekliği."""
+    viewer.enter_presentation()
+    qapp.processEvents()
+    try:
+        viewer._presentation_widget.screen = lambda: ekran
+        viewer._pres_cache.clear()
+        viewer._presentation_render()
+        qapp.processEvents()
+        pm = viewer._presentation_label.pixmap()
+        assert pm is not None and not pm.isNull(), "slayt çizilmedi"
+        return pm.height()
+    finally:
+        viewer.exit_presentation()
+        qapp.processEvents()
+
+
+@gui
+def test_slayt_gorev_cubugu_kadar_kucuk_kalmiyor(viewer, qapp):
+    """Asıl değişmez: slayt, pencerenin GERÇEKTEN kapladığı alana göre."""
+    TAM, KULLANILABILIR = 1080, 1050
+    boy = _slayt_yuksekligi(viewer, qapp, _SahteEkran(TAM, KULLANILABILIR))
+
+    # önkoşul: sahte ekran gerçekten fark üretiyor olmalı
+    assert TAM > KULLANILABILIR, "vaka ayrım göstermiyor"
+    # Slayt tam ekrana göre ölçeklenmiş olmalı: kullanılabilir alana göre
+    # ölçeklenseydi en fazla KULLANILABILIR - marj (1030) çıkardı.
+    assert boy > KULLANILABILIR - 20, (
+        "slayt kullanılabilir alana göre ölçeklenmiş: %d px "
+        "(tam ekran %d, kullanılabilir %d)" % (boy, TAM, KULLANILABILIR))
+    assert boy <= TAM, "slayt pencereden taşıyor: %d > %d" % (boy, TAM)
+
+
+@gui
+def test_gorev_cubugu_yoksa_davranis_degismiyor(viewer, qapp):
+    """Karşı durum: size == availableSize olan ekranda sonuç aynı."""
+    boy_farkli = _slayt_yuksekligi(viewer, qapp, _SahteEkran(1080, 1050))
+    boy_ayni = _slayt_yuksekligi(viewer, qapp, _SahteEkran(1080, 1080))
+    assert boy_farkli == boy_ayni, (boy_farkli, boy_ayni)
+
+
+@gui
+def test_slayt_kucuk_ekranda_da_sigiyor(viewer, qapp):
+    """Ölçek yalnız büyümemeli; dar ekranda slayt pencereyi aşmamalı."""
+    for tam in (400, 700, 1080):
+        boy = _slayt_yuksekligi(viewer, qapp, _SahteEkran(tam, tam - 30))
+        assert boy <= tam, "slayt %d px, ekran %d px" % (boy, tam)
+
+
+@gui
+def test_ekran_yoksa_pencere_boyutuna_dusuyor(viewer, qapp):
+    """screen() None dönebiliyor; eski yedek yolu korunmalı."""
+    viewer.enter_presentation()
+    qapp.processEvents()
+    try:
+        viewer._presentation_widget.screen = lambda: None
+        viewer._pres_cache.clear()
+        viewer._presentation_render()        # patlamamalı
+        qapp.processEvents()
+        pm = viewer._presentation_label.pixmap()
+        assert pm is not None and not pm.isNull()
+    finally:
+        viewer.exit_presentation()
+        qapp.processEvents()
