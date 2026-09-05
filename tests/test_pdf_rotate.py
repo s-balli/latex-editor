@@ -168,3 +168,121 @@ def test_donme_istisnayi_yutuyor():
             return H
 
     assert geometri(_S())[0] == 0
+
+
+# ---------------------------------------------------------------------------
+# İç bağlantı hedefi (PDF destination) de aynı dönüşümden geçmeli
+#
+# `resolve_dest_scroll_y` GÖRSEL yüksekliği alıp `(yükseklik - y) * ölçek`
+# ile /Rotate 0 formülünü uyguluyordu. Destination koordinatları ise
+# DÖNDÜRÜLMEMİŞ kullanıcı uzayında; kardeş yol `_events._link_at_pos` bu
+# dönüşümü zaten yapıyordu, burası atlanmıştı.
+#
+# ÖLÇÜLDÜ (2026-09-05, pdflscape ile üretilen /Rotate 90 sayfa; hedefin yeri
+# render edilen piksellerden okundu): olması gereken 483 px, çıkan -5381 px.
+# Uçtan uca hali tests/test_pdf_baglanti_derleme.py'de (derle işi); buradaki
+# testler pdfium'suz koşuyor ve tabloyu doğrudan sabitliyor.
+# ---------------------------------------------------------------------------
+
+praw = pytest.importorskip("pypdfium2.raw")
+from gui.pdf_links import resolve_dest_scroll_y                     # noqa: E402
+
+
+def _sahte_gorunum(mod, degerler):
+    """FPDFDest_GetView yerine geçen sahte: params dizisini doldurur."""
+    def f(_dest, n_ref, params):
+        n_ref._obj.value = len(degerler)
+        for i, v in enumerate(degerler):
+            params[i] = v
+        return mod
+    return f
+
+
+class TestDestKaydirmaKonumu:
+    W, H = 612.0, 792.0
+    X, Y = 150.0, 700.0          # kullanıcı uzayında hedef noktası
+    OLCEK = 1.5
+
+    # Dönüşüm tablosunun (bkz. gui/pdf_donusum.py) dikey bileşeni, ELLE
+    # yazılmış hali. `gorsele`yi çağırıp karşılaştırmak dairesel olurdu.
+    BEKLENEN = {
+        0:   (H - Y) * OLCEK,            #  138.0
+        90:  X * OLCEK,                  #  225.0
+        180: Y * OLCEK,                  # 1050.0
+        270: (W - X) * OLCEK,            #  693.0
+    }
+
+    @pytest.fixture
+    def xyz(self, monkeypatch):
+        monkeypatch.setattr(praw, "FPDFDest_GetView",
+                            _sahte_gorunum(praw.PDFDEST_VIEW_XYZ,
+                                           [self.X, self.Y, 0.0]))
+
+    @pytest.mark.parametrize("donme", [0, 90, 180, 270])
+    def test_xyz_hedefi_donusum_tablosuna_uyuyor(self, donme, xyz):
+        g = (donme, self.W, self.H)
+        assert resolve_dest_scroll_y(None, None, g, self.OLCEK) == \
+            int(self.BEKLENEN[donme])
+
+    @pytest.mark.parametrize("donme", [90, 180, 270])
+    def test_eski_formul_ARTIK_kullanilmiyor(self, donme, xyz):
+        """Karşı yön: eski hesabın verdiği değer artık çıkmamalı.
+
+        Önkoşulu da doğruluyor, yoksa kapı boşalır: /Rotate 0'da eski ve yeni
+        değer zaten aynı olduğu için o dönme burada sınanmıyor.
+        """
+        gorsel_h = self.W if donme in (90, 270) else self.H
+        eski = int((gorsel_h - self.Y) * self.OLCEK)
+        assert eski != int(self.BEKLENEN[donme]), \
+            "vaka ayrım göstermiyor, test hiçbir şey ölçmüyor"
+        g = (donme, self.W, self.H)
+        assert resolve_dest_scroll_y(None, None, g, self.OLCEK) != eski
+
+    def test_rotate_0_eski_degerle_BIREBIR_ayni(self, xyz):
+        """Gündelik belgede hiçbir şey değişmemeli."""
+        eski = int((self.H - self.Y) * self.OLCEK)
+        assert resolve_dest_scroll_y(None, None, (0, self.W, self.H),
+                                     self.OLCEK) == eski
+
+    @pytest.mark.parametrize("donme", [0, 90, 180, 270])
+    def test_sonuc_hicbir_zaman_negatif_degil(self, donme, monkeypatch):
+        """Destination sayfanın DIŞINDA olabiliyor.
+
+        Ölçülen bir belgede hyperref+pdflscape 792 pt'lik sayfaya y=4200
+        yazmıştı; böyle bir değer döndürülmüş sayfada negatif üretiyor ve
+        görüntü sayfanın öncesine kayıyordu.
+        """
+        monkeypatch.setattr(praw, "FPDFDest_GetView",
+                            _sahte_gorunum(praw.PDFDEST_VIEW_XYZ,
+                                           [313.8, 4200.0, 0.0]))
+        assert resolve_dest_scroll_y(None, None, (donme, self.W, self.H),
+                                     self.OLCEK) >= 0
+
+    @pytest.mark.parametrize("donme,beklenen", [
+        (0, int((792.0 - 700.0) * 1.5)),
+        (180, int(700.0 * 1.5)),
+        (90, 0),        # dikey konumu x belirliyor, FitH x vermiyor
+        (270, 0),
+    ])
+    def test_fith_hedefi(self, donme, beklenen, monkeypatch):
+        """FitH yalnız y veriyor; 90/270'te yanlış yere gitmektense sayfa başı."""
+        monkeypatch.setattr(praw, "FPDFDest_GetView",
+                            _sahte_gorunum(praw.PDFDEST_VIEW_FITH, [700.0]))
+        assert resolve_dest_scroll_y(None, None, (donme, self.W, self.H),
+                                     1.5) == beklenen
+
+    @pytest.mark.parametrize("mod", ["FIT", "FITV", "FITR", "FITB"])
+    def test_desteklenmeyen_gorunum_sayfa_basina_goturuyor(self, mod, monkeypatch):
+        """Bilinmeyen görünüm kipinde tahmin yürütülmemeli."""
+        sabit = getattr(praw, "PDFDEST_VIEW_" + mod, None)
+        if sabit is None:
+            pytest.skip("pypdfium2'de PDFDEST_VIEW_%s yok" % mod)
+        monkeypatch.setattr(praw, "FPDFDest_GetView",
+                            _sahte_gorunum(sabit, [1.0, 2.0, 3.0, 4.0]))
+        assert resolve_dest_scroll_y(None, None, (90, self.W, self.H), 1.5) == 0
+
+    def test_eksik_parametre_sayfa_basina_goturuyor(self, monkeypatch):
+        """XYZ iki parametre istiyor; bozuk belgede tek gelebilir."""
+        monkeypatch.setattr(praw, "FPDFDest_GetView",
+                            _sahte_gorunum(praw.PDFDEST_VIEW_XYZ, [150.0]))
+        assert resolve_dest_scroll_y(None, None, (0, self.W, self.H), 1.5) == 0

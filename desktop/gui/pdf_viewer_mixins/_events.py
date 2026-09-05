@@ -134,8 +134,11 @@ class PdfEventsMixin:
 
         scale = self._olcek(idx)
         with pdfium_lock:
+            # geometri(): dönme + DÖNDÜRÜLMEMİŞ boyut. Eskiden buraya
+            # get_height() (GÖRSEL yükseklik) veriliyordu; /Rotate'li sayfada
+            # bağlantı bambaşka bir yere gidiyordu (bkz. pdf_links).
             scroll_y = resolve_dest_scroll_y(
-                self._pdf.raw, dest, self._pdf[idx].get_height(), scale)
+                self._pdf.raw, dest, geometri(self._pdf[idx]), scale)
 
         # Dual modda label satır widget'ının çocuğudur: pos() satıra göre olur.
         # _synctex.py'deki gibi pages_widget'e göre hesapla.

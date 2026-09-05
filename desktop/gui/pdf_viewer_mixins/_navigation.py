@@ -73,10 +73,15 @@ class PdfNavigationMixin:
             page = self._pdf[idx]
             pw_ham = page.get_width()
             ph_ham = page.get_height()
+        # Yer imi panelinin genişliği BURADAN ÇIKARILMIYOR. Panel `_scroll`in
+        # KARDEŞİ (_ui_setup.py: body = QHBoxLayout, önce ağaç sonra scroll),
+        # yani düzen onu zaten düşmüş oluyor ve `viewport().width()` kalan
+        # genişliği veriyor. Eskiden bir kez daha çıkarılıyordu; ÖLÇÜLDÜ
+        # (2026-09-05, 900x700 pencere, 220 px panel): panel açıkken sayfa
+        # 664 px'lik alanda 423 px kalıyor, yani %64'ü kullanılıyor ve sağda
+        # 241 px boşluk duruyor. Panel kapalıyken aynı ölçüm %98.
         vp_w = self._scroll.viewport().width()
         vp_h = self._scroll.viewport().height()
-        if hasattr(self, '_bookmark_tree') and self._bookmark_tree.isVisible():
-            vp_w -= self._bookmark_tree.width()
         dual = getattr(self, '_dual_page', False)
         pw = pw_ham * 1.5
         ph = ph_ham * 1.5

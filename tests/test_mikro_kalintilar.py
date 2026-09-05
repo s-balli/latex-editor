@@ -628,3 +628,95 @@ class _Sahte:
 
     def __call__(self, *a, **k):
         return self._dlg()
+
+
+# --------------------------------------------------------------------------
+# 9) _fit_zoom yer imi panelinin genişliğini İKİ KEZ düşüyordu
+#
+# Panel `_scroll`in KARDEŞİ (_ui_setup.py: body = QHBoxLayout, önce ağaç
+# sonra scroll), yani düzen onu zaten düşmüş oluyor ve `viewport().width()`
+# kalan genişliği veriyor. Eskiden bir kez daha çıkarılıyordu.
+#
+# ÖLÇÜLDÜ (2026-09-05, 900x700 pencere, 220 px panel): panel açıkken sayfa
+# 664 px'lik alanda 423 px kalıyordu, yani %64. Panel kapalıyken %98.
+# Yer imi paneli tam da uzun belgelerde (tez, kitap) açılıyor, sığdırmanın
+# en çok gerektiği yerde.
+# --------------------------------------------------------------------------
+
+class TestFitZoomYerImiPaneli:
+    PANEL = 220
+
+    @staticmethod
+    def _hazirla(qapp, viewer, tmp_path):
+        yol = _pdf_yaz(tmp_path / "uzun.pdf", [(595, 842)] * 3)
+        assert viewer.load_pdf(yol)
+        qapp.processEvents()
+        viewer._bookmark_tree.setFixedWidth(TestFitZoomYerImiPaneli.PANEL)
+        return viewer
+
+    @staticmethod
+    def _sigdir(qapp, viewer, panel_acik, mod="width"):
+        """Paneli aç/kapat, sığdır, (viewport_genişlik, sayfa_genişlik) ver."""
+        viewer._bookmark_tree.setVisible(panel_acik)
+        qapp.processEvents()
+        viewer._pages_widget.adjustSize()
+        qapp.processEvents()
+        vp = viewer._scroll.viewport().width()
+        viewer._current_page = 0
+        (viewer.fit_width if mod == "width" else viewer.fit_page)()
+        qapp.processEvents()
+        genislik, yukseklik = viewer._get_page_size(0)
+        return vp, genislik, yukseklik
+
+    def test_panel_scrollun_KARDESI(self, qapp, viewer, tmp_path):
+        """Düzeltmenin dayandığı olgu: panel viewport'un İÇİNDE değil.
+
+        İçinde olsaydı çıkarma doğru olurdu. Yerleşim değişirse bu test
+        düşer ve düzeltmenin gerekçesi gözden geçirilir.
+        """
+        self._hazirla(qapp, viewer, tmp_path)
+        assert viewer._bookmark_tree.parent() is viewer._scroll.parent()
+        assert not viewer._scroll.isAncestorOf(viewer._bookmark_tree)
+
+    def test_panel_acikken_de_gorunum_alani_doluyor(self, qapp, viewer, tmp_path):
+        v = self._hazirla(qapp, viewer, tmp_path)
+        vp_kapali, gen_kapali, _y = self._sigdir(qapp, v, False)
+        vp_acik, gen_acik, _y2 = self._sigdir(qapp, v, True)
+
+        # önkoşul: panel gerçekten yer kaplamalı, yoksa test hiçbir şey ölçmez
+        assert vp_acik < vp_kapali - 100, \
+            "panel görünüm alanını daraltmadı: %d -> %d" % (vp_kapali, vp_acik)
+
+        assert gen_kapali / vp_kapali > 0.90, (vp_kapali, gen_kapali)
+        assert gen_acik / vp_acik > 0.90, \
+            "panel açıkken %d px alanda sayfa %d px (%%%.0f), sağda %d px boş" % (
+                vp_acik, gen_acik, 100.0 * gen_acik / vp_acik, vp_acik - gen_acik)
+
+    def test_panel_genisligi_ikinci_kez_dusulmuyor(self, qapp, viewer, tmp_path):
+        """Kusurun imzası: hata payı tam olarak panelin genişliği kadardı."""
+        v = self._hazirla(qapp, viewer, tmp_path)
+        _vp, gen_acik, _y = self._sigdir(qapp, v, True)
+        _vp2, gen_kapali, _y2 = self._sigdir(qapp, v, False)
+        fark = gen_kapali - gen_acik
+        # Beklenen fark ~panel genişliği; iki kez düşülseydi ~iki katı olurdu.
+        assert fark < self.PANEL * 1.5, \
+            "sayfa panel genişliğinden fazla küçüldü: %d px (panel %d px)" % (
+                fark, self.PANEL)
+
+    def test_panel_acik_kapali_gidip_gelmek_kalici_iz_birakmiyor(
+            self, qapp, viewer, tmp_path):
+        v = self._hazirla(qapp, viewer, tmp_path)
+        ilk = self._sigdir(qapp, v, False)
+        self._sigdir(qapp, v, True)
+        son = self._sigdir(qapp, v, False)
+        assert ilk == son, (ilk, son)
+
+    def test_sayfaya_sigdir_iki_boyutta_da_siniyor(self, qapp, viewer, tmp_path):
+        """`fit_page`'te sınırlayan boyut yükseklik olabilir; ikisi de sığmalı."""
+        v = self._hazirla(qapp, viewer, tmp_path)
+        for acik in (False, True):
+            vp_w, gen, yuk = self._sigdir(qapp, v, acik, mod="page")
+            vp_h = v._scroll.viewport().height()
+            assert gen <= vp_w and yuk <= vp_h, (acik, vp_w, vp_h, gen, yuk)
+            # en az bir boyut alanı doldurmalı, yoksa gereksiz küçültme var
+            assert max(gen / vp_w, yuk / vp_h) > 0.90, (acik, vp_w, vp_h, gen, yuk)
