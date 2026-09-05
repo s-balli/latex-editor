@@ -6,6 +6,7 @@ pandoc kontrolüyle aynı desen). Dialog hemen açılır, sonuçlar gelince dola
 """
 
 import threading
+from html import escape
 
 from PyQt6.QtCore import QCoreApplication, QObject, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
@@ -160,13 +161,20 @@ class EnvDoctorDialog(QDialog):
         rows = []
         for r in results:
             color = err if r.status == "missing" else (muted if r.status == "info" else fg)
+            # KAÇIŞ ŞART: bu üç alan DIŞARIDAN geliyor. `detail` kurulu
+            # araçta `shutil.which`/WSL çıktısındaki araç YOLU, başarısız
+            # dalda `_run`ın döndürdüğü ham hata metni. Kaçışsız gömülünce
+            # QTextBrowser `<...>` içeren bir yolu bilinmeyen etiket sanıp
+            # YUTUYORDU: ölçüldü, `/home/x/<deneme>/bin/pdflatex` kullanıcıya
+            # `/home/x//bin/pdflatex` görünüyor, yani var olmayan bir dizine
+            # yönlendiriyordu. Adı `<...>` olan bir satır ise adsız kalıyordu.
             line = (f"<span style='color:{color}'>{_MARK.get(r.status, '•')} "
-                    f"<b>{_yerellestir(r.name)}</b>")
+                    f"<b>{escape(_yerellestir(r.name))}</b>")
             if r.detail:
-                line += f": {_yerellestir(r.detail)}"
+                line += f": {escape(_yerellestir(r.detail))}"
             if r.fix_hint and r.status != "ok":
                 line += (f"<br>&nbsp;&nbsp;&nbsp;&nbsp;"
-                         f"<span style='color:{muted}'>→ {r.fix_hint}</span>")
+                         f"<span style='color:{muted}'>→ {escape(r.fix_hint)}</span>")
             line += "</span>"
             rows.append(line)
         return "<br><br>".join(rows)

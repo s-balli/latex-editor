@@ -296,3 +296,125 @@ def test_dialog_sonuclari_render_eder(monkeypatch):
     assert "texlive-xetex" in text          # düzeltme ipucu satırda
     assert dlg._copy_btn.isEnabled() and dlg._rerun_btn.isEnabled()
     dlg.deleteLater()
+
+
+# --- Dialog: dış kaynaklı değerler HTML'e KAÇIŞLI gömülmeli ---
+#
+# `_render_html` `name`/`detail`/`fix_hint`i doğrudan HTML'e yazıyor ve bu üçü
+# DIŞARIDAN geliyor: `detail`, kurulu araçta `shutil.which`/WSL çıktısındaki
+# araç YOLU, başarısız dalda `_run`ın döndürdüğü ham hata metni. Kaçışsızken
+# QTextBrowser `<...>` içeren bir yolu bilinmeyen etiket sanıp YUTUYORDU
+# (ölçüldü 2026-09-05): `/home/x/<deneme>/bin/pdflatex` kullanıcıya
+# `/home/x//bin/pdflatex` görünüyor, yani var olmayan bir dizine
+# yönlendiriyordu; adı `<...>` olan bir satır ise tamamen adsız kalıyordu.
+# Bu diyaloğun tek işi "araç nerede, neden yok" sorusunu yanıtlamak.
+
+
+@pytest.fixture(scope="session")
+def qapp():
+    """QApplication'a PYTHON TARAFINDA referans tutar.
+
+    Referansı tutmayan bir kurulum (`QApplication.instance() or
+    QApplication([])` sonucunu atmak) süreci abort ettiriyordu: nesne GC'ye
+    düşünce C++ tarafı da yıkılıyor ve sonraki widget yaratımı çöküyor
+    (ölçüldü: pytest çıkış 127, traceback yok).
+    """
+    try:
+        from PyQt6.QtWidgets import QApplication
+    except ImportError:  # pragma: no cover
+        pytest.skip("PyQt6 gerekli")
+    app = QApplication.instance() or QApplication([])
+    yield app
+
+
+@pytest.fixture
+def diyalog(qapp, monkeypatch):
+    try:
+        from gui.env_doctor import EnvDoctorDialog
+        from gui.theme import THEMES
+    except ImportError:  # pragma: no cover
+        pytest.skip("gui modülleri gerekli")
+    # Denetim koşmasın: burada sınanan tek şey render
+    monkeypatch.setattr(EnvDoctorDialog, "_start", lambda self: None)
+    d = EnvDoctorDialog(theme=THEMES["dark"])
+    yield d
+    d.deleteLater()
+    qapp.processEvents()
+
+
+def _goruntulenen(d, sonuclar):
+    """Kullanıcının GÖRDÜĞÜ düz metin (ham HTML değil)."""
+    d._view.setHtml(d._render_html(sonuclar))
+    return d._view.toPlainText()
+
+
+@pytest.mark.parametrize("ad,durum,detay,ipucu,beklenen", [
+    ("pdflatex", "ok", "/home/kullanici/<deneme>/bin/pdflatex", "",
+     "/home/kullanici/<deneme>/bin/pdflatex"),
+    ("<arac>", "ok", "/usr/bin/x", "", "<arac>"),
+    ("x", "missing", "kurulu değil", "sudo apt-get install <paket>",
+     "sudo apt-get install <paket>"),
+    ("pdflatex", "ok", "/home/kullanici/a&amp;b/pdflatex", "",
+     "/home/kullanici/a&amp;b/pdflatex"),
+])
+def test_html_ozel_karakterli_deger_oldugu_gibi_gorunuyor(
+        diyalog, ad, durum, detay, ipucu, beklenen):
+    from core.env_check import CheckResult
+    metin = _goruntulenen(diyalog, [CheckResult(ad, durum, detay, ipucu)])
+    assert beklenen in metin, (
+        "değer yutuldu veya bozuldu: %r -> %r" % (beklenen, metin))
+
+
+def test_kacis_ham_html_de_uygulanmis(diyalog):
+    """Düz metin sınamasının yanına ham HTML sınaması: kaçış GERÇEKTEN var mı."""
+    from core.env_check import CheckResult
+    ham = diyalog._render_html([CheckResult("p", "ok", "/a/<b>/c")])
+    assert "&lt;" in ham, "değer kaçışlanmamış"
+    assert "/a/<b>/c" not in ham, "çıplak değer HTML'e sızmış"
+    # `<b>` biçim etiketi olarak ad için hâlâ kullanılıyor: tam bir tane
+    assert ham.count("<b>") == 1
+
+
+@pytest.mark.parametrize("deger", [
+    "/usr/bin/pdflatex",
+    "C:/Program Files/MiKTeX/pdflatex.exe",
+    "sudo apt-get update && sudo apt-get install biber",
+    "v1.0.20 | Windows 10 | Python 3.12.14",
+    '/home/kullanici/"tirnak"/pdflatex',
+])
+def test_normal_degerler_bozulmadan_geciyor(diyalog, deger):
+    """AŞIRI DÜZELTME KAPISI: kaçış, olağan değerleri değiştirmemeli."""
+    from core.env_check import CheckResult
+    assert deger in _goruntulenen(diyalog, [CheckResult("t", "ok", deger)])
+
+
+def test_bicimlendirme_ve_eski_davranis_korunuyor(diyalog):
+    """Kaçış eklenirken renk/işaret/satır yapısı ve `ok` kuralı bozulmamalı."""
+    from core.env_check import CheckResult
+    from gui.theme import THEMES
+
+    html = diyalog._render_html([
+        CheckResult("a", "ok", "/x"),
+        CheckResult("b", "missing", "kurulu değil", "ipucu"),
+        CheckResult("c", "info", "bilgi"),
+    ])
+    t = THEMES["dark"]
+    assert t["sem_error"] in html            # missing satırı hata renginde
+    assert t["fg_muted"] in html             # info satırı soluk
+    assert html.count("<br><br>") == 2       # üç satır, iki ayraç
+    assert html.count("<b>") == 3            # her satırın adı kalın
+    assert "✅" in html and "❌" in html and "ℹ️" in html
+
+    # `ok` satırında düzeltme ipucu GÖSTERİLMEZ, `missing` satırında gösterilir
+    assert "kurma ipucu" not in _goruntulenen(
+        diyalog, [CheckResult("p", "ok", "/usr/bin/p", "kurma ipucu")])
+    assert "kurma ipucu" in _goruntulenen(
+        diyalog, [CheckResult("p", "missing", "kurulu değil", "kurma ipucu")])
+
+
+def test_turkce_yerellestirme_kacistan_once_calisiyor(diyalog):
+    """Kaçış `_yerellestir`den SONRA uygulanmalı, çeviri yolu bozulmamalı."""
+    from core.env_check import CheckResult
+    metin = _goruntulenen(diyalog, [CheckResult(
+        "pdflatex", "missing", "kurulu değil (minted belgeleri için gerekli)")])
+    assert "kurulu değil" in metin and "minted" in metin
