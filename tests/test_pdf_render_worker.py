@@ -19,6 +19,7 @@ import pypdfium2
 
 from gui.pdf_render import render_page_to_qimage
 from gui.pdf_render_worker import PdfRenderWorker
+from gui.pdfium_lock import pdfium_lock
 
 
 @pytest.fixture(scope="session")
@@ -49,18 +50,20 @@ def _spin(qapp, cond, timeout=10.0):
 
 
 def test_render_qimage_boyut_ve_format(tmp_path):
-    doc = pypdfium2.PdfDocument(_tiny_pdf(tmp_path))
-    img = render_page_to_qimage(doc[0], 1.0)
+    with pdfium_lock:
+        doc = pypdfium2.PdfDocument(_tiny_pdf(tmp_path))
+        img = render_page_to_qimage(doc[0], 1.0)
+        doc.close()
     assert isinstance(img, QImage) and not img.isNull()
     assert (img.width(), img.height()) == (200, 300)
-    doc.close()
 
 
 def test_render_qimage_invert_pikseli_degistirir(tmp_path):
-    doc = pypdfium2.PdfDocument(_tiny_pdf(tmp_path))
-    normal = render_page_to_qimage(doc[0], 1.0, invert=False)
-    ters = render_page_to_qimage(doc[0], 1.0, invert=True)
-    doc.close()
+    with pdfium_lock:
+        doc = pypdfium2.PdfDocument(_tiny_pdf(tmp_path))
+        normal = render_page_to_qimage(doc[0], 1.0, invert=False)
+        ters = render_page_to_qimage(doc[0], 1.0, invert=True)
+        doc.close()
     assert normal.pixel(100, 150) != ters.pixel(100, 150)
 
 
@@ -227,7 +230,8 @@ def test_acilisi_kaciran_isci_yeniden_deniyor(tmp_path, monkeypatch):
     assert w._doc is not None, "isci nesil boyunca olu kaldi"
     assert w._acilis_denemesi == 0          # basarida sayac sifirlanir
 
-    w._doc.close()
+    with pdfium_lock:
+        w._doc.close()
 
 
 def test_yeniden_deneme_sinirli(tmp_path, monkeypatch):
@@ -272,4 +276,5 @@ def test_yeni_nesilde_sayac_sifirlaniyor(tmp_path, monkeypatch):
     w._swap_document((yol, 3))
     assert w._doc is not None
     assert w._acilis_denemesi == 0
-    w._doc.close()
+    with pdfium_lock:
+        w._doc.close()

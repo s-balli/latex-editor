@@ -365,3 +365,91 @@ class X:
     korumasiz = [ne for ln, ne in _pdfium_dokunuslari(agac)
                  if not any(a <= ln <= b for a, b in araliklar)]
     assert not korumasiz, korumasiz
+
+
+# --- Statik kapı, TEST tarafı: canlı görüntüleyici kuran testler ---
+
+# `load_pdf(` çağıran bir test dosyası GERÇEK bir render işçisi thread'i
+# başlatıyor demektir; o dosyada ana thread'in pdfium'a kilitsiz girmesi
+# uygulamadaki B5 yarışının aynısıdır, yalnız test kodunda.
+#
+# ÖLÇÜLDÜ (2026-09-05, CI koşusu 33962675843'ün ardından): `derle` işi 77
+# testin hepsi geçtikten SONRA "corrupted double-linked list" ile 134
+# döndü. Sertleştirilmiş yığın denetimiyle (PYTHONMALLOC=malloc,
+# MALLOC_PERTURB_, MALLOC_CHECK_) yerelde tekrarlandı ve tek teste indi:
+# `test_pdf_baglanti_derleme.py::TestGotoDestUctanUca` tek başına 3/100
+# çöküyordu, dosyanın geri kalanı 0/100. Deseni yoğunlaştıran stres
+# betiğinde kilitsiz 16/25, kilitli 0/25. Ana thread'in kilitsiz render'ı
+# 24 denemenin 3'ünde işçi pdfium'un içindeyken gerçekleşiyordu.
+#
+# Kural DOSYA bazında: hangi satırda işçinin canlı olduğunu statik olarak
+# bilemeyiz, ama `pdfium_lock` RLock olduğu için tek thread'li yerlerde de
+# almak bedava.
+_TESTLER = _REPO / "tests"
+
+
+def _load_pdf_cagiriyor(tree):
+    """GERÇEK bir `.load_pdf(...)` çağrısı var mı.
+
+    Düz metin araması yetmiyor: bu dosyanın kendi açıklaması da o dizeyi
+    içeriyor ve kapı kendi kendini işaretliyordu.
+    """
+    return any(isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+               and n.func.attr == "load_pdf" for n in ast.walk(tree))
+
+
+def _canli_goruntuleyici_kuran_test_dosyalari():
+    for y in sorted(_TESTLER.rglob("test_*.py")):
+        tree = ast.parse(y.read_text(encoding="utf-8"))
+        if _load_pdf_cagiriyor(tree):
+            yield y, tree
+
+
+def test_canli_viewer_kuran_testlerde_de_pdfium_kilit_altinda():
+    """Kırılırsa: ilgili satırı ``with pdfium_lock:`` bloğuna alın.
+
+    Modül kapsamlı fixture'larda kilidi ``yield``in DIŞINDA bırakın; içeride
+    kalırsa bütün modül boyunca elde tutulur.
+    """
+    korumasiz = []
+    denetlenen = 0
+    dosya = 0
+    for y, tree in _canli_goruntuleyici_kuran_test_dosyalari():
+        dosya += 1
+        araliklar = _kilit_araliklari(tree)
+        for ln, ne in _pdfium_dokunuslari(tree):
+            denetlenen += 1
+            if not any(a <= ln <= b for a, b in araliklar):
+                korumasiz.append(f"  {y.relative_to(_REPO).as_posix()}:{ln}  {ne}")
+
+    assert dosya >= 8, f"yalnız {dosya} dosya görüldü, tarama bozuk olabilir"
+    assert denetlenen >= 25, \
+        f"yalnız {denetlenen} çağrı görüldü, tarama bozuk olabilir"
+    assert not korumasiz, (
+        "test kodunda pdfium çağrısı kilit dışında (yığın bozulması riski):\n"
+        + "\n".join(korumasiz))
+
+
+def test_load_pdf_algilayicisi_aciklamayi_cagri_sanmiyor():
+    """Dosya seçimi AST ile: düz metin araması bu dosyanın KENDİ
+    açıklamasını çağrı sanıyor ve kapı kendini işaretliyordu."""
+    assert _load_pdf_cagiriyor(ast.parse("v.load_pdf(yol)\n"))
+    assert not _load_pdf_cagiriyor(ast.parse('"""load_pdf( geciyor"""\n'))
+    assert not _load_pdf_cagiriyor(ast.parse('s = "load_pdf("\n'))
+
+
+def test_test_tarafi_kapisi_gercekten_isaretliyor():
+    """Kapının boş koşmadığının doğrudan kanıtı: kilitsiz test kaynağı."""
+    kaynak = '''
+def test_x(qapp, tmp_path):
+    v = PdfViewer()
+    v.load_pdf(yol)
+    return v._pdf[0].render(scale=1.5).to_pil()
+'''
+    agac = ast.parse(kaynak)
+    assert _load_pdf_cagiriyor(agac), "dosya seçimi canlı viewer'ı görmüyor"
+    araliklar = _kilit_araliklari(agac)
+    korumasiz = [ne for ln, ne in _pdfium_dokunuslari(agac)
+                 if not any(a <= ln <= b for a, b in araliklar)]
+    # self._pdf[...] + .render() + .to_pil()
+    assert len(korumasiz) == 3, korumasiz

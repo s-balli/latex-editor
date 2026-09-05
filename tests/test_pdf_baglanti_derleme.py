@@ -42,6 +42,7 @@ pdfium = pytest.importorskip("pypdfium2")
 from gui.pdf_donusum import geometri                                 # noqa: E402
 from gui.pdf_links import (get_dest_page_index, get_link_at_point,   # noqa: E402
                            resolve_dest_scroll_y, resolve_link_action)
+from gui.pdfium_lock import pdfium_lock                              # noqa: E402
 
 OLCEK = 1.5
 
@@ -106,22 +107,26 @@ def belge(pdf_yolu):
     döndürülmemiş kullanıcı uzayında taranıyor (`_events._link_at_pos` ne
     yapıyorsa aynısı), sonra aksiyon çözülüp hedef sayfa alınıyor.
     """
-    pdf = pdfium.PdfDocument(pdf_yolu)
-    s0 = pdf[0]
-    g0 = geometri(s0)
-    hedefler = {}
-    for uy in range(int(g0[2]) - 1, 0, -2):
-        for ux in range(60, int(g0[1]) - 60, 15):
-            lnk = get_link_at_point(s0.raw, float(ux), float(uy))
-            if not lnk:
-                continue
-            cz = resolve_link_action(pdf.raw, lnk)
-            if cz and cz[0] in ("goto", "dest"):
-                hi = get_dest_page_index(pdf.raw, cz[1])
-                if hi >= 0 and hi not in hedefler:
-                    hedefler[hi] = cz[1]
+    with pdfium_lock:
+        pdf = pdfium.PdfDocument(pdf_yolu)
+        s0 = pdf[0]
+        g0 = geometri(s0)
+        hedefler = {}
+        for uy in range(int(g0[2]) - 1, 0, -2):
+            for ux in range(60, int(g0[1]) - 60, 15):
+                lnk = get_link_at_point(s0.raw, float(ux), float(uy))
+                if not lnk:
+                    continue
+                cz = resolve_link_action(pdf.raw, lnk)
+                if cz and cz[0] in ("goto", "dest"):
+                    hi = get_dest_page_index(pdf.raw, cz[1])
+                    if hi >= 0 and hi not in hedefler:
+                        hedefler[hi] = cz[1]
+    # Kilit yield'in DIŞINDA bırakılıyor: modül kapsamlı fixture, içeride
+    # tutulsa bütün modül boyunca elde kalırdı.
     yield pdf, hedefler
-    pdf.close()
+    with pdfium_lock:
+        pdf.close()
 
 
 class TestOnkosullar:
@@ -146,10 +151,11 @@ class TestBaglantiDogruYereGoturuyor:
         pdf, hedefler = belge
         rapor = []
         for idx in sorted(hedefler):
-            sayfa = pdf[idx]
-            g = geometri(sayfa)
-            cikan = resolve_dest_scroll_y(pdf.raw, hedefler[idx], g, OLCEK)
-            beklenen = _cizgi_satiri(sayfa.render(scale=OLCEK).to_pil())
+            with pdfium_lock:
+                sayfa = pdf[idx]
+                g = geometri(sayfa)
+                cikan = resolve_dest_scroll_y(pdf.raw, hedefler[idx], g, OLCEK)
+                beklenen = _cizgi_satiri(sayfa.render(scale=OLCEK).to_pil())
             assert beklenen is not None, \
                 "sayfa %d render'ında işaret çizgisi bulunamadı" % idx
             rapor.append((idx, g[0], beklenen, cikan, abs(cikan - beklenen)))
@@ -162,10 +168,11 @@ class TestBaglantiDogruYereGoturuyor:
         """Kusurun en görünür yüzü: değer NEGATİF çıkıyordu (-5381 px)."""
         pdf, hedefler = belge
         for idx in sorted(hedefler):
-            sayfa = pdf[idx]
-            g = geometri(sayfa)
-            cikan = resolve_dest_scroll_y(pdf.raw, hedefler[idx], g, OLCEK)
-            yukseklik = int(sayfa.get_height() * OLCEK)
+            with pdfium_lock:
+                sayfa = pdf[idx]
+                g = geometri(sayfa)
+                cikan = resolve_dest_scroll_y(pdf.raw, hedefler[idx], g, OLCEK)
+                yukseklik = int(sayfa.get_height() * OLCEK)
             assert 0 <= cikan <= yukseklik, \
                 "sayfa %d (/Rotate %d): scroll %d px, sayfa 0..%d px" % (
                     idx, g[0], cikan, yukseklik)
@@ -177,18 +184,20 @@ class TestBaglantiDogruYereGoturuyor:
         boşa geçiyordur.
         """
         pdf, hedefler = belge
-        yatay = [i for i in sorted(hedefler) if geometri(pdf[i])[0] == 90]
+        with pdfium_lock:
+            yatay = [i for i in sorted(hedefler) if geometri(pdf[i])[0] == 90]
         assert yatay, "yatay hedef yok"
         idx = yatay[0]
-        sayfa = pdf[idx]
-        beklenen = _cizgi_satiri(sayfa.render(scale=OLCEK).to_pil())
 
         # Eski kod: GÖRSEL yükseklik + /Rotate 0 formülü.
         from pypdfium2 import raw as praw
         n = ctypes.c_ulong()
         p = (ctypes.c_float * 4)()
-        praw.FPDFDest_GetView(hedefler[idx], ctypes.byref(n), p)
-        eski = int((sayfa.get_height() - p[1]) * OLCEK)
+        with pdfium_lock:
+            sayfa = pdf[idx]
+            beklenen = _cizgi_satiri(sayfa.render(scale=OLCEK).to_pil())
+            praw.FPDFDest_GetView(hedefler[idx], ctypes.byref(n), p)
+            eski = int((sayfa.get_height() - p[1]) * OLCEK)
 
         assert abs(eski - beklenen) > ESIK, \
             "eski hesap da doğru çıkıyor (%d vs %d): belge kusuru göstermiyor" \
@@ -243,7 +252,15 @@ class TestGotoDestUctanUca:
 
                 olcek = v._olcek(idx)
                 label = v._page_labels[idx]
-                isaret = _cizgi_satiri(v._pdf[idx].render(scale=olcek).to_pil())
+                # KİLİT ŞART. Render işçisi kendi belgesini render ederken ana
+                # thread'in pdfium'a girmesi yığını bozuyor (B5'in aynısı, bu
+                # kez test kodunda). ÖLÇÜLDÜ (2026-09-05): deseni yoğunlaştıran
+                # stres betiğinde kilitsiz 16/25, kilitli 0/25 çökme; bu testin
+                # kendisi tek başına 3/100 çöküyordu.
+                with pdfium_lock:
+                    isaret = _cizgi_satiri(
+                        v._pdf[idx].render(scale=olcek).to_pil())
+                    donme = geometri(v._pdf[idx])[0]
                 assert isaret is not None, "sayfa %d işareti bulunamadı" % idx
                 hedef_mutlak = label.mapTo(v._pages_widget,
                                            QPoint(0, 0)).y() + isaret
@@ -255,8 +272,7 @@ class TestGotoDestUctanUca:
                 # Belgenin sonundaki fazladan sayfa bunun için var.
                 assert kaydirma < cubuk.maximum(), \
                     "kaydırma sonuna dayandı, sayfa %d ölçülemiyor" % idx
-                rapor.append((idx, geometri(v._pdf[idx])[0],
-                              hedef_mutlak - kaydirma))
+                rapor.append((idx, donme, hedef_mutlak - kaydirma))
 
             # `_goto_dest` hedefi görünüm alanının ÜSTÜNE koyuyor
             # (setValue(abs_y - 20)). Ölçüldü: işaret çapa noktasının biraz

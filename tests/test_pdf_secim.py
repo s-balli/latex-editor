@@ -25,6 +25,7 @@ try:
     from PyQt6.QtWidgets import QApplication
     from gui.pdf_donusum import geometri, gorsele
     from gui.pdf_viewer import PdfViewer
+    from gui.pdfium_lock import pdfium_lock
     from gui.theme import THEMES
     _VAR = True
 except ImportError:  # pragma: no cover
@@ -71,10 +72,11 @@ def _pdf_yaz(yol, metin=_METIN, boyut=(612, 792)):
 
 
 def _dondur(kaynak, hedef, donme):
-    pdf = pdfium.PdfDocument(kaynak)
-    pdf[0].set_rotation(donme)
-    pdf.save(str(hedef))
-    pdf.close()
+    with pdfium_lock:
+        pdf = pdfium.PdfDocument(kaynak)
+        pdf[0].set_rotation(donme)
+        pdf.save(str(hedef))
+        pdf.close()
     return str(hedef)
 
 
@@ -101,13 +103,17 @@ def _viewer(qapp, yol, render_bekle=True):
 
 def _surukle(qapp, v, ilk=0, son=9):
     """Karakter `ilk`ten `son`a sürükle; (metin, kutu_sayısı, kapsam_oranı)."""
-    sayfa = v._pdf[0]
-    tp = sayfa.get_textpage()
-    g = geometri(sayfa)
+    # Görüntüleyici canlı, yani render işçisi de pdfium'da olabilir; ana
+    # thread'in kilitsiz girmesi yığını bozuyor (bkz. pdfium_lock kapısı).
+    with pdfium_lock:
+        sayfa = v._pdf[0]
+        tp = sayfa.get_textpage()
+        g = geometri(sayfa)
     olcek = v._olcek(0)
 
     def ekran(i):
-        left, bottom, right, top = tp.get_charbox(i, loose=True)
+        with pdfium_lock:
+            left, bottom, right, top = tp.get_charbox(i, loose=True)
         vx, vy = gorsele(g, (left + right) / 2, (bottom + top) / 2, olcek)
         return QPoint(int(vx), int(vy))
 
@@ -120,7 +126,8 @@ def _surukle(qapp, v, ilk=0, son=9):
     # Seçilen karakterlerin ekranda GERÇEKTEN kapladığı dikdörtgen
     kutular = []
     for i in range(ilk, son + 1):
-        left, bottom, right, top = tp.get_charbox(i, loose=True)
+        with pdfium_lock:
+            left, bottom, right, top = tp.get_charbox(i, loose=True)
         x1, y1 = gorsele(g, left, top, olcek)
         x2, y2 = gorsele(g, right, bottom, olcek)
         kutular.append((min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2)))
@@ -323,7 +330,8 @@ class TestSecimSinirlari:
         """
         v = _viewer(qapp, duz_pdf)
         try:
-            tp = v._pdf[0].get_textpage()
+            with pdfium_lock:
+                tp = v._pdf[0].get_textpage()
             once = len(v._selection_highlights)
             v._draw_selection_highlights(999, 0, 1, tp)   # patlamamalı
             qapp.processEvents()
