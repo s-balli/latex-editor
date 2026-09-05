@@ -244,6 +244,111 @@ def test_url_yoksa_release_sayfasina_dusuyor(monkeypatch):
     assert sonuc["url"].startswith("https://github.com/")
 
 
+# --- Bozuk KODLAMA da "ağ hatası" olmalı, istisna değil (2026-09-05) ---
+#
+# `resp.read(...).decode("utf-8")` geçersiz bayt dizisinde UnicodeDecodeError
+# atıyor ve o, yakalanan listede YOKTU. Fonksiyonun sözleşmesi ("None: Hata
+# veya bağlantı yok") kırılıyor, `check_for_update` de dict/None yerine
+# istisna fırlatıyordu. JSONDecodeError ile UnicodeDecodeError'in ikisi de
+# ValueError altında (UnicodeDecodeError OSError altında DEĞİL), yani birini
+# yakalayıp diğerini atlamak karar değil gözden kaçmaydı. Arayüz kendi geniş
+# `except Exception`ı ile örtüyordu; örtmeyen her çağıran patlıyordu.
+
+
+def _bayt_yanitla(monkeypatch, veri: bytes):
+    """Ham BAYT yanıtı: `_yanitla` metni utf-8'e kodluyor, bozuk kodlama
+    oradan ifade edilemiyor."""
+    import core.updater as up
+    up._cached_time = 0.0
+    up._cached_result = None
+    monkeypatch.setattr(up.urllib.request, "urlopen",
+                        lambda *a, **k: _SahteYanit(veri))
+    return up
+
+
+_BOZUK_KODLAMA = [
+    (b'\xff\xfe{"tag_name": "v9"}', "geçersiz başlangıç baytı"),
+    ('{"tag_name": "v9"}'.encode("utf-16"), "UTF-16"),
+    ('{"tag_name": "v9"}'.encode("utf-32"), "UTF-32"),
+    (b'{"a": "\xc3', "yarım UTF-8 dizisi"),
+    (b'\x80', "tek devam baytı"),
+]
+
+
+@pytest.mark.parametrize("veri,aciklama", _BOZUK_KODLAMA)
+def test_bozuk_kodlama_None_donuyor(monkeypatch, veri, aciklama):
+    """Kırılırsa: UnicodeDecodeError yakalanan listeden düşmüş demektir."""
+    up = _bayt_yanitla(monkeypatch, veri)
+    assert up.fetch_latest_release() is None, aciklama
+
+
+@pytest.mark.parametrize("veri,aciklama", _BOZUK_KODLAMA)
+def test_bozuk_kodlama_check_for_update_i_OLDURMUYOR(monkeypatch, veri,
+                                                     aciklama):
+    up = _bayt_yanitla(monkeypatch, veri)
+    assert up.check_for_update(force=True) == {"error": "network"}, aciklama
+
+
+@pytest.mark.parametrize("veri,aciklama", _BOZUK_KODLAMA)
+def test_vakalar_GERCEKTEN_cozulemiyor(veri, aciklama):
+    """Kapı boş koşmasın: baytlar utf-8 ile gerçekten çözülememeli.
+
+    Biri çözülebilir hâle gelirse yukarıdaki testler düzeltme geri alınsa
+    bile yeşil kalır ve hiçbir şey kanıtlamaz.
+    """
+    with pytest.raises(UnicodeDecodeError):
+        veri.decode("utf-8")
+
+
+def test_gecerli_JSON_ama_bozuk_BAYT_de_None(monkeypatch):
+    """Yapısı sağlam ama içinde geçersiz bayt olan yanıt da reddedilmeli.
+
+    `errors="replace"` ile çözmek bu yanıtı U+FFFD'lerle GEÇİRİRDİ: sürüm
+    notu sessizce bozuk gösterilir, hata da hiç görünmezdi. Kapı o kestirme
+    çözümü burada engelliyor.
+    """
+    up = _bayt_yanitla(
+        monkeypatch, b'{"tag_name": "v99.0.0", "body": "bozuk \xff nota"}')
+    assert up.fetch_latest_release() is None
+    up = _bayt_yanitla(
+        monkeypatch, b'{"tag_name": "v99.0.0", "body": "bozuk \xff nota"}')
+    assert up.check_for_update(force=True) == {"error": "network"}
+
+
+def test_bozuk_kodlama_onbellege_YAZILMIYOR(monkeypatch):
+    """Ağ hatası cache'lenmemeli; bozuk kodlama da öyle."""
+    up = _bayt_yanitla(monkeypatch, b'\xff')
+    up.check_for_update(force=False)
+    assert up._cached_time == 0.0
+    # Sonraki çağrı API'ye gitmeli (cache engellememeli)
+    up = _bayt_yanitla(monkeypatch, b'{"tag_name": "v0.0.1"}')
+    assert up.check_for_update(force=False) is None
+
+
+def test_yakalanan_liste_HALA_dar(monkeypatch):
+    """Karşı durum: alakasız istisna yutulmamalı.
+
+    Bu olmadan düzeltme `except Exception`a genişletilebilir ve kapı fark
+    etmezdi.
+    """
+    import core.updater as up
+    up._cached_time = 0.0
+    up._cached_result = None
+
+    def _patla(*a, **k):
+        raise RuntimeError("beklenmedik")
+
+    monkeypatch.setattr(up.urllib.request, "urlopen", _patla)
+    with pytest.raises(RuntimeError):
+        up.fetch_latest_release()
+
+
+def test_UnicodeDecodeError_OSError_altinda_DEGIL():
+    """Geniş `OSError` yakalaması onu tutmuyor; ayrıca listelenmesi şart."""
+    assert issubclass(UnicodeDecodeError, ValueError)
+    assert not issubclass(UnicodeDecodeError, OSError)
+
+
 # ---------------------------------------------------------------------------
 # Sürüm notlarının GÖSTERİMİ. Getirme yolunu bugün sertleştirmiştik ama
 # gösterime hiç bakmamıştık; v1.0.19 yayınlandıktan sonra gerçek API yanıtıyla

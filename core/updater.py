@@ -117,7 +117,14 @@ def fetch_latest_release() -> Optional[dict]:
             # yuttugu icin her kontrol "ag hatasi" gibi goruunuyordu
             # (olculdu 2026-09-02, dis guvenlik raporu 5. bulgu).
             return veri if isinstance(veri, dict) else None
-    except (urllib.error.URLError, urllib.error.HTTPError, json.JSONDecodeError, TimeoutError, OSError):
+    # UnicodeDecodeError LİSTEDE OLMALIYDI, değildi: `.decode("utf-8")` geçersiz
+    # bayt dizisinde onu atıyor ve fonksiyonun sözleşmesi ("None: Hata veya
+    # bağlantı yok") kırılıyordu. JSONDecodeError ile ikisi de ValueError
+    # altında, yani birini yakalayıp diğerini atlamak karar değil gözden
+    # kaçmaydı. Arayüz kendi geniş `except Exception`ı ile örtüyordu, yani
+    # kullanıcıya çökme olarak yansımıyordu; örtmeyen her çağıran patlıyordu.
+    except (urllib.error.URLError, urllib.error.HTTPError,
+            json.JSONDecodeError, UnicodeDecodeError, TimeoutError, OSError):
         return None
 
 
