@@ -38,31 +38,53 @@ def collect_project_files(root: str) -> list[str]:
     return sorted(rels)
 
 
-def fuzzy_score(query: str, path: str) -> int | None:
-    """Alt dizi (sıra korunur, ardışıklık şart değil) bulanık eşleşme skoru.
+def _aralik(q: str, p: str, bas: int) -> int | None:
+    """``p[bas:]`` içinde ``q``nun yayıldığı aralık; eşleşmezse None.
 
-    Küçük skor daha iyi: eşleşmenin yayıldığı aralık kısa olan ve dosya adı
-    içinde eşleşen önde gelir. Eşleşmezse None.
+    Alt dizi: sıra korunur, ardışıklık şart değil. Her karakterin ilk geçişi
+    alınır (açgözlü).
     """
-    if not query:
-        return 0
-    q = query.lower()
-    p = path.lower()
-    base_start = p.rfind('/') + 1
     qi = 0
     first, last = -1, -1
-    for i, ch in enumerate(p):
-        if qi < len(q) and ch == q[qi]:
+    for i in range(bas, len(p)):
+        if qi < len(q) and p[i] == q[qi]:
             if first == -1:
                 first = i
             last = i
             qi += 1
     if qi < len(q):
         return None
-    score = last - first
-    if first >= base_start:
-        score -= 5          # eşleşme dosya adına oturmuş → bonus
-    return score
+    return last - first
+
+
+def fuzzy_score(query: str, path: str) -> int | None:
+    """Bulanık eşleşme skoru. Küçük skor daha iyi; eşleşmezse None.
+
+    ÖNCE DOSYA ADINDA aranıyor, sonra tüm yolda. Eskiden tarama her zaman
+    yolun BAŞINDAN başlıyordu; sorgu DİZİN adında da geçtiğinde o dizindeki
+    bütün dosyalar aynı puanı alıyor, dosya adı hiç rol oynamıyordu.
+    Eşitlik alfabetik bozulduğu için Enter YANLIŞ DOSYAYI açıyordu, üstelik
+    en yaygın yerleşimlerde. ÖLÇÜLDÜ (2026-09-05):
+
+        bolumler/ içinde "bolum"   ->  bolumler/baslik.tex   açılıyordu
+        chapters/ içinde "chapter" ->  chapters/abstract.tex açılıyordu
+        sekiller/ içinde "sekil"   ->  sekiller/aciklama.tex açılıyordu
+
+    Depodaki 59 gerçek şablonda da 3 vaka çıktı (Título-autores-resumo-
+    palavras/ klasörü); orada aranan dosya 5. sıraya kadar düşüyordu.
+
+    Tek düzeydeki projelerde (dizin yok) davranış birebir aynı: dosya adı
+    zaten yolun tamamı.
+    """
+    if not query:
+        return 0
+    q = query.lower()
+    p = path.lower()
+    base_start = p.rfind('/') + 1
+    aralik = _aralik(q, p, base_start)
+    if aralik is not None:
+        return aralik - 5          # eşleşme dosya adına oturmuş → bonus
+    return _aralik(q, p, 0)
 
 
 class QuickOpenDialog(QDialog):

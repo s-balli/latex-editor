@@ -82,12 +82,20 @@ class ProjectSearchMixin:
         yol = getattr(ed, "file_path", "") if ed is not None else ""
         if not yol or not kok:
             return ""
+        # normcase ŞART: Windows'ta dosya sistemi harf duyarsız ama
+        # `commonpath` karşılaştırması duyarlı. Ölçüldü: kök `...\TEZ`,
+        # dosya `...\tez\a.tex` iken fonksiyon "açık dosya bu klasörün
+        # dışında" diyor, oysa dosya tam da o klasörün içinde. POSIX'te
+        # `normcase` kimlik işlevi, yani orada hiçbir şey değişmiyor.
+        # Mesajdaki ad ham yoldan alınıyor, kullanıcı gerçek yazımı görsün.
+        mutlak_kok = os.path.normcase(os.path.abspath(kok))
         try:
-            ortak = os.path.commonpath([os.path.abspath(yol), os.path.abspath(kok)])
+            ortak = os.path.commonpath(
+                [os.path.normcase(os.path.abspath(yol)), mutlak_kok])
         except ValueError:      # farklı sürücü (Windows)
             return _("açık dosya bu klasörün dışında ({ad})").format(
                 ad=os.path.basename(yol))
-        if ortak == os.path.abspath(kok):
+        if ortak == mutlak_kok:
             return ""
         return _("açık dosya bu klasörün dışında ({ad})").format(
             ad=os.path.basename(yol))

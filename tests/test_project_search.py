@@ -693,3 +693,100 @@ class TestKokDegisince:
                   encoding="utf-8") as f:
             k = f.read()
         assert "root_changed.connect(self._on_project_root_changed)" in k
+
+
+class TestKokDisiHarfYazimi:
+    """Windows'ta harf yazımı uyarıyı bozmamalı.
+
+    Dosya sistemi harf DUYARSIZ ama `os.path.commonpath` karşılaştırması
+    duyarlı. Kök `...\\TEZ`, açık dosya `...\\tez\\a.tex` iken fonksiyon
+    "açık dosya bu klasörün dışında" diyordu; oysa dosya tam da o klasörün
+    içinde. Bu satırın var olma sebebi tam tersiydi: yanıltıcı bir
+    "bulunamadı" mesajını AÇIKLAMAK.
+
+    POSIX'te farklı yazım FARKLI dosyadır, yani harf vakaları orada anlamsız
+    ve atlanıyor. `normcase` POSIX'te kimlik işlevi olduğu için düzeltme
+    orada hiçbir şeyi değiştirmiyor; aşağıdaki platformdan bağımsız testler
+    bunu da sabitliyor.
+    """
+
+    _WIN = os.name == "nt"
+
+    def _stub(self, panel, kok, dosya_yolu):
+        from gui.mixins.project_search_ops import ProjectSearchMixin
+
+        class S(ProjectSearchMixin, _AramaStub):
+            def _current_editor(s):
+                return SimpleNamespace(file_path=dosya_yolu,
+                                       hasSelectedText=lambda: False)
+
+        return S(panel, kok)
+
+    @pytest.mark.skipif(os.name != "nt",
+                        reason="POSIX'te farklı yazım farklı dosyadır")
+    @pytest.mark.parametrize("kok_bicim,dosya_bicim", [
+        (str.upper, str),          # kök BÜYÜK
+        (str.lower, str),          # kök küçük
+        (str, str.upper),          # dosya BÜYÜK
+        (str.lower, str.upper),    # ikisi de ayrışıyor
+    ])
+    def test_harf_ayrisinca_da_uyari_yok(self, panel, tmp_path,
+                                         kok_bicim, dosya_bicim):
+        kok = str(tmp_path / "Tez")
+        os.makedirs(os.path.join(kok, "bolumler"))
+        _yaz(os.path.join(kok, "bolumler"), "a.tex", "x\n")
+        dosya = os.path.join(kok, "bolumler", "a.tex")
+
+        s = self._stub(panel, kok_bicim(kok), dosya_bicim(dosya))
+        assert s._kok_disinda_mi(kok_bicim(kok)) == ""
+
+    @pytest.mark.skipif(os.name != "nt",
+                        reason="POSIX'te farklı yazım farklı dosyadır")
+    def test_harf_ayrissa_bile_GERCEKTEN_disarisi_uyari_veriyor(self, panel,
+                                                                tmp_path):
+        """Karşı yön: normcase karşılaştırmayı gevşetmemeli."""
+        kok = str(tmp_path / "Tez")
+        os.makedirs(kok)
+        disarida = str(tmp_path / "Baska" / "x.tex")
+        os.makedirs(os.path.dirname(disarida))
+        _yaz(os.path.dirname(disarida), "x.tex", "x\n")
+
+        s = self._stub(panel, kok, disarida)
+        uyari = s._kok_disinda_mi(kok.upper())
+        assert uyari and "x.tex" in uyari
+
+    # --- platformdan bağımsız: düzeltme bunları bozmamalı
+
+    def test_kardes_klasor_hala_disarisi_sayiliyor(self, panel, tmp_path):
+        """`kok` + ek harf: ön ek benzerliği "içinde" sanılmamalı.
+
+        `commonpath` yol BİLEŞENİ bazlı olduğu için doğru davranıyor; test
+        bunu sabitliyor, çünkü elle dize karşılaştırmasına dönülürse sessizce
+        bozulur.
+        """
+        kok = str(tmp_path / "tez")
+        os.makedirs(kok)
+        kardes = str(tmp_path / "tezler" / "a.tex")
+        os.makedirs(os.path.dirname(kardes))
+        _yaz(os.path.dirname(kardes), "a.tex", "x\n")
+
+        s = self._stub(panel, kok, kardes)
+        assert s._kok_disinda_mi(kok)
+
+    def test_mesajda_dosya_adi_HAM_yazimiyla(self, panel, tmp_path):
+        """normcase yalnız karşılaştırma için; kullanıcı gerçek adı görmeli."""
+        kok = str(tmp_path / "kok")
+        os.makedirs(kok)
+        disarida = str(tmp_path / "baska" / "BuyukAd.TEX")
+        os.makedirs(os.path.dirname(disarida))
+        _yaz(os.path.dirname(disarida), "BuyukAd.TEX", "x\n")
+
+        s = self._stub(panel, kok, disarida)
+        assert "BuyukAd.TEX" in s._kok_disinda_mi(kok)
+
+    def test_dosya_kokun_kendi_dizinindeyse_uyari_yok(self, panel, tmp_path):
+        kok = str(tmp_path / "kok")
+        os.makedirs(kok)
+        _yaz(kok, "a.tex", "x\n")
+        s = self._stub(panel, kok, os.path.join(kok, "a.tex"))
+        assert s._kok_disinda_mi(kok) == ""

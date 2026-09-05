@@ -52,8 +52,18 @@ def test_fuzzy_empty_query_matches_all():
 
 
 def test_fuzzy_subsequence_and_basename_bonus():
-    # 'mt' main.tex'in dosya adında başlıyor → bonus (daha küçük skor)
-    assert fuzzy_score("mt", "main.tex") < fuzzy_score("mt", "bolum/diğer-m-t.tex")
+    """Dosya adında eşleşen aday, adında eşleşmeyenin önünde olmalı.
+
+    RAKİP DEĞİŞTİ. Eskiden karşılaştırma `bolum/diğer-m-t.tex` ileydi ve o
+    dosyanın adı da 'mt'yi taşıyor; testin geçmesi dosya adı bonusuna değil,
+    rakibin DİZİN adında 'm' bulunmasına bağlıydı. ÖLÇÜLDÜ (2026-09-05,
+    düzeltmeden ÖNCEKİ kodla): rakip `sec/` ya da `kaynak/` altında olsaydı
+    puanı -3 çıkıyor ve aynı iddia ESKİ kodda da düşüyordu.
+
+    Yeni rakibin adında 'mt' hiç geçmiyor, yani karşılaştırma gerçekten
+    "adında eşleşen, eşleşmeyenin önünde" diyor.
+    """
+    assert fuzzy_score("mt", "main.tex") < fuzzy_score("mt", "mim/tez-yok.tex")
 
 
 def test_fuzzy_tight_path_match_beats_wide_basename_match():
@@ -130,3 +140,139 @@ def test_quick_open_without_folder(qapp):
     MainWindow._quick_open(stub)
     assert stub.opened == []
     assert "klasör açın" in stub._status.msg
+
+
+# =====================================================================
+# Sıralama: yazdığın adın dosyası ilk sırada olmalı
+#
+# Ctrl+P'de Enter LİSTENİN İLK ögesini açıyor (returnPressed -> accept ->
+# selected_path -> currentItem, ve _refilter ilk satırı seçiyor). Sıralama
+# yanlışsa kullanıcı YANLIŞ DOSYAYI açıyor.
+#
+# ÖLÇÜLEN KUSUR (2026-09-05): tarama her zaman yolun BAŞINDAN başlıyor ve her
+# karakterin ilk geçişini alıyordu. Sorgu DİZİN adında da geçtiğinde o
+# dizindeki bütün dosyalar aynı puanı alıyor, dosya adı hiç rol oynamıyor,
+# eşitlik alfabetik bozuluyordu. En yaygın yerleşimlerde:
+#
+#     bolumler/ içinde "bolum"   ->  bolumler/baslik.tex   açılıyordu
+#     chapters/ içinde "chapter" ->  chapters/abstract.tex açılıyordu
+#     sekiller/ içinde "sekil"   ->  sekiller/aciklama.tex açılıyordu
+#
+# Depodaki 59 gerçek şablonda da 3 vaka vardı; birinde aranan dosya 5. sıraya
+# düşüyordu.
+# =====================================================================
+
+
+def _sirala(dosyalar, sorgu):
+    """QuickOpenDialog._refilter ile AYNI sıralama."""
+    p = [(fuzzy_score(sorgu, r), r) for r in dosyalar]
+    p = [(s, r) for s, r in p if s is not None]
+    p.sort(key=lambda t: (t[0], t[1]))
+    return [r for _s, r in p]
+
+
+def _adda_esliyor(sorgu, rel):
+    """Sorgu, dosya ADINDA alt dizi olarak geçiyor mu."""
+    q, ad = sorgu.lower(), os.path.basename(rel).lower()
+    qi = 0
+    for ch in ad:
+        if qi < len(q) and ch == q[qi]:
+            qi += 1
+    return qi == len(q)
+
+
+class TestSiralamaDosyaAdiniOnceliyor:
+
+    @pytest.mark.parametrize("dosyalar,sorgu,beklenen", [
+        # Türkçe tez: dizin adı dosya adını İÇERİYOR
+        (["main.tex", "bolumler/bolum.tex", "bolumler/baslik.tex",
+          "bolumler/ozet.tex"], "bolum", "bolumler/bolum.tex"),
+        # İngilizce tez
+        (["main.tex", "chapters/chapter.tex", "chapters/abstract.tex",
+          "chapters/appendix.tex"], "chapter", "chapters/chapter.tex"),
+        (["sekiller/sekil.tex", "sekiller/aciklama.tex", "sekiller/kaynak.tex"],
+         "sekil", "sekiller/sekil.tex"),
+        # uzantıyla birlikte
+        (["bolumler/bolum.tex", "bolumler/baslik.tex"], "bolum.tex",
+         "bolumler/bolum.tex"),
+        # derin iç içe: eşleşen dizin ortada
+        (["a/bolumler/b/bolum.tex", "a/bolumler/b/baslik.tex"], "bolum",
+         "a/bolumler/b/bolum.tex"),
+    ])
+    def test_adini_yazinca_o_dosya_ilk_sirada(self, dosyalar, sorgu, beklenen):
+        assert _sirala(dosyalar, sorgu)[0] == beklenen
+
+    @pytest.mark.parametrize("dosyalar,sorgu", [
+        (["bolumler/bolum.tex", "bolumler/baslik.tex"], "bolum"),
+        (["chapters/chapter.tex", "chapters/abstract.tex"], "chapter"),
+    ])
+    def test_vakanin_ONKOSULU_sorgu_dizin_adinda_da_geciyor(self, dosyalar, sorgu):
+        """Kapı boşalmasın: sorgu dizin adında geçmiyorsa vaka bir şey ölçmez.
+
+        Kusur tam da "sorgu dizin adında da geçiyor" halinde çıkıyordu.
+        """
+        dizin = dosyalar[0].rsplit("/", 1)[0]
+        # `_adda_esliyor` dosya ADINA bakıyor; burada DİZİN adını sınıyoruz.
+        assert _adda_esliyor(sorgu, dizin), (sorgu, dizin)
+
+    def test_adinda_eslesen_eslesmeyenin_ONUNDE(self):
+        """Asıl değişmez, tek cümlede."""
+        assert (fuzzy_score("bolum", "bolumler/bolum.tex")
+                < fuzzy_score("bolum", "bolumler/baslik.tex"))
+
+    def test_gercek_sablonlarda_hicbir_dosya_adina_haksizlik_yok(self):
+        """Depodaki şablon ağaçlarının tamamı; ölçüt belirsizliği dışarıda bırakır.
+
+        "InterPore" yazınca InterPore.cls mi InterPore-Sample.tex mi önce
+        gelmeli sorusu (ikisinin de ADI eşleşiyor) sorulmuyor; sorulan şey,
+        adında HİÇ eşleşmeyen bir dosyanın öne geçip geçmediği.
+        """
+        sablon = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "template")
+        if not os.path.isdir(sablon):
+            pytest.skip("template/ yok")
+
+        toplam = 0
+        kotu = []
+        for proje_ad in sorted(os.listdir(sablon)):
+            proje = os.path.join(sablon, proje_ad)
+            if not os.path.isdir(proje):
+                continue
+            dosyalar = collect_project_files(proje)
+            if len(dosyalar) < 3:
+                continue
+            for rel in dosyalar:
+                temel = os.path.basename(rel)
+                for sorgu in (temel, os.path.splitext(temel)[0]):
+                    if not sorgu:
+                        continue
+                    toplam += 1
+                    s = _sirala(dosyalar, sorgu)
+                    if (s and _adda_esliyor(sorgu, rel)
+                            and not _adda_esliyor(sorgu, s[0])):
+                        kotu.append((proje_ad, sorgu, rel, s[0]))
+        # önkoşul: kitle gerçekten sınanmış olsun
+        assert toplam > 300, "şablon kitlesi beklenenden küçük: %d" % toplam
+        assert not kotu, "adında eşleşmeyen dosya öne geçti: %s" % kotu[:5]
+
+
+class TestSiralamaKarsiDurumlar:
+    """Eskiden doğru olan davranış aynen sürmeli."""
+
+    @pytest.mark.parametrize("sorgu,yol,beklenen", [
+        ("main.tex", "main.tex", 2),          # tek düzey proje
+        ("tez", "sablon/tez.tex", -3),        # alt dizindeki tam ad
+    ])
+    def test_puan_eski_degerinde(self, sorgu, yol, beklenen):
+        assert fuzzy_score(sorgu, yol) == beklenen
+
+    def test_sorguda_bolu_varsa_yol_uzerinden_eslesiyor(self):
+        """Dosya adında '/' olamaz; böyle sorgu yola düşmeli."""
+        assert fuzzy_score("bolumler/bolum", "bolumler/bolum.tex") is not None
+
+    def test_dosya_adinda_eslesmeyen_sorgu_yola_dusuyor(self):
+        assert fuzzy_score("bolumlerbolum", "bolumler/bolum.tex") is not None
+
+    def test_hicbir_yerde_eslesmezse_None(self):
+        assert fuzzy_score("zzz", "bolumler/bolum.tex") is None
