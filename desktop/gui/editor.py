@@ -193,9 +193,14 @@ class EditorWidget(QsciScintilla):
         self.SendScintilla(QsciScintilla.SCI_INDICSETFORE, 0,
                            self._hex_to_scintilla(t.get("accent", "#3a6ea5")))
 
-        # Derleme hata işareti (gutter) rengi.
+        # Derleme hata işareti (gutter) rengi. Anahtar "sem_error"; env_doctor
+        # da aynısını kullanıyor. Eskiden burada "error" aranıyordu ve HİÇBİR
+        # temada o anahtar yok: yedek değer yedek değil TEK değerdi, yedi
+        # temada da aynı koyu kırmızı çiziliyordu (render'dan ölçüldü,
+        # 2026-09-05) ve beş temada kenar boşluğu zeminine karşıtlığı 3.0'ın
+        # altında kalıyordu.
         self.SendScintilla(QsciScintilla.SCI_MARKERSETBACK, self._ERR_MARKER,
-                           self._hex_to_scintilla(t.get("error", "#c62828")))
+                           self._hex_to_scintilla(t.get("sem_error", "#c62828")))
         self.SendScintilla(QsciScintilla.SCI_MARKERSETFORE, self._ERR_MARKER,
                            self._hex_to_scintilla(t.get("fg_bright", "#ffffff")))
 

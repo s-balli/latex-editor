@@ -26,8 +26,11 @@ def build_stylesheet(t: dict) -> str:
             color: {t["fg_primary"]}; padding: 5px 10px; background: {t["bg_button"]};
             border: 1px solid {t["border_input"]}; border-radius: 4px; font-size: 12px;
         }}
+        /* Kardeş QPushButton:hover ile aynı; eskiden taban blokla birebir
+           aynı değerleri verdiği için hover görünmüyordu (bkz. kapı:
+           tests/test_tema_anahtarlari.py). */
         QToolBar QToolButton:hover {{
-            background: {t["bg_button"]}; border: 1px solid {t["border_input"]};
+            background: {t["bg_hover"]}; border: 1px solid {t["accent"]};
         }}
         QToolBar QToolButton:pressed {{
             background: {t["bg_pressed"]}; border: 1px solid {t["accent"]};
