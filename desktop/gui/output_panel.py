@@ -63,6 +63,13 @@ class OutputPanel(QWidget):
     # Doktor satırının UserRole işareti: (dosya, satır) demetiyle karışmasın
     _ENV_DOCTOR_TAG = "__env_doctor__"
 
+    # Öneriler sekmesindeki BAZI satırlar ipucu (motor önerisi, "derlenemez").
+    # apply_theme onları sem_hint'te bırakmalı; geri kalanı listenin kendi
+    # rengiyle (sem_suggestion) aynı kalmalı. Eskiden döngü hepsini sem_hint
+    # yapıyordu, yani stylesheet ile çakışıyordu: derlemeden sonra öneriler
+    # sem_suggestion, tema değişince sem_hint görünüyordu.
+    _IPUCU_ROLE = Qt.ItemDataRole.UserRole + 1
+
     def __init__(self, parent=None, *, theme: dict = None):
         super().__init__(parent)
         self._theme = theme or {}
@@ -716,6 +723,7 @@ class OutputPanel(QWidget):
                 current=current, other=" veya ".join(others))
         )
         hint.setForeground(QColor(self._theme["sem_hint"]))
+        hint.setData(self._IPUCU_ROLE, True)
         self._suggest_list.insertItem(0, hint)
         suggest_count = self._suggest_list.count()
         self._tabs.setTabText(
@@ -726,6 +734,7 @@ class OutputPanel(QWidget):
         """Derlenemeyecek dosya uyarısını öneriler tab'ında göster."""
         item = QListWidgetItem(msg)
         item.setForeground(QColor(self._theme["sem_hint"]))
+        item.setData(self._IPUCU_ROLE, True)
         self._suggest_list.addItem(item)
         self._tabs.setTabText(self._suggest_tab_index, _("Öneriler ({n})").format(n=self._suggest_list.count()))
         self._tabs.setCurrentIndex(self._suggest_tab_index)
@@ -798,19 +807,29 @@ class OutputPanel(QWidget):
             f"QTabBar::tab:hover {{ color: {t['fg_bright']}; background: {t['bg_hover_alt']}; }}"
             f"QTabBar::tab:selected {{ background: {t['bg_primary']}; color: {t['fg_bright']}; border: 1px solid {t['border_normal']}; }}"
         )
-        list_base = (
-            f"QListWidget {{ background: {t['bg_primary']}; font-family: Consolas, 'DejaVu Sans Mono', Menlo, monospace; font-size: 12px; border: none; }}"
-            f"QListWidget::item {{ padding: 4px 6px; border-bottom: 1px solid {t['bg_item_hover']}; }}"
-            f"QListWidget::item:hover {{ background: {t['bg_item_hover']}; }}"
-            f"QListWidget::item:selected {{ background: {t['bg_pressed']}; }}"
-        )
-        self._error_list.setStyleSheet(f"{list_base} color: {t['sem_error']};")
-        self._warn_list.setStyleSheet(f"{list_base} color: {t['sem_warning']};")
-        self._suggest_list.setStyleSheet(f"{list_base} color: {t['sem_suggestion']};")
+        # Renk BLOĞUN İÇİNDE olmalı. Eskiden hazır bloğun ARDINA
+        # `color: ...;` ekleniyordu; hiçbir seçiciye ait olmadığı için Qt onu
+        # sessizce atıyordu (ölçüldü: aynı bildirim blok dışında 0, blok
+        # içinde 280 piksel boyuyor). Sonuç: show_result'ın EKLEDİĞİ satırlar
+        # anlamsal rengini hiç almıyor, fg_primary ile çiziliyordu; ayrım
+        # ancak tema yeniden uygulanınca (aşağıdaki döngü) ortaya çıkıyordu.
+        def liste_stili(renk):
+            return (
+                f"QListWidget {{ background: {t['bg_primary']}; color: {renk};"
+                f" font-family: Consolas, 'DejaVu Sans Mono', Menlo, monospace;"
+                f" font-size: 12px; border: none; }}"
+                f"QListWidget::item {{ padding: 4px 6px; border-bottom: 1px solid {t['bg_item_hover']}; }}"
+                f"QListWidget::item:hover {{ background: {t['bg_item_hover']}; }}"
+                f"QListWidget::item:selected {{ background: {t['bg_pressed']}; }}"
+            )
+
+        self._error_list.setStyleSheet(liste_stili(t["sem_error"]))
+        self._warn_list.setStyleSheet(liste_stili(t["sem_warning"]))
+        self._suggest_list.setStyleSheet(liste_stili(t["sem_suggestion"]))
         # Sürüm Geçmişi: tema değişiminde UNUTULUYORDU (yalnız kurulumda
         # stilleniyordu). Kopyalar tek kaynağa indirilince ortaya çıktı.
-        self._history_list.setStyleSheet(f"{list_base} color: {t['fg_primary']};")
-        self._psearch_list.setStyleSheet(f"{list_base} color: {t['fg_primary']};")
+        self._history_list.setStyleSheet(liste_stili(t["fg_primary"]))
+        self._psearch_list.setStyleSheet(liste_stili(t["fg_primary"]))
         self._psearch_input.setStyleSheet(
             f"QLineEdit {{ background: {t['bg_secondary']}; color: {t['fg_primary']};"
             f" border: 1px solid {t['border_input']}; border-radius: 3px; padding: 3px 6px; }}"
@@ -820,6 +839,15 @@ class OutputPanel(QWidget):
         self._psearch_kok.setStyleSheet(f"color: {t['fg_muted']}; font-size: 11px;")
         for i in range(self._psearch_list.count()):
             self._psearch_list.item(i).setForeground(QColor(t["fg_primary"]))
+        # Yazım sekmesi: Sürüm Geçmişi'nin başına gelen buraya da gelmişti.
+        # apply_theme bu sekmenin hiçbir widget'ına dokunmuyordu; koyu temada
+        # denetleyip açık temaya geçince bulgular açık gri kalıyordu (ölçüldü:
+        # light 1.40, solarized_light 1.49 karşıtlık, yani okunmuyor).
+        self._yazim_list.setStyleSheet(liste_stili(t["fg_primary"]))
+        self._yazim_durum.setStyleSheet(f"color: {t['fg_muted']}; font-size: 11px;")
+        self._yazim_ikinci.setStyleSheet(f"QCheckBox {{ color: {t['fg_muted']}; }}")
+        for i in range(self._yazim_list.count()):
+            self._yazim_list.item(i).setForeground(QColor(t["fg_primary"]))
         # Kaynakça tablosu. Sürüm Geçmişi'nin başına gelen buraya gelmesin:
         # o yalnız kurulumda stillenmişti ve tema değişince eski renkte
         # kalıyordu; bu yüzden burada, kurulumda değil.
@@ -850,4 +878,6 @@ class OutputPanel(QWidget):
         for i in range(self._warn_list.count()):
             self._warn_list.item(i).setForeground(QColor(t["sem_warning"]))
         for i in range(self._suggest_list.count()):
-            self._suggest_list.item(i).setForeground(QColor(t["sem_hint"]))
+            oge = self._suggest_list.item(i)
+            oge.setForeground(QColor(
+                t["sem_hint" if oge.data(self._IPUCU_ROLE) else "sem_suggestion"]))
