@@ -214,6 +214,57 @@ class TestSinirlarVeDayaniklilik:
         bulgular, kesildi = search_project(kok, "x", limit=100)
         assert kesildi is False and len(bulgular) == 5
 
+    def test_tam_sinirda_KIRPILMADI_bildirilir(self, tmp_path):
+        """Sınıra DEĞMEK kırpma değil: liste eksik değilse "kırpıldı" denmemeli.
+
+        Eskiden `>= limit` ile sınıra değildiği anda kesiliyordu ve panel tam
+        listeye "ilk 5 sonuç (kırpıldı)" yazıyordu (ölçüldü 2026-09-05).
+        Sessiz kırpma nasıl yanıltıyorsa, OLMAYAN kırpmayı bildirmek de
+        kullanıcıyı listeyi eksik sanıp sorguyu boşuna daraltmaya itiyor.
+        """
+        kok = str(tmp_path)
+        _yaz(kok, "a.tex", "x\n" * 5)
+        bulgular, kesildi = search_project(kok, "x", limit=5)
+        assert kesildi is False
+        assert len(bulgular) == 5
+
+    def test_sinirin_BIR_ustunde_kirpildi(self, tmp_path):
+        """Sınır üçlüsünün üçüncüsü: limit+1 eşleşme kırpmadır.
+
+        Bu olmadan kesme koşulunu bir fazlaya kaydıran bir hata (`> limit + 1`)
+        diğer testlerin hepsinden geçiyor.
+        """
+        kok = str(tmp_path)
+        _yaz(kok, "a.tex", "x\n" * 6)
+        bulgular, kesildi = search_project(kok, "x", limit=5)
+        assert kesildi is True
+        assert len(bulgular) == 5
+
+    def test_tam_sinir_dosya_sinirina_denk_gelirse(self, tmp_path):
+        """Sınır iki dosyanın tam arasına düşse de kırpma yok."""
+        kok = str(tmp_path)
+        _yaz(kok, "a.tex", "x\n" * 3)
+        _yaz(kok, "b.tex", "x\n" * 3)
+        bulgular, kesildi = search_project(kok, "x", limit=6)
+        assert kesildi is False
+        assert len(bulgular) == 6
+        assert len({b.path for b in bulgular}) == 2
+
+    def test_tam_sinir_satir_ortasina_denk_gelirse(self, tmp_path):
+        """Tek satırda çok eşleşme varken de sınır doğru yorumlanmalı."""
+        kok = str(tmp_path)
+        _yaz(kok, "a.tex", "aa aa aa\n")          # "a" -> 6 eşleşme
+        bulgular, kesildi = search_project(kok, "a", limit=6)
+        assert kesildi is False and len(bulgular) == 6
+        bulgular, kesildi = search_project(kok, "a", limit=4)
+        assert kesildi is True and len(bulgular) == 4
+
+    def test_tek_eslesme_limit_bir(self, tmp_path):
+        kok = str(tmp_path)
+        _yaz(kok, "a.tex", "hedef\n")
+        bulgular, kesildi = search_project(kok, "hedef", limit=1)
+        assert kesildi is False and len(bulgular) == 1
+
     def test_iptal_taramayi_durdurur(self, tmp_path):
         kok = str(tmp_path)
         for i in range(20):
@@ -364,6 +415,24 @@ class TestPanel:
         metin = panel._psearch_status.text()
         assert "2" in metin and metin != ""
         assert metin != panel._psearch_status.text().replace("2", "")
+
+    def test_tam_sinirda_panel_kirpma_DEMIYOR(self, panel, tmp_path):
+        """Uçtan uca: tam sınır kadar eşleşmede kullanıcı kırpma uyarısı görmez.
+
+        Metin çeviriden geçtiği için sabit dizeye bakılmıyor; aynı listenin
+        kırpılmış hâliyle ÜRETTİĞİ metin farklı olmalı.
+        """
+        kok = str(tmp_path)
+        _yaz(kok, "a.tex", "x\n" * 5)
+        bulgular, kesildi = search_project(kok, "x", limit=5)
+        assert kesildi is False, "ön koşul: liste tam olmalı"
+
+        panel.show_project_search(bulgular, kesildi, kok)
+        tam = panel._psearch_status.text()
+        panel.show_project_search(bulgular, True, kok)
+        kirpik = panel._psearch_status.text()
+        assert tam != kirpik, (
+            "tam liste kırpılmış listeyle aynı metni gösteriyor: %r" % tam)
 
     def test_sonuc_yoksa_bulunamadi_yazar(self, panel, proje):
         panel.show_project_search([], False, proje)

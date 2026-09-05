@@ -176,8 +176,16 @@ def search_project(root: str, query: str, *, case_sensitive: bool = False,
             gosterilen = satir.strip()[:_SATIR_KIRP]
             while bas >= 0:
                 bulgular.append(Bulgu(yol, no, bas, gosterilen))
-                if len(bulgular) >= limit:
-                    return bulgular, True
+                # Sınıra DEĞMEK kırpma değildir, sınırı AŞMAK kırpmadır: tam
+                # `limit` kadar eşleşme varken liste eksik değil. Eskiden
+                # `>= limit` ile tam o anda kesiliyordu ve panel "ilk 5 sonuç
+                # (kırpıldı)" yazıyordu (ölçüldü). Modül sessiz kırpmayı
+                # bilerek yasaklıyor; OLMAYAN kırpmayı bildirmek aynı yanılgıya
+                # ters yönden yol açıyor, kullanıcı listeyi eksik sanıp sorguyu
+                # boşuna daraltıyor. Bedeli: durmadan önce en fazla BİR fazla
+                # eşleşme bulunur.
+                if len(bulgular) > limit:
+                    return bulgular[:limit], True
                 bas = karsilastirilan.find(aranan, bas + 1)
     return bulgular, False
 
