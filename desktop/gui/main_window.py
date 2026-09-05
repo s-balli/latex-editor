@@ -1078,7 +1078,12 @@ class MainWindow(
         t = self._theme_mgr.theme
         c = t["fg_primary"]
         html = f"<span style='color:{c}'>"
-        html += f"<h3>{_('Yeni sürüm')} {tag} {_('mevcut')}</h3>"
+        # `tag` ve aşağıdaki `url` de KAÇIŞLANIYOR. Üçü de aynı yerden, GitHub
+        # Releases yanıtından geliyor; ders `notes` için öğrenilmişti ama aynı
+        # f-string'deki bu iki alan dışarıda kalmıştı. Ölçüldü: `<...>` içeren
+        # bir etiket yutuluyor, tek tırnak içeren bir url `href` özniteliğini
+        # erken kapatıp bağlantı hedefini kırıyordu.
+        html += f"<h3>{_('Yeni sürüm')} {_kacir(tag)} {_('mevcut')}</h3>"
         html += f"<p>{_('Kullandığınız sürüm')}: v{VERSION}</p>"
         if notes:
             # Notlar HTML'e gomuluyor: KACIS sart, yoksa surum notundaki bir
@@ -1102,7 +1107,9 @@ class MainWindow(
         # da geciyor, en dusugu 10.84. Alti cizili oldugu icin tiklanabilirlik
         # renkten bagimsiz belli oluyor.
         vurgu = t["fg_bright"]
-        html += (f"<p><a href='{url}' style='color:{vurgu}'>"
+        # `QDesktopServices.openUrl` aşağıda HAM `url`yi kullanıyor: kaçış
+        # yalnız işaretlemeye giren kopya için.
+        html += (f"<p><a href='{_kacir(url)}' style='color:{vurgu}'>"
                  f"{_('İndirmek için Releases sayfasını aç')}</a></p>")
         html += "</span>"
         msg.setText(html)
@@ -1242,7 +1249,12 @@ class MainWindow(
             path = url.toLocalFile()
             if os.path.isfile(path):
                 ext = os.path.splitext(path)[1].lower()
-                if ext in ('.tex', '.cls', '.sty', '.bib'):
+                # TEK KAYNAK `_OPENABLE_EXT`. Burada kendi demeti duruyordu ve
+                # sabitin yorumu "sürükle-bırakla AYNI küme" diyordu; ikisi
+                # aynıydı ama tek kaynak DEĞİLDİ. Ölçüldü: sabite bir uzantı
+                # eklendiğinde "Birlikte Aç" onu açıyor, sürükle-bırak
+                # görmezden geliyordu.
+                if ext in self._OPENABLE_EXT:
                     self._open_file_in_editor(path)
                 elif ext in ('.png', '.jpg', '.jpeg', '.pdf', '.eps'):
                     self._insert_image(path)

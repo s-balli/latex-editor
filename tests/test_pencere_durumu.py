@@ -25,11 +25,7 @@ import pytest
 
 pytest.importorskip("PyQt6")
 
-from PyQt6.QtCore import QSettings
-from PyQt6.QtWidgets import QApplication
 
-import gui.main_window as mw
-from gui.mixins.recovery_ops import RecoveryOpsMixin
 
 
 def _norm(yol: str) -> str:
@@ -40,49 +36,17 @@ def _norm(yol: str) -> str:
 @pytest.fixture(scope="session")
 def qapp():
     """QApplication REFERANSI TUTULMALI (bkz. test_menu_actions.py aynı ders)."""
+    from PyQt6.QtWidgets import QApplication
     app = QApplication.instance() or QApplication([])
     yield app
 
 
+# `pencere_kur` fixture'i conftest.py'ye TASINDI (`ana_pencere`): ayni
+# kurulumun ikinci bir kopyasi cikmasin, cunku hapis kacirilirsa
+# kaybeden kullanicinin gercek ayarlari olur.
 @pytest.fixture
-def pencere_kur(qapp, monkeypatch, tmp_path):
-    """MainWindow üreten fabrika: ayarlar hapsedilmiş, ağ ve modal kapalı."""
-    kum = str(tmp_path / "ayarlar")
-    os.makedirs(kum, exist_ok=True)
-
-    def _ayar(*a, **k):
-        return QSettings(os.path.join(kum, "ayar.ini"), QSettings.Format.IniFormat)
-
-    monkeypatch.setattr(mw, "QSettings", _ayar)
-    # KAPININ KAPISI: hapis gerçekten tuttu mu? Tutmadıysa test kullanıcının
-    # gerçek ayarlarına yazardı; sessizce devam etmektense burada düşsün.
-    assert _norm(kum) in _norm(_ayar().fileName()), (
-        "QSettings hapsedilemedi, gerçek kullanıcı ayarlarına yazılırdı: "
-        + _ayar().fileName())
-
-    # Açılışta ağa çıkma ve modal kurtarma sorusu açma
-    monkeypatch.setattr(mw.UpdateCheckThread, "start", lambda self: None)
-    monkeypatch.setattr(RecoveryOpsMixin, "_recovery_prompt", lambda self: None)
-
-    pencereler = []
-
-    def _kur(karar="discard"):
-        w = mw.MainWindow()
-        w._save_dialog = lambda ad: karar      # kirli sekme sorusu
-        pencereler.append(w)
-        return w
-
-    _kur.ayar = _ayar
-    yield _kur
-
-    for w in pencereler:
-        try:
-            w._save_dialog = lambda ad: "discard"
-            w.close()
-            w.deleteLater()
-        except RuntimeError:                   # zaten yok edilmiş
-            pass
-    qapp.processEvents()
+def pencere_kur(ana_pencere):
+    return ana_pencere
 
 
 def _dosyalar(tmp_path, adet):

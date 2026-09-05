@@ -73,7 +73,14 @@ OZNITELIK_CEVIRI = {
 }
 
 # `/tr/` bir alt dizinde, koke gore yollar bir seviye yukari kaymali.
-GORELI_YOL = re.compile(r'(href|src)="(?!https?://|#|/|\.\./)([^"]+)"')
+#
+# Disarida kalanlar: HERHANGI BIR SEMA (http:, https:, mailto:, tel:, data:),
+# capa (#), kok (/) ve zaten ust dizine giden (../). Eskiden yalniz `https?://`
+# disarida birakiliyordu ve `mailto:` gibi semalar goreli yol saniliyordu;
+# olculdu, sayfaya bir eposta baglantisi eklendiginde uretilen /tr/ sayfasinda
+# `href="../mailto:..."` cikiyor ve baglanti kiriliyordu.
+GORELI_YOL = re.compile(
+    r'(href|src)="(?![a-zA-Z][a-zA-Z0-9+.\-]*:|#|/|\.\./)([^"]+)"')
 
 
 # hreflang bloku KAYNAKTA (docs/index.html) duruyor ve buraya oldugu gibi
@@ -233,11 +240,16 @@ def uret(kaynak_metin: str) -> str:
 
     # 11. Span disinda kalan oznitelik metinleri
     for en, tr in OZNITELIK_CEVIRI.items():
-        if en not in s:
+        # Kapi, eylemin aradiginin AYNISINI ariyor: TIRNAKLI bicim. Eskiden
+        # kapi tirnaksiz ariyordu (`if en not in s`) ve eylem tirnakli
+        # degistiriyordu; olculdu, alt metnine bir kelime eklenince kapi
+        # susuyor ve /tr/ sayfasinda ingilizce alt metin kaliyordu.
+        hedef = '"%s"' % en
+        if hedef not in s:
             raise SystemExit(
                 "OZNITELIK_CEVIRI kaynakla uyusmuyor, bulunamadi: %r\n"
                 "docs/index.html'de metin degismis olabilir." % en[:60])
-        s = s.replace('"%s"' % en, '"%s"' % tr)
+        s = s.replace(hedef, '"%s"' % tr)
 
     # Span'ler cikinca kalan bos satirlari topla
     s = re.sub(r"\n[ \t]*\n[ \t]*\n+", "\n\n", s)

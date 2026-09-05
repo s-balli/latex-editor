@@ -222,6 +222,53 @@ def test_uretec_KAYNAKTAN_SAPARSA_patliyor():
         uretec.uret(bozuk)
 
 
+def test_uretec_ALT_METNE_KELIME_EKLENINCE_de_patliyor():
+    """Kapi, eylemin aradiginin AYNISINI aramali.
+
+    Ustteki test dizgeyi tumden degistiriyor; o hali ESKI kapi da yakaliyordu.
+    Asil kacak burada: alt metnine bir kelime eklenince tirnaksiz dizge HALA
+    iceride kaliyor, kapi susuyor, ama eylemin aradigi TIRNAKLI bicim artik
+    yok. Olculdu (2026-09-06): uret() sorunsuz bitiyor ve /tr/ sayfasinda
+    ingilizce alt metin kaliyordu.
+    """
+    ham = _oku(KAYNAK)
+    bozuk = ham.replace('"SyncTeX demo"', '"SyncTeX demo (GIF)"', 1)
+    assert "SyncTeX demo" in bozuk, "on kosul: tirnaksiz dizge hala icerde"
+    assert '"SyncTeX demo"' not in bozuk, "on kosul: tirnakli bicim gitmis"
+    with pytest.raises(SystemExit):
+        uretec.uret(bozuk)
+
+
+@pytest.mark.parametrize("baglanti", [
+    "mailto:serkanballi@gmail.com",
+    "tel:+900000000",
+    "data:text/plain,x",
+])
+def test_SEMALI_baglantilar_goreli_yol_SANILMIYOR(baglanti):
+    """`/tr/` uretiminde yol kaydirma yalniz GERCEK goreli yollara.
+
+    Desen eskiden yalniz `https?://` semasini disarida birakiyordu; sayfaya
+    bir eposta baglantisi eklenirse `href="../mailto:..."` cikiyor ve
+    baglanti kiriliyordu (olculdu 2026-09-06).
+    """
+    ham = _oku(KAYNAK)
+    capa = '<a class="lang-toggle" href="tr/"'
+    assert ham.count(capa) == 1, "on kosul: dil baglantisi bulunamadi"
+    kaynak = ham.replace(capa, '<a href="%s">L</a>\n      ' % baglanti + capa, 1)
+
+    uretilen = uretec.uret(kaynak)
+    assert ('href="%s"' % baglanti) in uretilen, (
+        "sema goreli yol sanildi, baglanti kirildi")
+
+
+def test_GERCEK_goreli_yollar_hala_kaydiriliyor(tr):
+    """ASIRI DUZELTME KAPISI: sema dislamasi goreli yollari da elemesin."""
+    for beklenen in ('href="../styles.css"', 'src="../script.js"',
+                     'href="../favicon.ico"'):
+        assert beklenen in tr, beklenen
+    assert "../../" not in tr, "`../` iki kez kaydirilmis"
+
+
 def test_iki_sayfa_YAPISAL_OLARAK_DENK(tr):
     """Ayni bolumler, ayni gorseller, ayni baglantilar.
 

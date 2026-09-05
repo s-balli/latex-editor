@@ -87,3 +87,67 @@ def _sahipsiz_qsci_temizle():
         # onu kendiliğinden işlemez, açıkça boşaltmak gerekiyor.
         QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
         app.processEvents()
+
+
+@pytest.fixture
+def ana_pencere(monkeypatch, tmp_path):
+    """GERÇEK MainWindow üreten fabrika (tek kaynak).
+
+    Bazı davranışlar ancak gerçek pencerede sınanabiliyor: closeEvent ile
+    _save_state'in etkileşimi, sürükle-bırak ile "Birlikte Aç" yollarının
+    aynı kümeye bakması gibi. Vekil bir nesne bu etkileşimleri taşımıyor.
+
+    DİKKAT, QSettings: MainWindow kapanışta oturum durumu YAZIYOR (geometri,
+    açık sekmeler, dosya ağacı kökü) ve Windows'ta varsayılan arka uç KAYIT
+    DEFTERİ. Önlem alınmazsa testler kullanıcının gerçek oturumunu bozar.
+    Burada geçici bir .ini dosyasına hapsediliyor ve hapis tutmazsa fixture
+    SERT DÜŞÜYOR: sessizce gerçek ayara yazmaktansa test patlasın.
+
+    TEK KAYNAK olması bilinçli: bu kurulumun ikinci bir kopyası çıkarsa
+    biri güncellenip öbürü unutulduğunda kaybeden kullanıcının ayarları olur.
+    """
+    pytest.importorskip("PyQt6")
+    from PyQt6.QtCore import QSettings
+    from PyQt6.QtWidgets import QApplication
+    import gui.main_window as mw
+    from gui.mixins.recovery_ops import RecoveryOpsMixin
+
+    app = QApplication.instance() or QApplication([])
+
+    kum = str(tmp_path / "ayarlar")
+    os.makedirs(kum, exist_ok=True)
+
+    def _ayar(*a, **k):
+        return QSettings(os.path.join(kum, "ayar.ini"), QSettings.Format.IniFormat)
+
+    monkeypatch.setattr(mw, "QSettings", _ayar)
+    beklenen = os.path.normcase(os.path.normpath(kum))
+    gercek = os.path.normcase(os.path.normpath(_ayar().fileName()))
+    assert beklenen in gercek, (
+        "QSettings hapsedilemedi, gerçek kullanıcı ayarlarına yazılırdı: "
+        + _ayar().fileName())
+
+    # Açılışta ağa çıkma ve modal kurtarma sorusu açma
+    monkeypatch.setattr(mw.UpdateCheckThread, "start", lambda self: None)
+    monkeypatch.setattr(RecoveryOpsMixin, "_recovery_prompt", lambda self: None)
+
+    pencereler = []
+
+    def _kur(karar="discard"):
+        w = mw.MainWindow()
+        w._save_dialog = lambda ad: karar      # kirli sekme sorusu
+        pencereler.append(w)
+        return w
+
+    _kur.ayar = _ayar
+    _kur.app = app
+    yield _kur
+
+    for w in pencereler:
+        try:
+            w._save_dialog = lambda ad: "discard"
+            w.close()
+            w.deleteLater()
+        except RuntimeError:                   # zaten yok edilmiş
+            pass
+    app.processEvents()
