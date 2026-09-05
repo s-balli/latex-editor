@@ -717,6 +717,13 @@ class MainWindow(
         html += "Ctrl+/ · " + _("Yorum Toggle") + "<br>"
         html += "Ctrl+G · " + _("Satıra Git") + "<br>"
         html += "Ctrl+T · " + _("Tablo Sihirbazı") + "<br>"
+        # Ctrl+Shift+Y buraya HİÇ yazılmamıştı ve Özellikler diyaloğu bunu
+        # "Ctrl+Shift+N" diye belgeliyordu: o tuş hiçbir yerde kayıtlı değil,
+        # kullanıcı basıyor ve hiçbir şey olmuyordu; gerçek kısayol ise iki
+        # diyalogda da geçmediği için keşfedilemiyordu (ölçüldü 2026-09-05).
+        # Menü öğesi spylls kuruluysa ekleniyor, bu satır ise Özellikler'deki
+        # anlatımla aynı biçimde koşulsuz: ikisi tek yerde tutarlı kalsın.
+        html += "Ctrl+Shift+Y · " + _("Yazım Denetimi") + "<br>"
         html += "F2 · " + _("Etiketi/Kaynakça Anahtarını Yeniden Adlandır (imleç \\label/\\ref/\\cite/\\bibitem veya .bib girdisi üzerinde)") + "<br>"
         html += "F4 · " + _("Sonraki Hata") + "<br>"
         html += "Shift+F4 · " + _("Önceki Hata") + "<br><br>"
@@ -757,10 +764,10 @@ class MainWindow(
         left += "<span style='color:" + dim + "'>" + _("VS Code tarzı inline panel. Üç seçenek: büyük/küçük harf eşleştir, tam kelime, düzenli ifade. Desen kipinde değiştirmede \\1 yakalanan gruba karşılık gelir.") + "</span>"
         left += "<br><br>"
         left += "<b>" + _("Klasörde Ara") + " (Ctrl+Shift+F)</b><br>"
-        left += "<b>" + _("Yazım Denetimi") + " (Ctrl+Shift+N)</b><br>"
-        left += "<span style='color:" + dim + "'>" + _("Yazım sekmesinden Denetle: belge taranır, bulgular satır numarasıyla listelenir, tıklayınca o satıra gidilir. Denetim canlı değildir, siz istemeden çalışmaz. Dil belgeden anlaşılır (% !TEX spellcheck ya da babel); Türkçe tezin İngilizce özeti gibi iki dilli belgelerde 'İkinci dil de var' kutusunu işaretleyin. Bulguya sağ tıklayarak öneri alabilir ya da kelimeyi kendi sözlüğünüze ekleyebilirsiniz.") + "</span><br><br>"
         left += "<span style='color:" + dim + "'>" + _("Klasör ağacındaki TÜM .tex/.bib/.cls/.sty dosyalarının İÇİNDE arar, sekmede açık olmayanlar dahil. Ctrl+F yalnız açık sekmede arar. Sonuca tıklayınca o dosyanın o satırına gidilir.") + "</span>"
         left += "<br><br>"
+        left += "<b>" + _("Yazım Denetimi") + " (Ctrl+Shift+Y)</b><br>"
+        left += "<span style='color:" + dim + "'>" + _("Yazım sekmesinden Denetle: belge taranır, bulgular satır numarasıyla listelenir, tıklayınca o satıra gidilir. Denetim canlı değildir, siz istemeden çalışmaz. Dil belgeden anlaşılır (% !TEX spellcheck ya da babel); Türkçe tezin İngilizce özeti gibi iki dilli belgelerde 'İkinci dil de var' kutusunu işaretleyin. Bulguya sağ tıklayarak öneri alabilir ya da kelimeyi kendi sözlüğünüze ekleyebilirsiniz.") + "</span><br><br>"
         left += "<b>" + _("Hızlı Dosya Aç") + " (Ctrl+P)</b><br>"
         left += "<span style='color:" + dim + "'>" + _("Dosya adını yaz, bulanık filtreyle bul, Enter ile aç. Klasör ağacındaki .tex/.bib/.cls/.sty dosyaları.") + "</span>"
         left += "<br><br>"

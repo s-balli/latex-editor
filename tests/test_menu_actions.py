@@ -333,15 +333,20 @@ def _bolum(kaynak: str, bas: str, son: str) -> str:
 
 
 def _kayitli_kisayollar(kaynak: str) -> set:
-    """Menüde/QShortcut ile GERÇEKTEN kaydedilmiş tuş dizileri."""
+    """Menüde/QShortcut ile GERÇEKTEN kaydedilmiş tuş dizileri.
+
+    AYRI BİR REGEX KULLANMIYOR. Eskiden burada kendi deseni vardı ve
+    `_add_action\\([^\\n]*?,\\s*"..."` kalıbı İLK SATIR SONUNU AŞAMIYORDU:
+    çok satırlı bir `_add_action(...)` çağrısı bu kapıya görünmez kalıyordu.
+    Ölçüldü (2026-09-05): AST'nin bulduğu 20 kısayoldan tam birini, çok
+    satırlı kaydedilen `Ctrl+Shift+Y`yi (Yazımı Denetle) kaçırıyordu ve
+    belgelenmemiş olan da tam o kısayoldu. Aynı dosyada zaten AST ile
+    çalışan `_kisayol_kayitlari` duruyordu; iki ayrı çıkarıcı tutmak
+    kapılardan birini kör bırakmıştı.
+    """
     ks = re.compile(r"^(?:Ctrl|Alt|Shift|F\d)")
-    bulunan = set()
-    for m in re.finditer(r'_add_action\([^\n]*?,\s*"([^"]{1,24})"', kaynak):
-        if ks.match(m.group(1)):
-            bulunan.add(m.group(1))
-    for m in re.finditer(r'QShortcut\(QKeySequence\("([^"]+)"\)', kaynak):
-        bulunan.add(m.group(1))
-    return bulunan
+    eylemler, kisayollar = _kisayol_kayitlari(kaynak)
+    return {d for d in eylemler + kisayollar if ks.match(d)}
 
 
 def test_kisayol_listesi_okunabiliyor():
@@ -388,3 +393,133 @@ def test_bu_turun_ozellikleri_yardimda():
                      "Dosya Ağacı İşlemleri", "Çökme Kurtarma",
                      "düzenli ifade", "mükerrer .bib"):
         assert beklenen in ozellikler, f"Özellikler'de yok: {beklenen}"
+
+
+# --- Yardım diyaloglarında yazan kısayol GERÇEKTEN çalışmalı ---
+#
+# 2026-09-05 turunda iki kusur birden çıktı, ikisi de kullanıcının GÖRDÜĞÜ
+# metinde: Özellikler diyaloğu yazım denetimini "Ctrl+Shift+N" diye
+# belgeliyordu (o tuş hiçbir yerde kayıtlı değil, basınca hiçbir şey olmuyor)
+# ve gerçek kısayol "Ctrl+Shift+Y" iki diyalogda da hiç geçmiyordu, yani
+# özellik kısayoluyla keşfedilemiyordu.
+#
+# Buradaki kapılar kaynak dizgesine değil, diyalogların ÜRETTİĞİ gövdeye
+# bakıyor: metin bir gün başka bir yoldan kurulursa da tutar.
+
+
+def _yardim_diyaloglari(monkeypatch):
+    """(_show_shortcuts gövdesi, _show_features gövdesi) döndür.
+
+    MainWindow'u tümüyle kurmak ağır ve kırılgan (derleyici, işçiler,
+    QSettings, ağ). Bu iki yöntemin ihtiyacı yalnız `_theme_mgr.theme` ve
+    bir QWidget ebeveyn; vekil o kadarını veriyor.
+    """
+    import types
+    from PyQt6.QtWidgets import QDialog, QMessageBox, QTextBrowser, QWidget
+    from gui.main_window import MainWindow
+    from gui.theme import THEMES
+
+    class _Vekil(QWidget):
+        def __init__(self):
+            super().__init__()
+            self._theme_mgr = types.SimpleNamespace(theme=THEMES["dark"])
+
+    yakalanan = {}
+    monkeypatch.setattr(
+        QMessageBox, "information",
+        staticmethod(lambda parent, baslik, metin, *a, **k:
+                     yakalanan.setdefault("kisayol", metin)))
+    monkeypatch.setattr(
+        QTextBrowser, "setHtml",
+        lambda self, h: yakalanan.setdefault("ozellik", h))
+    monkeypatch.setattr(QDialog, "exec", lambda self: 0)
+
+    MainWindow._show_shortcuts(_Vekil())
+    MainWindow._show_features(_Vekil())
+    kis = yakalanan.get("kisayol", "")
+    ozl = yakalanan.get("ozellik", "")
+    assert len(kis) > 500 and len(ozl) > 500, (
+        "kapı boşa düşmesin, diyalog gövdeleri yakalanamadı "
+        f"({len(kis)}, {len(ozl)} karakter)")
+    return kis, ozl
+
+
+def test_cok_satirli_kisayol_kaydi_da_goruluyor():
+    """Kapının kapısı: çıkarıcı çok satırlı `_add_action` çağrısını görmeli.
+
+    F1 tam bu kör noktadan kaçmıştı. Regex'e geri dönülürse burası düşer.
+    """
+    kayitli = _kayitli_kisayollar(_mw_kaynak())
+    assert "Ctrl+Shift+Y" in kayitli, (
+        "çok satırlı kaydedilen kısayol görülmüyor, çıkarıcı yine kör: "
+        f"{sorted(kayitli)}")
+    assert len(kayitli) >= 20, sorted(kayitli)
+
+
+def test_yazim_kisayolu_iki_diyalogda_da_dogru(qapp, monkeypatch):
+    """Yazım denetimi: belgelenen tuş kayıtlı olan tuşla aynı olmalı."""
+    kis, ozl = _yardim_diyaloglari(monkeypatch)
+    kayitli = _kayitli_kisayollar(_mw_kaynak())
+
+    assert "Ctrl+Shift+Y" in kayitli
+    assert "Ctrl+Shift+Y" in ozl, "Özellikler gerçek kısayolu yazmıyor"
+    assert "Ctrl+Shift+Y" in kis, "Klavye Kısayolları listesinde yok"
+    assert "Ctrl+Shift+N" not in ozl, (
+        "Özellikler hâlâ kayıtlı olmayan bir tuşu belgeliyor")
+    assert "Ctrl+Shift+N" not in kis
+
+
+def test_ozelliklerde_belgelenen_tuslar_hayalet_degil(qapp, monkeypatch):
+    """TERS YÖN: Özellikler'de yazan her tuşun bir karşılığı olmalı.
+
+    Mevcut kapı yalnız "kayıtlı -> belgeli" yönünü deniyordu; F1'in yanlış
+    tuşu (hiç kaydedilmemiş Ctrl+Shift+N) ancak bu yönde yakalanır.
+    """
+    _kis, ozl = _yardim_diyaloglari(monkeypatch)
+    kayitli = _kayitli_kisayollar(_mw_kaynak())
+
+    # Editörde/olay süzgecinde işlenenler kaynakta `Key_*` olarak geçiyor
+    editor = io.open(os.path.join(_ROOT, "desktop", "gui", "editor.py"),
+                     encoding="utf-8").read()
+    baska = editor + _mw_kaynak()
+
+    def _islenmis(tus: str) -> bool:
+        ad = tus.split("+")[-1]
+        if re.fullmatch(r"F\d{1,2}", ad):
+            return ("Key_" + ad) in baska
+        if len(ad) == 1:
+            return ("Key_" + ad.upper()) in baska
+        return ("Key_" + ad.capitalize()) in baska
+
+    # Fare hareketi tuş dizisi değil: Ctrl+tekerlek `wheelEvent` içinde
+    # ControlModifier ile işleniyor (pdf_viewer_mixins/_navigation.py).
+    # Ctrl+C / Ctrl+V QScintilla'nın kendi düzenleme tuşları.
+    MUAF = {"Ctrl+tekerlek", "Ctrl+wheel", "Ctrl+C", "Ctrl+V"}
+
+    adaylar = set(re.findall(
+        r"\b((?:Ctrl|Alt|Shift)\+(?:Shift\+)?[A-Za-z0-9/]+)\b", ozl))
+    adaylar |= set(re.findall(r"\b(F\d{1,2})\b", ozl))
+    assert len(adaylar) >= 10, f"kapı boşa düşmesin, tuş bulunamadı: {adaylar}"
+
+    hayalet = sorted(a for a in adaylar
+                     if a not in kayitli and a not in MUAF and not _islenmis(a))
+    assert not hayalet, (
+        f"Özellikler'de yazan ama hiçbir yerde işlenmeyen tuş: {hayalet}. "
+        "Kullanıcı basıyor ve hiçbir şey olmuyor.")
+
+
+def test_ozelliklerde_her_baslikin_altinda_aciklamasi_var(qapp, monkeypatch):
+    """Bir başlık doğrudan başka bir başlığı izlememeli.
+
+    Yazım Denetimi bloğu "Klasörde Ara" başlığı ile açıklaması ARASINA
+    eklenmişti: kullanıcı "Klasörde Ara"yı açıklamasız görüyor, klasör
+    aramasını anlatan paragraf iki blok aşağıda sahipsiz duruyordu
+    (ölçüldü 2026-09-05).
+    """
+    _kis, ozl = _yardim_diyaloglari(monkeypatch)
+    ardisik = re.findall(r"</b><br>\s*<b>", ozl)
+    assert not ardisik, (
+        f"{len(ardisik)} başlık doğrudan başka bir başlığı izliyor, "
+        "aralarındaki açıklama kaymış olabilir")
+    # Kapı boşa düşmesin: gerçekten başlık var mı
+    assert ozl.count("</b><br>") >= 10, ozl.count("</b><br>")
