@@ -213,7 +213,14 @@ class PdfSelectionMixin:
     def _draw_selection_highlights(self, page_idx, start_idx, end_idx, textpage):
         self._clear_selection_overlays()
         label = self._page_labels[page_idx] if page_idx < len(self._page_labels) else None
-        if not label or label.pixmap() is None or label.pixmap().isNull():
+        # PIXMAP ARANMIYOR. Eskiden sayfa henüz çizilmemişse buradan
+        # dönülüyordu ve render sonradan gelince vurguyu kimse yeniden
+        # çizmiyordu: kullanıcı metni seçmiş oluyor (sağ tık > Kopyala
+        # çalışıyor) ama ekranda HİÇBİR ŞEY görmüyor, bir daha da gelmiyor
+        # (ölçüldü 2026-09-05). Etiket yükleme anında doğru boyutla
+        # kuruluyor (_create_placeholders -> setFixedSize) ve `_olcek` aynı
+        # ölçeği veriyor, yani geometri pixmap olmadan da doğru.
+        if not label:
             return
 
         scale = self._olcek(page_idx)
@@ -236,7 +243,17 @@ class PdfSelectionMixin:
             x, y, w, h = kutu_gorsele(g, left, bottom, right, top, scale)
 
             if current_run and abs(y - current_run[1]) < 2:
-                current_run[2] = max(current_run[0] + current_run[2], x + w) - current_run[0]
+                # Koşu İKİ YÖNE de genişliyor. Eskiden yalnız sağa
+                # genişliyordu ve metnin ekranda soldan sağa ilerlediği
+                # varsayılıyordu; /Rotate 180'de görsel x AZALIYOR, yani
+                # `x + w` hep koşunun solunda kalıyor ve koşu hiç
+                # büyümüyordu. ÖLÇÜLDÜ (2026-09-05, uçtan uca): 10 karakter
+                # seçilince vurgu gereken alanın yalnız %11'ini kaplıyor,
+                # yani sadece ilk karakter görünüyordu.
+                sol = min(current_run[0], x)
+                sag = max(current_run[0] + current_run[2], x + w)
+                current_run[0] = sol
+                current_run[2] = sag - sol
                 current_run[3] = max(current_run[3], h)
             else:
                 if current_run:
