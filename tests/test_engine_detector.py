@@ -11,6 +11,7 @@ from core.engine_detector import (
     _check_compilable_content,
     _detect_from_cls_content,
     _magic_engine_from_content,
+    _yuklenen_paketler,
 )
 from core.latex_utils import strip_comments as _strip_comments
 
@@ -387,3 +388,97 @@ def test_detect_root_from_head_path_ile_ayni_sonuc(tmp_path):
     assert beklenen == str(root)
     assert detect_root_from_head(child.read_text(encoding="utf-8"), str(child)) == beklenen
     assert detect_root_from_head("magic yok\n", str(child)) == ""
+
+# --- Seçenekli / virgüllü paket yüklemesi ---
+
+
+class TestSecenekliPaketYuklemesi:
+    """`\\usepackage[seçenek]{paket}` ve `\\usepackage{a,b}` biçimleri.
+
+    lua/xe sinyalleri eskiden TAM DİZE aranıyordu (``"\\usepackage{fontspec}"``),
+    pdflatex sinyalleri ise yalnız ``"{fontenc}"`` arıyordu ve seçeneğe
+    dayanıklıydı. Asimetri pdflatex yönüne çalışıyor, fontspec ise pdflatex'te
+    DERLENMİYOR: gerçek derlemeyle ölçüldüğünde altı vakanın beşinde yanlış
+    motor seçiliyor ve beşinde de PDF hiç üretilmiyordu.
+    """
+
+    def test_secenekli_fontspec(self):
+        # fontspec el kitabının kendi örneği; eskiden None dönüyordu
+        assert detect_engine_from_content(
+            "\\usepackage[no-math]{fontspec}") == "lualatex"
+
+    def test_virgullu_liste(self):
+        assert detect_engine_from_content(
+            "\\usepackage{amsmath,fontspec}") == "lualatex"
+
+    def test_virgulden_sonra_bosluk(self):
+        assert detect_engine_from_content(
+            "\\usepackage{amsmath, fontspec}") == "lualatex"
+
+    def test_secenekli_fontspec_fontenc_i_YENIYOR(self):
+        """Asimetrinin can alıcı yeri.
+
+        Aynı önsözde ikisi de varken eski kod yalnız fontenc'i görüyor ve
+        pdflatex diyordu; o motorla belge hiç derlenmiyor.
+        """
+        assert detect_engine_from_content(
+            "\\usepackage[T1]{fontenc}\n"
+            "\\usepackage[no-math]{fontspec}\n") == "lualatex"
+
+    def test_secenekli_polyglossia(self):
+        assert detect_engine_from_content(
+            "\\usepackage[quiet]{polyglossia}") == "lualatex"
+
+    def test_secenekli_xecjk(self):
+        assert detect_engine_from_content(
+            "\\usepackage[CJKspace]{xeCJK}") == "xelatex"
+
+    def test_bosluklu_yazimlar(self):
+        """Üç boşluklu yazımın üçü de gerçek lualatex ile PDF üretiyor
+        (ölçüldü); tarama da üçünü görmeli."""
+        for satir in ("\\usepackage {fontspec}",
+                      "\\usepackage[no-math] {fontspec}",
+                      "\\usepackage [no-math] {fontspec}"):
+            assert detect_engine_from_content(satir) == "lualatex", satir
+
+    def test_dosya_yolundan_da_ayni(self, tmp_path):
+        tex = tmp_path / "a.tex"
+        tex.write_text("\\documentclass{article}\n"
+                       "\\usepackage[no-math]{fontspec}\n"
+                       "\\begin{document}x\\end{document}\n", encoding="utf-8")
+        assert detect_engine(str(tex)) == "lualatex"
+
+    def test_cls_secenekli_requirepackage(self):
+        """`.cls` dosyalarında `\\RequirePackage[no-math]{fontspec}` yaygın."""
+        assert detect_engine_from_content(
+            "\\documentclass{ozel}\n",
+            cls_content="\\RequirePackage[no-math]{fontspec}\n") == "lualatex"
+
+
+class TestPaketAdiAsiriEslesmiyor:
+    """Yeni tarama paket ADI eşleştiriyor; gövde metnini yüklemeyle karıştırmamalı."""
+
+    def test_govde_metnindeki_paket_adi_sayilmiyor(self):
+        """template30-sunum'daki gerçek vaka.
+
+        Sunumun gövdesinde ``The packages \\texttt{inputenc} ... are used``
+        cümlesi geçiyor. Eski kod çıplak ``"{inputenc}"`` aradığı için bunu
+        paket yüklemesi sanıp pdflatex diyordu.
+        """
+        assert detect_engine_from_content(
+            "\\documentclass{beamer}\n"
+            "\\begin{document}\n"
+            "The packages \\texttt{inputenc} and \\texttt{FiraSans} are used.\n"
+            "\\end{document}\n") is None
+
+    def test_yorum_satirindaki_yukleme_sayilmiyor(self):
+        assert detect_engine_from_content("%\\usepackage{fontspec}\n") is None
+
+    def test_yuklenen_paketler_virgulleri_ayirip_kirpiyor(self):
+        assert _yuklenen_paketler("\\usepackage[a,b]{x, y}") == {"x", "y"}
+
+    def test_yuklenen_paketler_bos_susluyu_atliyor(self):
+        assert _yuklenen_paketler("\\usepackage{}") == set()
+
+    def test_yuklenen_paketler_requirepackage_i_de_goruyor(self):
+        assert _yuklenen_paketler("\\RequirePackage{fontspec}") == {"fontspec"}

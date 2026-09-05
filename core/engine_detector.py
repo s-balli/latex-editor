@@ -96,19 +96,37 @@ def detect_root_from_head(head: str, tex_path: str) -> str:
     return ""
 
 
-_LUALATEX_TEX_SIGNALS = (
-    "\\usepackage{fontspec}",
-    "\\usepackage{unicode-math}",
-    "\\usepackage{polyglossia}",
-)
+_LUALATEX_PAKETLERI = ("fontspec", "unicode-math", "polyglossia")
 # XeLaTeX'e özgü paketler: mathspec/xeCJK LuaLaTeX'te çalışmaz. fontspec/
 # polyglossia her ikisinde de çalıştığından lualatex tarafında kalır.
-_XELATEX_TEX_SIGNALS = (
-    "\\usepackage{mathspec}",
-    "\\usepackage{xeCJK}",
-    "\\usepackage{xltxtra}",
-)
-_PDFLATEX_TEX_SIGNALS = ("{inputenc}", "{fontenc}")
+_XELATEX_PAKETLERI = ("mathspec", "xeCJK", "xltxtra")
+_PDFLATEX_PAKETLERI = ("inputenc", "fontenc")
+
+# Paket yüklemesi: SEÇENEKLİ ve VİRGÜLLÜ biçimleri de görüyor.
+#
+# Eskiden tam dize aranıyordu ("\\usepackage{fontspec}") ve fontspec el
+# kitabının kendi örneği olan `\usepackage[no-math]{fontspec}` görülmüyordu.
+# pdflatex sinyalleri ise yalnız "{fontenc}" arıyordu, yani seçeneğe
+# dayanıklıydı; asimetri pdflatex yönüne çalışıyor ve fontspec pdflatex'te
+# DERLENMİYOR. ÖLÇÜLDÜ (2026-09-05, gerçek derlemeyle): altı vakanın beşinde
+# yanlış motor seçiliyor ve beşinde de PDF hiç üretilmiyor.
+#
+#   \usepackage[no-math]{fontspec}          -> None     -> pdflatex -> PDF yok
+#   \usepackage{amsmath,fontspec}           -> None     -> pdflatex -> PDF yok
+#   \usepackage[T1]{fontenc} + yukarıdaki   -> pdflatex            -> PDF yok
+_RE_PAKET_YUKLEME = re.compile(
+    r"\\(?:usepackage|RequirePackage)\s*(?:\[[^\]]*\])?\s*\{([^}]*)\}")
+
+
+def _yuklenen_paketler(clean: str) -> set[str]:
+    """Yorumları temizlenmiş içerikte yüklenen paket adları."""
+    adlar: set[str] = set()
+    for m in _RE_PAKET_YUKLEME.finditer(clean):
+        for ad in m.group(1).split(","):
+            ad = ad.strip()
+            if ad:
+                adlar.add(ad)
+    return adlar
 
 
 def _engine_from_tex_signals(clean: str) -> str | None:
@@ -117,14 +135,15 @@ def _engine_from_tex_signals(clean: str) -> str | None:
     magic comment ve .cls sinyalleri burada ele alınmaz.
     Dönüş: 'lualatex', 'pdflatex', 'xelatex' veya None.
     """
-    for signal in _XELATEX_TEX_SIGNALS:
-        if signal in clean:
+    paketler = _yuklenen_paketler(clean)
+    for ad in _XELATEX_PAKETLERI:
+        if ad in paketler:
             return "xelatex"
-    for signal in _LUALATEX_TEX_SIGNALS:
-        if signal in clean:
+    for ad in _LUALATEX_PAKETLERI:
+        if ad in paketler:
             return "lualatex"
-    for signal in _PDFLATEX_TEX_SIGNALS:
-        if signal in clean:
+    for ad in _PDFLATEX_PAKETLERI:
+        if ad in paketler:
             return "pdflatex"
     return None
 
@@ -279,8 +298,9 @@ def _detect_from_cls_content(content: str) -> str | None:
         if signal in clean:
             return "lualatex"
 
-    # fontspec koşulsuz yüklemesi → LuaLaTeX
-    if "\\RequirePackage{fontspec}" in clean:
+    # fontspec koşulsuz yüklemesi → LuaLaTeX. Seçenekli biçim de sayılıyor:
+    # `.cls` dosyalarında `\RequirePackage[no-math]{fontspec}` yaygın.
+    if "fontspec" in _yuklenen_paketler(clean):
         return "lualatex"
 
     # pdfLaTeX sinyalleri

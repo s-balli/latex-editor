@@ -6,7 +6,8 @@ import time
 import pytest
 
 from core import env_check
-from core.env_check import TOOLS, _parse_tool_lines, report_text, run_checks
+from core.env_check import (ZAMAN_ASIMI, TOOLS, _parse_tool_lines,
+                            report_text, run_checks)
 
 
 def _all_ok_out():
@@ -186,6 +187,78 @@ def test_tek_motor_eksikse_tam_kurulum_onerisi_yok(monkeypatch):
     assert not [r for r in results if r.name == "TeX Live kurulumu"]
     by = {r.name: r for r in results}
     assert "texlive-xetex" in by["xelatex"].fix_hint   # minimal öneri duruyor
+
+
+# --- Zaman aşımı (WSL var ama yanıt vermiyor) ---
+
+
+def test_zaman_asimi_WSL_YOK_diye_raporlanmiyor(monkeypatch):
+    """Yanıt vermeyen WSL "kurulu değil" sayılmamalı.
+
+    ``subprocess.TimeoutExpired``, ``subprocess.SubprocessError`` ALT SINIFI.
+    _run yalnız SubprocessError yakalayıp (None, ...) döndürdüğü için
+    run_checks bunu "WSL yok" okuyor ve `wsl --install` öneriyordu. O komut
+    wsl'in kurulu olduğu makinede "zaten kurulu" deyip çıkıyor; kullanıcı
+    tıkanıyor. Aynı ders `rc != 0` dalında zaten öğrenilmişti.
+    """
+    monkeypatch.setattr(sys, "platform", "win32")
+    by = {r.name: r for r in run_checks(runner=lambda cmd: (ZAMAN_ASIMI, ""))}
+
+    assert by["WSL"].status == "error"            # "missing" DEĞİL
+    assert "yanıt vermedi" in by["WSL"].detail
+    assert "wsl --shutdown" in by["WSL"].fix_hint
+    assert "wsl --install" not in by["WSL"].fix_hint
+    assert all(by[t].status == "error" for t in TOOLS)
+
+
+def test_zaman_asimi_ham_argv_dokumu_sizdirmiyor(monkeypatch):
+    """str(TimeoutExpired) kaçışlı bir Python argv listesi; arayüze sızmamalı."""
+    monkeypatch.setattr(sys, "platform", "win32")
+    by = {r.name: r for r in run_checks(runner=lambda cmd: (ZAMAN_ASIMI, ""))}
+    assert "Command '[" not in by["WSL"].detail
+    assert "\\\\" not in by["WSL"].detail
+
+
+def test_zaman_asiminda_TeX_Live_gurultusu_eklenmiyor(monkeypatch):
+    """WSL çalışıyor, yalnız yavaş: araç durumu bilinmiyor.
+
+    "Sonraki adım" (WSL kurulumundan sonraki TeX Live) ve "TeX Live kurulumu"
+    satırları burada yol tarifi değil gürültü olurdu.
+    """
+    monkeypatch.setattr(sys, "platform", "win32")
+    adlar = [r.name for r in run_checks(runner=lambda cmd: (ZAMAN_ASIMI, ""))]
+    assert "Sonraki adım" not in adlar
+    assert "TeX Live kurulumu" not in adlar
+
+
+def test_uc_WSL_durumu_UC_AYRI_komut_veriyor(monkeypatch):
+    """wsl yok / dağıtım yok / yanıt yok: üçü ayrı teşhis, ayrı komut."""
+    monkeypatch.setattr(sys, "platform", "win32")
+    yok = {r.name: r for r in
+           run_checks(runner=lambda cmd: (None, "wsl bulunamadı"))}["WSL"]
+    dagitimsiz = {r.name: r for r in run_checks(runner=lambda cmd: (1, ""))}["WSL"]
+    yanitsiz = {r.name: r for r in
+                run_checks(runner=lambda cmd: (ZAMAN_ASIMI, ""))}["WSL"]
+
+    komutlar = {yok.fix_hint, dagitimsiz.fix_hint, yanitsiz.fix_hint}
+    assert len(komutlar) == 3
+
+
+def test_run_gercek_zaman_asiminda_ayri_kod_donduruyor():
+    """_run gerçek bir zaman aşımını ayrı raporlamalı (uçtan uca).
+
+    Aynı zamanda `timeout=` parametresinin subprocess çağrısında durduğunu
+    da bağlar: kaldırılırsa çocuk süreç sonuna kadar beklenir ve rc 0 döner.
+    """
+    rc, out = env_check._run(
+        [sys.executable, "-c", "import time; time.sleep(5)"], timeout=0.5)
+    assert rc == ZAMAN_ASIMI
+    assert "Command '[" not in out
+
+
+def test_ZAMAN_ASIMI_gercek_cikis_koduyla_cakismiyor():
+    """Sinyalle sonlanan süreç -1..-64 döndürür; sentinel onun dışında olmalı."""
+    assert ZAMAN_ASIMI < -256
 
 
 # --- Dialog (GUI duman testi) ---

@@ -44,6 +44,10 @@ _WSL_PROBE = (
 # anlamına gelir (tek motoru eksik olana tam kurulum önerilmez).
 ENGINES = ("lualatex", "pdflatex", "xelatex")
 
+# Zaman aşımına uğrayan sorgunun dönüş kodu. Gerçek bir çıkış koduyla (0-255)
+# ya da sinyalle sonlanmanın negatif koduyla (-1..-64) çakışmasın diye seçildi.
+ZAMAN_ASIMI = -1000
+
 # README'deki tek komutluk tam kurulum ile aynı liste. Motor başına minimal
 # paketler derlemeyi başlatır ama ilk gerçek belgede texlive-latex-extra /
 # texlive-lang-european (Türkçe heceleme) eksikliğiyle tekrar takılır; sıfır
@@ -79,6 +83,12 @@ def _run(cmd: list[str], timeout: float = 20.0) -> tuple[int | None, str]:
         return r.returncode, (r.stdout or "").strip()
     except FileNotFoundError:
         return None, "wsl bulunamadı"
+    except subprocess.TimeoutExpired:
+        # TimeoutExpired, SubprocessError'ın ALT SINIFI. Ayrı yakalanmazsa
+        # aşağıdaki dala düşüp (None, ...) dönüyor ve rapor "WSL kurulu değil"
+        # diyordu; oysa wsl VAR, yalnız yanıt vermedi. Üstelik str(e) ham argv
+        # dökümü (kaçışlı Python listesi) olduğu için doğrudan arayüze sızıyordu.
+        return ZAMAN_ASIMI, ""
     except subprocess.SubprocessError as e:
         return None, str(e)
 
@@ -159,6 +169,19 @@ def run_checks(runner=None) -> list[CheckResult]:
 
     if sys.platform == "win32":
         rc, out = runner(["wsl", "-e", "sh", "-c", _WSL_PROBE])
+        if rc == ZAMAN_ASIMI:
+            # `wsl --install` DEĞİL: wsl'in kendisi çalışıyor, yalnız yanıt
+            # vermedi (rc != 0 dalındaki dersin aynısı; o komut "zaten kurulu"
+            # deyip çıkıyor). Asılan dağıtımı kapatmak doğru adım.
+            results.append(CheckResult(
+                "WSL", "error", "yanıt vermedi (zaman aşımı)",
+                "wsl --shutdown   (ardından yeniden deneyin)",
+            ))
+            results.extend(
+                CheckResult(t, "error", "WSL yanıt vermediğinden denetlenemedi",
+                            f"sudo apt-get install {APT_HINTS[t]}")
+                for t in TOOLS)
+            return results
         if rc is None:
             results.append(CheckResult(
                 "WSL", "missing", out,
