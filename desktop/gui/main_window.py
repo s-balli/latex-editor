@@ -1319,6 +1319,15 @@ class MainWindow(
             self._update_thread.quit()
             self._update_thread.wait(6000)
         self._wait_background_writers()
+        # Kirli sekme sorulurken `setCurrentIndex` ile o sekmeye GEÇİLİYOR;
+        # döngü bitince `_save_state` aktif sekmeyi CARİ widget'tan okuyor ve
+        # kullanıcının üzerinde çalıştığı sekme yerine EN SON SORULAN kirli
+        # sekmeyi kaydediyordu. Ölçüldü (2026-09-05): birinci.tex'te çalışan
+        # kullanıcı, ikinci.tex kirliyken kapatınca bir sonraki açılışta
+        # ikinci.tex'te buluyordu kendini. İndis döngüden önce saklanıp
+        # sonrasında geri veriliyor. İPTAL yolunda geri VERİLMİYOR: kullanıcı
+        # vazgeçtiyse sorulan sekmede kalması doğru.
+        onceki_sekme = self._editor_tabs.currentIndex()
         # Kaydedilmemiş sekmeleri kontrol et
         for i in range(self._editor_tabs.count()):
             editor = self._editor_tabs.widget(i)
@@ -1335,6 +1344,8 @@ class MainWindow(
                     event.ignore()
                     return
                 # Discard → devam et
+        if 0 <= onceki_sekme < self._editor_tabs.count():
+            self._editor_tabs.setCurrentIndex(onceki_sekme)
         self._cleanup_synctex_worker()
         self._cleanup_project_search()
         self._cleanup_yazim()
