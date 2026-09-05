@@ -102,3 +102,93 @@ def test_ikinci_dil_gercek_en_US_ile(tr):
     finally:
         tr.ikincil = None
         tr._onbellek.clear()
+
+
+# =====================================================================
+# Yarim kalan acma KENDINI SURDURMEMELI
+#
+# `ac()` hedefe DOGRUDAN yaziyordu ve "acilmis dosya sikistirilmistan
+# yeniyse atla" diyordu. Yazma yarida kesilirse (Ctrl+C, dolu disk,
+# oldurulen yapim) hedef VAR ve mtime'i YENI; bir daha hic acilmiyor.
+#
+# OLCULDU (2026-09-05): ucte birine kirpilmis sozlukle gunluk on Turkce
+# kelimenin SEKIZI yanlis sayiliyor (kitap, universite, ogrenci,
+# matematik...). Yazim denetimi calisiyor gorunup neredeyse her kelimeyi
+# ciziyor, ve bozukluk her yapimda hayatta kaliyor.
+#
+# Testler GERCEK `sozlukler/` dizinine dokunmuyor: `sozluk_ac.DIZIN` gecici
+# bir kopyaya cevriliyor, yoksa yukaridaki `tr` fixture'i bozulurdu.
+# =====================================================================
+
+
+@pytest.fixture
+def gecici_sozluk(tmp_path, monkeypatch):
+    """`.xz`leri gecici bir dizine kopyala ve bir kez ac."""
+    import shutil
+
+    denek = tmp_path / "sozlukler"
+    denek.mkdir()
+    for ad in ("tr_TR.dic.xz", "tr_TR.aff.xz"):
+        kaynak = os.path.join(KOK, "sozlukler", ad)
+        if not os.path.exists(kaynak):
+            pytest.skip("sozlukler/%s yok" % ad)
+        shutil.copy2(kaynak, denek / ad)
+    monkeypatch.setattr(sozluk_ac, "DIZIN", str(denek))
+    assert sozluk_ac.ac(sessiz=True), "taze acma basarisiz"
+    return denek
+
+
+def _kirp(yol, bolen=3):
+    """Yarim kalan yazma taklidi: kirp ve mtime'i yenile."""
+    tam = os.path.getsize(yol)
+    with open(yol, "r+b") as f:
+        f.truncate(tam // bolen)
+    os.utime(yol, None)
+    return tam
+
+
+class TestYarimAcmaKendiniSurdurmuyor:
+
+    def test_kirpilmis_dosya_yeniden_aciliyor(self, gecici_sozluk):
+        hedef = gecici_sozluk / "tr_TR.dic"
+        tam = _kirp(str(hedef))
+        # önkoşul: mtime ölçütü olsaydı bu dosya "güncel" sayılırdı
+        assert (os.path.getmtime(hedef)
+                >= os.path.getmtime(str(hedef) + ".xz")), \
+            "vaka mtime tuzağını kurmuyor, test bir şey ölçmüyor"
+
+        sozluk_ac.ac(sessiz=True)
+        assert os.path.getsize(hedef) == tam
+
+    def test_guncel_dosya_yeniden_yazilmiyor(self, gecici_sozluk):
+        """Boyut doğruysa iş yapılmamalı; yapım her seferinde 8.6 MB yazmasın."""
+        hedef = gecici_sozluk / "tr_TR.dic"
+        onceki = os.path.getmtime(hedef)
+        sozluk_ac.ac(sessiz=True)
+        assert os.path.getmtime(hedef) == onceki
+
+    def test_olcut_mtime_DEGIL_boyut(self, gecici_sozluk):
+        """mtime çok eski olsa bile boyut doğruysa yeniden açılmamalı.
+
+        Karşı yön: ölçüt yanlışlıkla mtime'a dönerse burası kırmızı yanar.
+        """
+        hedef = gecici_sozluk / "tr_TR.dic"
+        os.utime(hedef, (0, 0))
+        sozluk_ac.ac(sessiz=True)
+        assert os.path.getmtime(hedef) == 0
+
+    def test_yarim_yazma_hedefe_ULASMIYOR(self, gecici_sozluk, monkeypatch):
+        """Atomiklik: `os.replace` patlarsa hedef oluşmamalı, `.tmp` kalmamalı."""
+        hedef = gecici_sozluk / "tr_TR.dic"
+        os.remove(hedef)
+
+        def patlayan(_a, _b):
+            raise OSError("yazma yarıda kesildi")
+
+        monkeypatch.setattr(sozluk_ac.os, "replace", patlayan)
+        with pytest.raises(OSError):
+            sozluk_ac.ac(sessiz=True)
+
+        assert not os.path.exists(hedef), "yarım dosya hedefe ulaştı"
+        kalinti = [a for a in os.listdir(gecici_sozluk) if a.endswith(".tmp")]
+        assert not kalinti, "geçici dosya temizlenmedi: %s" % kalinti

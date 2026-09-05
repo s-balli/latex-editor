@@ -26,27 +26,52 @@ import os
 import sys
 
 
+_KOK = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
 def _tek_dosya_icerigi(yol):
-    """Onefile exe: PyInstaller CArchive TOC'u."""
+    """Onefile exe: PyInstaller CArchive TOC'u. (ad, acilmis_boyut) verir."""
     from PyInstaller.archive.readers import CArchiveReader
-    return list(CArchiveReader(yol).toc)
+    # toc: ad -> (offset, veri_uzunlugu, ACILMIS_uzunluk, sikistirma, tur)
+    return [(ad, g[2]) for ad, g in CArchiveReader(yol).toc.items()]
 
 
 def _dizin_icerigi(kok):
-    """Onedir: dizin agacindaki goreli yollar."""
+    """Onedir: dizin agacindaki (goreli yol, boyut) ciftleri."""
     adlar = []
     for r, _d, fs in os.walk(kok):
         for f in fs:
-            adlar.append(os.path.relpath(os.path.join(r, f), kok))
+            tam = os.path.join(r, f)
+            adlar.append((os.path.relpath(tam, kok), os.path.getsize(tam)))
     return adlar
+
+
+def _beklenen_boyut(ad):
+    """`sozlukler/<ad>.xz`in acilmis boyutu; kaynak yoksa None.
+
+    Sabit bir esik yerine KAYNAKTAN hesaplaniyor: sozluk guncellenince
+    denetim kendiliginden guncel kaliyor.
+    """
+    yol = os.path.join(_KOK, "sozlukler", ad + ".xz")
+    if not os.path.exists(yol):
+        return None
+    import lzma
+    toplam = 0
+    with lzma.open(yol, "rb") as f:
+        while True:
+            parca = f.read(1 << 20)
+            if not parca:
+                return toplam
+            toplam += len(parca)
 
 
 def dogrula(yol: str) -> int:
     if os.path.isdir(yol):
-        adlar = _dizin_icerigi(yol)
+        girdiler = _dizin_icerigi(yol)
     else:
-        adlar = _tek_dosya_icerigi(yol)
-    duz = [a.replace("\\", "/") for a in adlar]
+        girdiler = _tek_dosya_icerigi(yol)
+    boyut = {a.replace("\\", "/"): b for a, b in girdiler}
+    duz = list(boyut)
 
     hata = []
 
@@ -58,6 +83,21 @@ def dogrula(yol: str) -> int:
         hata.append("tr_TR.dic pakete GIRMEMIS (spec sozlugu acamamis olabilir)")
     if not var_mi("sozlukler/tr_TR.aff"):
         hata.append("tr_TR.aff pakete GIRMEMIS")
+
+    # BOYUT DA DENETLENIYOR, yalniz varlik degil. Yarim acilmis bir sozluk
+    # pakete girip bu kapidan "paket tam" diye geciyordu; OLCULDU
+    # (2026-09-05): ucte birine kirpilmis .dic ile gunluk on Turkce
+    # kelimenin sekizi yanlis sayiliyor, yani yazim denetimi calisiyor
+    # gorunup neredeyse her kelimeyi ciziyor.
+    for ad in ("tr_TR.dic", "tr_TR.aff"):
+        # Tam eslesme: "sozlukler/tr_TR.dic.xz" de alt dize olarak icerir.
+        pakettekiler = [b for a, b in boyut.items()
+                        if a.endswith("sozlukler/" + ad)]
+        beklenen = _beklenen_boyut(ad)
+        if pakettekiler and beklenen is not None:
+            if max(pakettekiler) != beklenen:
+                hata.append("%s KIRPILMIS: pakette %d bayt, olmasi gereken %d"
+                            % (ad, max(pakettekiler), beklenen))
 
     # Ikinci dil: spylls'in kendi en_US'u. ILK DENEMEDE EKSIKTI.
     if not var_mi("spylls/hunspell/data/en/en_US.dic"):
@@ -75,7 +115,7 @@ def dogrula(yol: str) -> int:
             hata.append("spylls'in kullanilmayan sozlugu paketlenmis: %s"
                         % istenmeyen)
 
-    print("paket icerigi: %d girdi" % len(adlar))
+    print("paket icerigi: %d girdi" % len(duz))
     for a in sorted(var_mi("sozlukler/") + var_mi("spylls/hunspell/data/")):
         print("  bulundu: %s" % a)
 

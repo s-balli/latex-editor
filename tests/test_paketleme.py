@@ -28,6 +28,7 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 
 import pytest
@@ -363,3 +364,125 @@ def test_appimage_gomulu_python_surumu_sabit():
     # Windows exe'siyle AYNI sürüm olmalı
     mw = re.search(r"(?s)  build-windows:.*?(?=\n  \w|\Z)", kaynak)
     assert re.findall(r"python-version:\s*'([^']+)'", mw.group(0)) == ["3.12"]
+
+
+# ==========================================================================
+# Paket kapisi sozlugun VARLIGINA degil BOYUTUNA da bakmali
+#
+# `paket_dogrula.py` uzun sure yalniz "dosya pakette var mi" diye soruyordu.
+# Yarim acilmis bir sozluk (bkz. scripts/sozluk_ac.py) pakete girip bu
+# kapidan "paket tam" diye geciyordu. OLCULDU (2026-09-05): ucte birine
+# kirpilmis .dic ile gunluk on Turkce kelimenin sekizi yanlis sayiliyor,
+# yani yazim denetimi calisiyor gorunup neredeyse her kelimeyi ciziyor.
+#
+# Beklenen boyut sabit esik degil, `sozlukler/*.xz`den hesaplaniyor; sozluk
+# guncellenince denetim kendiliginden guncel kaliyor.
+# ==========================================================================
+
+import importlib.util as _importlib_util
+
+
+def _paket_dogrula():
+    yol = os.path.join(_KOK, "scripts", "paket_dogrula.py")
+    spec = _importlib_util.spec_from_file_location("paket_dogrula", yol)
+    mod = _importlib_util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _sahte_paket(kok, dic_bayt=None):
+    """Onedir bicimli, digerleri TAM bir paket agaci kur.
+
+    `dic_bayt` verilirse `tr_TR.dic` o boyuta kirpilir.
+    """
+    import shutil
+
+    os.makedirs(os.path.join(kok, "sozlukler"), exist_ok=True)
+    os.makedirs(os.path.join(kok, "spylls", "hunspell", "data", "en"),
+                exist_ok=True)
+    for ad in ("tr_TR.dic", "tr_TR.aff"):
+        kaynak = os.path.join(_KOK, "sozlukler", ad)
+        hedef = os.path.join(kok, "sozlukler", ad)
+        shutil.copy2(kaynak, hedef)
+    if dic_bayt is not None:
+        with open(os.path.join(kok, "sozlukler", "tr_TR.dic"), "r+b") as f:
+            f.truncate(dic_bayt)
+    for ad in ("en_US.dic", "en_US.aff"):
+        # İkili mod: bunlar yalnızca "dosya var mı" denetimi için yer tutucu.
+        open(os.path.join(kok, "spylls", "hunspell", "data", "en", ad),
+             "wb").close()
+    return kok
+
+
+@pytest.fixture(scope="module")
+def _sozluk_hazir():
+    """Ham `.dic`/`.aff` elde olmali; yoksa `.xz`den ac."""
+    sys.path.insert(0, os.path.join(_KOK, "scripts"))
+    import sozluk_ac
+    if not sozluk_ac.ac(sessiz=True):
+        pytest.skip("sozlukler/tr_TR.dic yok ve .xz'den acilamadi")
+
+
+class TestPaketSozlukBoyutu:
+
+    def test_tam_sozluk_temiz_geciyor(self, tmp_path, _sozluk_hazir):
+        pd = _paket_dogrula()
+        assert pd.dogrula(_sahte_paket(str(tmp_path / "tam"))) == 0
+
+    def test_kirpilmis_sozluk_YAKALANIYOR(self, tmp_path, capsys,
+                                          _sozluk_hazir):
+        pd = _paket_dogrula()
+        tam = os.path.getsize(os.path.join(_KOK, "sozlukler", "tr_TR.dic"))
+        paket = _sahte_paket(str(tmp_path / "kirpik"), dic_bayt=tam // 3)
+        rc = pd.dogrula(paket)
+        cikti = capsys.readouterr().out
+        assert rc != 0, "kirpilmis sozluk temiz sayildi"
+        assert "KIRPILMIS" in cikti, cikti
+
+    def test_beklenen_boyut_KAYNAKTAN_hesaplaniyor(self, _sozluk_hazir):
+        """Sabit esik olsaydi sozluk guncellenince sessizce yanlislasirdi."""
+        pd = _paket_dogrula()
+        beklenen = pd._beklenen_boyut("tr_TR.dic")
+        gercek = os.path.getsize(os.path.join(_KOK, "sozlukler", "tr_TR.dic"))
+        assert beklenen == gercek
+
+    def test_kaynak_yoksa_denetim_sessizce_atlaniyor(self, tmp_path,
+                                                     monkeypatch,
+                                                     _sozluk_hazir):
+        """Betik depo disindan kosturulursa boyut denetimi yapilamaz.
+
+        O durumda kapi patlamamali, yalnizca boyut denetimini atlamali.
+        """
+        pd = _paket_dogrula()
+        monkeypatch.setattr(pd, "_KOK", str(tmp_path / "olmayan"))
+        tam = os.path.getsize(os.path.join(_KOK, "sozlukler", "tr_TR.dic"))
+        paket = _sahte_paket(str(tmp_path / "p"), dic_bayt=tam // 3)
+        assert pd.dogrula(paket) == 0
+
+    def test_xz_alt_dize_karismasi_yok(self, tmp_path, capsys, _sozluk_hazir):
+        """`sozlukler/tr_TR.dic.xz` adi `.dic`i ALT DIZE olarak iceriyor.
+
+        Boyut karsilastirmasi TAM eslesmeyle yapilmali. Alt dize kullanilirsa
+        `.xz`in SIKISTIRILMIS boyutu, `.dic`in acilmis boyutuyla
+        karsilastirilir ve kapi uydurma bir "KIRPILMIS" hatasi basar.
+
+        Ayrim ancak `.dic` YOKKEN `.xz` VARKEN goruluyor: ikisi birden varsa
+        dogru boyut da listede oldugu icin fark kapaniyor. Vaka o yuzden bu
+        sekilde kuruluyor (olculdu 2026-09-05).
+        """
+        import shutil
+
+        pd = _paket_dogrula()
+        paket = _sahte_paket(str(tmp_path / "xzli"))
+        os.remove(os.path.join(paket, "sozlukler", "tr_TR.dic"))
+        shutil.copy2(os.path.join(_KOK, "sozlukler", "tr_TR.dic.xz"),
+                     os.path.join(paket, "sozlukler", "tr_TR.dic.xz"))
+
+        rc = pd.dogrula(paket)
+        cikti = capsys.readouterr().out
+        assert rc != 0, "`.xz` olu agirligi hata olmali"
+        # Asil sorun `.xz`in pakete girmesi; uydurma bir boyut hatasi degil.
+        assert "olu agirlik" in cikti, cikti
+        assert "KIRPILMIS" not in cikti, (
+            "sikistirilmis dosyanin boyutu acilmis boyutla karsilastirilmis:\n"
+            + cikti)

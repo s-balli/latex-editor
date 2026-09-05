@@ -54,14 +54,33 @@ def ac(sessiz: bool = False) -> bool:
                 continue                     # ham dosya elde, sikistirilmisi yok
             tamam = False
             continue
-        # Acilmis dosya sikistirilmistan yeniyse tekrar acma
-        if (os.path.exists(hedef)
-                and os.path.getmtime(hedef) >= os.path.getmtime(kaynak)):
-            continue
         with lzma.open(kaynak, "rb") as f:
             veri = f.read()
-        with open(hedef, "wb") as f:
-            f.write(veri)
+        # GUNCELLIK OLCUTU BOYUT, mtime DEGIL. Eskiden "acilmis dosya
+        # sikistirilmistan yeniyse atla" deniyordu ve yarim kalan bir yazma
+        # (Ctrl+C, dolu disk, oldurulen yapim) KENDINI SURDURUYORDU: hedef
+        # var, mtime'i yeni, bir daha hic acilmiyor. OLCULDU (2026-09-05):
+        # ucte birine kirpilmis sozlukle gunluk on Turkce kelimenin SEKIZI
+        # yanlis sayiliyor (kitap, universite, ogrenci, matematik...), yani
+        # yazim denetimi neredeyse her kelimeyi ciziyor.
+        #
+        # Acmanin maliyeti olculdu: .dic 106 ms, .aff 9 ms. Yapim adiminda
+        # bu bedel, sessizce bozuk kalan bir sozluge degmez.
+        if os.path.exists(hedef) and os.path.getsize(hedef) == len(veri):
+            continue
+        # ATOMIK YAZMA: yarim kalan yazi hedefe hic ulasmiyor (bkz.
+        # gui/editor.py:_write_atomic, ayni desen).
+        gecici = hedef + ".tmp"
+        try:
+            with open(gecici, "wb") as f:
+                f.write(veri)
+            os.replace(gecici, hedef)
+        except OSError:
+            try:
+                os.unlink(gecici)
+            except OSError:
+                pass
+            raise
         if not sessiz:
             print("  acildi: sozlukler/%s (%.1f MB)" % (ad, len(veri) / 1048576))
 
