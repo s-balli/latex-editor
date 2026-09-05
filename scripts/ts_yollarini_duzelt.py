@@ -25,8 +25,19 @@ import io
 import re
 import sys
 
-# `.../<herhangi bir kök>/desktop/<gercek yol>` -> `../<gercek yol>`
-_RE_KONUM = re.compile(r'(<location filename=")([^"]*?)/desktop/([^"]+)(")')
+# `.ts` dosyası `desktop/translations/` altında duruyor; yollar ONA göre
+# yazılıyor. `desktop/` altındakiler için bir üst dizin yeter, depo kökündeki
+# diğer paketler (`core/`) için iki üst dizin gerekiyor.
+#
+# `core` LİSTEYE SONRADAN EKLENDİ: update_translations.sh yalnız `desktop/`
+# besliyordu ve core/compiler.py'nin dört kullanıcı mesajı katalogda hiç yoktu
+# (ölçüldü 2026-09-05). Dosya beslenmeye başlayınca yolu da yeniden yazılmalı,
+# yoksa `.ts`e her koşuda değişen `mktemp` dizini yazılır ve bu betiğin
+# engellemek için var olduğu ~1800 satırlık gürültü geri gelir.
+_KOKLER = {"desktop": "..", "core": "../../core"}
+_RE_KONUM = re.compile(
+    r'(<location filename=")([^"]*?)/(%s)/([^"]+)(")'
+    % "|".join(sorted(_KOKLER)))
 
 
 def duzelt(metin: str) -> "tuple[str, int]":
@@ -35,7 +46,8 @@ def duzelt(metin: str) -> "tuple[str, int]":
     def _degistir(m):
         nonlocal sayac
         sayac += 1
-        return "%s../%s%s" % (m.group(1), m.group(3), m.group(4))
+        return "%s%s/%s%s" % (m.group(1), _KOKLER[m.group(3)],
+                              m.group(4), m.group(5))
 
     return _RE_KONUM.sub(_degistir, metin), sayac
 

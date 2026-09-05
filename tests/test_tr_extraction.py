@@ -159,10 +159,19 @@ def _katalog_kaynaklari() -> set[str]:
     return canli
 
 
+# Kapının taradığı ağaçlar, `update_translations.sh`in beslediğiyle AYNI
+# olmalı. `core` SONRADAN eklendi: ikisi de yalnız `desktop/`e bakıyordu ve
+# core/compiler.py'nin dört kullanıcı mesajı katalogda hiç yoktu. Kapı da aynı
+# kör noktada olduğu için bunu göremiyordu (ölçüldü 2026-09-05: `Compiler`
+# bağlamı iki `.ts` dosyasında da yok, mesajlar Windows'ta WSL kurulu
+# değilken Log ve Öneriler sekmelerinde Türkçe çıkıyordu).
+_TARANAN = ["desktop/gui", "desktop/main.py", "core"]
+
+
 def _kaynak_dizgeleri() -> list[tuple[str, int, str]]:
     """Koddaki tüm _( "sabit" ) çağrıları: (dosya, satır, metin)."""
     ciktilar = subprocess.run(
-        ["git", "ls-files", "desktop/gui", "desktop/main.py"],
+        ["git", "ls-files"] + _TARANAN,
         cwd=_REPO, capture_output=True, text=True, check=True, encoding="utf-8").stdout.split()
     bulunan = []
     for rel in ciktilar:
@@ -253,3 +262,217 @@ def test_qm_ts_ile_senkron():
     assert not uyusmayan, (
         f".qm, .ts ile senkron değil ({len(uyusmayan)}/{kontrol} mesaj). "
         "lrelease koşulmamış olabilir:\n" + "\n".join(uyusmayan[:10]))
+
+
+# =====================================================================
+# Kapının KAPSAMI: çeviri kısayolu tanımlayan her dosya taranmalı
+#
+# ÖLÇÜLEN KUSUR (2026-09-05): `core/compiler.py` çeviri kısayolunu tanımlıyor
+# ve dört kullanıcı mesajını onunla sarıyor, ama `update_translations.sh`
+# yalnız `desktop/gui*` + `desktop/main.py` besliyordu. Sonuç: `Compiler`
+# bağlamı iki `.ts` dosyasında da YOKTU ve Windows'ta WSL kurulu değilken
+# Log sekmesinde Türkçe mesaj çıkıyordu, yani yeni bir kullanıcının ilk
+# derlemesinde.
+#
+# Yukarıdaki `test_tum_cevrilebilir_dizgeler_katalogda` bunu göremiyordu,
+# çünkü O DA aynı dar kümeye bakıyordu. Kapının kendi kapsamını denetleyen
+# bir şey olmadan aynı kaçak yeni bir pakette sessizce tekrarlanır.
+# =====================================================================
+
+# Depoda taranmayacak ağaçlar: yedek, pasif ve üçüncü taraf.
+_HARIC = {"tmp", "web", "template", "tests", "node_modules", "__pycache__",
+          "build", "dist", "scripts"}
+
+
+def _kisayol_tanimlayan_dosyalar() -> list[str]:
+    """Çeviri kısayolu tanımlayan VE en az bir sabit `_()` çağrısı olanlar."""
+    ciktilar = subprocess.run(
+        ["git", "ls-files"], cwd=_REPO, capture_output=True, text=True,
+        check=True, encoding="utf-8").stdout.split()
+    bulunan = []
+    for rel in ciktilar:
+        if not rel.endswith(".py"):
+            continue
+        if rel.split("/")[0] in _HARIC:
+            continue
+        try:
+            tree = ast.parse((_REPO / rel).read_text(encoding="utf-8"))
+        except (SyntaxError, UnicodeDecodeError, OSError):
+            continue
+        if not extract_tr.bul_baglam(tree):
+            continue
+        if extract_tr.topla(tree)[0]:
+            bulunan.append(rel)
+    return bulunan
+
+
+def _taranan_kapsiyor_mu(rel: str) -> bool:
+    return any(rel == t or rel.startswith(t.rstrip("/") + "/")
+               for t in _TARANAN)
+
+
+def test_kisayol_tanimlayan_her_dosya_kapinin_kapsaminda():
+    """Yeni bir paket eklenip beslenmezse burada kırmızı yansın.
+
+    Kırılırsa: dosyanın ağacını hem `_TARANAN`a hem de
+    `scripts/update_translations.sh`teki `find` listesine ekleyin, sonra
+    WSL/Linux'ta `PATH=/usr/lib/qt6/bin:$PATH bash scripts/update_translations.sh`
+    koşturup yeni `unfinished` girdileri doldurun. `core/` dışında yeni bir
+    kök eklenirse `scripts/ts_yollarini_duzelt.py:_KOKLER` de güncellenmeli.
+    """
+    dosyalar = _kisayol_tanimlayan_dosyalar()
+    # önkoşul: tarama gerçekten bir şey buluyor olmalı
+    assert len(dosyalar) > 20, (
+        "yalnız %d dosya bulundu, tarama bozuk olabilir" % len(dosyalar))
+    disarida = [d for d in dosyalar if not _taranan_kapsiyor_mu(d)]
+    assert not disarida, (
+        "çevrilebilir dizge taşıyan ama kapının taramadığı dosyalar:\n  "
+        + "\n  ".join(disarida))
+
+
+def test_core_compiler_kapsamda():
+    """Kusurun çıktığı dosya adıyla sabitleniyor (kapsam daralırsa görünür)."""
+    assert _taranan_kapsiyor_mu("core/compiler.py")
+    assert "core/compiler.py" in _kisayol_tanimlayan_dosyalar()
+
+
+def test_kapi_ve_arac_zinciri_AYNI_agaclara_bakiyor():
+    """`_TARANAN` ile `update_translations.sh`in beslediği küme ayrışmasın.
+
+    İkisi ayrışırsa kapı yeşil kalırken katalog eksik kalır; kusur tam
+    olarak buydu (ikisi de dar, ikisi de aynı yönde yanlış).
+    """
+    betik = (_REPO / "scripts" / "update_translations.sh").read_text(
+        encoding="utf-8")
+    m = re.search(r"for src in \$\(find ([^)]*?) -name", betik)
+    assert m, "update_translations.sh içindeki find satırı bulunamadı"
+    besleyen = set(m.group(1).split())
+    # `desktop/main.py` find'in dışında, döngü satırının sonunda duruyor
+    assert "desktop/main.py" in betik
+    besleyen.add("desktop/main.py")
+    assert besleyen == set(_TARANAN), (
+        "kapı %s tarıyor, betik %s besliyor" % (sorted(_TARANAN),
+                                                sorted(besleyen)))
+
+
+# =====================================================================
+# Parçalardan kurulan cümle: çevirmen bağlamı göremiyor
+#
+# ÖLÇÜLEN KUSUR (2026-09-05): `synctex_ops.py` durum mesajını
+# `"SyncTeX: " + _("Satır") + ...` diye kuruyordu. Çevirmene bağlamsız tek
+# bir "Satır" kelimesi gidiyor; katalogda "Row" olarak çevrilmişti ve
+# İngilizce arayüzde "SyncTeX: Row 42 → Page 3" yazıyordu. "Row" tablo
+# satırı demek. Aynı tuzak imleç konumunda da vardı ("Row 12, Column 4").
+# =====================================================================
+
+_QM_EN2 = _REPO / "desktop" / "translations" / "latexeditor_en.qm"
+
+
+@pytest.fixture(scope="module")
+def ceviri():
+    """Kurulu bir QTranslator üzerinden İngilizce çeviri fonksiyonu."""
+    QtWidgets = pytest.importorskip("PyQt6.QtWidgets")
+    QtCore = pytest.importorskip("PyQt6.QtCore")
+    if not _QM_EN2.exists():
+        pytest.skip("derlenmiş .qm yok")
+    app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+    t = QtCore.QTranslator()
+    assert t.load(str(_QM_EN2)), _QM_EN2
+    app.installTranslator(t)
+    yield lambda ctx, s: QtCore.QCoreApplication.translate(ctx, s)
+    app.removeTranslator(t)
+
+
+@pytest.mark.parametrize("sablon,par,beklenen", [
+    ("SyncTeX: Satır {satir} → Sayfa {sayfa}",
+     {"satir": 42, "sayfa": 3}, "SyncTeX: Line 42 → Page 3"),
+    ("SyncTeX: Sayfa {sayfa} → {dosya}:{satir}",
+     {"sayfa": 3, "dosya": "main.tex", "satir": 42},
+     "SyncTeX: Page 3 → main.tex:42"),
+])
+def test_synctex_durum_mesaji_ingilizce_dogru(ceviri, sablon, par, beklenen):
+    assert ceviri("SyncTexMixin", sablon).format(**par) == beklenen
+
+
+def test_kaynak_satiri_Row_diye_cevrilmiyor():
+    """'Row' yalnız GERÇEK tablo satırında doğru.
+
+    Bağlamsız tek kelime çevrildiğinde "satır" tablo satırı sanılıyor.
+    TableWizardDialog'da doğru; başka hiçbir canlı girdide olmamalı.
+    """
+    import xml.etree.ElementTree as ET
+
+    kotu = []
+    for ctx in ET.parse(_TS_EN).getroot().findall("context"):
+        ad = ctx.findtext("name") or ""
+        for msg in ctx.findall("message"):
+            tr = msg.find("translation")
+            if tr is None or tr.get("type") in ("vanished", "obsolete"):
+                continue
+            if (tr.text or "") == "Row" and ad != "TableWizardDialog":
+                kotu.append((ad, msg.findtext("source")))
+    assert not kotu, (
+        "kaynak satırı 'Row' diye çevrilmiş (doğrusu 'Line'): %s" % kotu)
+
+
+def _formatlanan_dizgeler() -> set[str]:
+    """Kodda `_("...").format(...)` diye kullanılan dizgeler.
+
+    YALNIZ bunlar sınanabilir. Katalogda `{ad}` geçen her dizge yer tutucu
+    değil: `"\\begin{ad}'a \\end{ad} otomatik kapanır"` düz LaTeX metni ve
+    çevirisinde `{name}` olması DOĞRU. Kaynağa bakmadan ikisi ayrılamıyor.
+    """
+    bulunan = set()
+    for rel in subprocess.run(
+            ["git", "ls-files"] + _TARANAN, cwd=_REPO, capture_output=True,
+            text=True, check=True, encoding="utf-8").stdout.split():
+        if not rel.endswith(".py"):
+            continue
+        try:
+            tree = ast.parse((_REPO / rel).read_text(encoding="utf-8"))
+        except (SyntaxError, UnicodeDecodeError, OSError):
+            continue
+        for n in ast.walk(tree):
+            if not (isinstance(n, ast.Call)
+                    and isinstance(n.func, ast.Attribute)
+                    and n.func.attr == "format"):
+                continue
+            ic = n.func.value
+            if (isinstance(ic, ast.Call) and isinstance(ic.func, ast.Name)
+                    and ic.func.id == "_" and len(ic.args) == 1
+                    and isinstance(ic.args[0], ast.Constant)
+                    and isinstance(ic.args[0].value, str)):
+                bulunan.add(ic.args[0].value)
+    return bulunan
+
+
+def test_ceviriler_yer_tutuculari_koruyor():
+    """`{ad}` yer tutucusu düşerse `.format()` KeyError atar, mesaj kaybolur.
+
+    Parçalı cümleleri tek parçaya çevirmek yer tutucu kullanmayı yaygın
+    hâle getiriyor; bu kapı onunla birlikte gelmeli.
+    """
+    import xml.etree.ElementTree as ET
+
+    formatlanan = _formatlanan_dizgeler()
+    desen = re.compile(r"\{([a-zA-Z_][a-zA-Z_0-9]*)\}")
+    kotu = []
+    kontrol = 0
+    for ctx in ET.parse(_TS_EN).getroot().findall("context"):
+        ad = ctx.findtext("name") or ""
+        for msg in ctx.findall("message"):
+            tr = msg.find("translation")
+            if tr is None or tr.get("type") in ("unfinished", "vanished",
+                                                "obsolete"):
+                continue
+            kaynak, hedef = msg.findtext("source") or "", tr.text or ""
+            if kaynak not in formatlanan:
+                continue
+            k = set(desen.findall(kaynak))
+            if not k:
+                continue
+            kontrol += 1
+            if k != set(desen.findall(hedef)):
+                kotu.append((ad, kaynak, hedef))
+    assert kontrol > 5, "yer tutuculu girdi az, tarama bozuk olabilir"
+    assert not kotu, "çeviride yer tutucu kaybolmuş/değişmiş: %s" % kotu

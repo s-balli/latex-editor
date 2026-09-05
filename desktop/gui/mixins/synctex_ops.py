@@ -63,7 +63,16 @@ class SyncTexMixin:
                 result.left, result.width, result.height,
             )
             if not quiet:
-                self._status.showMessage("SyncTeX: " + _("Satır") + " " + str(line) + " → " + _("Sayfa") + " " + str(result.page))
+                # Cümle TEK PARÇA çevriliyor. Eskiden parçalardan kuruluyordu
+                # ("SyncTeX: " + _("Satır") + ...) ve çevirmene bağlamsız tek
+                # bir "Satır" kelimesi gidiyordu: katalogda "Row" olarak
+                # çevrilmişti, yani İngilizce arayüzde "SyncTeX: Row 42 →
+                # Page 3" yazıyordu. "Row" tablo satırı demek; burada
+                # kastedilen kaynak satırı, yani "Line". Bütün cümleyi
+                # görmeyen çevirmen bunu bilemez.
+                self._status.showMessage(
+                    _("SyncTeX: Satır {satir} → Sayfa {sayfa}").format(
+                        satir=line, sayfa=result.page))
         else:
             _logger.info("SyncTeX forward eşleşme yok: %s:%d", os.path.basename(tex_path), line)
             if not quiet:
@@ -83,8 +92,9 @@ class SyncTexMixin:
             _logger.info("SyncTeX reverse: sayfa %d → %s:%d", page, os.path.basename(result.file_path), result.line)
             self._goto_line(result.file_path, result.line)
             self._status.showMessage(
-                "SyncTeX: " + _("Sayfa") + " " + str(page) + " → " + os.path.basename(result.file_path) + ":" + str(result.line)
-            )
+                _("SyncTeX: Sayfa {sayfa} → {dosya}:{satir}").format(
+                    sayfa=page, dosya=os.path.basename(result.file_path),
+                    satir=result.line))
         else:
             _logger.info("SyncTeX reverse eşleşme yok: sayfa %d", page)
             self._status.showMessage(_("SyncTeX: Eşleşme bulunamadı"))

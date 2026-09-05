@@ -37,7 +37,13 @@ TMPDIR=$(mktemp -d)
 trap "rm -rf $TMPDIR" EXIT
 
 echo "=== Kaynak dosyalar hazırlanıyor ==="
-for src in $(find desktop/gui desktop/gui/mixins desktop/gui/pdf_viewer_mixins -name "*.py" -not -path "*__pycache__*") desktop/main.py; do
+# core/ DE BESLENIYOR: core/compiler.py ceviri kisayolunu tanimliyor ve
+# dort kullanici mesajini onunla sariyor, ama uzun sure yalniz desktop/
+# taraniyordu. Sonuc: "Compiler" baglami katalogda hic yoktu ve WSL
+# bulunamadiginda Ingilizce arayuzde Turkce mesaj cikiyordu (olculdu
+# 2026-09-05). Yeni bir paket eklenirse ts_yollarini_duzelt.py:_KOKLER
+# de guncellenmeli, yoksa .ts gecici dizin yolu tasir.
+for src in $(find desktop/gui core -name "*.py" -not -path "*__pycache__*") desktop/main.py; do
     tmp="$TMPDIR/$src"
     mkdir -p "$(dirname "$tmp")"
     python3 "$SCRIPT_DIR/extract_tr.py" "$src" "$tmp"
@@ -47,7 +53,7 @@ echo "=== Çeviri dosyaları güncelleniyor ==="
 echo "Diller: $LANGS"
 echo ""
 
-SRC_FILES=$(find "$TMPDIR/desktop/gui" "$TMPDIR/desktop/gui/mixins" "$TMPDIR/desktop/gui/pdf_viewer_mixins" -name "*.py" -not -path "*__pycache__*" 2>/dev/null)
+SRC_FILES=$(find "$TMPDIR/desktop/gui" "$TMPDIR/core" -name "*.py" -not -path "*__pycache__*" 2>/dev/null)
 SRC_FILES="$SRC_FILES $TMPDIR/desktop/main.py"
 
 for lang in $LANGS; do
