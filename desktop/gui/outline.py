@@ -55,6 +55,46 @@ def _baslik_oku(text: str, i: int) -> str | None:
         j += 1
     return None
 
+# Sözel ortamların İÇİ taranmamalı: içerideki bölüm komutu bir örnek, gerçek
+# bölüm değil. ÖLÇÜLDÜ (2026-09-05): paketlenmiş şablonlardan ikisi
+# (mnras_guide, pasj02_usage) `\begin{verbatim}` içinde bölüm komutu
+# anlatıyor ve anahatta 11 sahte başlık çıkıyordu; tıklanınca kullanıcı kod
+# örneğine gidiyordu.
+#
+# Kapanmamış ortam metnin sonuna kadar sözel sayılıyor (`\Z`): LaTeX de
+# oradan sonrasını yutuyor, yarım blok yüzünden sahte başlık üretmek daha
+# kötü olurdu.
+_SOZEL_ORTAMLAR = ("verbatim", "Verbatim", "lstlisting", "minted", "alltt")
+_RE_SOZEL = re.compile(
+    r"\\begin\{(" + "|".join(_SOZEL_ORTAMLAR) + r")\*?\}"
+    r"(.*?)(?:\\end\{\1\*?\}|\Z)", re.S)
+
+
+def _sozel_araliklar(text: str) -> list:
+    """Sözel ortam içeriklerinin (başlangıç, bitiş) offsetleri."""
+    return [(m.start(2), m.end(2)) for m in _RE_SOZEL.finditer(text)]
+
+
+def _yorum_var_mi(parca: str) -> bool:
+    r"""Parçada KAÇIŞSIZ bir `%` var mı.
+
+    `\%` yorum başlatmaz, basılı yüzde işaretidir; ham `'%' in parca`
+    denetimi onu yorum sanıp aynı satırdaki bölümü anahattan düşürüyordu.
+    `_baslik_oku` ters bölü kaçışlarını zaten doğru ele alıyor; bu denetim
+    o dersi almamıştı.
+    """
+    i, n = 0, len(parca)
+    while i < n:
+        c = parca[i]
+        if c == '\\':
+            i += 2
+            continue
+        if c == '%':
+            return True
+        i += 1
+    return False
+
+
 _LEVEL = {
     'part': 0,
     'chapter': 1,
@@ -150,6 +190,7 @@ class OutlinePanel(QWidget):
         self._tree.clear()
         self._items = []
 
+        sozel = _sozel_araliklar(text)
         stack = []
         # Satır numaraları artımlı sayılır: her eşleşme için metnin başından
         # yeniden saymak (text[:m.start()].count) bölüm sayısıyla çarpılan
@@ -160,8 +201,11 @@ class OutlinePanel(QWidget):
             # Yorum içinde mi kontrol et
             line_start = text.rfind('\n', 0, match.start()) + 1
             line_text = text[line_start:match.start()]
-            if '%' in line_text:
+            if _yorum_var_mi(line_text):
                 continue
+
+            if any(a <= match.start() < b for a, b in sozel):
+                continue                # verbatim/lstlisting örneği
 
             ham_baslik = _baslik_oku(text, match.end())
             if ham_baslik is None:

@@ -195,3 +195,126 @@ def test_yorumdaki_bolum_kisa_baslikliyken_de_atlaniyor(qapp):
     p = OutlinePanel(theme=THEMES["dark"])
     p.update_outline("% \\chapter[K]{Yorumda}\n\\section{Gercek}\n")
     assert [i.text(0) for i in p._items] == ["Gercek"]
+
+
+# =====================================================================
+# Anahat taraması: sözel ortamlar ve kaçışlı yüzde (2026-09-05)
+#
+# F1. Tarama yalnız `%` yorumunu atlıyordu; verbatim/lstlisting/minted
+#     içindeki ÖRNEK bölüm komutları gerçek bölüm sanılıyordu. Ölçüldü:
+#     paketlenmiş şablonların ikisi (mnras_guide, pasj02_usage) bölüm
+#     komutunu `\begin{verbatim}` içinde ANLATIYOR ve anahatta 11 sahte
+#     başlık çıkıyordu; tıklanınca kullanıcı kod örneğine gidiyordu.
+#
+# F2. Yorum denetimi ham `'%' in line_text` idi. LaTeX'te `\%` yorum
+#     başlatmaz. Aynı satırda bölümden önce bir `\%` geçerse bölüm anahattan
+#     düşüyordu. Aynı dosyadaki `_baslik_oku` kaçışları zaten doğru ele
+#     alıyordu; yorum denetimi o dersi almamıştı.
+# =====================================================================
+
+_SOZEL_VAKALAR = [
+    ("verbatim", "verbatim"),
+    ("Verbatim", "Verbatim"),
+    ("lstlisting", "lstlisting"),
+    ("minted}{python", "minted"),
+    ("alltt", "alltt"),
+]
+
+
+@pytest.mark.parametrize("acilis,kapanis", _SOZEL_VAKALAR)
+def test_sozel_ortamdaki_bolum_anahatta_CIKMIYOR(qapp, acilis, kapanis):
+    """Kırılırsa: `_sozel_araliklar` o ortamı tanımıyor demektir."""
+    p = OutlinePanel(theme=THEMES["dark"])
+    p.update_outline("\\section{Gercek}\n"
+                     "\\begin{%s}\n\\subsection{Ornek}\n\\end{%s}\n"
+                     "\\section{Ikinci}\n" % (acilis, kapanis))
+    assert [i.text(0) for i in p._items] == ["Gercek", "Ikinci"]
+
+
+def test_sozel_ortam_YILDIZLI_ve_ardisik_bloklar(qapp):
+    p = OutlinePanel(theme=THEMES["dark"])
+    p.update_outline(
+        "\\section{A}\n\\begin{verbatim*}\n\\section{X}\n\\end{verbatim*}\n"
+        "\\section{B}\n\\begin{lstlisting}\n\\section{Y}\n\\end{lstlisting}\n"
+        "\\section{C}\n")
+    assert [i.text(0) for i in p._items] == ["A", "B", "C"]
+
+
+def test_kapanmamis_sozel_ortam_sonrasini_YUTUYOR(qapp):
+    """LaTeX de yutuyor; yarım bloktan sahte başlık üretmek daha kötü."""
+    p = OutlinePanel(theme=THEMES["dark"])
+    p.update_outline("\\section{A}\n\\begin{verbatim}\n\\section{X}\n")
+    assert [i.text(0) for i in p._items] == ["A"]
+
+
+def test_sozel_ortam_DISINDAKI_bolum_korunuyor(qapp):
+    """Karşı durum: aşırı düzeltme (her şeyi atla) burada kırılır."""
+    p = OutlinePanel(theme=THEMES["dark"])
+    p.update_outline(
+        "\\begin{verbatim}\nkod\n\\end{verbatim}\n\\section{A}\n"
+        "\\subsection{B}\n")
+    assert [i.text(0) for i in p._items] == ["A", "B"]
+    p.update_outline("verbatim kelimesi metinde\n\\section{A}\n")
+    assert [i.text(0) for i in p._items] == ["A"]
+
+
+def test_sozel_tarama_SABLONLARDA_gercekten_is_goruyor(qapp):
+    """Kapı boş koşmasın: korpusta gerçekten sözel içi bölüm olmalı.
+
+    Şablonlar değişip bu vakalar kaybolursa yukarıdaki sentetik testler
+    yeşil kalır ama korpus artık hiçbir şey kanıtlamaz; burası onu söyler.
+    """
+    import pathlib
+    import re
+    from gui.outline import _sozel_araliklar
+
+    kok = pathlib.Path(__file__).resolve().parents[1] / "template"
+    if not kok.is_dir():
+        pytest.skip("template dizini yok")
+
+    re_bas = re.compile(
+        r'\\(part|chapter|section|subsection|subsubsection'
+        r'|paragraph|subparagraph)\*?\s*(?:\[[^\]]*\])?\s*\{')
+    icerideki = 0
+    for yol in kok.rglob("*.tex"):
+        metin = yol.read_text(encoding="utf-8", errors="replace")
+        araliklar = _sozel_araliklar(metin)
+        if not araliklar:
+            continue
+        icerideki += sum(1 for m in re_bas.finditer(metin)
+                         if any(a <= m.start() < b for a, b in araliklar))
+
+    assert icerideki >= 10, \
+        "korpusta sözel içi bölüm kalmamış (%d), kapı boş koşuyor" % icerideki
+
+
+@pytest.mark.parametrize("parca,beklenen", [
+    ("", False),
+    ("abc", False),
+    ("%", True),
+    ("\\%", False),          # kaçışlı yüzde YORUM DEĞİL
+    ("\\\\%", True),         # `\\` satır sonu, ardından yorum
+    ("a \\% b % c", True),
+    ("\\%\\%", False),
+    ("\\", False),
+])
+def test_yorum_var_mi_kacisi_biliyor(parca, beklenen):
+    from gui.outline import _yorum_var_mi
+    assert _yorum_var_mi(parca) is beklenen
+
+
+@pytest.mark.parametrize("kaynak,beklenen", [
+    ("\\%20 indirim \\section{Giris}\n", ["Giris"]),
+    ("\\section{Kar \\%20} \\subsection{Detay}\n", ["Kar \\%20", "Detay"]),
+    ("\\textbackslash\\%5 \\section{A}\n", ["A"]),
+    # KONTROL: gerçek yorumlar hâlâ atlanmalı
+    ("% \\section{Y}\n", []),
+    ("metin % \\section{Y}\n", []),
+    ("a \\\\% \\section{Y}\n", []),
+    ("% yorum\n\\section{A}\n", ["A"]),
+])
+def test_kacisli_yuzde_bolumu_DUSURMUYOR(qapp, kaynak, beklenen):
+    """Kırılırsa: yorum denetimi kaçışı yeniden unutmuş demektir."""
+    p = OutlinePanel(theme=THEMES["dark"])
+    p.update_outline(kaynak)
+    assert [i.text(0) for i in p._items] == beklenen
