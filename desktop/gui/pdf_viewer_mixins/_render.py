@@ -83,11 +83,14 @@ class PdfRenderMixin:
             return True
         except Exception:
             _logger.error("PDF yüklenemedi: %s", path, exc_info=True)
-            self._pdf = None
-            self._render_gen += 1
-            self._render_worker.open_document("", self._render_gen)
-            self._search_worker.open_document("", self._render_gen)
-            self._clear_pages()
+            # TAM temizlik: eskiden burada yalnız `_clear_pages()` vardı, o da
+            # sadece etiketleri ve yerleşimi atıyordu. ÖNCEKİ belgenin durumu
+            # kalıyordu (ölçüldü): sayfa sayacı "Sayfa 1 / 3" demeye devam
+            # ediyor ve "Farklı Kaydet" etkin kalıp ÖNCEKİ PDF'i kaydediyordu.
+            # `clear()` belgeyi de kapatıyor; `_pdf` yarı yolda açılmış
+            # kalmışsa (istisna `len(self._pdf)` sırasında geldiyse) burada
+            # sızmadan kapanıyor.
+            self.clear()
             self._show_message(_("PDF açılamadı, derleme başarısız olmuş veya dosya bozuk olabilir."))
             return False
 
@@ -201,6 +204,12 @@ class PdfRenderMixin:
         scale = self._tavanli_olcek(w_pt, h_pt)
         return (max(int(w_pt * scale), 50), max(int(h_pt * scale), 50))
 
+    # Yer tutucu kenarlığı `border_input`: `_ui_setup.apply_theme` de aynı
+    # anahtarı kullanıyor. Eskiden burada `border_separator` yazıyordu ve
+    # kenarlık, tema yeniden uygulanır uygulanmaz renk değiştiriyordu (yedi
+    # temanın altısında; dört temada kurulumda kenarlık zeminle aynı olduğu
+    # için hiç görünmüyor, sonra beliriyordu).
+
     def _create_placeholders(self):
         # Sayfa etiketleri yenileniyor: vurgu eskisinin çocuğuydu. Çift-sayfa
         # geçişi bu yoldan geliyor ve tek başına _clear_highlight çağırmıyordu.
@@ -216,7 +225,7 @@ class PdfRenderMixin:
                 label = QLabel()
                 label.setFixedSize(w, h)
                 label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                label.setStyleSheet(f"background: {self._theme['bg_pdf_placeholder']}; border: 1px solid {self._theme['border_separator']};")
+                label.setStyleSheet(f"background: {self._theme['bg_pdf_placeholder']}; border: 1px solid {self._theme['border_input']};")
                 label.setMouseTracking(True)
                 label.installEventFilter(self)
                 self._page_labels.append(label)
@@ -234,7 +243,7 @@ class PdfRenderMixin:
                     label = QLabel()
                     label.setFixedSize(w, h)
                     label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-                    label.setStyleSheet(f"background: {self._theme['bg_pdf_placeholder']}; border: 1px solid {self._theme['border_separator']};")
+                    label.setStyleSheet(f"background: {self._theme['bg_pdf_placeholder']}; border: 1px solid {self._theme['border_input']};")
                     label.setMouseTracking(True)
                     label.installEventFilter(self)
                     self._page_labels.append(label)
@@ -350,4 +359,4 @@ class PdfRenderMixin:
             w, h = self._get_page_size(i)
             label.setFixedSize(w, h)
             label.setPixmap(QPixmap())
-            label.setStyleSheet(f"background: {self._theme['bg_pdf_placeholder']}; border: 1px solid {self._theme['border_separator']};")
+            label.setStyleSheet(f"background: {self._theme['bg_pdf_placeholder']}; border: 1px solid {self._theme['border_input']};")
