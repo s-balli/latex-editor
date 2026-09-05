@@ -296,6 +296,10 @@ class PdfUISetupMixin:
         self._scroll.setStyleSheet(f"QScrollArea {{ background: {self._theme.get('bg_pdf_scroll', '#1e1e1e')}; }}")
 
         self._pages_widget = QWidget()
+        # Ad ŞART: zemin kuralı `#pdfPagesWidget` ile yalnız bu widget'a
+        # bağlanıyor. Çıplak `background:` bildirimi sayfa etiketlerine de
+        # sızar ve render edilmiş sayfaların arkasını boyardı.
+        self._pages_widget.setObjectName("pdfPagesWidget")
         self._pages_layout = QVBoxLayout(self._pages_widget)
         self._pages_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._pages_layout.setSpacing(10)
@@ -315,10 +319,25 @@ class PdfUISetupMixin:
 
         self.apply_theme(self._theme)
 
-    def apply_theme(self, t: dict):
-        self._theme = t
+    def _kaydirma_zemini(self, t: dict = None):
+        """Kaydırma alanının zeminini uygula.
+
+        QScrollArea'ya verilen zemin GÖRÜNÜR ALANI boyamıyor: görünen alanı
+        içerideki widget kaplıyor ve onun stili yoksa küresel
+        `QWidget {{ background: bg_primary }}` kuralı kazanıyor. Ölçüldü
+        (2026-09-05, render'dan): yedi temanın yedisinde de `bg_pdf_scroll`
+        hiç görünmüyordu, ters çevirme modundaki siyah çerçeve de öyle.
+        Bu yüzden zemin İKİSİNE birden veriliyor.
+        """
+        t = t or self._theme
         bg = "#000000" if self._invert_colors else t['bg_pdf_scroll']
         self._scroll.setStyleSheet(f"QScrollArea {{ background: {bg}; }}")
+        self._pages_widget.setStyleSheet(
+            f"QWidget#pdfPagesWidget {{ background: {bg}; }}")
+
+    def apply_theme(self, t: dict):
+        self._theme = t
+        self._kaydirma_zemini(t)
         # Bookmark ikonunu tema rengiyle yeniden çiz
         from PyQt6.QtGui import QIcon, QPainter, QPen, QColor, QPixmap
         from PyQt6.QtCore import QRectF
@@ -392,6 +411,9 @@ class PdfUISetupMixin:
             f"QPushButton:hover {{ background: {t['bg_hover']}; }}"
         )
         for label in self._page_labels:
+            if label.property(self._MESAJ_OZELLIGI):
+                label.setStyleSheet(self._mesaj_stili(t))
+                continue
             if label.pixmap() is None or label.pixmap().isNull():
                 if self._invert_colors:
                     label.setStyleSheet("background: #000; border: 1px solid #222;")
@@ -403,8 +425,7 @@ class PdfUISetupMixin:
     def _toggle_invert(self, checked: bool):
         self._invert_colors = checked
         self._pres_cache.clear()
-        bg = "#000000" if checked else self._theme['bg_pdf_scroll']
-        self._scroll.setStyleSheet(f"QScrollArea {{ background: {bg}; }}")
+        self._kaydirma_zemini()
         for i, label in enumerate(self._page_labels):
             if i >= self._page_count:
                 break
@@ -418,10 +439,23 @@ class PdfUISetupMixin:
         if self._presentation_mode:
             self._presentation_render()
 
+    # Mesaj etiketi de _page_labels'a giriyor ve pixmap'i hiç olmuyor;
+    # apply_theme'in "pixmap'siz etiket = sayfa yer tutucusu" varsayımı onu
+    # gri bir kutuya çeviriyordu (ölçüldü: yedi temada da renk, punto ve
+    # dolgu kayboluyor). İşaret bu ayrımı taşıyor.
+    _MESAJ_OZELLIGI = "_pdf_mesaj_etiketi"
+
+    @staticmethod
+    def _mesaj_stili(t: dict) -> str:
+        """Mesaj etiketinin stili. TEK KAYNAK: _show_message ve apply_theme
+        aynı yerden okuyor, yoksa ikisi zamanla ayrışır."""
+        return f"color: {t['fg_label']}; font-size: 14px; padding: 40px;"
+
     def _show_message(self, text: str):
         label = QLabel(text)
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        label.setStyleSheet(f"color: {self._theme['fg_label']}; font-size: 14px; padding: 40px;")
+        label.setProperty(self._MESAJ_OZELLIGI, True)
+        label.setStyleSheet(self._mesaj_stili(self._theme))
         self._page_labels.append(label)
         self._pages_layout.addWidget(label)
 
