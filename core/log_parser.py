@@ -44,8 +44,6 @@ _RE_ERROR = re.compile(r'^\s*! (.+)')
 _RE_PKG_ERROR = re.compile(r'^\s*! Package (\S+) Error: (.+)')
 # Satır numarası bağlamı: "l.42 \badcommand"
 _RE_LINE_CTX = re.compile(r'^\s*l\.(\d+)')
-# Dosya referansı: "(./dosya.tex" veya "/full/path/dosya.cls" vb.
-_RE_FILE_REF = re.compile(r'\((\./)?(\S+\.(tex|cls|sty|bib))')
 # Uyarı satır numarası: "on input line 42" veya "on lines 5--10"
 _RE_WARN_LINE = re.compile(r'(?:on|at) (?:input )?lines? (\d+)')
 # LaTeX uyarısı
@@ -85,26 +83,88 @@ _RE_ENGINE_REQ = re.compile(r'requires\s+(LuaLaTeX|LuaTeX|XeLaTeX|XeTeX|pdfTeX)'
 # döndürüyordu — kullanıcıya sebebi söyleyen tek satır kayıptı.
 _RE_SCRIPT_ERROR = re.compile(r'^\s*\[hata\]\s*(.+?)\s*$')
 
+# TeX log'u SABİT GENİŞLİKTE sarıyor (`max_print_line`, ölçüldü: 59 gerçek
+# şablon logunda 70426 satırın 4147'si tam 79 sütun). Uyarılar da sarıyor ve
+# devam satırı hiçbir desene uymadığı için düşüyordu:
+#
+#   Package natbib Warning: Citation `Abramowitz_1972' on page 7 undefined on input
+#    line 241.
+#
+# Sonuç: mesaj cümle ortasında kesiliyor, "on input line 241" kaybolduğu için
+# satır numarası 0 kalıyor (Uyarılar sekmesinde tıklanamıyor) ve error_hints
+# deseni eksik metinde eşleşmediği için ipucu da gitmiş oluyor. ÖLÇÜLDÜ:
+# 1084 uyarının 344'ü (%31.7) sarıyor, 135'i satır numarasını kaybediyor.
+_SARMA = 79
+_RE_UYARI_BAS = re.compile(
+    r'^\s*(?:LaTeX|Package \S+) Warning: ')
+# Birleştirme YALNIZ uyarılar için. Her 79 sütunluk satırı körlemesine
+# birleştirmek GÜVENSİZ: ölçüldü, 4147 tam-79 satırın 395'inin (%9.5)
+# ardından gerçek bir yapı satırı geliyor (çoğu `l.NN` hata bağlamı) ve onları
+# yutardık.
+_RE_YAPI_BAS = re.compile(
+    r'^\s*(?:!|l\.\d+|LaTeX Warning:|Package \S+ Warning:|'
+    r'(?:pdfTeX|LuaTeX|XeTeX) warning|Overfull|Underfull|==>|'
+    r'Missing character:)', re.IGNORECASE)
+
+
+def _mantiksal_satirlar(ham: list[str]) -> list[str]:
+    """79 sütunda sarmış UYARI satırlarını devamlarıyla birleştir."""
+    out: list[str] = []
+    i, n = 0, len(ham)
+    while i < n:
+        s = ham[i]
+        if _RE_UYARI_BAS.match(s):
+            son = s
+            while (len(son) == _SARMA and i + 1 < n
+                   and ham[i + 1].strip()
+                   and not _RE_YAPI_BAS.match(ham[i + 1])):
+                son = ham[i + 1]
+                s += son
+                i += 1
+        out.append(s)
+        i += 1
+    return out
+
+
+# Dosya açılışı `(ad.uzanti`, kapanışı `)`. Her açılış yığına giriyor
+# (kapanışlar dengelensin diye), ama rapor edilen yalnız kullanıcının
+# .tex kaynağı: `.cls`/`.sty` yüklemeleri ebeveynin adını taşıyor.
+_RE_PAREN = re.compile(r'\((?:\./)?([^\s()]*\.[A-Za-z0-9]+)|(\))')
+
+
 def parse_output(raw: str, source_file: str = "") -> CompileResult:
     """derle.sh çıktısını parse eder."""
     result = CompileResult()
     result.raw_output = raw
     current_file = source_file
+    # Dosya yığını: '(' ile GİR, ')' ile ÇIK. Eskiden yalnız giriş vardı ve
+    # çocuk dosya kapandıktan sonraki hatalar hâlâ ona atfediliyordu; F4 ile
+    # hata satırına gitmek kullanıcıyı YANLIŞ DOSYAYA götürüyordu (ölçüldü:
+    # main.tex:5'teki hata, 3 satırlık bolumler/b1.tex'in 5. satırı diye
+    # gösteriliyordu). pdflatex'in `-file-line-error` çıktısına karşı
+    # doğrulandı: 59 şablonun 230 hatasında doğruluk %97.4'ten %98.7'ye
+    # çıkıyor, gerileme yok.
+    dosya_yigini: list[str] = [source_file]
 
-    lines = raw.split('\n')
+    lines = _mantiksal_satirlar(raw.split('\n'))
     current_error: LatexError | None = None
     # yazı tipi -> [ilk ham satır, kaç kez]. Döngü sonunda tek uyarıya iner.
     eksik_glif: dict[str, list] = {}
 
     for line in lines:
-        # Dosya referansı takibi: yalnız .tex kaynak dosyalarını takip et.
-        # .cls/.sty/.bib paket/font yüklemelerini izlemek current_file'ı sistem
-        # dosyasına kaydırır (parser '(' ile girer ama ')' ile çıkmaz); böylece
-        # hatalar yanlışlıkla epstopdf-base.sty gibi paketlere atfedilip editörde
-        # işaretlenmezdi. Kullanıcı kaynağı (.tex) takip tutmak hatları dokümana atfeder.
-        m = _RE_FILE_REF.search(line)
-        if m and m.group(3) == "tex" and not os.path.isabs(m.group(2)):
-            current_file = m.group(2)
+        # Dosya takibi: yalnız kullanıcının .tex kaynağı raporlanır.
+        # .cls/.sty/.bib yüklemeleri de yığına girer ki `)` sayısı tutsun, ama
+        # ebeveynin adını taşırlar; yoksa hatalar epstopdf-base.sty gibi
+        # paketlere atfedilip editörde işaretlenmezdi.
+        for pm in _RE_PAREN.finditer(line):
+            if pm.group(1):
+                ad = pm.group(1)
+                kullanilabilir = (ad.endswith(".tex")
+                                  and not os.path.isabs(ad))
+                dosya_yigini.append(ad if kullanilabilir else dosya_yigini[-1])
+            elif len(dosya_yigini) > 1:
+                dosya_yigini.pop()
+        current_file = dosya_yigini[-1]
 
         # derle.sh'nin kendi hata satırı
         m = _RE_SCRIPT_ERROR.match(line)

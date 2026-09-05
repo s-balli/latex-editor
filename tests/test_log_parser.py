@@ -1,5 +1,6 @@
 """log_parser modülü testleri."""
 
+from core.error_hints import get_hint
 from core.log_parser import parse_output, resolve_error_path
 
 
@@ -335,3 +336,188 @@ class TestEksikGlif:
         ham = "\n".join([self._SATIR % "ec-lmri10"] * 3)
         r = parse_output(ham)
         assert get_hint(r.warnings[0].message)[1] == {"font": "ec-lmri10"}
+
+
+# =====================================================================
+# F1: 79 sütunda SARAN uyarılar
+#
+# TeX log'u sabit genişlikte sarıyor (`max_print_line`). Ayrıştırıcı yalnız
+# ilk fiziksel satırı alıyordu; devam satırı hiçbir desene uymadığı için
+# düşüyordu. ÖLÇÜLDÜ (2026-09-05, depodaki 59 şablonun GERÇEK derleme
+# logları): 1084 uyarının 344'ü (%31.7) sarıyor, 135'i satır numarasını
+# kaybediyor, 3'ü ipucunu kaybediyor.
+#
+# Üç kayıp birden: mesaj cümle ortasında kesiliyor, "on input line NN"
+# devamda kaldığı için `line_number` 0 oluyor (Uyarılar sekmesinde
+# tıklanamıyor), ve error_hints deseni eksik metinde eşleşmiyor.
+#
+# Aşağıdaki dizgeler gerçek pdflatex çıktısından alındı; sarma noktası
+# 79. sütunda.
+# =====================================================================
+
+_SARMA = 79
+
+
+def _saran(bas: str, devam: str) -> str:
+    """`bas`ı tam 79 sütuna doldurup devamıyla iki satır yap.
+
+    TeX'in yaptığının aynısı: satır 79 karaktere ulaşınca kesiliyor.
+    """
+    assert len(bas) < _SARMA, bas
+    dolgu = devam[:_SARMA - len(bas)]
+    kalan = devam[_SARMA - len(bas):]
+    assert kalan, "vaka sarmıyor, test bir şey ölçmüyor"
+    return bas + dolgu + "\n" + kalan
+
+
+class TestSaranUyarilar:
+
+    def test_gercek_natbib_uyarisi_butun_ayristiriliyor(self):
+        """Gerçek logdan alınmış vaka (InterPore-Sample.tex)."""
+        bas = ("Package natbib Warning: Citation `Abramowitz_1972' on page 7"
+               " undefined")
+        raw = "(./main.tex\n" + _saran(bas, " on input line 241.") + "\n"
+        r = parse_output(raw, source_file="main.tex")
+        assert len(r.warnings) == 1
+        w = r.warnings[0]
+        assert "line 241" in w.message, w.message
+        assert w.line_number == 241
+
+    def test_satir_numarasi_devamda_kalirsa_da_bulunuyor(self):
+        bas = "LaTeX Warning: Reference `sek:cok-uzun-bir-etiket-adi' on page 3"
+        raw = _saran(bas, " undefined on input line 87.")
+        r = parse_output(raw, source_file="main.tex")
+        assert len(r.warnings) == 1
+        assert r.warnings[0].line_number == 87
+
+    def test_ipucu_devamdaki_kelimeye_bagliysa_da_bulunuyor(self):
+        """error_hints 'undefined' kelimesine bakıyor; o devamda kalabilir."""
+        bas = "LaTeX Warning: Reference `sek:baska-bir-uzun-etiket-adi' on page 3"
+        raw = _saran(bas, " undefined on input line 12.")
+        r = parse_output(raw, source_file="main.tex")
+        assert get_hint(r.warnings[0].message) == ("reference_undefined", {})
+
+    def test_uc_satira_yayilan_uyari(self):
+        """Bir uyarı ikiden fazla satıra da yayılabilir."""
+        parca = "x" * (_SARMA - len("Package foo Warning: "))
+        raw = ("Package foo Warning: " + parca + "\n"
+               + "y" * _SARMA + "\n"
+               + "son parça on input line 5.\n")
+        r = parse_output(raw)
+        assert len(r.warnings) == 1
+        assert r.warnings[0].message.endswith("on input line 5.")
+        assert r.warnings[0].line_number == 5
+
+    def test_sarmamis_uyari_degismiyor(self):
+        """Karşı durum: 79'dan kısa uyarı olduğu gibi kalmalı."""
+        raw = "LaTeX Warning: There were undefined references.\nsonraki satir\n"
+        r = parse_output(raw)
+        assert r.warnings[0].message == "There were undefined references."
+
+    def test_bos_satirda_birlestirme_duruyor(self):
+        bas = ("LaTeX Warning: Reference `sek:oldukca-uzun-bir-etiket' on"
+               " page 1 undefined")
+        raw = _saran(bas, " on input line 4.") + "\n\nSonraki blok\n"
+        r = parse_output(raw)
+        assert r.warnings[0].message.endswith("line 4.")
+        assert "Sonraki blok" not in r.warnings[0].message
+
+
+class TestBirlestirmeYapiYutmuyor:
+    """Körlemesine birleştirme GÜVENSİZ; sınır bu testlerle çiziliyor.
+
+    ÖLÇÜLDÜ: 59 gerçek logda 4147 tam-79 satırın 395'inin (%9.5) ardından
+    gerçek bir yapı satırı geliyor, çoğu `l.NN` hata bağlamı. Hepsi
+    birleştirilseydi hata satır numaraları yutulurdu.
+    """
+
+    def test_79_sutunluk_satirin_ardindaki_l_yutulmuyor(self):
+        uzun = "\\fontsize {12bp}{14bp}" + "z" * (_SARMA - 22)
+        assert len(uzun) == _SARMA
+        raw = "! Undefined control sequence.\n" + uzun + "\nl.70 \\komut\n"
+        r = parse_output(raw)
+        assert len(r.errors) == 1
+        assert r.errors[0].line_number == 70
+
+    def test_79_sutunluk_UYARININ_ardindaki_hata_yutulmuyor(self):
+        bas = "LaTeX Warning: Bir sey"
+        uyari = bas + "u" * (_SARMA - len(bas))
+        assert len(uyari) == _SARMA
+        raw = uyari + "\n! Undefined control sequence.\nl.9 \\x\n"
+        r = parse_output(raw)
+        assert len(r.errors) == 1
+        assert r.errors[0].message == "Undefined control sequence."
+        assert r.errors[0].line_number == 9
+
+    def test_79_sutunluk_uyarinin_ardindaki_uyari_yutulmuyor(self):
+        bas = "LaTeX Warning: Birinci"
+        uyari = bas + "a" * (_SARMA - len(bas))
+        raw = uyari + "\nLaTeX Warning: Ikinci uyari.\n"
+        r = parse_output(raw)
+        assert len(r.warnings) == 2
+
+
+# =====================================================================
+# F2: dosyaya '(' ile girip ')' ile ÇIKMAK
+#
+# Ayrıştırıcı dosyaya giriyor ama çıkmıyordu; çocuk dosya kapandıktan
+# sonraki hatalar hâlâ ona atfediliyordu. F4 ile hata satırına gitmek
+# kullanıcıyı YANLIŞ DOSYAYA götürüyordu: ÖLÇÜLDÜ, `main.tex:5`teki hata
+# 3 satırlık `bolumler/b1.tex`in 5. satırı diye gösteriliyordu.
+#
+# Düzeltme pdflatex'in kendi `-file-line-error` çıktısına karşı
+# doğrulandı: 59 şablonun 230 hatasında doğruluk %97.4'ten %98.7'ye
+# çıkıyor, GERİLEME YOK.
+# =====================================================================
+
+
+class TestDosyaYigini:
+
+    def test_cocuk_kapandiktan_sonra_ana_belgeye_donuluyor(self):
+        raw = ("(./main.tex\n"
+               " (./bolumler/b1.tex\n"
+               "! Undefined control sequence.\n"
+               "l.3 \\cocuktaHata\n"
+               ")\n"
+               "! Undefined control sequence.\n"
+               "l.5 \\anadaHata\n")
+        r = parse_output(raw, source_file="main.tex")
+        assert [(e.file_path, e.line_number) for e in r.errors] == [
+            ("bolumler/b1.tex", 3), ("main.tex", 5)]
+
+    def test_ic_ice_iki_seviye(self):
+        raw = ("(./main.tex\n (./a.tex\n  (./b.tex\n"
+               "! Hata b.\nl.1 x\n"
+               ")\n! Hata a.\nl.2 x\n"
+               ")\n! Hata main.\nl.3 x\n")
+        r = parse_output(raw, source_file="main.tex")
+        assert [e.file_path for e in r.errors] == ["b.tex", "a.tex", "main.tex"]
+
+    def test_ayni_satirdaki_kapanislar_sayiliyor(self):
+        """TeX kapanışları yan yana yazabiliyor: `))`."""
+        raw = ("(./main.tex\n (./a.tex\n  (./b.tex\n"
+               "))\n! Hata.\nl.7 x\n")
+        r = parse_output(raw, source_file="main.tex")
+        assert r.errors[0].file_path == "main.tex"
+
+    def test_paket_yuklemesi_kapanisi_dengeliyor(self):
+        """`.sty` de yığına girmeli, yoksa `)` ana belgeyi açığa çıkarır."""
+        raw = ("(./main.tex\n (./bolum.tex\n"
+               "(/usr/share/texlive/foo.sty)\n"
+               "! Hata bolumde.\nl.4 x\n")
+        r = parse_output(raw, source_file="main.tex")
+        assert r.errors[0].file_path == "bolum.tex"
+
+    def test_fazla_kapanis_kok_dosyanin_altina_inmiyor(self):
+        """Bozuk/dengesiz log yığını boşaltmamalı."""
+        raw = ")\n)\n)\n! Hata.\nl.2 x\n"
+        r = parse_output(raw, source_file="main.tex")
+        assert r.errors[0].file_path == "main.tex"
+
+    def test_sistem_tex_dosyasi_atfi_calmiyor(self):
+        """Karşı durum: mutlak yollu .tex hâlâ takip edilmiyor."""
+        raw = ("(./main.tex\n"
+               "(/usr/share/texlive/pgfmodulematrix.code.tex\n"
+               "! Hata.\nl.9 x\n")
+        r = parse_output(raw, source_file="main.tex")
+        assert r.errors[0].file_path == "main.tex"
