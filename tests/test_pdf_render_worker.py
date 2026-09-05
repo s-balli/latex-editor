@@ -278,3 +278,152 @@ def test_yeni_nesilde_sayac_sifirlaniyor(tmp_path, monkeypatch):
     assert w._acilis_denemesi == 0
     with pdfium_lock:
         w._doc.close()
+
+
+# --- İşçi dururken kendi doküman handle'ını kapatmalı ---
+#
+# `_run_loop` `_stop` görünce dönüyordu ve dokümanı kapatan TEK yer
+# `_swap_document`; o da artık hiç çalışmayacağı için handle AÇIK kalıyordu.
+# Kapatmayı pypdfium2'nin weakref finalizer'ı devralıyor: KEYFİ bir thread'de
+# ve `pdfium_lock` TUTULMADAN. Ölçüldü (2026-09-05): stres altında 12
+# kapanışın 12'si kilitsiz ve hepsi başka bir thread pdfium içindeyken.
+# Kural `gui/pdfium_lock.py`de yazılı: belge açma/kapama da kilit ister;
+# kilitsiz pdfium çağrısı bu depoda zaten CI'da heap bozulmasına yol açmıştı.
+
+
+class _SahteBelge:
+    """close() çağrıldığında kilidin TUTULUYOR olduğunu kaydeden sahte doküman.
+
+    Gerçek `PdfDocument` yerine bu kullanılıyor: pypdfium2'nin kapatma iç
+    yapısı sürümden sürüme değişiyor (4.x'te ham `FPDF_CloseDocument`, 5.x'te
+    `_close_impl`), oysa sınanmak istenen şey BİZİM kod yolumuz.
+    """
+
+    def __init__(self):
+        self.kapandi = False
+        self.kilit_vardi = None
+
+    def close(self):
+        self.kapandi = True
+        self.kilit_vardi = pdfium_lock._is_owned()
+
+
+def test_stop_sonrasi_isci_dokumani_kapaniyor(qapp, tmp_path):
+    """Durdurulan işçi handle'ı finalizer'a bırakmamalı."""
+    w = PdfRenderWorker()
+    sonuc = []
+    w.rendered.connect(lambda *a: sonuc.append(a))
+    w.start()
+    try:
+        w.open_document(_tiny_pdf(tmp_path), 1)
+        w.submit(1, 0, 1.0, False)
+        assert _spin(qapp, lambda: bool(sonuc)), "render sonucu gelmedi"
+        assert w._doc is not None, "ön koşul: işçi render ederken doküman açık"
+    finally:
+        w.stop()
+        assert w.wait(6000), "işçi durmadı"
+    assert w._doc is None, "durdurulan işçi dokümanı açık bıraktı"
+
+
+def test_kapatma_pdfium_kilidi_altinda(tmp_path):
+    """Kapatma `pdfium_lock` TUTULARAK yapılmalı (kuralın kendisi)."""
+    # Kapının kör kalmaması için: bu sınama `_is_owned`a dayanıyor, yoksa
+    # sessizce hep None okuyup her mutantı hayatta bırakırdı.
+    assert hasattr(pdfium_lock, "_is_owned"), "RLock._is_owned kayboldu"
+    assert not pdfium_lock._is_owned(), "ön koşul: kilit çağıranda olmamalı"
+
+    w = PdfRenderWorker()
+    sahte = _SahteBelge()
+    w._doc = sahte
+    w._doc_key = ("x.pdf", 1)
+    w._run_loop = lambda: None      # run()'ın finally'si sınanıyor
+    w.run()                         # start() değil: saf Python yolu
+
+    assert sahte.kapandi, "run() bittiğinde doküman kapatılmadı"
+    assert sahte.kilit_vardi is True, "doküman pdfium_lock TUTULMADAN kapatıldı"
+    assert w._doc is None
+
+
+def test_run_loop_istisnayla_biterse_de_kapaniyor():
+    """Beklenmedik istisna handle'ı arkada bırakmamalı."""
+    w = PdfRenderWorker()
+    sahte = _SahteBelge()
+    w._doc = sahte
+    w._doc_key = ("x.pdf", 1)
+
+    def patlayan():
+        raise RuntimeError("kasitli patlama")
+
+    w._run_loop = patlayan
+    with pytest.raises(RuntimeError):
+        w.run()
+    assert sahte.kapandi, "istisna yolunda doküman kapatılmadı"
+    assert sahte.kilit_vardi is True
+    assert w._doc is None
+
+
+def test_hic_dokuman_acmayan_isci_temiz_duruyor(qapp):
+    """Kapatılacak bir şey yokken durma yolu istisna atmamalı."""
+    w = PdfRenderWorker()
+    w.start()
+    assert _spin(qapp, lambda: w.isRunning())
+    w.stop()
+    assert w.wait(6000), "işçi durmadı"
+    assert w._doc is None
+
+
+def test_acilisi_basarisiz_isci_temiz_duruyor(qapp, tmp_path):
+    """`_doc` None kalmışken durma yolu yine sorunsuz olmalı."""
+    w = PdfRenderWorker()
+    w.start()
+    try:
+        w.open_document(str(tmp_path / "yok-boyle-dosya.pdf"), 1)
+        w.submit(1, 0, 1.0, False)
+        assert _spin(qapp, lambda: w._doc_key is not None)
+    finally:
+        w.stop()
+        assert w.wait(6000), "işçi durmadı"
+    assert w._doc is None
+
+
+def test_calisan_isci_dokumani_erken_kapatmiyor(qapp, tmp_path):
+    """AŞIRI DÜZELTME KAPISI: kapatma yalnız DURMA yolunda olmalı.
+
+    "Her ihtimale karşı" döngü içinde kapatan bir düzeltme burada kırılır:
+    ikinci render hiç gelmez.
+    """
+    w = PdfRenderWorker()
+    sonuc = []
+    w.rendered.connect(lambda *a: sonuc.append(a))
+    w.start()
+    try:
+        w.open_document(_tiny_pdf(tmp_path), 1)
+        w.submit(1, 0, 1.0, False)
+        assert _spin(qapp, lambda: bool(sonuc)), "ilk render gelmedi"
+        assert w._doc is not None, "işçi çalışırken doküman kapatılmış"
+        w.submit(1, 0, 2.0, False)
+        assert _spin(qapp, lambda: len(sonuc) >= 2), "ikinci render gelmedi"
+        assert w._doc is not None
+    finally:
+        w.stop()
+        w.wait(6000)
+
+
+def test_viewer_shutdown_isci_dokumanini_kapatiyor(qapp, tmp_path):
+    """Uçtan uca: uygulama kapanış yolu handle bırakmamalı."""
+    from gui.pdf_viewer import PdfViewer
+    from gui.theme import THEMES
+
+    v = PdfViewer(theme=THEMES["dark"])
+    try:
+        assert v.load_pdf(_tiny_pdf(tmp_path))
+        assert _spin(qapp, lambda: v._render_worker._doc is not None), \
+            "ön koşul: yükleme sonrası işçi dokümanı açık"
+        rw = v._render_worker
+        v.shutdown()
+        assert not rw.isRunning()
+        assert rw._doc is None, "shutdown sonrası işçi dokümanı açık kaldı"
+    finally:
+        v.shutdown()
+        v.deleteLater()
+        qapp.processEvents()

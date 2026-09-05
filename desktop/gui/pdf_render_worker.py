@@ -100,6 +100,16 @@ class PdfRenderWorker(QThread):
         try:
             self._run_loop()
         finally:
+            # Handle'ı BURADA kapat. `_run_loop` stop görünce dönüyordu ve
+            # dokümanı kapatan TEK yer `_swap_document`; o da artık hiç
+            # çalışmayacağı için handle açık kalıyordu. Ölçüldü (2026-09-05):
+            # `shutdown()` sonrası işçinin dokümanı açık, kapatmayı
+            # pypdfium2'nin weakref finalizer'ı devralıyor: KEYFİ bir
+            # thread'de ve `pdfium_lock` TUTULMADAN (12 kapanışın 12'si,
+            # hepsi başka bir thread pdfium içindeyken). Kural açık: belge
+            # açma/kapama da kilit ister (bkz. gui/pdfium_lock.py).
+            # Kapatma işçi thread'inde kalıyor: `_doc`a yalnız run() dokunur.
+            self._swap_document(None)
             _alive_workers.discard(self)
 
     def _run_loop(self):
