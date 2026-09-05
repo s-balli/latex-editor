@@ -38,6 +38,16 @@ _logger = get_logger("single_instance")
 # donmuşsa kullanıcı süresiz asılı kalmasın, uyarıyı görüp devam etsin.
 _TIMEOUT_MS = 3000
 
+# Çerçeve üst sınırı. Taşınan tek şey bir dosya yolu; Windows'ta uzun yol
+# sınırı 32767 karakter, UTF-8'de en kötü dört katı bile 64 KB'ın altında.
+#
+# SINIR ŞART: tampon üst sınırsızdı ve satır sonu hiç gelmezse gönderen ne
+# yazarsa o kadar büyüyordu (ölçüldü 2026-09-05: satır sonu göndermeden
+# 4 MB kabul edildi). Yerel soket AYNI KULLANICININ herhangi bir süreci
+# tarafından açılabiliyor. Aynı sınıf risk core/updater.py'de `_MAX_YANIT`
+# ile zaten kapatılmış; çerçeve okuyucusu o dersi almamıştı.
+_MAX_CERCEVE = 64 * 1024
+
 
 def _kullanici() -> str:
     """Ad bileşeni olarak güvenli kullanıcı adı (bulunamazsa 'default')."""
@@ -108,13 +118,29 @@ class SingleInstance(QObject):
             # üzerinde disconnectFromServer bekleyen veriyi atabiliyor ve sunucu
             # boş yük görüyordu. Önekle mesajın tamamlandığı kapanmadan bilinir.
             tampon.extend(bytes(sock.readAll()))
-            if islendi or b"\n" not in tampon:
+            if islendi:
+                return
+            if len(tampon) > _MAX_CERCEVE:
+                _logger.warning("Çerçeve üst sınırı aşıldı (%d bayt); "
+                                "bağlantı kapatılıyor", len(tampon))
+                sock.abort()
+                return
+            if b"\n" not in tampon:
                 return
             bas, _, govde = bytes(tampon).partition(b"\n")
             try:
                 uzunluk = int(bas)
             except ValueError:
                 _logger.warning("Geçersiz çerçeve başlığı; bağlantı kapatılıyor")
+                sock.abort()
+                return
+            # Sayıya çevrilebilen ama ANLAMSIZ değer de reddedilmeli.
+            # Eskiden yalnız `int()` hatası yakalanıyordu: negatif uzunluk
+            # `govde[:uzunluk]` ile yükü SONDAN kırpıyor ve bozuk yol sessizce
+            # yayılıyordu (ölçüldü: "/tmp/dosya.tex" -> "/tmp/dosy").
+            if not 0 <= uzunluk <= _MAX_CERCEVE:
+                _logger.warning("Geçersiz çerçeve uzunluğu (%d); "
+                                "bağlantı kapatılıyor", uzunluk)
                 sock.abort()
                 return
             if len(govde) < uzunluk:

@@ -234,3 +234,170 @@ def test_bos_yol_yalniz_one_alir(qapp):
     assert k.acilan == []
     assert k.one_alindi == 1
     assert k.mesaj == "", "boş yol yalnız öne alır, mesaj yazmaz"
+
+
+# =====================================================================
+# Çerçeve doğrulaması (2026-09-05)
+#
+# F1. `oku()` gelen her şeyi tampona ekliyordu ve satır sonu gelmezse hiçbir
+#     üst sınır devreye girmiyordu. Yerel soket AYNI KULLANICININ herhangi
+#     bir süreci tarafından açılabiliyor; ölçüldü, satır sonu göndermeden
+#     4 MB kabul ediliyordu. Aynı sınıf risk core/updater.py'de `_MAX_YANIT`
+#     ile zaten kapatılmıştı.
+#
+# F2. `int(bas)` hatası gürültüyle reddediliyordu ama sayıya çevrilebilen
+#     ANLAMSIZ değer denetlenmiyordu: negatif uzunlukta `govde[:uzunluk]`
+#     yükü SONDAN kırpıyor ve bozuk yol sessizce yayılıyordu (ölçüldü:
+#     "/tmp/dosya.tex" -> "/tmp/dosy").
+# =====================================================================
+
+
+def _ham_gonder(qapp, ad, ham: bytes, bekle_sn=0.4):
+    """Ham çerçeve baytlarını gönder; soketi ve bağlantı durumunu döndür."""
+    from PyQt6.QtNetwork import QLocalSocket
+    s = QLocalSocket()
+    s.connectToServer(f"latex-editor-{ad}")
+    assert s.waitForConnected(3000), s.errorString()
+    s.write(ham)
+    s.flush()
+    t0 = time.monotonic()
+    while time.monotonic() - t0 < bekle_sn:
+        qapp.processEvents()
+    return s
+
+
+@pytest.mark.parametrize("baslik", [b"-1", b"-5", b"-999999"])
+def test_negatif_uzunluk_YAYILMIYOR(qapp, temiz_ad, baslik):
+    """Kırılırsa: uzunluk aralık denetimi düşmüş demektir."""
+    from gui.single_instance import SingleInstance as SI
+    birinci = SI()
+    assert birinci.try_become_primary() is True
+    gelenler = []
+    birinci.file_received.connect(gelenler.append)
+    try:
+        s = _ham_gonder(qapp, temiz_ad, baslik + b"\n/tmp/dosya.tex")
+        assert gelenler == [], "bozuk çerçeve yayıldı: %s" % gelenler
+        s.abort()
+    finally:
+        birinci.stop()
+
+
+def test_ust_sinirdan_buyuk_uzunluk_YAYILMIYOR(qapp, temiz_ad):
+    from gui.single_instance import SingleInstance as SI, _MAX_CERCEVE
+    birinci = SI()
+    assert birinci.try_become_primary() is True
+    gelenler = []
+    birinci.file_received.connect(gelenler.append)
+    try:
+        s = _ham_gonder(qapp, temiz_ad,
+                        str(_MAX_CERCEVE + 1).encode() + b"\n/tmp/a.tex")
+        assert gelenler == []
+        s.abort()
+    finally:
+        birinci.stop()
+
+
+def test_gecerli_cerceveler_HALA_calisiyor(qapp, temiz_ad):
+    """Karşı durum: doğrulama geçerli yükleri düşürmemeli.
+
+    Bu olmadan düzeltme "her şeyi reddet" hâline gelebilir ve kapı fark
+    etmezdi.
+    """
+    from gui.single_instance import SingleInstance as SI, _MAX_CERCEVE
+    birinci = SI()
+    assert birinci.try_become_primary() is True
+    gelenler = []
+    birinci.file_received.connect(gelenler.append)
+    try:
+        for yol in ("/tmp/dosya.tex", "", "/tmp/" + "a" * 500 + ".tex",
+                    "/tmp/çalışma şğüöı.tex",
+                    "/" + "b" * (_MAX_CERCEVE - 200) + ".tex"):
+            gelenler.clear()
+            veri = yol.encode("utf-8")
+            s = _ham_gonder(qapp, temiz_ad,
+                            str(len(veri)).encode("ascii") + b"\n" + veri)
+            assert gelenler == [yol], \
+                "geçerli çerçeve düştü (%d bayt): %s" % (len(veri), gelenler)
+            s.abort()
+    finally:
+        birinci.stop()
+
+
+def test_satir_sonusuz_akis_baglantiyi_KESIYOR(qapp, temiz_ad):
+    """Tampon üst sınırsızken gönderen ne yazarsa o kadar büyüyordu."""
+    from PyQt6.QtNetwork import QLocalSocket
+    from gui.single_instance import SingleInstance as SI, _MAX_CERCEVE
+    birinci = SI()
+    assert birinci.try_become_primary() is True
+    try:
+        s = QLocalSocket()
+        s.connectToServer(f"latex-editor-{temiz_ad}")
+        assert s.waitForConnected(3000), s.errorString()
+        yazilan = 0
+        sinir = _MAX_CERCEVE * 8
+        while yazilan < sinir:
+            if s.state() != QLocalSocket.LocalSocketState.ConnectedState:
+                break
+            n = s.write(b"A" * 65536)      # satır sonu YOK
+            if n <= 0:
+                break
+            yazilan += n
+            s.flush()
+            t0 = time.monotonic()
+            while time.monotonic() - t0 < 0.02:
+                qapp.processEvents()
+        t0 = time.monotonic()
+        while time.monotonic() - t0 < 0.3:
+            qapp.processEvents()
+        assert s.state() != QLocalSocket.LocalSocketState.ConnectedState, \
+            "%d bayt satır sonusuz veri kabul edildi, bağlantı hâlâ açık" % yazilan
+        assert yazilan <= sinir, yazilan
+        s.abort()
+    finally:
+        birinci.stop()
+
+
+def test_kesimden_sonra_sunucu_calismaya_DEVAM_ediyor(qapp, temiz_ad):
+    """Bozuk bir istemci sunucuyu öldürmemeli."""
+    from gui.single_instance import SingleInstance as SI
+    birinci = SI()
+    assert birinci.try_become_primary() is True
+    gelenler = []
+    birinci.file_received.connect(gelenler.append)
+    try:
+        _ham_gonder(qapp, temiz_ad, b"-5\n/tmp/a.tex").abort()
+        gelenler.clear()
+        veri = b"/tmp/x.tex"
+        s = _ham_gonder(qapp, temiz_ad,
+                        str(len(veri)).encode("ascii") + b"\n" + veri)
+        assert gelenler == ["/tmp/x.tex"]
+        s.abort()
+    finally:
+        birinci.stop()
+
+
+def test_parcali_cerceve_HALA_birlestiriliyor(qapp, temiz_ad):
+    """Uzunluk öneki tam da bunun için var; doğrulama onu bozmamalı."""
+    from PyQt6.QtNetwork import QLocalSocket
+    from gui.single_instance import SingleInstance as SI
+    birinci = SI()
+    assert birinci.try_become_primary() is True
+    gelenler = []
+    birinci.file_received.connect(gelenler.append)
+    try:
+        s = QLocalSocket()
+        s.connectToServer(f"latex-editor-{temiz_ad}")
+        assert s.waitForConnected(3000)
+        s.write(b"14\n/tmp/do")
+        s.flush()
+        t0 = time.monotonic()
+        while time.monotonic() - t0 < 0.3:
+            qapp.processEvents()
+        assert gelenler == [], "yarım çerçeve erken yayıldı"
+        s.write(b"sya.tex")
+        s.flush()
+        assert _bekle(qapp, lambda: gelenler), "tamamlanan çerçeve yayılmadı"
+        assert gelenler == ["/tmp/dosya.tex"]
+        s.abort()
+    finally:
+        birinci.stop()
