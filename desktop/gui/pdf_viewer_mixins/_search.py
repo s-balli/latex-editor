@@ -121,7 +121,16 @@ class PdfSearchMixin:
 
         page_idx, start, count = self._search_results[idx]
         label = self._page_labels[page_idx] if page_idx < len(self._page_labels) else None
-        if not label or label.pixmap() is None or label.pixmap().isNull():
+        # PIXMAP ARANMIYOR. Eskiden sayfa henüz çizilmemişse buradan
+        # dönülüyordu; render ASENKRON geliyor ve `_on_render_result` yalnız
+        # pixmap'i koyuyor, vurguyu kimse yeniden çizmiyordu. Kullanıcı
+        # eşleşmeye kaydırılıyor, sayaç "1 / N" diyor ama ekranda HİÇBİR
+        # vurgu olmuyor ve bir daha da gelmiyordu (ölçüldü 2026-09-05).
+        # Etiket yükleme anında doğru boyutla kuruluyor
+        # (_create_placeholders -> setFixedSize) ve `_olcek` aynı ölçeği
+        # veriyor, yani geometri pixmap olmadan da doğru. AYNI KUSUR seçim
+        # tarafında bulunup düzeltilmişti (bkz. _selection.py:216).
+        if not label:
             return
 
         scale = self._olcek(page_idx)

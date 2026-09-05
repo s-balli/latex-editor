@@ -360,3 +360,16 @@ class PdfRenderMixin:
             label.setFixedSize(w, h)
             label.setPixmap(QPixmap())
             label.setStyleSheet(f"background: {self._theme['bg_pdf_placeholder']}; border: 1px solid {self._theme['border_input']};")
+
+        # Arama vurgusu yeni ölçekte YENİDEN çizilir. Yukarıdaki
+        # `_clear_search_highlights()` onu siliyordu ve kimse geri
+        # getirmiyordu: sonuç listesi ve "N / M" sayacı duruyor ama ekranda
+        # vurgu yok (ölçüldü 2026-09-05, zoom_in ve zoom_out'ta 5 -> 0).
+        # Vurgu, etiketlerin YENİ boyutu kurulduktan SONRA çiziliyor; sıra
+        # değişirse eski ölçekte konumlanır. `_draw_search_highlight` artık
+        # pixmap beklemiyor (bkz. _search.py), yani render'ı da beklemiyor.
+        #
+        # KOŞUL YOK: `_draw_search_highlight` boş sonuç listesinde zaten
+        # erken dönüyor. Buraya bir `if _search_results` konmuştu, mutasyonla
+        # ölü çıktı (kaldırıldığında hiçbir test düşmüyordu).
+        self._draw_search_highlight(self._search_index)

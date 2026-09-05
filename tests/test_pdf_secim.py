@@ -376,3 +376,161 @@ class TestKopyalamaNormalizasyonu:
             v.shutdown()
             v.deleteLater()
             qapp.processEvents()
+
+
+# =====================================================================
+# Arama vurgusu (2026-09-05)
+#
+# F1. `_draw_search_highlight` de etiketin pixmap'i yoksa erken dönüyordu.
+#     Kullanıcı eşleşmeye kaydırılıyor, sayaç "1 / N" diyor ama ekranda
+#     hiçbir vurgu olmuyor ve render sonradan gelince de gelmiyordu.
+#     Seçim tarafında aynı kusur bulunup düzeltilmişti; arama tarafı o dersi
+#     almamıştı.
+#
+# F2. Yakınlaştırma (`_update_page_sizes`) vurguyu siliyor ve kimse yeniden
+#     çizmiyordu: sonuç listesi ve sayaç duruyor ama ekranda vurgu yok
+#     (ölçüldü: zoom_in ve zoom_out'ta 5 -> 0).
+# =====================================================================
+
+
+def _arama_kur(qapp, v, uzunluk=5):
+    """Gerçek sonuç yerine bilinen bir aralığı işaretle.
+
+    Arama İŞÇİSİ asenkron; buradaki kusurlar ÇİZİM yolunda, o yüzden
+    sonuçlar doğrudan kuruluyor ve `_show_search_result` çağrılıyor.
+    """
+    with pdfium_lock:
+        n = v._pdf[0].get_textpage().count_chars()
+    v._search_results = [(0, 0, min(uzunluk, n))]
+    v._search_index = 0
+    v._show_search_result(0)
+    v._update_search_nav(1, 1)
+    qapp.processEvents()
+    return len(v._search_highlights)
+
+
+class TestAramaVurgusu:
+
+    def test_pixmap_yokken_de_vurgu_ciziliyor(self, qapp, duz_pdf):
+        v = _viewer(qapp, duz_pdf, render_bekle=False)
+        try:
+            pm = v._page_labels[0].pixmap()
+            assert pm is None or pm.isNull(), \
+                "sayfa zaten çizilmiş, test bir şey ölçmüyor"
+            assert _arama_kur(qapp, v) > 0, \
+                "eşleşme var ama ekranda hiçbir vurgu yok"
+        finally:
+            v.shutdown()
+            v.deleteLater()
+            qapp.processEvents()
+
+    def test_render_geldikten_sonra_vurgu_duruyor(self, qapp, duz_pdf):
+        v = _viewer(qapp, duz_pdf, render_bekle=False)
+        try:
+            once = _arama_kur(qapp, v)
+            assert once > 0
+            v._request_render(0)
+            t0 = time.monotonic()
+            while time.monotonic() - t0 < 15:
+                qapp.processEvents()
+                pm = v._page_labels[0].pixmap()
+                if pm is not None and not pm.isNull():
+                    break
+                time.sleep(0.01)
+            for _ in range(20):
+                qapp.processEvents()
+                time.sleep(0.01)
+            assert len(v._search_highlights) == once
+        finally:
+            v.shutdown()
+            v.deleteLater()
+            qapp.processEvents()
+
+    def test_zoom_vurguyu_KORUYOR(self, qapp, duz_pdf):
+        v = _viewer(qapp, duz_pdf)
+        try:
+            once = _arama_kur(qapp, v)
+            assert once > 0
+            v.zoom_in()
+            qapp.processEvents()
+            assert len(v._search_highlights) > 0, \
+                "yakınlaştırmadan sonra vurgu kayboldu"
+            v.zoom_out()
+            qapp.processEvents()
+            assert len(v._search_highlights) > 0, \
+                "uzaklaştırmadan sonra vurgu kayboldu"
+        finally:
+            v.shutdown()
+            v.deleteLater()
+            qapp.processEvents()
+
+    def test_zoom_vurguyu_YENI_olcekte_konumlandiriyor(self, qapp, duz_pdf):
+        """Yalnız yeniden çizmek yetmez; yeni ölçekte olmalı."""
+        v = _viewer(qapp, duz_pdf)
+        try:
+            assert _arama_kur(qapp, v) > 0
+            kutu_once = v._search_highlights[0].geometry()
+            v.zoom_in()
+            qapp.processEvents()
+            kutu_sonra = v._search_highlights[0].geometry()
+            assert kutu_sonra.width() > kutu_once.width(), \
+                "kutu eski ölçekte kalmış: %s -> %s" % (kutu_once, kutu_sonra)
+            assert kutu_sonra.right() <= v._page_labels[0].width() + 2, \
+                "kutu etiketin dışına taştı"
+        finally:
+            v.shutdown()
+            v.deleteLater()
+            qapp.processEvents()
+
+    def test_aramasiz_zoom_vurgu_URETMIYOR(self, qapp, duz_pdf):
+        """Aşırı düzeltme kapısı: arama yokken zoom hiçbir şey çizmemeli."""
+        v = _viewer(qapp, duz_pdf)
+        try:
+            v.zoom_in()
+            v.zoom_out()
+            qapp.processEvents()
+            assert v._search_highlights == []
+        finally:
+            v.shutdown()
+            v.deleteLater()
+            qapp.processEvents()
+
+    def test_sonuc_listesi_bosalinca_zoom_vurgu_uretmiyor(self, qapp, duz_pdf):
+        v = _viewer(qapp, duz_pdf)
+        try:
+            assert _arama_kur(qapp, v) > 0
+            v._search_results = []
+            v.zoom_in()
+            qapp.processEvents()
+            assert v._search_highlights == []
+        finally:
+            v.shutdown()
+            v.deleteLater()
+            qapp.processEvents()
+
+    def test_ust_uste_zoom_vurgu_YIGMIYOR(self, qapp, duz_pdf):
+        v = _viewer(qapp, duz_pdf)
+        try:
+            once = _arama_kur(qapp, v)
+            for _ in range(3):
+                v.zoom_in()
+                qapp.processEvents()
+            assert len(v._search_highlights) == once, \
+                "vurgu yığıldı: %d -> %d" % (once, len(v._search_highlights))
+        finally:
+            v.shutdown()
+            v.deleteLater()
+            qapp.processEvents()
+
+    def test_aralik_disi_search_index_cokmuyor(self, qapp, duz_pdf):
+        v = _viewer(qapp, duz_pdf)
+        try:
+            assert _arama_kur(qapp, v) > 0
+            v._search_index = 99
+            v.zoom_in()                  # patlamamalı
+            qapp.processEvents()
+            assert v._search_highlights == []
+        finally:
+            v.shutdown()
+            v.deleteLater()
+            qapp.processEvents()
