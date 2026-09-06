@@ -367,27 +367,30 @@ class TestPreprocess:
 
 
 class TestFindBibliography:
+    # Dönüş LİSTE: `\bibliography{a,b}` LaTeX'te geçerli ve pandoc her dosya
+    # için ayrı `--bibliography` alabiliyor. Tek dize dönerken virgüllü ad
+    # "a,b.bib" diye aranıyor, bulunamıyor ve kaynakça hiç çözülmüyordu.
     def test_bibliography_command(self, tmp_path):
         tex = tmp_path / "d.tex"
         (tmp_path / "refs.bib").write_text("@article{x,...}", encoding="utf-8")
         tex.write_text("\\bibliography{refs}", encoding="utf-8")
-        assert _find_bibliography(str(tex)) == str(tmp_path / "refs.bib")
+        assert _find_bibliography(str(tex)) == [str(tmp_path / "refs.bib")]
 
     def test_addbibresource(self, tmp_path):
         tex = tmp_path / "d.tex"
         (tmp_path / "src.bib").write_text("@article{x,...}", encoding="utf-8")
         tex.write_text("\\addbibresource{src.bib}", encoding="utf-8")
-        assert _find_bibliography(str(tex)) == str(tmp_path / "src.bib")
+        assert _find_bibliography(str(tex)) == [str(tmp_path / "src.bib")]
 
     def test_missing_bib_file(self, tmp_path):
         tex = tmp_path / "d.tex"
         tex.write_text("\\bibliography{refs}", encoding="utf-8")  # refs.bib yok
-        assert _find_bibliography(str(tex)) == ""
+        assert _find_bibliography(str(tex)) == []
 
     def test_no_bibliography(self, tmp_path):
         tex = tmp_path / "d.tex"
         tex.write_text("\\section{X}\nMetin.", encoding="utf-8")
-        assert _find_bibliography(str(tex)) == ""
+        assert _find_bibliography(str(tex)) == []
 
 
 # --- _pandoc_args bibliography desteği ---
@@ -395,7 +398,7 @@ class TestFindBibliography:
 
 class TestPandocArgsBib:
     def test_args_include_citeproc_when_bib(self):
-        args = _pandoc_args("/d/a.tex", "/d/a.md", bib="/d/refs.bib")
+        args = _pandoc_args("/d/a.tex", "/d/a.md", bibs=["/d/refs.bib"])
         assert "--bibliography=/d/refs.bib" in args
         assert "--citeproc" in args
 
@@ -569,7 +572,7 @@ class TestPandocCsljson:
     def test_wsl_pandoc_on_windows(self, mock_run):
         # Windows'ta pandoc WSL'dedir; csljson çağrısı wsl üzerinden olmalı.
         mock_run.return_value = MagicMock(returncode=0, stdout="[]", stderr="")
-        _pandoc_csljson(r"C:\refs.bib")
+        _pandoc_csljson([r"C:\refs.bib"])
         args = mock_run.call_args[0][0]
         assert args[0] == "wsl" and "pandoc" in args
 
@@ -577,7 +580,7 @@ class TestPandocCsljson:
     @patch("core.exporter.subprocess.run")
     def test_native_pandoc_on_linux(self, mock_run):
         mock_run.return_value = MagicMock(returncode=0, stdout="[]", stderr="")
-        _pandoc_csljson("/r/refs.bib")
+        _pandoc_csljson(["/r/refs.bib"])
         args = mock_run.call_args[0][0]
         assert args[0] == "pandoc" and args[1] == "/r/refs.bib"
 
@@ -585,7 +588,7 @@ class TestPandocCsljson:
     def test_empty_on_pandoc_failure(self):
         # pandoc bulunamazsa boş döner (sessiz başarısızlık değil).
         with patch("core.exporter.subprocess.run", side_effect=FileNotFoundError):
-            assert _pandoc_csljson("/r/refs.bib") == ""
+            assert _pandoc_csljson(["/r/refs.bib"]) == ""
 
 
 class TestFixDocxBrokenAnchors:
@@ -844,7 +847,7 @@ class TestEskiKodlama:
                  "\\begin{document}x\\end{document}\n")
         p = _yaz(tmp_path / "makale.tex", belge, "cp1254")
         (tmp_path / "kaynakça.bib").write_text("@article{a,\n}\n", encoding="utf-8")
-        assert _find_bibliography(p) == str(tmp_path / "kaynakça.bib")
+        assert _find_bibliography(p) == [str(tmp_path / "kaynakça.bib")]
 
     def test_cp1254_belgede_turkce_graphicspath(self, tmp_path):
         """Bozulursa o dizindeki hiçbir görsel bulunamaz."""
@@ -986,3 +989,209 @@ class TestUzantiHarfDuyarliligi:
                 assert "-t" in args and "plain" in args, ad
             else:
                 assert "--standalone" not in args, ad
+
+
+# ==========================================================================
+# Exporter YORUMA ALINMIS bildirimleri okuyordu
+#
+# `.tex` dosyalari alternatif kaynakcayi ve eski gorsel dizinini yoruma
+# alinmis tasiyor; `re.search` ILK eslesmeyi aliyordu, yani yorumdakini.
+# OLCULDU (2026-09-06, gercek pandoc 3.1.3 ile UCTAN UCA):
+#
+#   %\bibliography{silinmis}   ustte, gercek \bibliography{kaynaklar} altta
+#   -> export() True donuyor, cikti dosyasi olusuyor, ama kaynakca ciktida
+#      HIC YOK ve <div id="refs"> uretilmiyor.
+#
+# `core.engine_detector` ayni dosyayi okurken `strip_comments`i zaten
+# cagiriyordu; iki yer ayrismisti.
+# ==========================================================================
+
+class TestExporterYorumAyiklama:
+
+    def _proje(self, tmp_path, tex_icerik, bibler=("kaynaklar", "eski")):
+        for ad in bibler:
+            (tmp_path / (ad + ".bib")).write_text("@article{%s,\n}\n" % ad,
+                                                  encoding="utf-8")
+        tex = tmp_path / "belge.tex"
+        tex.write_text(tex_icerik, encoding="utf-8")
+        return str(tex)
+
+    def test_YORUMDAKI_bibliography_secilmiyor(self, tmp_path):
+        tex = self._proje(tmp_path,
+                          "%\\bibliography{eski}\n\\bibliography{kaynaklar}\n")
+        assert _find_bibliography(tex) == [str(tmp_path / "kaynaklar.bib")]
+
+    def test_YORUMDAKI_bib_DISKTE_YOKSA_gercek_satir_okunuyor(self, tmp_path):
+        """En sinsi hali: yorumdaki ad diskte yoktu, fonksiyon HIC BIR SEY
+        dondurmuyordu ve kaynakca ciktidan tumden dusuyordu."""
+        tex = self._proje(tmp_path,
+                          "%\\bibliography{silinmis}\n"
+                          "\\bibliography{kaynaklar}\n")
+        assert _find_bibliography(tex) == [str(tmp_path / "kaynaklar.bib")]
+
+    def test_YORUMDAKI_addbibresource_secilmiyor(self, tmp_path):
+        tex = self._proje(tmp_path,
+                          "% \\addbibresource{eski.bib}\n"
+                          "\\addbibresource{kaynaklar.bib}\n")
+        assert _find_bibliography(tex) == [str(tmp_path / "kaynaklar.bib")]
+
+    def test_KACIRILMIS_yuzde_satiri_yutmuyor(self, tmp_path):
+        """`\\%` yorum degil; asiri ayiklama gercek satiri dusurmemeli."""
+        tex = self._proje(tmp_path,
+                          "Kar 100\\% artti.\n\\bibliography{kaynaklar}\n")
+        assert _find_bibliography(tex) == [str(tmp_path / "kaynaklar.bib")]
+
+    def test_YORUMDAKI_graphicspath_listeye_girmiyor(self, tmp_path):
+        tex = self._proje(tmp_path,
+                          "% \\graphicspath{{eski/}}\n"
+                          "\\graphicspath{{media/}}\n")
+        assert _extract_graphics_paths(tex) == ["media/"]
+
+    def test_YALNIZ_yorumdaki_graphicspath_bos_liste(self, tmp_path):
+        tex = self._proje(tmp_path, "% \\graphicspath{{eski/}}\n")
+        assert _extract_graphics_paths(tex) == []
+
+    def test_GERCEK_graphicspath_hala_okunuyor(self, tmp_path):
+        """Asiri ayiklama kapisi."""
+        tex = self._proje(tmp_path, "\\graphicspath{{media/}{sekiller/}}\n")
+        assert _extract_graphics_paths(tex) == ["media/", "sekiller/"]
+
+
+# ==========================================================================
+# `\bibliography{a,b}` LaTeX'te gecerli
+#
+# Donus tek dizeyken virgullu ad "a,b.bib" diye araniyor, diskte
+# bulunamiyor ve "" donuyordu; yani iki kaynakcali her belgede kaynakca
+# TUMDEN dusuyordu (olculdu, uctan uca).
+# ==========================================================================
+
+class TestVirgulluBibliography:
+
+    def _kur(self, tmp_path, satir, adlar=("kaynaklar", "ek")):
+        for ad in adlar:
+            (tmp_path / (ad + ".bib")).write_text("@article{%s,\n}\n" % ad,
+                                                  encoding="utf-8")
+        tex = tmp_path / "belge.tex"
+        tex.write_text(satir, encoding="utf-8")
+        return str(tex)
+
+    def test_IKISI_de_donuyor(self, tmp_path):
+        tex = self._kur(tmp_path, "\\bibliography{kaynaklar,ek}\n")
+        assert _find_bibliography(tex) == [str(tmp_path / "kaynaklar.bib"),
+                                           str(tmp_path / "ek.bib")]
+
+    def test_BOSLUKLU_virgul_de_calisiyor(self, tmp_path):
+        tex = self._kur(tmp_path, "\\bibliography{kaynaklar, ek}\n")
+        assert len(_find_bibliography(tex)) == 2
+
+    def test_DISKTE_OLMAYAN_parca_atlanip_otekiler_kaliyor(self, tmp_path):
+        tex = self._kur(tmp_path, "\\bibliography{kaynaklar,yok}\n")
+        assert _find_bibliography(tex) == [str(tmp_path / "kaynaklar.bib")]
+
+    def test_HICBIRI_yoksa_bos_liste(self, tmp_path):
+        tex = self._kur(tmp_path, "\\bibliography{yok1,yok2}\n", adlar=())
+        assert _find_bibliography(tex) == []
+
+
+# ==========================================================================
+# pandoc BICIM kurali TEK KAYNAKTA
+#
+# Yollar iki yolda farkli (native platform yolu, WSL `/mnt/...`) ama bicim
+# kurali ayni ve `_pandoc_args` ile `_export_wsl` onu ayri ayri yaziyordu.
+# Bu depo yinelenen paketleme/uzanti tanimindan birkac kez yandi.
+# ==========================================================================
+
+class TestBicimArgumanlariTekKaynak:
+
+    def test_export_wsl_yardimciyi_CAGIRIYOR(self):
+        import inspect
+        import core.exporter as ex
+        kaynak = inspect.getsource(ex._export_wsl)
+        assert "_bicim_argumanlari" in kaynak
+
+    @pytest.mark.parametrize("parca", ["--standalone", "--embed-resources",
+                                       "--citeproc", '"plain"'])
+    def test_export_wsl_kendi_KOPYASINI_tutmuyor(self, parca):
+        """Kirilirsa kural yine iki yerde demektir."""
+        import inspect
+        import core.exporter as ex
+        assert parca not in inspect.getsource(ex._export_wsl)
+
+    def test_pandoc_args_da_ayni_yardimciyi_kullaniyor(self):
+        import inspect
+        import core.exporter as ex
+        assert "_bicim_argumanlari" in inspect.getsource(ex._pandoc_args)
+
+    @pytest.mark.parametrize("hedef,beklenen", [
+        ("a.html", ["--standalone", "--embed-resources"]),
+        ("a.HTML", ["--standalone", "--embed-resources"]),
+        ("a.txt", ["-t", "plain"]),
+        ("a.docx", []),
+        ("a.md", []),
+    ])
+    def test_bicim_kurali(self, hedef, beklenen):
+        from core.exporter import _bicim_argumanlari
+        assert _bicim_argumanlari(hedef) == beklenen
+
+    def test_IKI_bib_iki_bibliography_TEK_citeproc(self):
+        from core.exporter import _bicim_argumanlari
+        args = _bicim_argumanlari("a.md", ["/x/a.bib", "/x/b.bib"])
+        assert args.count("--citeproc") == 1
+        assert args.count("--bibliography=/x/a.bib") == 1
+        assert args.count("--bibliography=/x/b.bib") == 1
+
+    def test_BIB_yoksa_citeproc_yok(self):
+        from core.exporter import _bicim_argumanlari
+        assert "--citeproc" not in _bicim_argumanlari("a.md", [])
+
+    @patch("core.exporter.subprocess.run")
+    @patch("core.exporter.PLATFORM", "win32")
+    def test_WSL_yolu_iki_bibi_de_geciriyor(self, mock_run, tmp_path):
+        """Yollar `/mnt/...`e cevrilmeli, ikisi birden gitmeli."""
+        mock_run.return_value = MagicMock(returncode=0, stdout=b"", stderr="")
+        _export_wsl(r"C:\p\d.tex", r"C:\p\d.html",
+                    [r"C:\p\a.bib", r"C:\p\b.bib"])
+        komut = mock_run.call_args_list[0][0][0][-1]
+        assert komut.count("--bibliography=") == 2, komut
+        assert "/mnt/c/p/a.bib" in komut and "/mnt/c/p/b.bib" in komut, komut
+        assert "--standalone" in komut, komut
+
+
+# ==========================================================================
+# `bibs` girisinin normalize edilmesi
+#
+# Dize de ITERE EDILEBILIR: `for b in bibs` tek yol verildiginde onu
+# KARAKTERLERE bolup `--bibliography=/`, `--bibliography=x` ... uretirdi.
+# pandoc bunlara takilmadan devam ettigi icin hata sessiz kalir, yalnizca
+# kaynakca kaybolurdu. OLCULDU: `_find_bibliography` liste donmeye baslayinca
+# eski imzayla yazilmis uc test tam bu sekilde dustu (2026-09-06, Linux).
+# ==========================================================================
+
+class TestBibListesiNormalizasyonu:
+
+    def test_DIZGE_karakterlere_BOLUNMUYOR(self):
+        from core.exporter import _bicim_argumanlari
+        args = _bicim_argumanlari("a.md", "/x/kaynaklar.bib")
+        assert args.count("--bibliography=/x/kaynaklar.bib") == 1, args
+        assert args.count("--citeproc") == 1, args
+
+    def test_BOS_dizge_kaynakca_saymiyor(self):
+        from core.exporter import _bicim_argumanlari
+        assert _bicim_argumanlari("a.md", "") == []
+
+    @pytest.mark.parametrize("giris,beklenen", [
+        ("/x/a.bib", ["/x/a.bib"]),
+        ("", []),
+        ((), []),
+        (["/x/a.bib", "/x/b.bib"], ["/x/a.bib", "/x/b.bib"]),
+        (("/x/a.bib",), ["/x/a.bib"]),
+    ])
+    def test_normalize(self, giris, beklenen):
+        from core.exporter import _bib_listesi
+        assert _bib_listesi(giris) == beklenen
+
+    @patch("core.exporter.PLATFORM", "linux")
+    @patch("core.exporter._pandoc_run", return_value="[]")
+    def test_csljson_da_dizgeyi_bolmuyor(self, mock_run):
+        _pandoc_csljson("/x/kaynaklar.bib")
+        assert mock_run.call_args[0][0] == ["/x/kaynaklar.bib", "-t", "csljson"]

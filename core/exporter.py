@@ -12,6 +12,7 @@ from core.paths import clean_child_env
 # Bu depodaki TEK çözücü zinciri (utf-8 -> cp1254 -> iso-8859-9). Modül
 # düzeyinde alınıyor: üç ayrı yerde gerekiyor ve project_search yalnız
 # stdlib'e dayanıyor, döngü ya da açılış maliyeti yok.
+from core.latex_utils import strip_comments
 from core.project_search import coz
 
 _logger = get_logger("exporter")
@@ -64,7 +65,7 @@ def export(tex_path: str, dest_path: str) -> tuple[bool, str]:
 
     # Önişle: elsarticle frontmatter'ını soy, abstract/title'ı gövdeye taşı.
     # Bibliography (.bib) tespit et ki referanslar çözülsün.
-    bib = _find_bibliography(tex_path)
+    bibs = _find_bibliography(tex_path)
     tmp_tex = _preprocess_tex(tex_path)
     # Uzantı KÜÇÜK HARFE çevrilerek karşılaştırılır, `_pandoc_args` zaten
     # öyle yapıyordu; burada `endswith(".md")` deniyordu ve aynı dosyada iki
@@ -77,14 +78,14 @@ def export(tex_path: str, dest_path: str) -> tuple[bool, str]:
     ok, err = False, ""
     try:
         if PLATFORM == "win32":
-            ok, err = _export_wsl(tmp_tex, dest_path, bib)
+            ok, err = _export_wsl(tmp_tex, dest_path, bibs)
         else:
-            ok, err = _export_native(tmp_tex, dest_path, bib)
+            ok, err = _export_native(tmp_tex, dest_path, bibs)
         if ok and hedef_ext == ".md":
             _fix_md_image_paths(tex_path, dest_path)
-            if bib:
+            if bibs:
                 # tmp_tex citeproc referans üretimi için lazım; silinmeden önce çağır.
-                _resolve_md_citations(dest_path, tmp_tex, bib)
+                _resolve_md_citations(dest_path, tmp_tex, bibs)
         elif ok and hedef_ext == ".docx":
             _fix_docx_compat(dest_path)
     except Exception as e:
@@ -135,12 +136,21 @@ def _pandoc_run(args, input_text=None, timeout=40):
         return ""
 
 
-def _pandoc_csljson(bib_path: str) -> str:
-    """bib -> csljson metni (inline citation çözümü için)."""
+def _pandoc_csljson(bibs) -> str:
+    r"""bib dosyaları -> csljson metni (inline citation çözümü için).
+
+    pandoc birden çok girdiyi birleştiriyor, yani `\bibliography{a,b}`
+    yazan belgede iki dosyanın kayıtları da tek csljson'da geliyor.
+    """
+    bibs = _bib_listesi(bibs)
+    if not bibs:
+        return ""
     if PLATFORM == "win32":
         from core.paths import windows_to_wsl
-        return _pandoc_run([windows_to_wsl(bib_path), "-t", "csljson"])
-    return _pandoc_run([bib_path, "-t", "csljson"])
+        yollar = [windows_to_wsl(b) for b in bibs]
+    else:
+        yollar = list(bibs)
+    return _pandoc_run(yollar + ["-t", "csljson"])
 
 
 def _extract_refs_div(html: str) -> str:
@@ -163,7 +173,7 @@ def _extract_refs_div(html: str) -> str:
     return html[start:i]
 
 
-def _resolve_md_citations(md_path: str, tex_path: str, bib_path: str):
+def _resolve_md_citations(md_path: str, tex_path: str, bibs=()):
     r"""Markdown'daki [@key] citation'larını çöz ve referans listesi ekle.
 
     pandoc'un markdown writer'ı citeproc'u atladığı için (markdown doğal citation
@@ -176,8 +186,9 @@ def _resolve_md_citations(md_path: str, tex_path: str, bib_path: str):
     """
     import json
 
+    bibs = _bib_listesi(bibs)
     # --- 1) inline çözüm için csljson ---
-    csljson = _pandoc_csljson(bib_path)
+    csljson = _pandoc_csljson(bibs)
     by_id = {}
     if csljson:
         try:
@@ -231,10 +242,11 @@ def _resolve_md_citations(md_path: str, tex_path: str, bib_path: str):
     if PLATFORM == "win32":
         from core.paths import windows_to_wsl
         tex_arg = windows_to_wsl(tex_path)
-        bib_arg = windows_to_wsl(bib_path)
+        bib_args = [windows_to_wsl(b) for b in bibs]
     else:
-        tex_arg, bib_arg = tex_path, bib_path
-    html = _pandoc_run([tex_arg, "--bibliography=" + bib_arg, "--citeproc", "-t", "html"])
+        tex_arg, bib_args = tex_path, list(bibs)
+    html = _pandoc_run([tex_arg] + ["--bibliography=" + b for b in bib_args]
+                       + ["--citeproc", "-t", "html"])
     refs_plain = ""
     if html:
         refs_div = _extract_refs_div(html)
@@ -367,11 +379,17 @@ def _preprocess_tex(tex_path: str) -> str:
         return tex_path
 
 
-def _find_bibliography(tex_path: str) -> str:
-    r"""\bibliography{X} veya \addbibresource{X.bib} için .bib dosya yolunu döndür.
+def _find_bibliography(tex_path: str) -> list[str]:
+    r"""\bibliography{X} veya \addbibresource{X.bib} için .bib yollarını döndür.
 
-    Bulunamazsa veya .bib yoksa boş dize. pandoc'a --bibliography + --citeproc
-    geçirilince citations çözülür ve referans listesi üretilir.
+    Bulunamazsa boş liste. pandoc'a her dosya için ayrı --bibliography ve
+    --citeproc geçirilince citations çözülür ve referans listesi üretilir.
+
+    LİSTE, tek yol değil: `\bibliography{kaynaklar,ek}` yazmak LaTeX'te
+    geçerli ve yaygın. Eskiden dönüş tek dizeydi, virgüllü ad `kaynaklar,ek.bib`
+    diye aranıyor, diskte bulunamıyor ve "" dönüyordu. ÖLÇÜLDÜ (2026-09-06,
+    gerçek pandoc 3.1.3 ile uçtan uca): dışa aktarma BAŞARILI dönüyor ama
+    çıktıda kaynakça HİÇ YOK; `<div id="refs">` de üretilmiyor.
     """
     tex_dir = os.path.dirname(os.path.abspath(tex_path))
     # Çözücü zinciri: cp1254 bir .tex'te Türkçe adlı bir .bib
@@ -382,18 +400,32 @@ def _find_bibliography(tex_path: str) -> str:
         with open(tex_path, "rb") as f:
             content = coz(f.read())
     except OSError:
-        return ""
+        return []
+    # YORUMLAR AYIKLANIYOR. `.tex` dosyaları alternatif kaynakçayı yoruma
+    # alınmış taşıyor ve `re.search` İLK eşleşmeyi alıyordu, yani yorumdakini.
+    # ÖLÇÜLDÜ (2026-09-06): üstünde `%\bibliography{eski}` olan bir belgede
+    # eski.bib dönüyordu (yanlış kaynakça); o dosya diskte yoksa hiçbir şey
+    # dönmüyordu, yani gerçek `\bibliography{kaynaklar}` satırına HİÇ
+    # bakılmıyordu ve çıktıda kaynakça olmuyordu. `core.engine_detector`
+    # aynı dosyayı okurken `strip_comments`i zaten çağırıyordu.
+    content = strip_comments(content)
     for pat in (r'\\addbibresource\s*\{([^}]+\.bib)\}', r'\\bibliography\s*\{([^}]+)\}'):
         m = re.search(pat, content)
         if not m:
             continue
-        name = m.group(1).strip()
-        if not name.endswith(".bib"):
-            name += ".bib"
-        cand = os.path.join(tex_dir, name)
-        if os.path.isfile(cand):
-            return cand
-    return ""
+        bulunan = []
+        for ad in m.group(1).split(","):
+            ad = ad.strip()
+            if not ad:
+                continue
+            if not ad.endswith(".bib"):
+                ad += ".bib"
+            cand = os.path.join(tex_dir, ad)
+            if os.path.isfile(cand):
+                bulunan.append(cand)
+        if bulunan:
+            return bulunan
+    return []
 
 
 def _fix_md_image_paths(tex_path: str, md_path: str):
@@ -454,6 +486,12 @@ def _extract_graphics_paths(tex_path: str) -> list[str]:
         # bulunamıyordu (ölçüldü: 'şekiller/' yerine '�ekiller/').
         with open(tex_path, "rb") as f:
             content = coz(f.read())
+        # Yoruma alınmış bir `\graphicspath` dizin değil örnektir. Ölçüldü
+        # (2026-09-06): `% \graphicspath{{eski/}}` satırı listeye 'eski/'
+        # ekliyordu ve `_fix_md_image_paths` adayları SIRAYLA denediği için
+        # o dizin gerçek olandan ÖNCE deneniyordu. Aynı gerekçe
+        # `_find_bibliography` için de geçerli, ikisi de aynı dosyayı okuyor.
+        content = strip_comments(content)
         paths = []
         for m in re.finditer(r'\\graphicspath\s*\{(.+)\}', content):
             for inner in re.finditer(r'\{([^}]+)\}', m.group(1)):
@@ -464,10 +502,31 @@ def _extract_graphics_paths(tex_path: str) -> list[str]:
         return []
 
 
-def _pandoc_args(tex_path: str, dest_path: str, bib: str = "") -> list[str]:
-    """Format'a göre pandoc argümanlarını oluştur."""
-    work_dir = os.path.dirname(os.path.abspath(tex_path))
-    args = ["pandoc", tex_path, "-o", dest_path, f"--resource-path={work_dir}"]
+def _bib_listesi(bibs) -> list[str]:
+    """`bibs` her zaman liste olsun.
+
+    Dize de ITERE EDİLEBİLİR: `for b in bibs` tek bir yol verildiğinde onu
+    KARAKTERLERE bölüp `--bibliography=/`, `--bibliography=x` ... üretirdi.
+    pandoc bunlara "dosya yok" demeden devam ettiği için hata sessiz kalır,
+    yalnız kaynakça kaybolurdu. Ölçüldü: `_find_bibliography` liste dönmeye
+    başlayınca eski imzayla yazılmış üç test tam bu şekilde düştü.
+    """
+    if isinstance(bibs, str):
+        return [bibs] if bibs else []
+    return list(bibs)
+
+
+def _bicim_argumanlari(dest_path: str, bibs=()) -> list[str]:
+    """Hedef biçimine göre pandoc seçenekleri. BU KURALIN TEK KAYNAĞI.
+
+    Yollar iki yolda farklı (native Windows/Linux yolu kullanıyor, WSL yolu
+    `/mnt/...` istiyor) ama BİÇİM kuralı aynı ve iki yerde kopyalanmıştı:
+    `_pandoc_args` ile `_export_wsl` aynı üç dalı ayrı ayrı yazıyordu. Bu
+    depo yinelenen paketleme/uzantı tanımından birkaç kez yandı; burada
+    henüz ayrışmamışken tek kaynağa alındı.
+    """
+    bibs = _bib_listesi(bibs)
+    args = []
     ext = os.path.splitext(dest_path)[1].lower()
     if ext == ".html":
         args += ["--standalone", "--embed-resources"]
@@ -475,16 +534,25 @@ def _pandoc_args(tex_path: str, dest_path: str, bib: str = "") -> list[str]:
         # pandoc .txt'yi varsayılan olarak markdown işler; gerçek plain text iste
         # (ayrıca plain text citation-aware olmadığından citeproc burada çözülür)
         args += ["-t", "plain"]
-    if bib:
-        args += ["--bibliography=" + bib, "--citeproc"]
+    for b in bibs:
+        args += ["--bibliography=" + b]
+    if bibs:
+        args += ["--citeproc"]
     return args
 
 
-def _export_native(tex_path: str, dest_path: str, bib: str = "") -> tuple[bool, str]:
+def _pandoc_args(tex_path: str, dest_path: str, bibs=()) -> list[str]:
+    """Format'a göre pandoc argümanlarını oluştur."""
+    work_dir = os.path.dirname(os.path.abspath(tex_path))
+    return (["pandoc", tex_path, "-o", dest_path, f"--resource-path={work_dir}"]
+            + _bicim_argumanlari(dest_path, bibs))
+
+
+def _export_native(tex_path: str, dest_path: str, bibs=()) -> tuple[bool, str]:
     work_dir = os.path.dirname(os.path.abspath(tex_path))
     try:
         r = subprocess.run(
-            _pandoc_args(tex_path, dest_path, bib),
+            _pandoc_args(tex_path, dest_path, bibs),
             capture_output=True, text=True, encoding="utf-8",
             errors="replace", timeout=30,
             cwd=work_dir, env=clean_child_env(),
@@ -501,7 +569,7 @@ def _export_native(tex_path: str, dest_path: str, bib: str = "") -> tuple[bool, 
         return False, str(e)
 
 
-def _export_wsl(tex_path: str, dest_path: str, bib: str = "") -> tuple[bool, str]:
+def _export_wsl(tex_path: str, dest_path: str, bibs=()) -> tuple[bool, str]:
     from core.paths import windows_to_wsl
 
     wsl_tex = windows_to_wsl(tex_path)
@@ -512,15 +580,11 @@ def _export_wsl(tex_path: str, dest_path: str, bib: str = "") -> tuple[bool, str
     import ntpath
     tmp_dest = f"/tmp/export_{os.getpid()}_{ntpath.basename(dest_path)}"
 
-    # pandoc argümanlarını oluştur
-    pandoc_cmd = ["pandoc", wsl_tex, "-o", tmp_dest, f"--resource-path={wsl_dir}"]
-    ext = os.path.splitext(dest_path)[1].lower()
-    if ext == ".html":
-        pandoc_cmd += ["--standalone", "--embed-resources"]
-    elif ext == ".txt":
-        pandoc_cmd += ["-t", "plain"]
-    if bib:
-        pandoc_cmd += ["--bibliography=" + windows_to_wsl(bib), "--citeproc"]
+    # Biçim kuralı `_bicim_argumanlari`de; burada yalnız YOLLAR farklı.
+    pandoc_cmd = (["pandoc", wsl_tex, "-o", tmp_dest,
+                   f"--resource-path={wsl_dir}"]
+                  + _bicim_argumanlari(dest_path,
+                                       [windows_to_wsl(b) for b in bibs]))
 
     try:
         quoted = " ".join(shlex.quote(a) for a in pandoc_cmd)
