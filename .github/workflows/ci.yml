@@ -236,3 +236,92 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: python -m pytest tests/test_derle_sh.py tests/test_synctex_live.py tests/test_tablo_derleme.py tests/test_ipucu_derleme.py tests/test_pdf_baglanti_derleme.py -v
+
+  # ================== GECICI ON UCUS ISI, BIRLESTIRILMEYECEK ==================
+  # release.yml yalniz `v*` tag push'unda kosuyor, yani Linux yapisinda
+  # yapilan bir degisiklik tag atilana kadar hic calismiyor. 90c61d5 Qt
+  # ceviri suzgecini iki spec'e de ekledi; Windows tarafi yerelde gercek
+  # exe uretilerek denendi, Linux tarafi denenmedi. Bu is release.yml'in
+  # build-linux adimlarini yayin yapmadan tekrarliyor.
+  #
+  # PR birlestirilmeden kapatilacak ve dal silinecek.
+  # ===========================================================================
+  onucus-linux:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Gomulecek yorumlayici
+        run: python3 --version
+
+      - name: APT paket onbellegi
+        uses: actions/cache@v4
+        with:
+          path: ~/apt-arsiv
+          key: apt-appimage-ubuntu-22.04-v3
+
+      - name: Install system dependencies
+        run: |
+          echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' \
+            | sudo tee /etc/apt/apt.conf.d/99onbellek > /dev/null
+          mkdir -p ~/apt-arsiv
+          sudo cp -n ~/apt-arsiv/*.deb /var/cache/apt/archives/ 2>/dev/null || true
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            python3-venv inkscape \
+            libxcb-cursor0 libgl1 libegl1 libglib2.0-0 \
+            libdbus-1-3 libxkbcommon0 libfontconfig1 \
+            libxkbcommon-x11-0 libxcb-icccm4 libxcb-keysyms1 libxcb-xkb1 \
+            libxcb-image0 libxcb-randr0 libxcb-render0 libxcb-render-util0 \
+            libxcb-shape0 libxcb-shm0 libxcb-sync1 libxcb-util1 \
+            libxcb-xfixes0 libx11-xcb1
+
+      - name: Build AppImage
+        working-directory: desktop
+        run: bash build_appimage.sh
+
+      - name: AppImage bagimliliklari cozuluyor mu
+        working-directory: desktop
+        run: |
+          eklenti=$(find dist/latex-editor/_internal -name libqxcb.so | head -1)
+          test -n "$eklenti" || { echo "::error::libqxcb.so bulunamadi"; exit 1; }
+          eksik=$(LD_LIBRARY_PATH="$PWD/dist/latex-editor/_internal" \
+                  ldd "$eklenti" | grep "not found" || true)
+          if [ -n "$eksik" ]; then
+            echo "::error::AppImage kendi kendine yetmiyor, eksik kutuphaneler:"
+            echo "$eksik"
+            exit 1
+          fi
+          echo "xcb eklentisinin butun bagimliliklari cozuluyor"
+
+      - name: Yazim denetimi pakete girdi mi
+        working-directory: desktop
+        run: python3 ../scripts/paket_dogrula.py dist/latex-editor
+
+      # ON UCUSUN ASIL SORUSU: suzgec Linux'ta ne yapti.
+      - name: Qt ceviri kataloglari sayilsin
+        working-directory: desktop
+        run: |
+          dizin=$(find dist/latex-editor/_internal -type d -path "*PyQt6*/translations" | head -1)
+          echo "Qt ceviri dizini: ${dizin:-YOK}"
+          if [ -n "$dizin" ]; then
+            echo "--- icindekiler ---"
+            ls -la "$dizin"
+            n=$(ls "$dizin" | wc -l)
+            echo "katalog sayisi: $n"
+            test "$n" -eq 2 || { echo "::error::2 bekleniyordu, $n var"; exit 1; }
+            test -f "$dizin/qtbase_tr.qm" || { echo "::error::qtbase_tr.qm yok"; exit 1; }
+          else
+            echo "::error::Qt ceviri dizini hic yok, qtbase_tr.qm de kayip"
+            exit 1
+          fi
+          echo "--- bizim kataloglarimiz ---"
+          ls -la dist/latex-editor/_internal/translations/
+          echo "--- AppImage boyutu ---"
+          ls -la dist/*.AppImage
