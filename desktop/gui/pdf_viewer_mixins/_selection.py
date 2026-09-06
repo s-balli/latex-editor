@@ -168,7 +168,17 @@ class PdfSelectionMixin:
     def _selection_right_click(self, pos, obj):
         if not self._selected_text:
             return False
-        global_pos = self.mapToGlobal(pos)
+        # OLAYI ALAN pencereden eşle, görüntürücüden DEĞİL. `pos`,
+        # `_events._handle_page_event`te `event.position()` ile üretiliyor ve
+        # olay süzgeci SAYFA ETİKETLERİNE kurulu (`label.installEventFilter`),
+        # yani `pos` etiket-yereli. `self.mapToGlobal(pos)` demek, etiket
+        # koordinatını görüntürücü koordinatı sanmak: menü, etiketin
+        # görüntürücü içindeki ofseti kadar kayıyordu ve sapma belge
+        # kaydırıldıkça değişiyordu. Ölçüldü 2026-09-06 (700x500 pencere,
+        # 4 sayfa): yatayda sabit -118 px, dikeyde sayfaya göre -42/+71 px.
+        # Aynı dosyadaki `_pos_to_page` bu ayrımı zaten yapıyor (obj'den
+        # eşliyor); sağ tık yolu o dersi almamıştı.
+        global_pos = obj.mapToGlobal(pos)
         menu = QMenu(self)
         menu.setStyleSheet(
             f"QMenu {{ background: {self._theme['bg_toolbar']}; color: {self._theme['fg_primary']}; "

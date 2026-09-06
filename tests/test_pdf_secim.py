@@ -534,3 +534,107 @@ class TestAramaVurgusu:
             v.shutdown()
             v.deleteLater()
             qapp.processEvents()
+
+
+# =====================================================================
+# Sag tik menusu TIKLANAN NOKTADA acilmali (2026-09-06)
+#
+# `_selection_right_click` menuyu su noktada aciyordu:
+#
+#     global_pos = self.mapToGlobal(pos)      # self = PdfViewer
+#
+# Ama `pos`, olayi ALAN pencerenin yerel koordinati: `_handle_page_event`
+# `event.position()` diyor ve olay suzgeci SAYFA ETIKETLERINE kurulu
+# (`label.installEventFilter`). Etiket koordinatini gorunturucu koordinati
+# saymak, menuyu etiketin gorunturucu icindeki ofseti kadar kaydiriyordu ve
+# sapma belge kaydirildikca DEGISIYORDU.
+#
+# OLCULDU (700x500 pencere, 4 sayfa): yatayda sabit -118 px, dikeyde sayfaya
+# gore -42/+71 px. Kullanici sag tikladiginda menu ekranin bambaska bir
+# yerinde aciliyordu.
+#
+# Ayni dosyadaki `_pos_to_page` bu ayrimi zaten yapiyor (obj'den esliyor);
+# sag tik yolu o dersi almamisti.
+# =====================================================================
+
+
+def _sag_tik_noktasi(qapp, v, obj, x, y, secim="secili metin"):
+    """Sag tik gonder, menunun ACILDIGI global noktayi dondur (menu acilmaz).
+
+    `QMenu.exec` yakalaniyor: test modal menu acmamali.
+    """
+    from PyQt6.QtCore import QEvent, QPointF, Qt
+    from PyQt6.QtGui import QMouseEvent
+    from PyQt6.QtWidgets import QMenu
+
+    yakalanan = []
+    eylemler = []
+    asil = QMenu.exec
+
+    def _sahte(self, *a, **k):
+        yakalanan.append(a[0] if a else None)
+        eylemler.append([e.text() for e in self.actions()])
+        return None
+
+    QMenu.exec = _sahte
+    try:
+        v._selected_text = secim
+        ev = QMouseEvent(QEvent.Type.MouseButtonPress, QPointF(x, y),
+                         Qt.MouseButton.RightButton, Qt.MouseButton.RightButton,
+                         Qt.KeyboardModifier.NoModifier)
+        tuketildi = v.eventFilter(obj, ev)
+    finally:
+        QMenu.exec = asil
+    return (yakalanan[0] if yakalanan else None,
+            eylemler[0] if eylemler else [], tuketildi)
+
+
+@pytest.mark.parametrize("x,y", [(40, 30), (60, 120)])
+def test_sag_tik_menusu_TIKLANAN_NOKTADA_aciliyor(qapp, duz_pdf, x, y):
+    """Kirilirsa: menu yine gorunturucuden esleniyor demektir."""
+    v = _viewer(qapp, duz_pdf)
+    try:
+        label = v._page_labels[0]
+        nokta, _eylem, _t = _sag_tik_noktasi(qapp, v, label, x, y)
+        assert nokta is not None, "menu hic acilmadi"
+        dogru = label.mapToGlobal(QPoint(x, y))
+        assert abs(nokta.x() - dogru.x()) <= 1, (nokta, dogru)
+        assert abs(nokta.y() - dogru.y()) <= 1, (nokta, dogru)
+    finally:
+        v.shutdown()
+        v.close()
+        qapp.processEvents()
+
+
+def test_sag_tik_KAPSAYICIDAN_gelse_de_dogru(qapp, duz_pdf):
+    """Tiklama sayfa etiketine degil kapsayiciya duserse de nokta dogru."""
+    v = _viewer(qapp, duz_pdf)
+    try:
+        nokta, _e, _t = _sag_tik_noktasi(qapp, v, v._pages_widget, 10, 10)
+        dogru = v._pages_widget.mapToGlobal(QPoint(10, 10))
+        assert nokta is not None
+        assert abs(nokta.x() - dogru.x()) <= 1, (nokta, dogru)
+        assert abs(nokta.y() - dogru.y()) <= 1, (nokta, dogru)
+    finally:
+        v.shutdown()
+        v.close()
+        qapp.processEvents()
+
+
+def test_sag_tik_menusunun_DAVRANISI_bozulmadi(qapp, duz_pdf):
+    """Asiri duzeltme kapisi: konum duzelirken menunun kendisi kalmali."""
+    v = _viewer(qapp, duz_pdf)
+    try:
+        label = v._page_labels[0]
+        nokta, eylemler, tuketildi = _sag_tik_noktasi(qapp, v, label, 40, 30)
+        assert nokta is not None, "menu acilmadi"
+        assert any("opyala" in e for e in eylemler), eylemler
+        assert tuketildi is True, "sag tik olayi tuketilmedi"
+
+        # Secim YOKKEN menu hic acilmamali (onceki davranis korunuyor)
+        nokta2, _e2, _t2 = _sag_tik_noktasi(qapp, v, label, 40, 30, secim="")
+        assert nokta2 is None, "secim yokken menu acildi"
+    finally:
+        v.shutdown()
+        v.close()
+        qapp.processEvents()
