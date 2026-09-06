@@ -13,8 +13,14 @@ yalniz `.py` dosyalarini goruyor, paketin veri dosyalarini gormuyor. Exe
 sorunsuz uretiliyordu ve ikinci dil calismiyordu. Testler bunu goremez,
 cunku testler paketlenmemis kaynakta kosuyor.
 
-Ayrica `.xz` dosyalarinin pakete OLU AGIRLIK olarak girmedigi de
-denetleniyor (1.6 MB).
+Arayuz dili de ayni sinifta: uygulama IKI katalog kullaniyor, bizimki
+(`translations/latexeditor_<dil>.qm`) ve Qt'nin kendisi
+(`qtbase_<dil>.qm`). Ikincisinin adi bizde hicbir yerde gecmiyor,
+PyInstaller Qt hook'u topluyor; dusarsa arayuz Turkce acilir ama Qt'nin
+urettigi sag tik menuleri ve dugmeler Ingilizce kalir.
+
+Ayrica pakete OLU AGIRLIK girmedigi de denetleniyor: `.xz` sozlukler
+(1.6 MB) ve `.ts` ceviri kaynaklari (~300 KB).
 
 Kullanim:
     python scripts/paket_dogrula.py "desktop/dist/LaTeX Editor.exe"
@@ -105,18 +111,58 @@ def dogrula(yol: str) -> int:
     if not var_mi("spylls/hunspell/data/en/en_US.aff"):
         hata.append("spylls en_US.aff pakete GIRMEMIS: ikinci dil calismaz")
 
+    # ARAYUZ DILI: iki ayri katalog, ikisi de ayri sekilde dusebilir.
+    #
+    #   1. Bizim `translations/latexeditor_<dil>.qm`imiz. Spec'in `datas`
+    #      listesinden geliyor, yani adi bir yerde yazili.
+    #   2. Qt'nin KENDI `qtbase_<dil>.qm`i. Bunun adi HICBIR YERDE gecmiyor:
+    #      PyInstaller Qt hook'u `QtCore -> ['qt', 'qtbase']` eslemesinden
+    #      topluyor. Hook degisirse ya da kurulumda katalog yoksa sessizce
+    #      dusuyor; arayuz Turkce acilir ama Qt'nin urettigi sag tik
+    #      menuleri ve diyalog dugmeleri Ingilizce kalir.
+    #
+    # Testler ikisini de goremez: testler paketlenmemis kaynakta kosuyor ve
+    # orada `QLibraryInfo` dogrudan PyQt6 kurulumunu gosteriyor.
+    for ad in ("latexeditor_tr.qm", "latexeditor_en.qm"):
+        pakettekiler = [b for a, b in boyut.items()
+                        if a.endswith("translations/" + ad)]
+        if not pakettekiler:
+            hata.append("%s pakete GIRMEMIS: arayuz o dilde acilmaz" % ad)
+            continue
+        kaynak = os.path.join(_KOK, "desktop", "translations", ad)
+        if os.path.exists(kaynak):
+            beklenen = os.path.getsize(kaynak)
+            if max(pakettekiler) != beklenen:
+                hata.append("%s KIRPILMIS: pakette %d bayt, olmasi gereken %d"
+                            % (ad, max(pakettekiler), beklenen))
+
+    if not [a for a in duz if a.endswith("/qtbase_tr.qm") or a == "qtbase_tr.qm"]:
+        hata.append("Qt katalogu qtbase_tr.qm pakete GIRMEMIS: Turkce "
+                    "arayuzde Qt'nin kendi menuleri Ingilizce kalir")
+
     # Olu agirlik denetimi
     xz = var_mi(".xz")
     if xz:
         hata.append("sikistirilmis sozluk de paketlenmis (olu agirlik): %s"
                     % xz[:3])
+    # Ceviri KAYNAK dosyalari: yalniz derlenmis `.qm` okunuyor, `.ts`ler
+    # ~300 KB olu agirlik. Alt dize DEGIL son ek denetimi; `.xz` kapisinda
+    # alt dize kullanmak uydurma bir boyut hatasi dogurmustu.
+    ts = [a for a in duz if a.endswith(".ts")]
+    if ts:
+        hata.append("ceviri kaynak dosyalari da paketlenmis (olu agirlik): %s"
+                    % ts[:3])
     for istenmeyen in ("data/ru/", "data/sv/"):
         if var_mi(istenmeyen):
             hata.append("spylls'in kullanilmayan sozlugu paketlenmis: %s"
                         % istenmeyen)
 
     print("paket icerigi: %d girdi" % len(duz))
-    for a in sorted(var_mi("sozlukler/") + var_mi("spylls/hunspell/data/")):
+    # Yalniz DENETLENENLER listeleniyor. Qt'nin butun dilleri yazilsaydi
+    # (gercek pakette 100'u askin katalog) CI kutugu okunmaz olurdu.
+    for a in sorted(set(var_mi("sozlukler/") + var_mi("spylls/hunspell/data/")
+                        + var_mi("translations/latexeditor")
+                        + var_mi("qtbase_tr.qm"))):
         print("  bulundu: %s" % a)
 
     if hata:
@@ -124,7 +170,8 @@ def dogrula(yol: str) -> int:
         for h in hata:
             print("HATA: %s" % h)
         return 1
-    print("paket tam: tr_TR sozlugu ve spylls en_US icinde, olu agirlik yok")
+    print("paket tam: tr_TR sozlugu, spylls en_US ve ceviri kataloglari "
+          "icinde, olu agirlik yok")
     return 0
 
 

@@ -390,10 +390,15 @@ def _paket_dogrula():
     return mod
 
 
-def _sahte_paket(kok, dic_bayt=None):
+_CEVIRI_DIZINI = os.path.join(_MASAUSTU, "translations")
+
+
+def _sahte_paket(kok, dic_bayt=None, qtbase=("qtbase_tr.qm",)):
     """Onedir bicimli, digerleri TAM bir paket agaci kur.
 
     `dic_bayt` verilirse `tr_TR.dic` o boyuta kirpilir.
+    `qtbase` Qt'nin kendi katalogundan pakete hangilerinin girdigini soyler;
+    bos vermek o katalogun hic toplanmadigi durumu kurar.
     """
     import shutil
 
@@ -411,6 +416,18 @@ def _sahte_paket(kok, dic_bayt=None):
         # İkili mod: bunlar yalnızca "dosya var mı" denetimi için yer tutucu.
         open(os.path.join(kok, "spylls", "hunspell", "data", "en", ad),
              "wb").close()
+
+    # Arayuz dili: bizim kataloglarimiz gercek boyutlariyla kopyalaniyor
+    # (kapi boyuta da bakiyor), Qt'ninki yalniz varlik icin yer tutucu.
+    hedef = os.path.join(kok, "translations")
+    os.makedirs(hedef, exist_ok=True)
+    for ad in ("latexeditor_tr.qm", "latexeditor_en.qm"):
+        shutil.copy2(os.path.join(_CEVIRI_DIZINI, ad),
+                     os.path.join(hedef, ad))
+    qt = os.path.join(kok, "PyQt6", "Qt6", "translations")
+    os.makedirs(qt, exist_ok=True)
+    for ad in qtbase:
+        open(os.path.join(qt, ad), "wb").close()
     return kok
 
 
@@ -486,3 +503,88 @@ class TestPaketSozlukBoyutu:
         assert "KIRPILMIS" not in cikti, (
             "sikistirilmis dosyanin boyutu acilmis boyutla karsilastirilmis:\n"
             + cikti)
+
+
+# ==========================================================================
+# Paket kapisi ARAYUZ DILINI de gormeli
+#
+# Uygulama iki katalog kullaniyor ve ikisi de ayri sekilde sessizce
+# dusebiliyor: bizimki (`translations/latexeditor_<dil>.qm`, spec datas'tan)
+# ve Qt'nin kendisi (`qtbase_<dil>.qm`, PyInstaller Qt hook'undan). Ikincinin
+# adi bizde HICBIR YERDE gecmiyor; hook degisirse arayuz Turkce acilir ama
+# Qt'nin urettigi sag tik menuleri ve dugmeler Ingilizce kalir. Bu tam olarak
+# "yalniz paketlenmis urunde gorunen" sinifi: testler paketlenmemis kaynakta
+# kosuyor ve orada `QLibraryInfo` dogrudan PyQt6 kurulumunu gosteriyor.
+# ==========================================================================
+
+class TestPaketCevirileri:
+
+    def test_TAM_paket_temiz_geciyor(self, tmp_path, _sozluk_hazir):
+        pd = _paket_dogrula()
+        paket = _sahte_paket(str(tmp_path / "tam"))
+        assert pd.dogrula(paket) == 0
+
+    @pytest.mark.parametrize("ad", ["latexeditor_tr.qm", "latexeditor_en.qm"])
+    def test_UYGULAMA_katalogu_dusunce_yakalaniyor(self, tmp_path, capsys,
+                                                   _sozluk_hazir, ad):
+        pd = _paket_dogrula()
+        paket = _sahte_paket(str(tmp_path / ("y" + ad[:3])))
+        os.remove(os.path.join(paket, "translations", ad))
+        rc = pd.dogrula(paket)
+        cikti = capsys.readouterr().out
+        assert rc != 0, "eksik katalog temiz sayildi"
+        assert ad in cikti and "GIRMEMIS" in cikti, cikti
+
+    def test_KIRPILMIS_katalog_yakalaniyor(self, tmp_path, capsys,
+                                           _sozluk_hazir):
+        """Varlik yetmez: yarim kopyalanmis `.qm` sessizce ise yaramaz."""
+        pd = _paket_dogrula()
+        paket = _sahte_paket(str(tmp_path / "kirpik_qm"))
+        yol = os.path.join(paket, "translations", "latexeditor_tr.qm")
+        with open(yol, "r+b") as f:
+            f.truncate(os.path.getsize(yol) // 3)
+        rc = pd.dogrula(paket)
+        cikti = capsys.readouterr().out
+        assert rc != 0
+        assert "KIRPILMIS" in cikti, cikti
+
+    def test_QT_katalogu_dusunce_yakalaniyor(self, tmp_path, capsys,
+                                             _sozluk_hazir):
+        """Kullanicinin bildirdigi kusurun paketlenmis surumdeki hali."""
+        pd = _paket_dogrula()
+        paket = _sahte_paket(str(tmp_path / "qtsuz"), qtbase=())
+        rc = pd.dogrula(paket)
+        cikti = capsys.readouterr().out
+        assert rc != 0, "qtbase katalogu olmadan paket tam sayildi"
+        assert "qtbase_tr.qm" in cikti, cikti
+
+    def test_BASKA_dilin_qtbase_i_yerine_gecmiyor(self, tmp_path, capsys,
+                                                  _sozluk_hazir):
+        """Asiri gevsek kapi kapisi: `qtbase_en.qm` varligi yetmemeli."""
+        pd = _paket_dogrula()
+        paket = _sahte_paket(str(tmp_path / "yanlisdil"), qtbase=("qtbase_en.qm",))
+        assert pd.dogrula(paket) != 0
+        assert "qtbase_tr.qm" in capsys.readouterr().out
+
+    def test_TS_kaynaklari_olu_agirlik_sayiliyor(self, tmp_path, capsys,
+                                                 _sozluk_hazir):
+        """`.ts` ~300 KB; uygulama yalniz `.qm` okuyor."""
+        pd = _paket_dogrula()
+        paket = _sahte_paket(str(tmp_path / "tsli"))
+        shutil.copy2(os.path.join(_CEVIRI_DIZINI, "latexeditor_tr.ts"),
+                     os.path.join(paket, "translations", "latexeditor_tr.ts"))
+        rc = pd.dogrula(paket)
+        cikti = capsys.readouterr().out
+        assert rc != 0, "`.ts` olu agirligi temiz sayildi"
+        assert "olu agirlik" in cikti, cikti
+        # `.qm` de ".ts" ile bitmez; kapi onlari suclamamali.
+        assert "latexeditor_tr.qm" not in [
+            s for s in cikti.splitlines() if s.startswith("HATA")]
+
+    @pytest.mark.parametrize("spec", ["LaTeX Editor.spec",
+                                      "latex-editor-linux.spec"])
+    def test_IKI_SPEC_de_ts_yi_disliyor(self, spec):
+        """Iki spec ayri dosya; biri otekinden sessizce ayrisabiliyor."""
+        metin = _oku(os.path.join(_MASAUSTU, spec))
+        assert "endswith('.ts')" in metin, (
+            "%s ceviri kaynaklarini paketten dislamiyor" % spec)

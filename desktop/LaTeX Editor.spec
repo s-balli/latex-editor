@@ -48,6 +48,11 @@ for src, dst in [('..\\core', 'core'), ('gui', 'gui'), ('syntax', 'syntax'), ('l
     else:
         datas.append((src, dst))
 
+# Ceviri KAYNAK dosyalari pakete girmesin: uygulama yalniz derlenmis `.qm`i
+# okuyor, iki `.ts` ~300 KB olu agirlik. Sozluklerdeki `.xz` dersinin ayni
+# sinifi. scripts/paket_dogrula.py bunu yapim adiminda denetliyor.
+datas = [(s, d) for s, d in datas if not s.endswith('.ts')]
+
 # Sozluk _collect ile TOPLANMIYOR: o dizinde `.xz` dosyalari da var ve
 # `_collect` hepsini alirdi, exe'ye 1.6 MB olu agirlik girerdi. Yalniz
 # spylls'in okudugu iki dosya aliniyor.
