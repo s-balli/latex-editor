@@ -1034,3 +1034,93 @@ def test_onbellek_HALA_is_goruyor(qapp):
     assert baslangiclar, "styleText hiç startStyling çağırmadı"
     assert min(baslangiclar) > 0, \
         f"tarama belgenin başına döndü: {baslangiclar}"
+
+
+# =====================================================================
+# Verbatim: SINIRLAR komut, ARASI ham metin (2026-09-06)
+#
+# Iki ayri kusur, ikisi de kullanicidan geldi:
+#
+# 1. RENK. VERBATIM'in kendi tema anahtari yoktu, `fg_muted`i odunc
+#    aliyordu; o her temada "sonuk gri" oldugu icin yorum rengiyle ayni
+#    sinifa dusuyordu. Olculdu: yorum ile verbatim arasindaki RGB mutlak
+#    fark toplami gruvbox 3, monokai 63, dracula 64 (deponun `sem_*` icin
+#    kullandigi ayirt edilebilirlik esigi 40). Lexer DOGRU stilliyordu
+#    (VERBATIM=8), kusur renkteydi. `syn_verbatim` anahtari eklendi.
+#
+# 2. SINIRLAR. `\begin{verbatim}` ve `\end{verbatim}` de VERBATIM
+#    stilleniyordu, yani etiket icerikle AYNI renkteydi ve ortamin nerede
+#    baslayip bittigi ekranda okunmuyordu. Oysa `\begin`/`\end` birer komut,
+#    `{ad}` bir ortam argumani; diger ortamlarda zaten oyle renkleniyorlar.
+# =====================================================================
+
+
+def _stil_haritasi(belge):
+    """Satir -> o satirda gecen stil adlari kumesi."""
+    editor = _make_editor()
+    editor.setText(belge)
+    lexer = editor.lexer()
+    lexer.reset_state()
+    lexer.invalidate_cache()
+    lexer.styleText(0, len(belge.encode("utf-8")))
+    ad = {LatexLexer.DEFAULT: "DEFAULT", LatexLexer.COMMAND: "COMMAND",
+          LatexLexer.CMD_ARG: "CMD_ARG", LatexLexer.BRACKET: "BRACKET",
+          LatexLexer.COMMENT: "COMMENT", LatexLexer.MATH: "MATH",
+          LatexLexer.MATH_CMD: "MATH_CMD", LatexLexer.ENV_ARG: "ENV_ARG",
+          LatexLexer.VERBATIM: "VERBATIM"}
+    out, off = {}, 0
+    for satir in belge.split("\n"):
+        b = satir.encode("utf-8")
+        if satir.strip():
+            out[satir] = {ad[_style_at(editor, off + k)] for k in range(len(b))}
+        off += len(b) + 1
+    return out
+
+
+@pytest.mark.parametrize("env", ["verbatim", "verbatim*", "lstlisting",
+                                 "comment", "Verbatim"])
+def test_verbatim_SINIRLARI_komut_ARASI_ham(qapp, env):
+    """Kirilirsa: sinirlar yine icerikle ayni renkte demektir."""
+    belge = ("\\begin{%s}\nham icerik\n\\end{%s}\nsonra\n" % (env, env))
+    h = _stil_haritasi(belge)
+    assert h["\\begin{%s}" % env] == {"COMMAND", "ENV_ARG"}, h
+    assert h["ham icerik"] == {"VERBATIM"}, h
+    assert h["\\end{%s}" % env] == {"COMMAND", "ENV_ARG"}, h
+    assert h["sonra"] == {"DEFAULT"}, h
+
+
+def test_verbatim_ICINDEKI_sahte_end_icerik_kaliyor(qapp):
+    """Asiri duzeltme kapisi: her `\\end` sinir sayilmamali."""
+    belge = ("\\begin{verbatim}\n\\end{baska}\nson\n\\end{verbatim}\ndevam\n")
+    h = _stil_haritasi(belge)
+    assert h["\\end{baska}"] == {"VERBATIM"}, h
+    assert h["\\end{verbatim}"] == {"COMMAND", "ENV_ARG"}, h
+    assert h["devam"] == {"DEFAULT"}, h
+
+
+def test_KAPANMAMIS_verbatimde_de_acilis_komut(qapp):
+    belge = "\\begin{verbatim}\nkapanmamis icerik\n"
+    h = _stil_haritasi(belge)
+    assert h["\\begin{verbatim}"] == {"COMMAND", "ENV_ARG"}, h
+    assert h["kapanmamis icerik"] == {"VERBATIM"}, h
+
+
+def test_verbatim_ICERIGI_komut_olarak_stillenmiyor(qapp):
+    """Eski davranis korunuyor: icerikteki `\\section` ham kalmali."""
+    belge = "\\begin{verbatim}\n\\section{x} $m$ %y\n\\end{verbatim}\n"
+    h = _stil_haritasi(belge)
+    assert h["\\section{x} $m$ %y"] == {"VERBATIM"}, h
+
+
+def test_verbatim_RENGI_yorumdan_ayri(qapp):
+    """Kullanicinin bildirdigi asil sikayet: verbatim yorum gibi gorunuyordu."""
+    from gui.theme import THEMES
+
+    lexer = LatexLexer()
+    for ad, t in THEMES.items():
+        lexer.apply_theme(t)
+        a, b = lexer.color(LatexLexer.COMMENT), lexer.color(LatexLexer.VERBATIM)
+        fark = (abs(a.red() - b.red()) + abs(a.green() - b.green())
+                + abs(a.blue() - b.blue()))
+        assert fark >= 40, "%s: yorum %s ~ verbatim %s (fark %d)" % (
+            ad, a.name(), b.name(), fark)

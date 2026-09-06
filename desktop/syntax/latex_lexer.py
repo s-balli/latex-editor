@@ -142,8 +142,16 @@ class LatexLexer(QsciLexerCustom):
         self.setPaper(bg, self.ENV_ARG)
         self.setFont(env_font, self.ENV_ARG)
 
-        # Verbatim (raw kod) — yumuşak renkle, komut/math stillenmez (C.8)
-        self.setColor(QColor(t.get("fg_muted", t["syn_default"])), self.VERBATIM)
+        # Verbatim (raw kod): komut/math stillenmez (C.8).
+        # VERBATIM'in KENDI anahtari var. Eskiden `fg_muted` odunc aliniyordu
+        # ve o her temada "sonuk gri" oldugu icin yorum rengiyle ayni sinifa
+        # dusuyordu: verbatim blogu ekranda yorum gibi gorunuyordu. Olculdu
+        # 2026-09-06, yorum ile verbatim arasindaki RGB mutlak fark toplami:
+        # gruvbox 3, monokai 63, dracula 64 (deponun `sem_*` icin kullandigi
+        # ayirt edilebilirlik esigi 40). Kullanici bunu "verbatim comment gibi
+        # gorunuyor" diye bildirdi; lexer dogru stilliyordu, kusur renkteydi.
+        self.setColor(QColor(t.get("syn_verbatim", t["syn_default"])),
+                      self.VERBATIM)
         self.setPaper(bg, self.VERBATIM)
         self.setFont(mono, self.VERBATIM)
 
@@ -592,19 +600,35 @@ class LatexLexer(QsciLexerCustom):
         return None
 
     def _style_verbatim_block(self, source, i, n, env, acilis_var=True):
-        """\\begin{env} ... \\end{env} arasını (sınırlar dahil) VERBATIM stiller.
+        """\\begin{env} ... \\end{env}: SINIRLAR komut, ARASI ham metin.
+
+        Sınırlar da VERBATIM stilleniyordu, yani `\\begin{verbatim}` satırı
+        içerikle AYNI renkteydi; ekranda ortamın nerede başlayıp bittiği
+        okunmuyordu (kullanıcı bildirdi 2026-09-06). Oysa `\\begin`/`\\end`
+        birer komut ve `{ad}` bir ortam argümanı: diğer ortamlarda zaten öyle
+        renkleniyorlar. Yalnız ARADAKİ metin ham.
 
         Kapanış bulunursa (end, True), bulunamazsa EOF'a kadar (n, False) döner.
         """
         close = b"\\end{" + env.encode() + b"}"
+        # `\begin` 6 bayt, `{ad}` len(ad)+2; `\end` 4 bayt, `{ad}` len(ad)+2.
+        ad_uzunluk = len(env.encode()) + 2
+        if acilis_var:
+            self.setStyling(6, self.COMMAND)            # \begin
+            self.setStyling(ad_uzunluk, self.ENV_ARG)   # {ad}
+            icerik_bas = i + 6 + ad_uzunluk
+        else:
+            icerik_bas = i          # blok ortasindan devam: açılış yok
+
         # acilis_var=False: blok ortasindan devam; kapanisi i'DEN itibaren ara
         j = source.find(close, i + 1 if acilis_var else i)
         if j == -1:
-            self.setStyling(n - i, self.VERBATIM)
+            self.setStyling(n - icerik_bas, self.VERBATIM)
             return n, False
-        end = j + len(close)
-        self.setStyling(end - i, self.VERBATIM)
-        return end, True
+        self.setStyling(j - icerik_bas, self.VERBATIM)  # ham içerik
+        self.setStyling(4, self.COMMAND)                # \end
+        self.setStyling(ad_uzunluk, self.ENV_ARG)       # {ad}
+        return j + len(close), True
 
     # --- Komutlar ---
 

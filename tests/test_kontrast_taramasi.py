@@ -376,3 +376,36 @@ def test_sem_renkleri_birbirinden_ayirt_edilebilir():
                     cakisan.append("%s: %s ~ %s" % (ad, ka, kb))
 
     assert not cakisan, "durum renkleri ayırt edilemiyor: %s" % cakisan
+
+
+@gui
+def test_verbatim_rengi_YORUMDAN_ve_duz_metinden_ayirt_edilebilir():
+    """Verbatim blogu ekranda yorum gibi gorunmemeli.
+
+    VERBATIM'in tema anahtari YOKTU, `fg_muted`i odunc aliyordu; o her temada
+    "sonuk gri" oldugu icin yorum rengiyle ayni sinifa dusuyordu. Olculdu
+    2026-09-06 (kullanici bildirdi): gruvbox'ta fark 3, monokai 63, dracula
+    64. Lexer dogru stilliyordu (VERBATIM=8), kusur RENKTEYDI.
+
+    Butun syn_* ciftleri KARSILASTIRILMIYOR: temalarda bilerek esitlenmis
+    ciftler var (light: syn_env_arg == syn_math_cmd, dracula: syn_bracket ==
+    syn_env_arg). Verbatim yalnizca karisabildigi ikisiyle olculuyor.
+    """
+    cakisan = []
+    for ad, t in THEMES.items():
+        v = _coz(t["syn_verbatim"])
+        for k in ("syn_comment", "syn_default"):
+            c = _coz(t[k])
+            fark = sum(abs(x - y) for x, y in zip(v, c))
+            if fark < 40:
+                cakisan.append("%s: syn_verbatim ~ %s (fark %d)" % (ad, k, fark))
+
+    assert not cakisan, "verbatim ayirt edilemiyor: %s" % cakisan
+
+
+@gui
+def test_her_temada_syn_verbatim_ANAHTARI_var():
+    """Kapi bos kosmasin: anahtar dusunce yukaridaki test KeyError verir,
+    ama nedeni acik olsun diye ayrica siniyor."""
+    eksik = [ad for ad, t in THEMES.items() if "syn_verbatim" not in t]
+    assert not eksik, "syn_verbatim eksik: %s" % eksik
