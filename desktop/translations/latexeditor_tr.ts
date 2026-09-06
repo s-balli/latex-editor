@@ -266,7 +266,7 @@ Bu izin belgenin BİLGİSAYARINIZDA KOMUT ÇALIŞTIRMASINA olanak verir. Yalnız
         <translation>Bu belgede \bibliography veya \addbibresource yok</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="456" />
+        <location filename="../gui/mixins/edit_ops.py" line="492" />
         <location filename="../gui/mixins/edit_ops.py" line="379" />
         <location filename="../gui/mixins/edit_ops.py" line="272" />
         <source>Önce bir .tex dosyası açın</source>
@@ -293,7 +293,7 @@ Bu izin belgenin BİLGİSAYARINIZDA KOMUT ÇALIŞTIRMASINA olanak verir. Yalnız
         <translation>Kaynakça: {n} girdi (elle yazılmış)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="425" />
+        <location filename="../gui/mixins/edit_ops.py" line="456" />
         <location filename="../gui/mixins/edit_ops.py" line="409" />
         <location filename="../gui/mixins/edit_ops.py" line="386" />
         <location filename="../gui/mixins/edit_ops.py" line="369" />
@@ -366,27 +366,32 @@ DOI ile ekleme .bib dosyası gerektiriyor: belgeye \bibliography{refs} satırın
         <translation>Bağlantı kurulamadı</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="426" />
+        <location filename="../gui/mixins/edit_ops.py" line="449" />
+        <source>Eklendi: {a} · {d} (kaydedilmedi)</source>
+        <translation>Eklendi: {a} · {d} (kaydedilmedi)</translation>
+    </message>
+    <message>
+        <location filename="../gui/mixins/edit_ops.py" line="457" />
         <source>Kaynakçaya yazılamadı: {e}</source>
         <translation>Kaynakçaya yazılamadı: {e}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="429" />
+        <location filename="../gui/mixins/edit_ops.py" line="464" />
         <source>Eklendi: {a} · {d}</source>
         <translation>Eklendi: {a} · {d}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="461" />
+        <location filename="../gui/mixins/edit_ops.py" line="497" />
         <source>Referans denetimi: sorun yok</source>
         <translation>Referans denetimi: sorun yok</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="547" />
+        <location filename="../gui/mixins/edit_ops.py" line="583" />
         <source>Yeniden Adlandırma</source>
         <translation>Yeniden Adlandırma</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="548" />
+        <location filename="../gui/mixins/edit_ops.py" line="584" />
         <source>'{o}' → '{n}': {c} dosya değiştirildi, {f} dosya değiştirilemedi.
 
 {liste}
@@ -399,57 +404,57 @@ Referanslar tutarsız kaldı. Bu dosyalara yazma izni verip işlemi tekrarlayın
 Referanslar tutarsız kaldı. Bu dosyalara yazma izni verip işlemi tekrarlayın ya da elle düzeltin.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="559" />
+        <location filename="../gui/mixins/edit_ops.py" line="595" />
         <source>Değişiklik yok: {k}</source>
         <translation>Değişiklik yok: {k}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="585" />
+        <location filename="../gui/mixins/edit_ops.py" line="621" />
         <source>yeni ad:</source>
         <translation>yeni ad:</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="612" />
-        <location filename="../gui/mixins/edit_ops.py" line="604" />
+        <location filename="../gui/mixins/edit_ops.py" line="648" />
+        <location filename="../gui/mixins/edit_ops.py" line="640" />
         <source>Etiketi Yeniden Adlandır</source>
         <translation>Etiketi Yeniden Adlandır</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="605" />
+        <location filename="../gui/mixins/edit_ops.py" line="641" />
         <source>Geçersiz etiket adı (harf, rakam, : . _ - kullanın)</source>
         <translation>Geçersiz etiket adı (harf, rakam, : . _ - kullanın)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="709" />
-        <location filename="../gui/mixins/edit_ops.py" line="613" />
+        <location filename="../gui/mixins/edit_ops.py" line="745" />
+        <location filename="../gui/mixins/edit_ops.py" line="649" />
         <source>'{k}' adlı etiket projede zaten var.</source>
         <translation>'{k}' adlı etiket projede zaten var.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="623" />
+        <location filename="../gui/mixins/edit_ops.py" line="659" />
         <source>Etiket yeniden adlandırıldı: {o} → {n} ({c} dosya)</source>
         <translation>Etiket yeniden adlandırıldı: {o} → {n} ({c} dosya)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="700" />
-        <location filename="../gui/mixins/edit_ops.py" line="638" />
+        <location filename="../gui/mixins/edit_ops.py" line="736" />
+        <location filename="../gui/mixins/edit_ops.py" line="674" />
         <source>Kaynakça Anahtarını Yeniden Adlandır</source>
         <translation>Kaynakça Anahtarını Yeniden Adlandır</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="702" />
-        <location filename="../gui/mixins/edit_ops.py" line="640" />
+        <location filename="../gui/mixins/edit_ops.py" line="738" />
+        <location filename="../gui/mixins/edit_ops.py" line="676" />
         <source>Geçersiz anahtar adı (harf, rakam, : . _ - kullanın)</source>
         <translation>Geçersiz anahtar adı (harf, rakam, : . _ - kullanın)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="665" />
+        <location filename="../gui/mixins/edit_ops.py" line="701" />
         <source>'{k}' anahtarı .bib'te zaten var.</source>
         <translation>'{k}' anahtarı .bib'te zaten var.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="721" />
-        <location filename="../gui/mixins/edit_ops.py" line="687" />
+        <location filename="../gui/mixins/edit_ops.py" line="757" />
+        <location filename="../gui/mixins/edit_ops.py" line="723" />
         <source>Kaynakça anahtarı yeniden adlandırıldı: {o} → {n} ({c} dosya)</source>
         <translation>Kaynakça anahtarı yeniden adlandırıldı: {o} → {n} ({c} dosya)</translation>
     </message>
@@ -783,172 +788,172 @@ Windows: WSL içinde 'sudo apt install pandoc'</translation>
 </context><context>
     <name>FileTree</name>
     <message>
-        <location filename="../gui/file_tree.py" line="139" />
+        <location filename="../gui/file_tree.py" line="147" />
         <source>DOSYALAR</source>
         <translation>DOSYALAR</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="142" />
+        <location filename="../gui/file_tree.py" line="150" />
         <source>Yenile</source>
         <translation>Yenile</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="172" />
+        <location filename="../gui/file_tree.py" line="180" />
         <source> BAĞLANTILI DOSYALAR</source>
         <translation> BAĞLANTILI DOSYALAR</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="512" />
+        <location filename="../gui/file_tree.py" line="520" />
         <source>▶ Derle</source>
         <translation>▶ Derle</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="516" />
+        <location filename="../gui/file_tree.py" line="524" />
         <source>📂 Düzenle</source>
         <translation>📂 Düzenle</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="528" />
+        <location filename="../gui/file_tree.py" line="536" />
         <source>📄 Yeni Dosya...</source>
         <translation>📄 Yeni Dosya...</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="529" />
+        <location filename="../gui/file_tree.py" line="537" />
         <source>📁 Yeni Klasör...</source>
         <translation>📁 Yeni Klasör...</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="534" />
+        <location filename="../gui/file_tree.py" line="542" />
         <source>📂 Klasörde Aç</source>
         <translation>📂 Klasörde Aç</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="542" />
+        <location filename="../gui/file_tree.py" line="550" />
         <source>✏ Yeniden Adlandır</source>
         <translation>✏ Yeniden Adlandır</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="544" />
+        <location filename="../gui/file_tree.py" line="552" />
         <source>🗑 Sil</source>
         <translation>🗑 Sil</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="596" />
+        <location filename="../gui/file_tree.py" line="604" />
         <source>Ad boş olamaz.</source>
         <translation>Ad boş olamaz.</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="597" />
+        <location filename="../gui/file_tree.py" line="605" />
         <source>'.' ve '..' ad olarak kullanılamaz.</source>
         <translation>'.' ve '..' ad olarak kullanılamaz.</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="598" />
+        <location filename="../gui/file_tree.py" line="606" />
         <source>Ad şu karakterleri içeremez:  &lt; &gt; : " / \ | ? *</source>
         <translation>Ad şu karakterleri içeremez:  &lt; &gt; : " / \ | ? *</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="600" />
+        <location filename="../gui/file_tree.py" line="608" />
         <source>Ad nokta veya boşlukla bitemez: Windows bunları sessizce siler ve dosyayı adıyla bulamazsınız.</source>
         <translation>Ad nokta veya boşlukla bitemez: Windows bunları sessizce siler ve dosyayı adıyla bulamazsınız.</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="603" />
+        <location filename="../gui/file_tree.py" line="611" />
         <source>Bu ad Windows'ta aygıt adı olarak ayrılmış (CON, PRN, AUX, NUL, COM1-9, LPT1-9); uzantı eklense de kullanılamaz.</source>
         <translation>Bu ad Windows'ta aygıt adı olarak ayrılmış (CON, PRN, AUX, NUL, COM1-9, LPT1-9); uzantı eklense de kullanılamaz.</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="606" />
+        <location filename="../gui/file_tree.py" line="614" />
         <source>Ad çok uzun (en fazla 255 karakter).</source>
         <translation>Ad çok uzun (en fazla 255 karakter).</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="607" />
+        <location filename="../gui/file_tree.py" line="615" />
         <source>Ad geçersiz.</source>
         <translation>Ad geçersiz.</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="630" />
+        <location filename="../gui/file_tree.py" line="638" />
         <source>Yeni Klasör</source>
         <translation>Yeni Klasör</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="630" />
+        <location filename="../gui/file_tree.py" line="638" />
         <source>Yeni Dosya</source>
         <translation>Yeni Dosya</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="631" />
+        <location filename="../gui/file_tree.py" line="639" />
         <source>Klasör adı:</source>
         <translation>Klasör adı:</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="631" />
+        <location filename="../gui/file_tree.py" line="639" />
         <source>Dosya adı (örn. bolum2.tex):</source>
         <translation>Dosya adı (örn. bolum2.tex):</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="673" />
-        <location filename="../gui/file_tree.py" line="639" />
+        <location filename="../gui/file_tree.py" line="681" />
+        <location filename="../gui/file_tree.py" line="647" />
         <source>'{name}' zaten var.</source>
         <translation>'{name}' zaten var.</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="643" />
+        <location filename="../gui/file_tree.py" line="651" />
         <source>Oluşturulamadı: {e}</source>
         <translation>Oluşturulamadı: {e}</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="653" />
+        <location filename="../gui/file_tree.py" line="661" />
         <source>Yeniden Adlandır</source>
         <translation>Yeniden Adlandır</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="655" />
+        <location filename="../gui/file_tree.py" line="663" />
         <source>Yeni ad:</source>
         <translation>Yeni ad:</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="679" />
+        <location filename="../gui/file_tree.py" line="687" />
         <source>Yeniden adlandırılamadı: {e}</source>
         <translation>Yeniden adlandırılamadı: {e}</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="713" />
+        <location filename="../gui/file_tree.py" line="721" />
         <source>Sil</source>
         <translation>Sil</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="714" />
+        <location filename="../gui/file_tree.py" line="722" />
         <source>'{name}' klasörünü ve İÇİNDEKİLERİ silmek istediğinize emin misiniz?
 (Geri dönüşüm kutusuna taşınır)</source>
         <translation>'{name}' klasörünü ve İÇİNDEKİLERİ silmek istediğinize emin misiniz?
 (Geri dönüşüm kutusuna taşınır)</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="716" />
+        <location filename="../gui/file_tree.py" line="724" />
         <source>'{name}' dosyasını silmek istediğinize emin misiniz?
 (Geri dönüşüm kutusuna taşınır)</source>
         <translation>'{name}' dosyasını silmek istediğinize emin misiniz?
 (Geri dönüşüm kutusuna taşınır)</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="720" />
+        <location filename="../gui/file_tree.py" line="728" />
         <source>Evet</source>
         <translation>Evet</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="721" />
+        <location filename="../gui/file_tree.py" line="729" />
         <source>Hayır</source>
         <translation>Hayır</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="729" />
+        <location filename="../gui/file_tree.py" line="737" />
         <source>Hata</source>
         <translation>Hata</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="729" />
+        <location filename="../gui/file_tree.py" line="737" />
         <source>Silinemedi: {e}</source>
         <translation>Silinemedi: {e}</translation>
     </message>
@@ -2987,22 +2992,22 @@ Geri yüklensin mi? (Geri yüklenen içerik sekmede açılır; siz kaydedene kad
         <translation>Dosya Yolunu Kopyala</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/tab_ops.py" line="276" />
+        <location filename="../gui/mixins/tab_ops.py" line="283" />
         <source>Sütun</source>
         <translation>Sütun</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/tab_ops.py" line="276" />
+        <location filename="../gui/mixins/tab_ops.py" line="283" />
         <source>Satır</source>
         <translation>Satır</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/tab_ops.py" line="286" />
+        <location filename="../gui/mixins/tab_ops.py" line="293" />
         <source>karakter</source>
         <translation>karakter</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/tab_ops.py" line="286" />
+        <location filename="../gui/mixins/tab_ops.py" line="293" />
         <source>kelime</source>
         <translation>kelime</translation>
     </message>

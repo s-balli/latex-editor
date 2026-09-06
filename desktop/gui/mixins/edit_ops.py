@@ -417,16 +417,52 @@ class EditOpsMixin:
             self._status.showMessage("")
             return
 
-        from core.bibtex import bibe_ekle
-        try:
-            bibe_ekle(yol, dlg.girdi())
-        except OSError as e:
-            _logger.error("Kaynakçaya yazılamadı: %s", yol, exc_info=True)
-            QMessageBox.warning(self, _("DOI ile Kaynak Ekle"),
-                                _("Kaynakçaya yazılamadı: {e}").format(e=e))
-            return
-        self._status.showMessage(
-            _("Eklendi: {a} · {d}").format(a=anahtar, d=os.path.basename(yol)))
+        # HEDEF .bib BİR SEKMEDE AÇIKSA ARABELLEĞE yazılıyor, diske değil.
+        # Eskiden koşulsuz diske yazılıyordu ve arabellek bundan habersiz
+        # kalıyordu. ÖLÇÜLDÜ (2026-09-06), .bib sekmesi açıkken:
+        #
+        #   temiz arabellek : girdi diske gidiyor, sekmede görünmüyor; dosya
+        #                     izleyici hash farkını görüp "dosya diskte
+        #                     değişti, yeniden yüklensin mi" MODALINI açıyor,
+        #                     yani uygulama kendi yazdığını kullanıcıya soruyor
+        #   kirli arabellek : girdi diske gidiyor, kullanıcı sekmesini
+        #                     kaydedince ÜZERİNE YAZILIYOR ve girdi KAYBOLUYOR
+        #
+        # F2 yeniden adlandırma (`_apply_renamings`) bu dersi zaten biliyor:
+        # önce `_editor_by_path` soruyor, sekme açıksa arabelleği değiştirip
+        # diske hiç dokunmuyor. DOI yolu o kontrolü almamıştı.
+        from core.bibtex import bibe_ekle, ekleme_metni
+        hedef = self._editor_by_path(yol)
+        if hedef is not None:
+            # `append()` DEĞİL: QScintilla'da o çağrı undo geçmişini HİÇ
+            # etkilemiyor (ölçüldü: eklemeden sonra `isUndoAvailable()` False),
+            # yani kullanıcı Ctrl+Z ile eklenen girdiyi geri alamıyordu.
+            # `insertAt` normal bir düzenleme sayılıyor.
+            son = hedef.lines() - 1
+            hedef.beginUndoAction()
+            try:
+                hedef.insertAt(ekleme_metni(hedef.text(), dlg.girdi()),
+                               son, len(hedef.text(son)))
+            finally:
+                hedef.endUndoAction()
+            self._status.showMessage(
+                _("Eklendi: {a} · {d} (kaydedilmedi)").format(
+                    a=anahtar, d=os.path.basename(yol)))
+        else:
+            try:
+                bibe_ekle(yol, dlg.girdi())
+            except OSError as e:
+                _logger.error("Kaynakçaya yazılamadı: %s", yol, exc_info=True)
+                QMessageBox.warning(self, _("DOI ile Kaynak Ekle"),
+                                    _("Kaynakçaya yazılamadı: {e}").format(e=e))
+                return
+            # Kendi yazdığımızı izleyiciye bildir, yoksa dosya sekmede açık
+            # olmasa bile bir sonraki açılışta gereksiz uyarı doğurabilir.
+            if hasattr(self, "_file_watch_record_save"):
+                self._file_watch_record_save(yol)
+            self._status.showMessage(
+                _("Eklendi: {a} · {d}").format(a=anahtar,
+                                               d=os.path.basename(yol)))
         # Sekme açıksa taze listeyi göster; kapalıysa zaten açılınca dolacak.
         if self._output_panel._bib_table.rowCount():
             self._show_bibliography()

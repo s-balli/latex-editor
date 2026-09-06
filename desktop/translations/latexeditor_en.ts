@@ -266,7 +266,7 @@ Enable it for '{k}'?
         <translation>This document has no \bibliography or \addbibresource</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="456" />
+        <location filename="../gui/mixins/edit_ops.py" line="492" />
         <location filename="../gui/mixins/edit_ops.py" line="379" />
         <location filename="../gui/mixins/edit_ops.py" line="272" />
         <source>Önce bir .tex dosyası açın</source>
@@ -293,7 +293,7 @@ Enable it for '{k}'?
         <translation>Bibliography: {n} entries (written by hand)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="425" />
+        <location filename="../gui/mixins/edit_ops.py" line="456" />
         <location filename="../gui/mixins/edit_ops.py" line="409" />
         <location filename="../gui/mixins/edit_ops.py" line="386" />
         <location filename="../gui/mixins/edit_ops.py" line="369" />
@@ -366,27 +366,32 @@ Add a \bibliography{refs} line first; I can create the file for you afterwards.<
         <translation>Could not connect</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="426" />
+        <location filename="../gui/mixins/edit_ops.py" line="449" />
+        <source>Eklendi: {a} · {d} (kaydedilmedi)</source>
+        <translation>Added: {a} · {d} (not saved yet)</translation>
+    </message>
+    <message>
+        <location filename="../gui/mixins/edit_ops.py" line="457" />
         <source>Kaynakçaya yazılamadı: {e}</source>
         <translation>Could not write to the bibliography: {e}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="429" />
+        <location filename="../gui/mixins/edit_ops.py" line="464" />
         <source>Eklendi: {a} · {d}</source>
         <translation>Added: {a} · {d}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="461" />
+        <location filename="../gui/mixins/edit_ops.py" line="497" />
         <source>Referans denetimi: sorun yok</source>
         <translation>Reference audit: no issues</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="547" />
+        <location filename="../gui/mixins/edit_ops.py" line="583" />
         <source>Yeniden Adlandırma</source>
         <translation>Rename</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="548" />
+        <location filename="../gui/mixins/edit_ops.py" line="584" />
         <source>'{o}' → '{n}': {c} dosya değiştirildi, {f} dosya değiştirilemedi.
 
 {liste}
@@ -399,57 +404,57 @@ Referanslar tutarsız kaldı. Bu dosyalara yazma izni verip işlemi tekrarlayın
 References are now inconsistent. Grant write permission to these files and retry, or fix them by hand.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="559" />
+        <location filename="../gui/mixins/edit_ops.py" line="595" />
         <source>Değişiklik yok: {k}</source>
         <translation>No changes: {k}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="585" />
+        <location filename="../gui/mixins/edit_ops.py" line="621" />
         <source>yeni ad:</source>
         <translation>new name:</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="612" />
-        <location filename="../gui/mixins/edit_ops.py" line="604" />
+        <location filename="../gui/mixins/edit_ops.py" line="648" />
+        <location filename="../gui/mixins/edit_ops.py" line="640" />
         <source>Etiketi Yeniden Adlandır</source>
         <translation>Rename Label</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="605" />
+        <location filename="../gui/mixins/edit_ops.py" line="641" />
         <source>Geçersiz etiket adı (harf, rakam, : . _ - kullanın)</source>
         <translation>Invalid label name (use letters, digits, : . _ -)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="709" />
-        <location filename="../gui/mixins/edit_ops.py" line="613" />
+        <location filename="../gui/mixins/edit_ops.py" line="745" />
+        <location filename="../gui/mixins/edit_ops.py" line="649" />
         <source>'{k}' adlı etiket projede zaten var.</source>
         <translation>A label named '{k}' already exists in the project.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="623" />
+        <location filename="../gui/mixins/edit_ops.py" line="659" />
         <source>Etiket yeniden adlandırıldı: {o} → {n} ({c} dosya)</source>
         <translation>Label renamed: {o} → {n} ({c} files)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="700" />
-        <location filename="../gui/mixins/edit_ops.py" line="638" />
+        <location filename="../gui/mixins/edit_ops.py" line="736" />
+        <location filename="../gui/mixins/edit_ops.py" line="674" />
         <source>Kaynakça Anahtarını Yeniden Adlandır</source>
         <translation>Rename Bibliography Key</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="702" />
-        <location filename="../gui/mixins/edit_ops.py" line="640" />
+        <location filename="../gui/mixins/edit_ops.py" line="738" />
+        <location filename="../gui/mixins/edit_ops.py" line="676" />
         <source>Geçersiz anahtar adı (harf, rakam, : . _ - kullanın)</source>
         <translation>Invalid key name (use letters, digits, : . _ -)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="665" />
+        <location filename="../gui/mixins/edit_ops.py" line="701" />
         <source>'{k}' anahtarı .bib'te zaten var.</source>
         <translation>A key named '{k}' already exists in the .bib file.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="721" />
-        <location filename="../gui/mixins/edit_ops.py" line="687" />
+        <location filename="../gui/mixins/edit_ops.py" line="757" />
+        <location filename="../gui/mixins/edit_ops.py" line="723" />
         <source>Kaynakça anahtarı yeniden adlandırıldı: {o} → {n} ({c} dosya)</source>
         <translation>Bibliography key renamed: {o} → {n} ({c} files)</translation>
     </message>
@@ -783,172 +788,172 @@ Windows: run 'sudo apt install pandoc' inside WSL</translation>
 </context><context>
     <name>FileTree</name>
     <message>
-        <location filename="../gui/file_tree.py" line="139" />
+        <location filename="../gui/file_tree.py" line="147" />
         <source>DOSYALAR</source>
         <translation>FILES</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="142" />
+        <location filename="../gui/file_tree.py" line="150" />
         <source>Yenile</source>
         <translation>Refresh</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="172" />
+        <location filename="../gui/file_tree.py" line="180" />
         <source> BAĞLANTILI DOSYALAR</source>
         <translation> LINKED FILES</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="512" />
+        <location filename="../gui/file_tree.py" line="520" />
         <source>▶ Derle</source>
         <translation>▶ Compile</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="516" />
+        <location filename="../gui/file_tree.py" line="524" />
         <source>📂 Düzenle</source>
         <translation>📂 Edit</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="528" />
+        <location filename="../gui/file_tree.py" line="536" />
         <source>📄 Yeni Dosya...</source>
         <translation>📄 New File...</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="529" />
+        <location filename="../gui/file_tree.py" line="537" />
         <source>📁 Yeni Klasör...</source>
         <translation>📁 New Folder...</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="534" />
+        <location filename="../gui/file_tree.py" line="542" />
         <source>📂 Klasörde Aç</source>
         <translation>📂 Show in Folder</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="542" />
+        <location filename="../gui/file_tree.py" line="550" />
         <source>✏ Yeniden Adlandır</source>
         <translation>✏ Rename</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="544" />
+        <location filename="../gui/file_tree.py" line="552" />
         <source>🗑 Sil</source>
         <translation>🗑 Delete</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="596" />
+        <location filename="../gui/file_tree.py" line="604" />
         <source>Ad boş olamaz.</source>
         <translation>Name cannot be empty.</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="597" />
+        <location filename="../gui/file_tree.py" line="605" />
         <source>'.' ve '..' ad olarak kullanılamaz.</source>
         <translation>'.' and '..' cannot be used as names.</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="598" />
+        <location filename="../gui/file_tree.py" line="606" />
         <source>Ad şu karakterleri içeremez:  &lt; &gt; : " / \ | ? *</source>
         <translation>A name cannot contain:  &lt; &gt; : " / \ | ? *</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="600" />
+        <location filename="../gui/file_tree.py" line="608" />
         <source>Ad nokta veya boşlukla bitemez: Windows bunları sessizce siler ve dosyayı adıyla bulamazsınız.</source>
         <translation>A name cannot end with a dot or a space: Windows silently strips them and you will not find the file under the name you typed.</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="603" />
+        <location filename="../gui/file_tree.py" line="611" />
         <source>Bu ad Windows'ta aygıt adı olarak ayrılmış (CON, PRN, AUX, NUL, COM1-9, LPT1-9); uzantı eklense de kullanılamaz.</source>
         <translation>This name is reserved as a device name on Windows (CON, PRN, AUX, NUL, COM1-9, LPT1-9); adding an extension does not help.</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="606" />
+        <location filename="../gui/file_tree.py" line="614" />
         <source>Ad çok uzun (en fazla 255 karakter).</source>
         <translation>Name is too long (255 characters at most).</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="607" />
+        <location filename="../gui/file_tree.py" line="615" />
         <source>Ad geçersiz.</source>
         <translation>Invalid name.</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="630" />
+        <location filename="../gui/file_tree.py" line="638" />
         <source>Yeni Klasör</source>
         <translation>New Folder</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="630" />
+        <location filename="../gui/file_tree.py" line="638" />
         <source>Yeni Dosya</source>
         <translation>New File</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="631" />
+        <location filename="../gui/file_tree.py" line="639" />
         <source>Klasör adı:</source>
         <translation>Folder name:</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="631" />
+        <location filename="../gui/file_tree.py" line="639" />
         <source>Dosya adı (örn. bolum2.tex):</source>
         <translation>File name (e.g. chapter2.tex):</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="673" />
-        <location filename="../gui/file_tree.py" line="639" />
+        <location filename="../gui/file_tree.py" line="681" />
+        <location filename="../gui/file_tree.py" line="647" />
         <source>'{name}' zaten var.</source>
         <translation>'{name}' already exists.</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="643" />
+        <location filename="../gui/file_tree.py" line="651" />
         <source>Oluşturulamadı: {e}</source>
         <translation>Could not create: {e}</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="653" />
+        <location filename="../gui/file_tree.py" line="661" />
         <source>Yeniden Adlandır</source>
         <translation>Rename</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="655" />
+        <location filename="../gui/file_tree.py" line="663" />
         <source>Yeni ad:</source>
         <translation>New name:</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="679" />
+        <location filename="../gui/file_tree.py" line="687" />
         <source>Yeniden adlandırılamadı: {e}</source>
         <translation>Could not rename: {e}</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="713" />
+        <location filename="../gui/file_tree.py" line="721" />
         <source>Sil</source>
         <translation>Delete</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="714" />
+        <location filename="../gui/file_tree.py" line="722" />
         <source>'{name}' klasörünü ve İÇİNDEKİLERİ silmek istediğinize emin misiniz?
 (Geri dönüşüm kutusuna taşınır)</source>
         <translation>Delete the folder '{name}' AND ITS CONTENTS?
 (Moved to the recycle bin)</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="716" />
+        <location filename="../gui/file_tree.py" line="724" />
         <source>'{name}' dosyasını silmek istediğinize emin misiniz?
 (Geri dönüşüm kutusuna taşınır)</source>
         <translation>Are you sure you want to delete '{name}'?
 (Moved to recycle bin)</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="720" />
+        <location filename="../gui/file_tree.py" line="728" />
         <source>Evet</source>
         <translation>Yes</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="721" />
+        <location filename="../gui/file_tree.py" line="729" />
         <source>Hayır</source>
         <translation>No</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="729" />
+        <location filename="../gui/file_tree.py" line="737" />
         <source>Hata</source>
         <translation>Error</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="729" />
+        <location filename="../gui/file_tree.py" line="737" />
         <source>Silinemedi: {e}</source>
         <translation>Could not delete: {e}</translation>
     </message>
@@ -2987,22 +2992,22 @@ Restore them? (Restored content opens in a tab; the file on disk is NOT touched 
         <translation>Copy File Path</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/tab_ops.py" line="276" />
+        <location filename="../gui/mixins/tab_ops.py" line="283" />
         <source>Sütun</source>
         <translation>Column</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/tab_ops.py" line="276" />
+        <location filename="../gui/mixins/tab_ops.py" line="283" />
         <source>Satır</source>
         <translation>Line</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/tab_ops.py" line="286" />
+        <location filename="../gui/mixins/tab_ops.py" line="293" />
         <source>karakter</source>
         <translation>characters</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/tab_ops.py" line="286" />
+        <location filename="../gui/mixins/tab_ops.py" line="293" />
         <source>kelime</source>
         <translation>words</translation>
     </message>

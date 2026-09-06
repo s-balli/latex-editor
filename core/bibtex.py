@@ -443,6 +443,19 @@ def _coz_adiyla(ham: bytes) -> tuple[str, str]:
     return ham.decode("utf-8", errors="replace"), "utf-8"
 
 
+def ekleme_metni(var_olan: str, girdi_metni: str) -> str:
+    """`bibe_ekle`nin sona ekleyeceği metin (ayraç dahil).
+
+    AYRI FONKSİYON, çünkü .bib DOSYAYA yazılan tek yol değil: hedef .bib bir
+    sekmede AÇIKSA girdi diske değil o sekmenin arabelleğine ekleniyor
+    (bkz. `edit_ops._on_doi_fetched`). İki yol aynı ayracı kullanmak
+    zorunda; kural burada tek yerde duruyor.
+    """
+    ayrac = "" if (not var_olan or var_olan.endswith("\n\n")) else (
+        "\n" if var_olan.endswith("\n") else "\n\n")
+    return ayrac + girdi_metni + "\n"
+
+
 def bibe_ekle(yol: str, girdi_metni: str) -> None:
     """Girdiyi .bib dosyasının SONUNA ekle.
 
@@ -465,9 +478,7 @@ def bibe_ekle(yol: str, girdi_metni: str) -> None:
     if os.path.isfile(yol):
         with open(yol, "rb") as f:
             var_olan, kodlama = _coz_adiyla(f.read())
-    ayrac = "" if (not var_olan or var_olan.endswith("\n\n")) else (
-        "\n" if var_olan.endswith("\n") else "\n\n")
-    eklenecek = ayrac + girdi_metni + "\n"
+    eklenecek = ekleme_metni(var_olan, girdi_metni)
 
     try:
         veri = eklenecek.encode(kodlama)
