@@ -727,7 +727,12 @@ def _pandoc_taze():
 # uretim degisikligi tumuyle geri alinmisken, pandoc mantigi OLMAYAN iki
 # pencerelik atilabilir bir test de ayni cokmeyi uretiyor; pencere kuran
 # testim cikarilinca takim temiz (2440 gecti, rc=0).
-# Ayri bir kusur (M2) ve ayri bir turun isi. O duzelince buraya:
+# DURUM (2026-09-06 sonu): o cokme icin `ana_pencere` teardown'una
+# DeferredDelete bosaltmasi eklendi (bkz. tests/conftest.py ve
+# tests/test_pencere_yasam_dongusu.py). Olculen etki 6'sar kosuyla
+# yuklu-duzeltmesiz 2/6, yuklu-duzeltmeli 0/6. Ama MEKANIZMA hala
+# kanitlanmadi, yani elimizde bir HAFIFLETME var, kok neden yok. Bu yuzden
+# asagidaki kapi HALA eklenmedi: ekleneceginde oran yeniden olculmeli.
 #   pandoc_available bloklanir, pencere kurulur, KAPATILIP yok edilir,
 #   sonra kontrol serbest birakilir; threading.excepthook istisna
 #   GORMEMELI ve _pandoc_sonuc yine de dolmali.

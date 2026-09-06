@@ -107,7 +107,7 @@ def ana_pencere(monkeypatch, tmp_path):
     biri güncellenip öbürü unutulduğunda kaybeden kullanıcının ayarları olur.
     """
     pytest.importorskip("PyQt6")
-    from PyQt6.QtCore import QSettings
+    from PyQt6.QtCore import QCoreApplication, QEvent, QSettings
     from PyQt6.QtWidgets import QApplication
     import gui.main_window as mw
     from gui.mixins.recovery_ops import RecoveryOpsMixin
@@ -150,4 +150,24 @@ def ana_pencere(monkeypatch, tmp_path):
             w.deleteLater()
         except RuntimeError:                   # zaten yok edilmiş
             pass
+    # DeferredDelete kuyruğunu AÇIKÇA boşalt. Kardeş fixture
+    # `_sahipsiz_qsci_temizle` (yukarıda) bu dersi zaten yazmış: "deleteLater
+    # yalnız DeferredDelete olayını KUYRUĞA alır"; `ana_pencere` almamıştı.
+    #
+    # NE ÖLÇÜLDÜ. Bu fixture'ı kullanan BİR test daha eklenince tam takım
+    # Windows'ta bütün testler geçtikten SONRA, çıkışta 0xC0000409 (fail-fast,
+    # stderr boş) ile düşüyordu. Kusur YARIŞ; 6'şar koşuyla:
+    #     yük yok (o günkü commit)      0/6
+    #     yük var, bu satır YOK         2/6
+    #     yük var, bu satır VAR         0/6
+    # Önceki turun 4'er koşusuyla birlikte 4/10 -> 0/10.
+    #
+    # NE ÖLÇÜLEMEDİ, DÜRÜSTÇE: MEKANİZMA. "Pencereler zombi kalıp QApplication
+    # yıkılırken topluca ölüyor" diye bir açıklama kurmuştum, teardown sonrası
+    # 3/3 pencere yaşıyor diye ölçmüştüm; aynı ölçümü yineleyince 0/4 çıktı,
+    # yani açıklama TUTMADI. Yerli yığın izi (WER/cdb) olmadan mekanizma
+    # kurulamıyor. Bu satır, etkisi ölçülmüş ama nedeni kanıtlanmamış bir
+    # HAFİFLETME; ürün koduna dokunmuyor ve kardeş fixture'la aynı şekli
+    # taşıyor. Mekanizma çıkarsa buraya gerçek gerekçe yazılmalı.
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
     app.processEvents()
