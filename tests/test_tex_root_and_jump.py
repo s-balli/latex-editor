@@ -287,3 +287,93 @@ def test_quiet_forward_keeps_status_message(qapp, tmp_path):
     # quiet değilse mesaj gösterilir (Ctrl+tık davranışı korunur)
     stub._apply_forward(fake, ("/tmp/x.tex", 12, False))
     assert "SyncTeX" in stub._status.msg
+
+
+# =====================================================================
+# `.synctex.gz` on kosulu IKI YONDE de denetlenmeli (2026-09-06)
+#
+# `_on_forward_search` iki kapi tasiyordu (PDF var mi, .gz var mi);
+# `_on_reverse_search` yalniz birincisini. Olculdu: .gz yokken ters arama
+# isciye is GONDERIYOR, yani bir synctex/WSL sureci bosuna basliyor (bu
+# modulun basligi "Windows'ta WSL soguk baslangici 1-3 sn surebilir" diyor)
+# ve sonuc None donunce kullaniciya "Eslesme bulunamadi" yaziliyordu.
+# Yanlis mesaj: kullanici konumu yanlis saniyor, oysa yapmasi gereken
+# derlemek. Ileri arama bu dersi zaten biliyordu.
+#
+# Denetim `_synctex_gz_var_mi` ile TEK KAYNAGA alindi; asagidaki kapi iki
+# yonu de ayni onkosula bagliyor, yani yeniden ayrisma sessiz kalmaz.
+# =====================================================================
+
+
+def _pdf_ve_gz(tmp_path, ad="main", gz=True):
+    """PDF + (istege bagli) .synctex.gz kur; (stub, pdf_yolu) dondur."""
+    sdir = tmp_path / "synctex"
+    sdir.mkdir(exist_ok=True)
+    pdf = tmp_path / (ad + ".pdf")
+    pdf.write_bytes(b"%PDF-1.4\n")
+    g = sdir / (ad + ".synctex.gz")
+    if gz:
+        g.write_bytes(b"x")
+    elif g.exists():
+        g.unlink()
+    stub = _Stub([], str(sdir))
+    stub._current_pdf = str(pdf)
+    return stub, str(pdf)
+
+
+def test_gz_YOKKEN_ters_arama_isci_calistirmiyor(qapp, tmp_path):
+    """Kirilirsa: ters arama yine bosuna synctex/WSL sureci basliyor."""
+    stub, pdf = _pdf_ve_gz(tmp_path, "a", gz=False)
+    stub._on_reverse_search(1, 100.0, 200.0, pdf)
+    assert stub._synctex_worker.calls == [], "gz yokken isciye is gonderildi"
+    assert "yeniden derleyin" in stub._status.msg, stub._status.msg
+
+
+def test_gz_YOKKEN_iki_yon_de_AYNI_davraniyor(qapp, tmp_path):
+    """Tek kaynak kapisi: onkosul yine ayrisirsa burasi kirilir."""
+    ileri, pdf1 = _pdf_ve_gz(tmp_path, "b", gz=False)
+    ileri._on_forward_search(str(tmp_path / "x.tex"), 5, 1)
+    ileri_mesaj = ileri._status.msg
+
+    ters, pdf2 = _pdf_ve_gz(tmp_path, "c", gz=False)
+    ters._on_reverse_search(1, 1.0, 1.0, pdf2)
+
+    assert ileri._synctex_worker.calls == []
+    assert ters._synctex_worker.calls == []
+    assert ters._status.msg == ileri_mesaj, (ters._status.msg, ileri_mesaj)
+
+
+def test_gz_VARKEN_iki_yon_de_CALISIYOR(qapp, tmp_path):
+    """Asiri duzeltme kapisi: denetim gecerli durumu engellememeli."""
+    stub, pdf = _pdf_ve_gz(tmp_path, "d", gz=True)
+    stub._on_forward_search(str(tmp_path / "x.tex"), 5, 1)
+    stub._on_reverse_search(2, 10.0, 20.0, pdf)
+    assert [c[0] for c in stub._synctex_worker.calls] == ["forward", "reverse"]
+    # Ters isin context'i sayfa numarasi (sonucun dogru etikete uygulanmasi)
+    assert stub._synctex_worker.calls[1][3] == 2
+
+
+def test_gercek_ESLESMESIZLIK_mesaji_yerinde_duruyor(qapp, tmp_path):
+    """`.gz` varken eslesme yoksa dogru mesaj yine 'Eslesme bulunamadi'."""
+    stub, pdf = _pdf_ve_gz(tmp_path, "e", gz=True)
+    stub._apply_reverse(None, 3)
+    assert "Eşleşme bulunamadı" in stub._status.msg, stub._status.msg
+
+
+@pytest.mark.parametrize("ad", ["ana.belge.v2", "a b c"])
+def test_gz_adi_NOKTALI_ve_BOSLUKLU_dosyada_da_bulunuyor(qapp, tmp_path, ad):
+    """`splitext` yalniz SON uzantiyi atmali; bosluklu ad da bozmamali."""
+    stub, pdf = _pdf_ve_gz(tmp_path, ad, gz=True)
+    stub._on_reverse_search(1, 1.0, 1.0, pdf)
+    assert len(stub._synctex_worker.calls) == 1, stub._status.msg
+
+
+@pytest.mark.parametrize("yol", ["", "olmayan.pdf"])
+def test_PDF_yoksa_ters_arama_sessizce_atlaniyor(qapp, tmp_path, yol):
+    """Onceki kapi korunuyor: PDF yoksa mesaj bile gosterilmiyor."""
+    stub, _pdf = _pdf_ve_gz(tmp_path, "f", gz=True)
+    stub._status.msg = "degismedi"
+    stub._on_reverse_search(1, 1.0, 1.0,
+                            str(tmp_path / yol) if yol else "")
+    assert stub._synctex_worker.calls == []
+    assert stub._status.msg == "degismedi"

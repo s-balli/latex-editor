@@ -42,8 +42,7 @@ class SyncTexMixin:
             if not quiet:
                 self._status.showMessage(_("SyncTeX: Önce derleyin"))
             return
-        gz_name = os.path.splitext(os.path.basename(self._current_pdf))[0] + ".synctex.gz"
-        if not os.path.exists(os.path.join(self._synctex_dir, gz_name)):
+        if not self._synctex_gz_var_mi(self._current_pdf):
             _logger.info("SyncTeX forward atlandı, .synctex.gz yok: %s:%d", os.path.basename(tex_path), line)
             if not quiet:
                 self._status.showMessage(_("SyncTeX: .synctex.gz bulunamadı, yeniden derleyin"))
@@ -78,8 +77,30 @@ class SyncTexMixin:
             if not quiet:
                 self._status.showMessage(_("SyncTeX: Eşleşme bulunamadı"))
 
+    def _synctex_gz_var_mi(self, pdf_path: str) -> bool:
+        """Derleme dizininde bu PDF'in `.synctex.gz`i var mı.
+
+        TEK KAYNAK: ileri ve ters arama AYNI ön koşula bağlı. Denetim
+        yalnız ileri aramada yazılıydı ve ters arama onu almamıştı; ölçüldü
+        2026-09-06, `.gz` yokken ters arama işçiye iş gönderiyordu.
+        """
+        gz_name = os.path.splitext(os.path.basename(pdf_path))[0] + ".synctex.gz"
+        return os.path.exists(os.path.join(self._synctex_dir, gz_name))
+
     def _on_reverse_search(self, page: int, x: float, y: float, pdf_path: str):
         if not pdf_path or not os.path.exists(pdf_path):
+            return
+        # `.synctex.gz` denetimi ileri aramada vardı, burada YOKTU. Ölçüldü
+        # 2026-09-06: `.gz` yokken ters arama yine de işçiye iş gönderiyor,
+        # yani bir synctex/WSL süreci boşuna başlıyor (bu modülün başlığı
+        # "Windows'ta WSL soğuk başlangıcı 1-3 sn sürebilir" diyor) ve sonuç
+        # None döndüğü için kullanıcıya "Eşleşme bulunamadı" yazılıyordu.
+        # Yanlış mesaj: kullanıcı konumu yanlış sanıyor, oysa yapması
+        # gereken derlemek. İleri arama bu dersi zaten biliyordu.
+        if not self._synctex_gz_var_mi(pdf_path):
+            _logger.info("SyncTeX reverse atlandı, .synctex.gz yok: sayfa %d", page)
+            self._status.showMessage(
+                _("SyncTeX: .synctex.gz bulunamadı, yeniden derleyin"))
             return
         self._synctex_worker.submit(
             "reverse", (page, x, y, pdf_path), self._synctex_dir,
