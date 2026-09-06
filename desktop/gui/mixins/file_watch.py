@@ -141,6 +141,27 @@ class FileWatchMixin:
         if os.path.isfile(path) and path not in self._watcher.files():
             self._watcher.addPath(path)
 
+    def _modal_goster(self, cagri):
+        """Modal açıkken izleme kuyruğunu durdur, sonra bırak.
+
+        TEK KAYNAK. Kural üç yerde gerekiyor (yeniden yükleme sorusu, silinen
+        dosyanın KİRLİ dalı, silinen dosyanın TEMİZ dalı) ve üçüncüsünde
+        UNUTULMUŞTU. Modal `exec()` olay döngüsünü döndürüyor; o sırada gelen
+        yeni `fileChanged` sinyalleri debounce timer'ını tetikliyor ve kuyruk
+        YENİDEN koşup üstüne ikinci bir modal açıyor.
+
+        ÖLÇÜLDÜ (2026-09-06): üç açık dosya silinip ilk modal açıkken diğer
+        ikisinin sinyali gelince iç içe modal derinliği 2, toplam üç modal.
+        Gerçek tetikleyici sıradan: dal değiştirmek ya da bir temizlik betiği
+        açık dosyaları silince sinyaller arka arkaya değil, ARALIKLI geliyor.
+        `_file_watch_init` bu dersi zaten yazmıştı; üçüncü dal almamıştı.
+        """
+        self._reload_prompt_active = True
+        try:
+            return cagri()
+        finally:
+            self._reload_prompt_active = False
+
     def _handle_deleted_file(self, editor: EditorWidget, path: str):
         """Dosya diskten silinmiş — sekmeyi kapat, kaydedilmemiş içeriği koru.
 
@@ -166,13 +187,7 @@ class FileWatchMixin:
             btn_close = dlg.addButton(_("Sekmeyi Kapat"), QMessageBox.ButtonRole.DestructiveRole)
             dlg.setDefaultButton(btn_saveas)
 
-            # _prompt_reload ile aynı guard: dialog exec() event loop'u
-            # döndürür, debounce timer tekrar tetiklenip ikinci prompt yığardı.
-            self._reload_prompt_active = True
-            try:
-                dlg.exec()
-            finally:
-                self._reload_prompt_active = False
+            self._modal_goster(dlg.exec)
 
             clicked = dlg.clickedButton()
             if clicked is btn_saveas:
@@ -192,10 +207,10 @@ class FileWatchMixin:
                 return
             _logger.info("Silinen dosyanın sekmesi kaydedilmeden kapatıldı: %s", path)
         else:
-            QMessageBox.information(
+            self._modal_goster(lambda: QMessageBox.information(
                 self, _("Dosya Silindi"),
-                _("{fname} dosyası diskten silindi.\nİlgili sekme kapatılacak.").format(fname=fname),
-            )
+                _("{fname} dosyası diskten silindi.\nİlgili sekme kapatılacak.")
+                .format(fname=fname)))
 
         idx = self._editor_tabs.indexOf(editor)
         if idx >= 0:
@@ -230,11 +245,7 @@ class FileWatchMixin:
         btn_keep = dlg.addButton(btn_keep_text, QMessageBox.ButtonRole.RejectRole)
         dlg.setDefaultButton(btn_keep)
 
-        self._reload_prompt_active = True
-        try:
-            dlg.exec()
-        finally:
-            self._reload_prompt_active = False
+        self._modal_goster(dlg.exec)
 
         if dlg.clickedButton() == btn_reload:
             # Cursor konumunu hatırla

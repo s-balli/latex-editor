@@ -551,6 +551,16 @@ class _WatchStub:
     def _file_hash(self, path):
         return "DISK"
 
+    def _modal_goster(self, cagri):
+        """Modal gösterme kuralının GERÇEĞİ bağlanıyor, kopyası değil.
+
+        `_prompt_reload` modalı artık `FileWatchMixin._modal_goster` üzerinden
+        açıyor (kural üç yerde ayrı yazılıydı ve birinde unutulmuştu). Buraya
+        kendi no-op'unu koymak o kuralın ikinci bir tanımını doğururdu.
+        """
+        from gui.mixins.file_watch import FileWatchMixin
+        return FileWatchMixin._modal_goster(self, cagri)
+
 
 class TestPromptReloadOkumaHatasi:
 
