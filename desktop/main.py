@@ -68,11 +68,22 @@ def _register_file_association():
             os.makedirs(mime_icons_dir, exist_ok=True)
             # .desktop dosyası oluştur
             desktop_path = os.path.join(apps_dir, "latex-editor.desktop")
+            # Exec TIRNAKLANIYOR. Desktop Entry şartnamesi bu alanı boşluğa
+            # göre argümanlara ayırıyor; AppImage kullanıcının indirdiği yerden
+            # çalışıyor ve "~/Downloads/LaTeX Editor.AppImage" gibi boşluklu bir
+            # yol sıradan. Tırnaksızken program adı ikiye bölünüyordu (ölçüldü
+            # 2026-09-06: "/home/k/Downloads/LaTeX" + "Editor.AppImage"), yani
+            # çift tıklama hiçbir şey açmıyordu. Windows dalı (yukarıda) aynı
+            # dersi zaten biliyor: f'"{exe_path}" "%1"'.
+            # Şartname tırnak içinde şu dördünün kaçışını istiyor: \ " ` $
+            _kacisli = exe_path
+            for _ozel in ("\\", '"', "`", "$"):
+                _kacisli = _kacisli.replace(_ozel, "\\" + _ozel)
             desktop_content = (
                 "[Desktop Entry]\n"
                 "Name=LaTeX Editor\n"
                 "Comment=LaTeX editörü ve derleyici\n"
-                f"Exec={exe_path} %F\n"
+                f'Exec="{_kacisli}" %F\n'
                 "Icon=latex-editor\n"
                 "Type=Application\n"
                 "Categories=Development;IDE;\n"
@@ -80,7 +91,16 @@ def _register_file_association():
                 "Keywords=latex;tex;editor;pdf;\n"
                 "StartupNotify=true\n"
             )
-            with open(desktop_path, 'w') as f:
+            # encoding AÇIK. İçerik ASCII dışı taşıyor ("editörü") ve Desktop
+            # Entry şartnamesi dosyanın UTF-8 olmasını şart koşuyor. Bugün
+            # doğru yazılıyor ama TESADÜFEN: Qt, QApplication kurulurken
+            # C yerel ayarını C.UTF-8'e çeviriyor ve bu çağrı ondan sonra
+            # geliyor (main: QApplication -> _register_file_association).
+            # Ölçüldü 2026-09-06, LC_ALL=C ile: QApplication'dan ÖNCE aynı
+            # yazma UnicodeEncodeError veriyor, sonra veriyor değil. Çağrı
+            # sırası değişirse dosya sessizce yazılmaz olurdu (gövde tümüyle
+            # `except Exception: pass` içinde).
+            with open(desktop_path, 'w', encoding='utf-8') as f:
                 f.write(desktop_content)
             # İkonları kopyala
             for icon_name in ('latex-editor.png', 'latex-file-icon.png'):

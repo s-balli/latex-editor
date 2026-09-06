@@ -13,6 +13,16 @@ _PCT = 0x25   # %
 _DLR = 0x24   # $
 
 
+# İçeriği raw işlenen ortamlar. TEK KAYNAK: `gui/outline.py` de buradan alır.
+# İki ayrı liste tutuluyordu ve ayrışmışlardı: anahat `comment`, `BVerbatim`,
+# `LVerbatim` ve `listing`i saymıyordu, yani `\begin{comment}` içine alınmış bir
+# `\section` editörde sözel renklenirken ANAHATTA listeleniyordu (ölçüldü
+# 2026-09-06, dördü de sızıyor). `comment` paketi büyük blokları geçici
+# kapatmanın standart yolu.
+VERB_ENVS = ("verbatim", "verbatim*", "lstlisting", "minted", "alltt",
+             "comment", "Verbatim", "BVerbatim", "LVerbatim", "listing")
+
+
 def _is_alpha(c: int) -> bool:
     """Bayt ASCII harf mi? (LaTeX komut adları yalnız ASCII harflerden oluşur.)"""
     return 65 <= c <= 90 or 97 <= c <= 122
@@ -33,9 +43,9 @@ class LatexLexer(QsciLexerCustom):
 
     _ENV_COMMANDS = {b"begin", b"end"}
 
-    # İçeriği raw (komut/math stillenmeden) işlenen ortamlar (C.8 verbatim)
-    _VERB_ENVS = ("verbatim", "verbatim*", "lstlisting", "minted", "alltt",
-                  "comment", "Verbatim", "BVerbatim", "LVerbatim", "listing")
+    # İçeriği raw (komut/math stillenmeden) işlenen ortamlar (C.8 verbatim).
+    # Liste modül düzeyinde (VERB_ENVS): anahat da onu kullanıyor.
+    _VERB_ENVS = VERB_ENVS
     _VERB_BEGIN_TAGS = tuple(b"\\begin{" + env.encode() + b"}" for env in _VERB_ENVS)
 
     # Önbellekler (hepsi son commit anındaki belge koordinatlarında):

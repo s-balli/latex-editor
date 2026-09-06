@@ -8,6 +8,9 @@ from PyQt6.QtWidgets import (
 )
 
 from PyQt6.QtCore import QCoreApplication
+
+from syntax.latex_lexer import VERB_ENVS as _VERB_ENVS
+
 _ = lambda s: QCoreApplication.translate("OutlinePanel", s)
 
 # Bölüm başlığının YALNIZ AÇILIŞI. Başlığın kendisi regex'le değil
@@ -64,9 +67,15 @@ def _baslik_oku(text: str, i: int) -> str | None:
 # Kapanmamış ortam metnin sonuna kadar sözel sayılıyor (`\Z`): LaTeX de
 # oradan sonrasını yutuyor, yarım blok yüzünden sahte başlık üretmek daha
 # kötü olurdu.
-_SOZEL_ORTAMLAR = ("verbatim", "Verbatim", "lstlisting", "minted", "alltt")
+# Liste TEK KAYNAK, lexer'dan geliyor (yukarıdaki import). Burada ayrı bir
+# liste tutuluyordu ve ayrışmıştı: `comment`, `BVerbatim`, `LVerbatim` ve
+# `listing` eksikti, yani o ortamların içine alınmış bir `\section` editörde
+# sözel renklenirken anahatta LİSTELENİYORDU (ölçüldü 2026-09-06, dördü de
+# sızıyor). Yıldızlı biçimler aşağıdaki `\*?` ile karşılanıyor, o yüzden taban
+# adlar alınıp tekilleştiriliyor.
+_SOZEL_ORTAMLAR = tuple(sorted({e.rstrip("*") for e in _VERB_ENVS}))
 _RE_SOZEL = re.compile(
-    r"\\begin\{(" + "|".join(_SOZEL_ORTAMLAR) + r")\*?\}"
+    r"\\begin\{(" + "|".join(re.escape(e) for e in _SOZEL_ORTAMLAR) + r")\*?\}"
     r"(.*?)(?:\\end\{\1\*?\}|\Z)", re.S)
 
 

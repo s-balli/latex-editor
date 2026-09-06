@@ -12,6 +12,7 @@ try:
     from gui.mixins.tab_ops import TabOpsMixin
     from gui.outline import OutlinePanel
     from gui.theme import THEMES
+    from syntax.latex_lexer import VERB_ENVS
 except ImportError:  # pragma: no cover
     pytest.skip("PyQt6 / gui modülleri gerekli", allow_module_level=True)
 
@@ -318,3 +319,73 @@ def test_kacisli_yuzde_bolumu_DUSURMUYOR(qapp, kaynak, beklenen):
     p = OutlinePanel(theme=THEMES["dark"])
     p.update_outline(kaynak)
     assert [i.text(0) for i in p._items] == beklenen
+
+
+# =====================================================================
+# Sözel ortam listesi TEK KAYNAK (2026-09-06)
+#
+# Liste iki yerde ayrı ayrı yazılıydı ve AYRIŞMIŞTI: lexer 9 taban ortamı
+# sözel sayıyor, anahat 5'ini. Ölçüldü: `comment`, `BVerbatim`, `LVerbatim`
+# ve `listing` içine alınmış bir bölüm komutu editörde sözel renklenirken
+# ANAHATTA listeleniyordu. `comment` paketi büyük blokları geçici kapatmanın
+# standart yolu, yani senaryo sıradan.
+#
+# Bu, yukarıdaki F1'in ta kendisi; o düzeltme beş elemanlı AYRI bir liste
+# kullanmış, lexer'ınkini değil. Aşağıdaki kapı listeyi lexer'dan TÜRETİYOR:
+# yeni bir sözel ortam eklendiğinde kendiliğinden onu da sınar.
+# =====================================================================
+
+_LEXER_SOZEL = sorted({e.rstrip("*") for e in VERB_ENVS})
+
+
+def test_sozel_ortam_listesi_lexerdan_TURETILIYOR():
+    """Kırılırsa: anahat yine kendi ayrı listesini tutuyor demektir."""
+    from gui.outline import _SOZEL_ORTAMLAR
+    assert sorted(_SOZEL_ORTAMLAR) == _LEXER_SOZEL
+
+
+def test_lexer_listesi_BOS_DEGIL():
+    """Kapı boş koşmasın: liste boşalırsa aşağısı hiçbir şey kanıtlamaz."""
+    assert len(_LEXER_SOZEL) >= 5
+
+
+def test_AYRISMADA_EKSIK_KALAN_dortlu_listede_duruyor():
+    """Listeden düşerlerse yukarıdaki parametrik kapılar sessizce boşalırdı.
+
+    Bu dördü 2026-09-06'da anahatta eksikti ve BAŞKA hiçbir testleri yok
+    (`verbatim`, `Verbatim`, `lstlisting`, `minted`, `alltt` beşlisini
+    yukarıdaki `_SOZEL_VAKALAR` ayrıca tutuyor). Alt küme denetimi: yeni
+    ortam eklemek burayı kırmaz, çıkarmak kırar.
+    """
+    assert {"comment", "BVerbatim", "LVerbatim", "listing"} <= set(_LEXER_SOZEL)
+
+
+@pytest.mark.parametrize("ortam", _LEXER_SOZEL)
+def test_lexerin_HER_sozel_ortami_anahatta_da_SOZEL(qapp, ortam):
+    """Lexer bir ortamı sözel sayıyorsa anahat da saymalı."""
+    p = OutlinePanel(theme=THEMES["dark"])
+    p.update_outline("\\section{Gercek}\n"
+                     "\\begin{%s}\n\\subsection{GIZLI}\n\\end{%s}\n"
+                     "\\section{Ikinci}\n" % (ortam, ortam))
+    assert [i.text(0) for i in p._items] == ["Gercek", "Ikinci"]
+
+
+@pytest.mark.parametrize("ortam", _LEXER_SOZEL)
+def test_sozel_ortamin_YILDIZLI_bicimi_de_sozel(qapp, ortam):
+    p = OutlinePanel(theme=THEMES["dark"])
+    p.update_outline("\\section{A}\n"
+                     "\\begin{%s*}\n\\section{GIZLI}\n\\end{%s*}\n"
+                     "\\section{B}\n" % (ortam, ortam))
+    assert [i.text(0) for i in p._items] == ["A", "B"]
+
+
+def test_BENZER_ADLI_ortam_sozel_SAYILMIYOR(qapp):
+    """Aşırı düzeltme kapısı: `verbatimx` sözel değil, içindeki bölüm görünmeli.
+
+    Desen `re.escape` ile ve tam ad eşleyerek kuruluyor; önek eşlemesine
+    kayarsa burası kırılır.
+    """
+    p = OutlinePanel(theme=THEMES["dark"])
+    p.update_outline("\\begin{verbatimx}\n\\section{GORUNSUN}\n"
+                     "\\end{verbatimx}\n")
+    assert [i.text(0) for i in p._items] == ["GORUNSUN"]
