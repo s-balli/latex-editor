@@ -78,6 +78,18 @@ class PdfSearchWorker(QThread):
         try:
             self._run_loop()
         finally:
+            # Handle'ı BURADA kapat. `_run_loop` stop görünce dönüyor ve
+            # dokümanı kapatan TEK yer `_swap_document`; o da artık hiç
+            # çalışmayacağı için handle açık kalıyordu. Ölçüldü 2026-09-06:
+            # `stop()` + `wait()` sonrası işçinin `_doc`u hâlâ açık ve
+            # kapatmayı pypdfium2'nin weakref finalizer'ı devralıyor, GC'nin
+            # denk geldiği thread'de ve `pdfium_lock` TUTULMADAN. Kural açık:
+            # belge açma/kapama da kilit ister (bkz. gui/pdfium_lock.py).
+            # İKİZ pdf_render_worker bu düzeltmeyi 2026-09-05'te aldı, bu
+            # dosya almamıştı; oysa başlığı "aynı yaşam döngüsü koruması"
+            # diyor. Kapatma işçi thread'inde kalıyor: `_doc`a yalnız run()
+            # dokunur.
+            self._swap_document(None)
             _alive_workers.discard(self)
 
     def _run_loop(self):

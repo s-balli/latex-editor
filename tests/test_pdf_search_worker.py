@@ -134,3 +134,125 @@ def test_viewer_async_arama_ve_gecis(qapp, tmp_path):
         v.shutdown()
         v.deleteLater()
         qapp.processEvents()
+
+
+# =====================================================================
+# Isci dururken pdfium belgesini KAPATMALI (2026-09-06)
+#
+# `_run_loop` stop gorunce donuyor ve dokumani kapatan TEK yer
+# `_swap_document`; o da artik hic calismayacagi icin handle ACIK
+# KALIYORDU. Kapatmayi pypdfium2'nin weakref finalizer'i devraliyor,
+# GC'nin denk geldigi thread'de ve `pdfium_lock` TUTULMADAN. pdfium thread
+# guvenli degil (bkz. gui/pdfium_lock.py), yani baska bir thread pdfium
+# icindeyken bu segfault sinifi.
+#
+# pdf_render_worker bu duzeltmeyi 2026-09-05'te aldi; pdf_search_worker
+# almamisti, oysa kendi basliginda "pdf_render_worker'in IKIZI (ayni yasam
+# dongusu korumasi)" diyor. Olculdu 2026-09-06: ikizin _doc'u stop() sonrasi
+# None, arama iscisininki hala acik ve finalizer MainThread'de kosuyor.
+#
+# Kapi IKI ISCIYI de ayni parametrik testten geciriyor: ilerideki ayrisma
+# hangi yonde olursa olsun burasi kirilir.
+# =====================================================================
+
+import threading as _threading
+
+
+def _iki_isci():
+    from gui.pdf_render_worker import PdfRenderWorker
+    from gui.pdf_search_worker import PdfSearchWorker
+    return [PdfRenderWorker, PdfSearchWorker]
+
+
+def _isci_kur(sinif, yol, gen=1):
+    w = sinif()
+    w.open_document(yol, gen)
+    w.start()
+    for _ in range(400):
+        if w._doc is not None:
+            break
+        time.sleep(0.01)
+    return w
+
+
+@pytest.mark.parametrize("sinif", _iki_isci(),
+                         ids=lambda c: c.__name__)
+def test_isci_dururken_belgeyi_KAPATIYOR(qapp, tmp_path, sinif):
+    """Kirilirsa: kapatma GC finalizer'ina kaliyor, kilitsiz ve keyfi thread'de."""
+    yol = _pdf_with_text(["testalfa"], str(tmp_path / "s.pdf"))
+    w = _isci_kur(sinif, yol)
+    # Kapi bos kosmasin: belge gercekten acilmis olmali
+    assert w._doc is not None, "belge hic acilmadi, test bir sey kanitlamaz"
+    w.stop()
+    assert w.wait(6000), "isci durmadi"
+    assert w._doc is None, "stop() sonrasi pdfium handle acik kaldi"
+
+
+@pytest.mark.parametrize("sinif", _iki_isci(), ids=lambda c: c.__name__)
+def test_belge_kapatmasi_ISCI_THREADINDE_oluyor(qapp, tmp_path, sinif,
+                                                monkeypatch):
+    """Kapatma ana thread'e kacmamali: `_doc`a yalniz run() dokunmali.
+
+    `pdfium_lock` yalniz uygulama kodunda aliniyor; kapatma baska bir
+    thread'e kacarsa kilit disinda pdfium cagrisi olur.
+    """
+    kapatan = []
+    asil = sinif._swap_document
+
+    def _izleyen(self, wanted):
+        if self._doc is not None:
+            kapatan.append(_threading.current_thread().name)
+        return asil(self, wanted)
+
+    monkeypatch.setattr(sinif, "_swap_document", _izleyen)
+
+    yol = _pdf_with_text(["testalfa"], str(tmp_path / "s.pdf"))
+    w = _isci_kur(sinif, yol)
+    assert w._doc is not None
+    w.stop()
+    assert w.wait(6000)
+
+    assert kapatan, "belge hic kapatilmadi"
+    ana = _threading.main_thread().name
+    assert all(t != ana for t in kapatan), (
+        "belge ana thread'de kapatildi: %s" % kapatan)
+
+
+@pytest.mark.parametrize("sinif", _iki_isci(), ids=lambda c: c.__name__)
+def test_belge_ACILMAMIS_iscide_stop_sorunsuz(qapp, sinif):
+    """Sinir: hic dokuman verilmemis isci de temiz durmali."""
+    w = sinif()
+    w.start()
+    time.sleep(0.05)
+    w.stop()
+    assert w.wait(6000)
+    assert w._doc is None
+
+
+@pytest.mark.parametrize("sinif", _iki_isci(), ids=lambda c: c.__name__)
+def test_UST_USTE_stop_sorunsuz(qapp, tmp_path, sinif):
+    yol = _pdf_with_text(["testalfa"], str(tmp_path / "s.pdf"))
+    w = _isci_kur(sinif, yol)
+    w.stop()
+    w.stop()
+    assert w.wait(6000)
+    assert w._doc is None
+
+
+def test_ARAMA_hala_calisiyor_ve_belge_arama_boyunca_ACIK(qapp, tmp_path):
+    """Asiri duzeltme kapisi: erken kapatma aramayi oldurmemeli."""
+    yol = _pdf_with_text(["merhaba testalfa", "bos", "yine testalfa"],
+                         str(tmp_path / "s.pdf"))
+    w = _isci_kur(PdfSearchWorker, yol, gen=5)
+    got = []
+    w.found.connect(lambda sid, res: got.append((sid, res)))
+    try:
+        w.search(11, "testalfa")
+        assert _spin(qapp, lambda: bool(got)), "arama sonucu gelmedi"
+        assert got[0][0] == 11
+        assert [r[0] for r in got[0][1]] == [0, 2]
+        assert w._doc is not None, "arama sirasinda belge kapanmis"
+    finally:
+        w.stop()
+        w.wait(6000)
+    assert w._doc is None
