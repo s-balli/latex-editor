@@ -220,13 +220,15 @@ class TabOpsMixin:
         if action == close_action:
             self._close_tab(index)
         elif action == close_others:
-            target_path = None
-            editor = self._editor_tabs.widget(index)
-            if isinstance(editor, EditorWidget):
-                target_path = editor.file_path
+            # Hedef WIDGET kimliğiyle ayırt ediliyor, DOSYA YOLUYLA değil.
+            # Kaydedilmemiş sekmelerin `file_path`i "" olduğu için yolla
+            # karşılaştırmak hepsini aynı hedef sayıyordu. ÖLÇÜLDÜ
+            # (2026-09-06): iki kaydedilmemiş + bir kayıtlı sekmede, hedef
+            # kaydedilmemiş olanken "Diğerlerini Kapat" sonrası 1 yerine
+            # 2 sekme kalıyordu, ikisi de kaydedilmemiş.
+            hedef = self._editor_tabs.widget(index)
             for i in range(self._editor_tabs.count() - 1, -1, -1):
-                editor = self._editor_tabs.widget(i)
-                if isinstance(editor, EditorWidget) and editor.file_path == target_path:
+                if self._editor_tabs.widget(i) is hedef:
                     continue
                 if not self._close_tab_safe(i):
                     break
@@ -234,8 +236,13 @@ class TabOpsMixin:
             for i in range(self._editor_tabs.count() - 1, -1, -1):
                 if not self._close_tab_safe(i):
                     break
-            self._pdf_viewer.clear()
-            self._current_pdf = ""
+            # YALNIZ gerçekten hepsi kapandıysa. Döngü kullanıcı vazgeçince
+            # kırılıyor (`_close_tab_safe` False döner) ama temizlik koşulsuz
+            # çalışıyordu: kullanıcı kaydetme sorusunda "Vazgeç" deyip
+            # sekmelerini koruyor, buna rağmen PDF önizlemesini kaybediyordu.
+            if self._editor_tabs.count() == 0:
+                self._pdf_viewer.clear()
+                self._current_pdf = ""
         elif action == copy_path:
             editor = self._editor_tabs.widget(index)
             if isinstance(editor, EditorWidget) and editor.file_path:
