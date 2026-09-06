@@ -7,6 +7,7 @@
 """
 
 import os
+import sys
 import threading
 import time
 from types import SimpleNamespace
@@ -646,3 +647,182 @@ def test_BELGE_YOKKEN_fare_hareketi_sorunsuz(qapp):
         v.shutdown()
         v.close()
         qapp.processEvents()
+
+
+# =====================================================================
+# pandoc kontrolu: arka plan is parcacigi Qt'ye DOKUNMAMALI (2026-09-06)
+#
+# Eskiden her pencere kendi `_PandocCheckSignal` koprusunu kurup arka plan
+# thread'inden emit ediyordu. Pencere kapandiginda o thread'i durduran,
+# bekleyen ya da baglantiyi kesen hicbir sey yoktu; kontrol pencerenin
+# omrunden uzun surunce emit OLU nesneye gidiyordu. Ayni yarisin iki yuzu:
+# nesne tam olmusse PyQt "does not have a signal with the signature
+# ready(bool)" atip thread'i sessizce olduruyor, yok etme emit'in ortasina
+# denk gelirse serbest bellege yaziliyor ve SUREC 0xC0000005 ile oluyor.
+#
+# OLCULDU 2026-09-06, emit gecikmesi denetlenerek (5'er kosu):
+#      30 ms -> cokme 0/5      60 ms -> cokme 4/5     150 ms -> cokme 5/5
+#     400 ms -> cokme 2/5    5000 ms -> cokme 0/5
+# Gercek sure WSL'e bagli: ilk cagri 2770 ms (soguk), sonrakiler ~110 ms,
+# yani tam cokme bandinda. Belirti: tests/test_ana_pencere_yollari.py arka
+# arkaya kosturulunca 3. kosudan itibaren surec oluyordu; kod degismeden,
+# yalniz WSL isindiginda.
+#
+# Cozum cross-thread Qt erisimini TUMUYLE kaldiriyor: is parcacigi yalniz bir
+# Python degiskeni yaziyor, sonucu UI'ya tasiyan zamanlayici PENCERENIN
+# COCUGU (pencere olunce Qt onu da olduruyor). Sonuc surec genelinde
+# onbellekli, ikinci pencere WSL'e hic sormuyor.
+# =====================================================================
+
+_WIN = sys.platform == "win32"
+sadece_win = pytest.mark.skipif(not _WIN,
+                                reason="pandoc kontrolu yalniz Windows'ta "
+                                       "arka planda kosuyor")
+
+
+def test_pandoc_arka_plan_yolu_QT_NESNESINE_dokunmuyor():
+    """Kirilirsa: kontrol yine cross-thread Qt erisimi yapiyor demektir.
+
+    Bu kapi her platformda kosar: sinanan sey KAYNAGIN sekli.
+    """
+    import inspect
+    import gui.main_window as mw
+
+    kaynak = inspect.getsource(mw._pandoc_kontrolu_basla)
+    for yasak in ("emit", "QObject", "pyqtSignal", "self."):
+        assert yasak not in kaynak, (
+            "arka plan yolunda Qt erisimi geri gelmis: %r" % yasak)
+    assert not hasattr(mw, "_PandocCheckSignal"), (
+        "olu sinyal koprusu sinifi geri gelmis")
+
+
+@pytest.fixture
+def _pandoc_taze():
+    """Surec genelindeki pandoc onbellegini test basina sifirla.
+
+    TEARDOWN ONBELLEGI YERLESIK BIRAKIR, None DEGIL. Onbellek SUREC genelinde:
+    None birakilirsa suitedeki SONRAKI her MainWindow gercek WSL kontrolunu
+    yeniden baslatir. Olculdu 2026-09-06: monkeypatch ile None'a geri
+    donuldugunde tam takim Windows'ta butun testler gectikten SONRA, cikista
+    0xC0000409 ile oluyordu (CI test-windows kirmizi). Bu yuzden geri yukleme
+    elle yapiliyor ve onbellek gercek bir degerle kapatiliyor.
+    """
+    import gui.main_window as mw
+    eski = mw._pandoc_sonuc
+    mw._pandoc_sonuc = None
+    mw._pandoc_thread = None
+    try:
+        yield mw
+    finally:
+        # `_pandoc_kontrolu_basla` sonuc None DEGILSE hic thread baslatmiyor.
+        mw._pandoc_sonuc = True if eski is None else eski
+
+
+# PENCERE KURAN KAPI HENUZ EKLENEMIYOR.
+# Kusurun en dogrudan kapisi 'pencere kontrol bitmeden yok edilince is
+# parcaciginda istisna cikmiyor' olurdu; yazildi ve calisiyor (tek basina
+# yesil). Ama takima EKLENEMEDI: bu depoda tam takim Windows'ta bir ek
+# MainWindow'u daha kaldiramiyor, butun testler gectikten SONRA cikista
+# 0xC0000409 ile dusuyor. Olculdu 2026-09-06 ve bu duzeltmeden BAGIMSIZ:
+# uretim degisikligi tumuyle geri alinmisken, pandoc mantigi OLMAYAN iki
+# pencerelik atilabilir bir test de ayni cokmeyi uretiyor; pencere kuran
+# testim cikarilinca takim temiz (2440 gecti, rc=0).
+# Ayri bir kusur (M2) ve ayri bir turun isi. O duzelince buraya:
+#   pandoc_available bloklanir, pencere kurulur, KAPATILIP yok edilir,
+#   sonra kontrol serbest birakilir; threading.excepthook istisna
+#   GORMEMELI ve _pandoc_sonuc yine de dolmali.
+
+@sadece_win
+def test_pandoc_kontrolu_SUREC_te_bir_kez_kosuyor(_pandoc_taze, monkeypatch):
+    """Sonuc bilindikten sonra yeni is parcacigi baslamamali.
+
+    WSL'e pencere basina sormak gereksiz: `pandoc_available()` ilk cagrida
+    2770 ms suruyor (WSL soguk). Onbellek olmasa her pencere bu bedeli oderdi.
+
+    PENCERE KURMUYOR. Bu depoda tek testte IKI MainWindow kurmak tam takimi
+    Windows'ta cikista 0xC0000409 ile dusuruyor (olculdu 2026-09-06, bu
+    duzeltmeden BAGIMSIZ, ayri bir kusur). Onbellek sozlesmesi modul
+    duzeyinde sinanabiliyor, pencereye gerek yok.
+    """
+    import core.exporter as ex
+    cagri = []
+    monkeypatch.setattr(ex, "pandoc_available",
+                        lambda: (cagri.append(1), False)[-1])
+
+    _pandoc_taze._pandoc_kontrolu_basla()
+    for _ in range(500):
+        if _pandoc_taze._pandoc_sonuc is not None:
+            break
+        time.sleep(0.01)
+    assert _pandoc_taze._pandoc_sonuc is False, _pandoc_taze._pandoc_sonuc
+    assert len(cagri) == 1, cagri
+
+    _pandoc_taze._pandoc_kontrolu_basla()      # ikinci kez: hicbir sey olmamali
+    time.sleep(0.05)
+    assert len(cagri) == 1, "sonuc bilinirken yeniden soruldu: %s" % cagri
+
+
+
+
+class _YoklamaKuklasi:
+    """`_pandoc_yokla` icin en kucuk alici: pencere kurmadan sinamak icin.
+
+    NEDEN PENCERE YOK: bu depoda bir testte IKI MainWindow kurmak (ve toplamda
+    birkac ek pencere) tam takimi Windows'ta butun testler gectikten SONRA,
+    cikista 0xC0000409 ile dusuruyor. Olculdu 2026-09-06 ve bu duzeltmeden
+    BAGIMSIZ: uretim degisikligi tumuyle geri alinmisken, pandoc mantigi
+    OLMAYAN iki pencerelik atilabilir bir test de ayni cokmeyi uretiyor. Ayri
+    bir kusur; asagidaki tek pencereli test o butceyi harciyor.
+    """
+
+    def __init__(self):
+        self.durduruldu = False
+        self.alinan = []
+        kukla = self
+
+        class _Zaman:
+            def stop(self):
+                kukla.durduruldu = True
+
+        self._pandoc_bekleyici = _Zaman()
+
+    def _on_pandoc_checked(self, deger):
+        self.alinan.append(deger)
+
+
+def test_pandoc_yokla_SONUC_GELINCE_zamanlayiciyi_durdurup_uyguluyor(
+        _pandoc_taze):
+    """Yoklama: sonuc yokken hicbir sey yapmamali, gelince bir kez uygulamali."""
+    import gui.main_window as mw
+
+    k = _YoklamaKuklasi()
+    mw.MainWindow._pandoc_yokla(k)
+    assert k.alinan == [], "sonuc yokken uygulandi"
+    assert not k.durduruldu, "sonuc yokken zamanlayici durduruldu"
+
+    _pandoc_taze._pandoc_sonuc = False
+    mw.MainWindow._pandoc_yokla(k)
+    assert k.alinan == [False], k.alinan
+    assert k.durduruldu, "sonuc gelince zamanlayici durmadi"
+
+
+def test_pandoc_pencere_yolu_ONBELLEGI_OKUYOR_ve_zamanlayici_EBEVEYNLI():
+    """Pencere tarafinin iki degismezi, KAYNAK SEKLI uzerinden.
+
+    Bu iki kapi normalde DAVRANISLA tutulurdu (pencere kurup zamanlayicinin
+    ebeveynini ve ikinci pencerenin WSL'e sormadigini olcerek) ama takim bir
+    ek MainWindow'u daha kaldiramiyor (bkz. yukaridaki not, ayri kusur).
+    Kaynak sekli davranistan ZAYIF bir olcut; M2 duzelince davranis kapilari
+    buraya gelmeli. Yine de mutasyonla dogrulandi: iki degismezden biri
+    bozulunca burasi kirmizi yaniyor.
+    """
+    import inspect
+    import gui.main_window as mw
+
+    kaynak = inspect.getsource(mw.MainWindow._setup_menus)
+    assert "QTimer(self)" in kaynak, (
+        "pandoc zamanlayicisi PENCERENIN cocugu degil; pencere olunce Qt onu "
+        "oldurmez ve olu nesneye cagri kalir")
+    assert "if _pandoc_sonuc is not None:" in kaynak, (
+        "pencere surec genelindeki onbellegi okumuyor; her pencere WSL'e "
+        "yeniden sorar (ilk cagri 2770 ms)")

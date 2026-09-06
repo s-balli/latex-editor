@@ -3,6 +3,7 @@
 import os
 import shutil
 import tempfile
+import threading
 from html import escape as _kacir
 
 from core.fs_ops import KAYNAK_UZANTILARI
@@ -15,7 +16,7 @@ _ = lambda s: QCoreApplication.translate("MainWindow", s)
 
 import sys
 
-from PyQt6.QtCore import Qt, QEvent, QObject, QSettings, QSize, QTimer, QThread, pyqtSignal
+from PyQt6.QtCore import Qt, QEvent, QSettings, QSize, QTimer, QThread, pyqtSignal
 from PyQt6.QtGui import QAction, QIcon, QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QMainWindow, QSplitter, QTabWidget, QComboBox, QToolBar, QLabel, QMessageBox, QStatusBar,
@@ -44,9 +45,58 @@ from gui.mixins.project_search_ops import ProjectSearchMixin
 from gui.mixins.yazim_ops import YazimOpsMixin
 
 
-class _PandocCheckSignal(QObject):
-    """Arka plan pandoc kontrolünden UI'ya sonuç taşıyan sinyal köprüsü."""
-    ready = pyqtSignal(bool)
+# pandoc kontrolü: sonuç SÜREÇ genelinde bir kez hesaplanır, iş parçacığı
+# Qt'ye HİÇ DOKUNMAZ.
+#
+# Eskiden her pencere kendi `_PandocCheckSignal` köprüsünü kurup arka plan
+# thread'inden `emit` ediyordu. Pencere kapandığında o thread'i durduran,
+# bekleyen ya da bağlantıyı kesen hiçbir şey yoktu (`closeEvent`te pandoc
+# geçmiyordu); kontrol pencerenin ömründen uzun sürünce emit ÖLÜ nesneye
+# gidiyordu. Aynı yarışın iki yüzü: nesne tam ölmüşse PyQt "'_PandocCheckSignal'
+# does not have a signal with the signature ready(bool)" atıp thread'i sessizce
+# öldürüyor, yok etme emit'in ortasına denk gelirse serbest belleğe yazılıyor
+# ve süreç 0xC0000005 ile ölüyor.
+#
+# ÖLÇÜLDÜ 2026-09-06, emit gecikmesi denetlenerek (5'er koşu, tests/
+# test_ana_pencere_yollari.py):
+#      30 ms -> çökme 0/5   (emit erken, pencere hâlâ canlı)
+#      60 ms -> çökme 4/5
+#     150 ms -> çökme 5/5
+#     400 ms -> çökme 2/5
+#    5000 ms -> çökme 0/5   (süreç emit'ten önce bitiyor)
+# Gerçek süre WSL'e bağlı: ilk çağrı 2770 ms (soğuk), sonrakiler ~110 ms. Yani
+# çökme kod değişmeden, yalnız WSL ısındığında ortaya çıkıyordu.
+#
+# Çözüm cross-thread Qt erişimini TÜMÜYLE kaldırıyor: iş parçacığı yalnız bir
+# Python değişkeni yazıyor, sonucu UI'ya taşıyan zamanlayıcı ise PENCERENİN
+# ÇOCUĞU, yani pencere ölünce Qt onu da öldürüyor. Ortada ölü nesneye giden
+# çağrı kalmıyor. Sonuç süreç genelinde önbelleklendiği için ikinci pencere
+# WSL'e hiç sormuyor.
+_pandoc_sonuc = None            # None = henüz bilinmiyor
+_pandoc_thread = None
+
+
+def _pandoc_kontrolu_basla():
+    """Kontrolü süreçte BİR KEZ, arka planda başlat."""
+    global _pandoc_thread
+    if _pandoc_sonuc is not None or _pandoc_thread is not None:
+        return
+
+    def _calis():
+        global _pandoc_sonuc
+        try:
+            # İçeride import: modül yüklenirken core.exporter zincirini
+            # çekmemek için (menü kurulumundaki eski çağrı da öyleydi).
+            from core.exporter import pandoc_available
+            _pandoc_sonuc = pandoc_available()
+        except Exception:
+            # Kontrol başarısızsa menü açık kalsın: dışa aktarma kendi
+            # hatasını zaten gösteriyor, burada sessizce kapatmak yanıltır.
+            _pandoc_sonuc = True
+
+    _pandoc_thread = threading.Thread(target=_calis, name="pandoc-check",
+                                      daemon=True)
+    _pandoc_thread.start()
 
 
 class UpdateCheckThread(QThread):
@@ -296,14 +346,16 @@ class MainWindow(
         self._export_actions = []
         self._pandoc_available = True
         if sys.platform == "win32":
-            self._pandoc_sig = _PandocCheckSignal()
-            self._pandoc_sig.ready.connect(self._on_pandoc_checked)
-
-            def _bg_check(sig=self._pandoc_sig):
-                sig.ready.emit(pandoc_available())
-
-            import threading
-            threading.Thread(target=_bg_check, name="pandoc-check", daemon=True).start()
+            if _pandoc_sonuc is not None:
+                self._pandoc_available = _pandoc_sonuc     # önbellekten
+            else:
+                _pandoc_kontrolu_basla()
+                # Zamanlayıcı PENCERENİN ÇOCUĞU: pencere ölünce Qt onu da
+                # öldürüyor, yani ölü nesneye giden çağrı kalmıyor.
+                self._pandoc_bekleyici = QTimer(self)
+                self._pandoc_bekleyici.setInterval(100)
+                self._pandoc_bekleyici.timeout.connect(self._pandoc_yokla)
+                self._pandoc_bekleyici.start()
         else:
             self._pandoc_available = pandoc_available()
         for fmt_name, ext in FORMATS.items():
@@ -394,6 +446,13 @@ class MainWindow(
         self._add_action(help_menu, _("&Log Klasörünü Aç"), self._open_log_dir)
         help_menu.addSeparator()
         self._add_action(help_menu, _("&Hakkında"), self._show_about)
+
+    def _pandoc_yokla(self):
+        """Arka plan kontrolü bitti mi (UI thread'inde, zamanlayıcıdan)."""
+        if _pandoc_sonuc is None:
+            return
+        self._pandoc_bekleyici.stop()
+        self._on_pandoc_checked(_pandoc_sonuc)
 
     def _on_pandoc_checked(self, available: bool):
         """Arka plan pandoc kontrolü bitti — bayrak ve dışa aktarma tooltip'leri."""
