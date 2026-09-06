@@ -270,3 +270,115 @@ def test_ekran_yoksa_pencere_boyutuna_dusuyor(viewer, qapp):
     finally:
         viewer.exit_presentation()
         qapp.processEvents()
+
+
+# =====================================================================
+# SyncTeX ILERI arama, sinir denetimini YANLIS listeye yapiyordu (2026-09-06)
+#
+# `scroll_to_position` sayfa numarasini `len(self._page_labels)`e karsi
+# siniyor, sonra `self._pdf[idx]` diyordu. Ama `_page_labels` yalniz sayfa
+# etiketi tutmuyor: PDF acilamayinca `_show_message` oraya sayfa OLMAYAN bir
+# mesaj etiketi koyuyor (bkz. _ui_setup.py, `_MESAJ_OZELLIGI`) ve bunu tam
+# olarak `_pdf`in None oldugu anda yapiyor. `len(_page_labels)` 1 oldugu icin
+# sinir denetimi 0'i KABUL EDIYOR ve `self._pdf[0]` patliyordu:
+# TypeError, 'NoneType' object is not subscriptable.
+#
+# Cagiran `synctex_ops._apply_forward` isci sonucu slot'u ve govdesinde hic
+# `try` yok; PyQt6'da slot'tan cikan istisna sureci sonlandiriyor.
+#
+# ULASILABILIR: basarili bir derlemeden sonra sonraki derleme bozuk PDF
+# uretirse load_pdf basarisiz olur ama dosya diskte DURUR ve eski
+# .synctex.gz de oyle, yani ileri aramanin iki kapisi da gecer.
+#
+# Kardes `_handle_reverse_click` (ayni dosyada, PDF'ten editore) belge
+# korumasini zaten tasiyordu; ileri arama o dersi almamisti.
+# =====================================================================
+
+
+def _bozuk_pdf(tmp_path, ad="bozuk.pdf"):
+    yol = tmp_path / ad
+    yol.write_bytes(b"%PDF-1.4\nbu dosya bozuk, xref yok\n")
+    return str(yol)
+
+
+def _bozuk_gorucu(tmp_path):
+    """Bozuk PDF yuklenmis gorucu: _pdf None, listede mesaj etiketi var."""
+    v = PdfViewer(theme=THEMES["dark"])
+    assert v.load_pdf(_bozuk_pdf(tmp_path)) is False
+    return v
+
+
+@gui
+def test_bozuk_pdf_MESAJ_ETIKETINI_sayfa_listesine_koyuyor(qapp, tmp_path):
+    """Kapi bos kosmasin: asagidaki testin dayandigi durum gercekten olusuyor mu.
+
+    Bu davranis degisirse (mesaj etiketi artik _page_labels'a girmezse)
+    asagidaki gerileme testi hicbir sey kanitlamaz olur; burasi onu soyler.
+    """
+    v = _bozuk_gorucu(tmp_path)
+    try:
+        assert v._pdf is None
+        assert len(v._page_labels) == 1, "mesaj etiketi listeye girmedi"
+        assert v._page_labels[0].property(v._MESAJ_OZELLIGI) is True
+        assert v._page_count == 0
+    finally:
+        v.shutdown()
+        v.close()
+
+
+@gui
+@pytest.mark.parametrize("sayfa,x,y", [
+    (1, 100.0, 200.0),      # kusurun ta kendisi: sinir denetimi 0'i geciriyordu
+    (0, 1.0, 1.0),
+    (-5, 1.0, 1.0),
+    (9999, 1.0, 1.0),
+])
+def test_bozuk_pdf_sonrasi_ILERI_arama_oldurmuyor(qapp, tmp_path, sayfa, x, y):
+    """Kirilirsa: sinir denetimi yine yalniz _page_labels'a bakiyor demektir."""
+    v = _bozuk_gorucu(tmp_path)
+    try:
+        v.scroll_to_position(sayfa, x, y, 0.0, 50.0, 12.0)
+    finally:
+        v.shutdown()
+        v.close()
+
+
+@gui
+def test_belge_YOKKEN_ileri_arama_oldurmuyor(qapp, tmp_path):
+    """Hic PDF yuklenmemis ve clear() sonrasi: ikisi de sessiz kalmali."""
+    v = PdfViewer(theme=THEMES["dark"])
+    try:
+        assert v._pdf is None
+        v.scroll_to_position(1, 10.0, 10.0)
+        assert v.load_pdf(_pdf_kur(tmp_path))
+        v.clear()
+        v.scroll_to_position(1, 10.0, 10.0)
+    finally:
+        v.shutdown()
+        v.close()
+
+
+@gui
+def test_ileri_arama_GECERLI_pdfte_calisiyor(viewer):
+    """Asiri duzeltme kapisi: koruma gecerli belgede atlamayi ENGELLEMEMELI."""
+    viewer._current_page = 0
+    viewer.scroll_to_position(2, 100.0, 150.0, 10.0, 60.0, 14.0)
+    assert viewer._current_page == 1, "atlama is gormedi"
+    assert viewer._highlight_label is not None, "vurgu kurulmadi"
+
+
+@gui
+def test_sayfa_disi_istek_KONUMU_bozmuyor(viewer):
+    """Gecerli belgede de sayfa disi istek sessiz kalmali ve durumu bozmamali."""
+    viewer.scroll_to_position(2, 10.0, 20.0)
+    assert viewer._current_page == 1
+    viewer.scroll_to_position(99, 10.0, 20.0)
+    assert viewer._current_page == 1, "sayfa disi istek konumu degistirdi"
+
+
+@gui
+def test_ileri_arama_CIFT_SAYFA_kipinde_de_calisiyor(viewer):
+    """Cift sayfada _page_labels satirlara bolunuyor; eslesme yine 1:1 olmali."""
+    viewer._toggle_dual_page(True)
+    viewer.scroll_to_position(2, 10.0, 20.0)
+    assert viewer._current_page == 1

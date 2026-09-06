@@ -27,6 +27,20 @@ class PdfSyncTexMixin:
 
     def scroll_to_position(self, page_num: int, x: float, y: float,
                            left: float = 0.0, width: float = 0.0, height: float = 0.0):
+        # Belge denetimi ŞART, sınır denetimi tek başına YETMİYOR.
+        # `_page_labels` yalnız sayfa etiketi tutmuyor: PDF açılamayınca
+        # `_show_message` oraya bir mesaj etiketi koyuyor (bkz. _ui_setup)
+        # ve tam o anda `_pdf` None oluyor. `len(_page_labels)` 1 olduğu için
+        # aşağıdaki sınır denetimi 0'ı KABUL EDİYOR ve `self._pdf[idx]`
+        # patlıyordu: TypeError, 'NoneType' object is not subscriptable
+        # (ölçüldü 2026-09-06). Çağıran `synctex_ops._apply_forward` işçi
+        # sonucu slot'u ve korumasız; PyQt6'da slot'tan çıkan istisna süreci
+        # sonlandırıyor. Ulaşılabilir yol: başarılı bir derlemeden sonra
+        # sonraki derleme bozuk PDF üretir, dosya ve eski .synctex.gz diskte
+        # durduğu için ileri aramanın iki kapısı da geçer.
+        # Kardeş `_handle_reverse_click` (yukarıda) bu dersi zaten biliyor.
+        if not self._pdf:
+            return
         idx = page_num - 1
         if idx < 0 or idx >= len(self._page_labels):
             return
