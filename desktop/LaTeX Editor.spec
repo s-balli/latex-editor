@@ -104,6 +104,13 @@ a = Analysis(
     noarchive=False,
     optimize=0,
 )
+
+# Qt'nin ceviri dizininden kullanilmayan dilleri ele. Suzgec
+# scripts/paket_suzgeci.py'de: iki spec ayri dosya ve biri otekinden
+# sessizce ayrisabilir, o sinifin bedeli bu depoda bir kez odendi.
+import paket_suzgeci as _suzgec
+a.datas = _suzgec.qt_cevirilerini_ele(a.datas)
+
 pyz = PYZ(a.pure)
 
 exe = EXE(

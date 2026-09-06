@@ -588,3 +588,133 @@ class TestPaketCevirileri:
         metin = _oku(os.path.join(_MASAUSTU, spec))
         assert "endswith('.ts')" in metin, (
             "%s ceviri kaynaklarini paketten dislamiyor" % spec)
+
+
+# ==========================================================================
+# Qt'nin KULLANILMAYAN dil kataloglari pakete girmemeli
+#
+# PyInstaller'in Qt hook'u `QtCore -> ['qt', 'qtbase']`, `Qsci ->
+# ['qscintilla']` ve `QtHelp -> ['qt_help']` eslemelerinden o dizindeki
+# BUTUN dilleri topluyor. Yayinlanan v1.0.21 Windows exe'sinde olculdu
+# (2026-09-06): 101 katalog, acilmis 6.9 MB. Uygulama bunlardan yalnizca
+# `qtbase_tr.qm` ile `qtbase_en.qm`i yukluyor.
+#
+# Suzgec iki spec'te DEGIL scripts/paket_suzgeci.py'de: bu depo "uc ayri
+# paketleme tanimi" sinifindan bir kez yandi ve iki spec ayri dosya.
+# ==========================================================================
+
+
+def _paket_suzgeci():
+    yol = os.path.join(_KOK, "scripts", "paket_suzgeci.py")
+    spec = _importlib_util.spec_from_file_location("paket_suzgeci", yol)
+    mod = _importlib_util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+def _toc(*hedefler):
+    """PyInstaller TOC girdisi: (hedef_ad, kaynak_yol, tur)."""
+    return [(h, "/kaynak/" + os.path.basename(h), "DATA") for h in hedefler]
+
+
+_QT = "PyQt6/Qt6/translations/"
+_TAM_TOC = _toc(
+    "translations/latexeditor_tr.qm", "translations/latexeditor_en.qm",
+    _QT + "qtbase_tr.qm", _QT + "qtbase_en.qm",
+    _QT + "qtbase_de.qm", _QT + "qtbase_zh_CN.qm",
+    _QT + "qt_tr.qm", _QT + "qt_help_tr.qm", _QT + "qscintilla_fr.qm",
+    "sozlukler/tr_TR.dic", "gui/main_window.py",
+)
+
+
+def _adlar(toc):
+    return [t[0] for t in toc]
+
+
+class TestQtCevirileriSuzgeci:
+
+    def test_DILLER_kendi_kataloglarimizdan_okunuyor(self):
+        """Dil listesi elle yazilsaydi core.i18n'inkinden ayrisirdi."""
+        assert _paket_suzgeci().diller(_TAM_TOC) == {"tr", "en"}
+
+    def test_KULLANILMAYAN_diller_atiliyor(self):
+        kalan = _adlar(_paket_suzgeci().qt_cevirilerini_ele(_TAM_TOC))
+        for atilmali in (_QT + "qtbase_de.qm", _QT + "qtbase_zh_CN.qm",
+                         _QT + "qt_tr.qm", _QT + "qt_help_tr.qm",
+                         _QT + "qscintilla_fr.qm"):
+            assert atilmali not in kalan, atilmali
+
+    def test_KULLANILAN_diller_KALIYOR(self):
+        """Asiri suzme kapisi: `qtbase_tr` giderse arayuz yarim Ingilizce."""
+        kalan = _adlar(_paket_suzgeci().qt_cevirilerini_ele(_TAM_TOC))
+        assert _QT + "qtbase_tr.qm" in kalan
+        assert _QT + "qtbase_en.qm" in kalan
+
+    def test_QT_DISINDAKI_hicbir_sey_atilmiyor(self):
+        """Suzgec yalnizca Qt'nin ceviri dizinine dokunmali."""
+        kalan = _adlar(_paket_suzgeci().qt_cevirilerini_ele(_TAM_TOC))
+        for durmali in ("translations/latexeditor_tr.qm",
+                        "translations/latexeditor_en.qm",
+                        "sozlukler/tr_TR.dic", "gui/main_window.py"):
+            assert durmali in kalan, durmali
+
+    def test_ONEDIR_oneki_ve_TERS_BOLU_de_taniniyor(self):
+        """Linux onedir `_internal/` altinda; Windows TOC'u ters bolu verir."""
+        pd = _paket_suzgeci()
+        toc = _toc("_internal/translations/latexeditor_tr.qm",
+                   "_internal\\PyQt6\\Qt6\\translations\\qtbase_tr.qm",
+                   "_internal/PyQt6/Qt6/translations/qtbase_de.qm")
+        kalan = _adlar(pd.qt_cevirilerini_ele(toc))
+        assert "_internal/PyQt6/Qt6/translations/qtbase_de.qm" not in kalan
+        assert "_internal\\PyQt6\\Qt6\\translations\\qtbase_tr.qm" in kalan
+        # BIZIM katalogumuz da `_internal/translations/` altinda ve olcut
+        # yalnizca "/translations/" olsaydi o da atilirdi: Linux yapisinda
+        # arayuz komple Ingilizceye donerdi. Onefile yolunda (`translations/`,
+        # basta egik cizgi yok) bu ayrim GORUNMUYOR, mutasyon oradan kaciyordu.
+        assert "_internal/translations/latexeditor_tr.qm" in kalan
+
+    def test_YENI_DIL_eklenince_kendiliginden_taniniyor(self):
+        """Tek kaynak: katalog eklemek disinda hicbir yer degismemeli."""
+        pd = _paket_suzgeci()
+        toc = _toc("translations/latexeditor_de.qm",
+                   _QT + "qtbase_de.qm", _QT + "qtbase_fr.qm")
+        kalan = _adlar(pd.qt_cevirilerini_ele(toc))
+        assert _QT + "qtbase_de.qm" in kalan
+        assert _QT + "qtbase_fr.qm" not in kalan
+
+    def test_KENDI_KATALOGUMUZ_yoksa_suzgec_DEVREYE_GIRMIYOR(self, capsys):
+        """Yoksa tutulacak kume bos olur ve bir eksik ikiye katlanirdi."""
+        pd = _paket_suzgeci()
+        toc = _toc(_QT + "qtbase_tr.qm", _QT + "qtbase_de.qm")
+        kalan = pd.qt_cevirilerini_ele(toc)
+        assert _adlar(kalan) == _adlar(toc), "her sey silinmis"
+        assert "UYARI" in capsys.readouterr().out
+
+    @pytest.mark.parametrize("spec", ["LaTeX Editor.spec",
+                                      "latex-editor-linux.spec"])
+    def test_IKI_SPEC_de_suzgeci_cagiriyor(self, spec):
+        metin = _oku(os.path.join(_MASAUSTU, spec))
+        assert "qt_cevirilerini_ele(a.datas)" in metin, (
+            "%s Qt cevirilerini suzmuyor" % spec)
+
+
+class TestPaketKapisiQtCevirileri:
+
+    def test_KULLANILMAYAN_katalog_pakette_YAKALANIYOR(self, tmp_path, capsys,
+                                                       _sozluk_hazir):
+        """Suzgec sessizce duserse bunu kapi soylemeli."""
+        pd = _paket_dogrula()
+        paket = _sahte_paket(str(tmp_path / "fazla"),
+                             qtbase=("qtbase_tr.qm", "qtbase_de.qm"))
+        rc = pd.dogrula(paket)
+        cikti = capsys.readouterr().out
+        assert rc != 0, "kullanilmayan katalog temiz sayildi"
+        assert "kullanilmayan" in cikti and "qtbase_de" in cikti, cikti
+
+    def test_KULLANILAN_diller_kapiyi_dusurmuyor(self, tmp_path,
+                                                 _sozluk_hazir):
+        """Asiri hassas kapi kapisi: iki dilimiz de serbest gecmeli."""
+        pd = _paket_dogrula()
+        paket = _sahte_paket(str(tmp_path / "ikidil"),
+                             qtbase=("qtbase_tr.qm", "qtbase_en.qm"))
+        assert pd.dogrula(paket) == 0

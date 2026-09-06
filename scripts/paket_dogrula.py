@@ -20,7 +20,8 @@ PyInstaller Qt hook'u topluyor; dusarsa arayuz Turkce acilir ama Qt'nin
 urettigi sag tik menuleri ve dugmeler Ingilizce kalir.
 
 Ayrica pakete OLU AGIRLIK girmedigi de denetleniyor: `.xz` sozlukler
-(1.6 MB) ve `.ts` ceviri kaynaklari (~300 KB).
+(1.6 MB), `.ts` ceviri kaynaklari (~300 KB) ve Qt'nin kullanilmayan dil
+kataloglari (99 dosya, 6.9 MB; scripts/paket_suzgeci.py eliyor).
 
 Kullanim:
     python scripts/paket_dogrula.py "desktop/dist/LaTeX Editor.exe"
@@ -152,6 +153,21 @@ def dogrula(yol: str) -> int:
     if ts:
         hata.append("ceviri kaynak dosyalari da paketlenmis (olu agirlik): %s"
                     % ts[:3])
+
+    # Qt'nin KULLANILMAYAN dilleri. Hook `QtCore -> ['qt', 'qtbase']`,
+    # `Qsci -> ['qscintilla']` ve `QtHelp -> ['qt_help']` eslemelerinden o
+    # dizindeki butun dilleri topluyor. Yayinlanan v1.0.21 exe'sinde
+    # olculdu: 101 katalog, acilmis 6.9 MB, kullanilan iki tanesi.
+    # scripts/paket_suzgeci.py bunu yapim aninda eliyor; bu kapi suzgecin
+    # sessizce dusmedigini soyluyor.
+    istenen = {"qtbase_%s.qm" % a.rsplit("/", 1)[-1][len("latexeditor_"):-3]
+               for a in duz if "translations/latexeditor_" in a}
+    fazla = [a for a in duz
+             if "PyQt6/" in a and "/translations/" in a
+             and a.rsplit("/", 1)[-1] not in istenen]
+    if fazla:
+        hata.append("Qt'nin kullanilmayan %d dil katalogu paketlenmis "
+                    "(olu agirlik): %s" % (len(fazla), sorted(fazla)[:3]))
     for istenmeyen in ("data/ru/", "data/sv/"):
         if var_mi(istenmeyen):
             hata.append("spylls'in kullanilmayan sozlugu paketlenmis: %s"
