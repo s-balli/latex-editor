@@ -478,62 +478,62 @@ Referanslar tutarsız kaldı. Bu dosyalara yazma izni verip işlemi tekrarlayın
 </context><context>
     <name>EditorWidget</name>
     <message>
-        <location filename="../gui/editor.py" line="353" />
+        <location filename="../gui/editor.py" line="356" />
         <source>Geri Al</source>
         <translation>Geri Al</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="355" />
+        <location filename="../gui/editor.py" line="358" />
         <source>Yinele</source>
         <translation>Yinele</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="358" />
+        <location filename="../gui/editor.py" line="361" />
         <source>Kes</source>
         <translation>Kes</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="359" />
+        <location filename="../gui/editor.py" line="362" />
         <source>Kopyala</source>
         <translation>Kopyala</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="360" />
+        <location filename="../gui/editor.py" line="363" />
         <source>Yapıştır</source>
         <translation>Yapıştır</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="362" />
+        <location filename="../gui/editor.py" line="365" />
         <source>Sil</source>
         <translation>Sil</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="364" />
+        <location filename="../gui/editor.py" line="367" />
         <source>Tümünü Seç</source>
         <translation>Tümünü Seç</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="845" />
+        <location filename="../gui/editor.py" line="848" />
         <source>İkili (binary) dosya; metin editöründe açılamaz.</source>
         <translation>İkili (binary) dosya; metin editöründe açılamaz.</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="868" />
+        <location filename="../gui/editor.py" line="871" />
         <source>Kodlama Uyarısı</source>
         <translation>Kodlama Uyarısı</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="869" />
+        <location filename="../gui/editor.py" line="872" />
         <source>Bu dosya UTF-8 değil ({enc}). {enc} olarak açıldı ve aynı kodlamayla kaydedilecek. Sorunsuz derleme için UTF-8'e dönüştürmeniz önerilir.</source>
         <translation>Bu dosya UTF-8 değil ({enc}). {enc} olarak açıldı ve aynı kodlamayla kaydedilecek. Sorunsuz derleme için UTF-8'e dönüştürmeniz önerilir.</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="876" />
+        <location filename="../gui/editor.py" line="879" />
         <source>Dosya Açma Hatası</source>
         <translation>Dosya Açma Hatası</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="876" />
+        <location filename="../gui/editor.py" line="879" />
         <source>Dosya açılamadı:
 {path}
 
@@ -544,12 +544,12 @@ Referanslar tutarsız kaldı. Bu dosyalara yazma izni verip işlemi tekrarlayın
 {e}</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="957" />
+        <location filename="../gui/editor.py" line="960" />
         <source>Kaydetme Hatası</source>
         <translation>Kaydetme Hatası</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="957" />
+        <location filename="../gui/editor.py" line="960" />
         <source>Dosya kaydedilemedi:
 {path}
 
@@ -560,7 +560,7 @@ Referanslar tutarsız kaldı. Bu dosyalara yazma izni verip işlemi tekrarlayın
 {e}</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="982" />
+        <location filename="../gui/editor.py" line="985" />
         <source>Yeni Dosya</source>
         <translation>Yeni Dosya</translation>
     </message>
@@ -1118,79 +1118,84 @@ Belgede değiştirilmemiş eşleşmeler kalmış olabilir; işlemi tekrarlayarak
 </context><context>
     <name>ImageOpsMixin</name>
     <message>
-        <location filename="../gui/mixins/image_ops.py" line="27" />
+        <location filename="../gui/mixins/image_ops.py" line="30" />
         <source>Standart (\begin{figure})</source>
         <translation>Standart (\begin{figure})</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/image_ops.py" line="28" />
+        <location filename="../gui/mixins/image_ops.py" line="31" />
         <source>İki sütun (\begin{figure*})</source>
         <translation>İki sütun (\begin{figure*})</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/image_ops.py" line="29" />
+        <location filename="../gui/mixins/image_ops.py" line="32" />
         <source>IEEE Access (\Figure)</source>
         <translation>IEEE Access (\Figure)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/image_ops.py" line="30" />
+        <location filename="../gui/mixins/image_ops.py" line="33" />
         <source>MNRAS (\columnwidth)</source>
         <translation>MNRAS (\columnwidth)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/image_ops.py" line="31" />
+        <location filename="../gui/mixins/image_ops.py" line="34" />
         <source>Elsevier CAS</source>
         <translation>Elsevier CAS</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/image_ops.py" line="32" />
+        <location filename="../gui/mixins/image_ops.py" line="35" />
         <source>Frontiers</source>
         <translation>Frontiers</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/image_ops.py" line="33" />
+        <location filename="../gui/mixins/image_ops.py" line="36" />
         <source>Alt şekil (subfloat)</source>
         <translation>Alt şekil (subfloat)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/image_ops.py" line="34" />
+        <location filename="../gui/mixins/image_ops.py" line="37" />
         <source>Sadece \includegraphics</source>
         <translation>Sadece \includegraphics</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/image_ops.py" line="247" />
-        <location filename="../gui/mixins/image_ops.py" line="143" />
+        <location filename="../gui/mixins/image_ops.py" line="290" />
+        <location filename="../gui/mixins/image_ops.py" line="158" />
         <source>Önce bir .tex dosyası açın</source>
         <translation>Önce bir .tex dosyası açın</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/image_ops.py" line="192" />
+        <location filename="../gui/mixins/image_ops.py" line="221" />
         <source>Görsel Ekle</source>
         <translation>Görsel Ekle</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/image_ops.py" line="205" />
+        <location filename="../gui/mixins/image_ops.py" line="234" />
         <source>Şablon:</source>
         <translation>Şablon:</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/image_ops.py" line="208" />
+        <location filename="../gui/mixins/image_ops.py" line="237" />
         <source>Genişlik:</source>
         <translation>Genişlik:</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/image_ops.py" line="211" />
+        <location filename="../gui/mixins/image_ops.py" line="240" />
         <source>Caption:</source>
         <translation>Caption:</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/image_ops.py" line="214" />
+        <location filename="../gui/mixins/image_ops.py" line="243" />
         <source>Label:</source>
         <translation>Label:</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/image_ops.py" line="276" />
-        <location filename="../gui/mixins/image_ops.py" line="267" />
+        <location filename="../gui/mixins/image_ops.py" line="278" />
+        <source>Dosya adındaki {} LaTeX'te görsel yolu olarak kullanılamıyor; dosyayı yeniden adlandırın</source>
+        <translation>Dosya adındaki {} LaTeX'te görsel yolu olarak kullanılamıyor; dosyayı yeniden adlandırın</translation>
+    </message>
+    <message>
+        <location filename="../gui/mixins/image_ops.py" line="319" />
+        <location filename="../gui/mixins/image_ops.py" line="310" />
         <source>Panodaki resim kaydedilemedi</source>
         <translation>Panodaki resim kaydedilemedi</translation>
     </message>

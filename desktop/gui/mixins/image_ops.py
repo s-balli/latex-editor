@@ -10,6 +10,9 @@ from PyQt6.QtWidgets import (
 
 from PyQt6.QtCore import QCoreApplication
 
+from core.latex_tables import escape_cell
+from core.latex_utils import label_key, strip_comments
+
 _ = lambda s: QCoreApplication.translate("ImageOpsMixin", s)
 
 # \documentclass[seçenekler]{sınıf} — grup 1 seçenekler, grup 2 sınıf adı
@@ -45,7 +48,19 @@ class ImageOpsMixin:
         görsel ekliyordu. Aynı zayıflık 'twocolumn', 'cas-', 'mnras' için de
         vardı. Belgede gerçekten kullanılan komutlara (\\Figure[, figure*,
         \\subfloat) bakan denetimler yerinde: onlar niyeti doğrudan gösteriyor.
+
+        YORUMLAR ÖNCE AYIKLANIYOR. Dergi şablonları alternatif bildirimi
+        yoruma alınmış olarak dağıtıyor ve `search` İLK eşleşmeyi alıyordu,
+        yani yorumdakini. Ölçüldü (2026-09-06): `% \\documentclass[twocolumn]`
+        satırı üstte olan düz bir article "two_column", yorumdaki
+        `%\\documentclass{mnras}` ise "mnras" tespit ediliyordu. Aynı
+        gerekçe içerik denetimleri için de geçerli: yoruma alınmış bir
+        `\\begin{figure*}` örneği kullanım değil.
+
+        `core.engine_detector` aynı bildirime bakarken `strip_comments`i
+        zaten çağırıyordu; iki yer ayrışmıştı.
         """
+        content = strip_comments(content)
         m = _RE_DOCCLASS.search(content)
         bildirim = m.group(0) if m else ""
         sinif = m.group(2).strip() if m else ""
@@ -151,6 +166,20 @@ class ImageOpsMixin:
             rel_path = path.replace('\\', '/')
         name = os.path.splitext(os.path.basename(path))[0]
 
+        # Dosya adı DOĞRUDAN LaTeX'e giriyordu ve editör derlenmeyen bir
+        # belge üretiyordu. Ölçüldü (2026-09-06, pdflatex): `sonuc_grafik.png`
+        # eklemek `\caption{sonuc_grafik}` yazıyor ve derleme "! Missing $
+        # inserted." ile duruyor; `kar%orani.png` de "! File ended while
+        # scanning use of \@xdblarg." veriyor. Aynı ders tablo sihirbazında
+        # bir kez alınmıştı (`escape_cell`, 21ca9ab), görsel yoluna geçmemiş.
+        #
+        # Caption TİPOGRAFİK metin, kaçırılıyor. Etiket ANAHTAR, kaçırılmıyor
+        # sadeleştiriliyor (bkz. `label_key` gerekçesi). Yalnız VARSAYILANLAR
+        # dönüştürülüyor: kullanıcı alana `\textbf{...}` yazarsa o metin
+        # onundur, kaçırmak niyetini bozardı.
+        caption_var = escape_cell(name)
+        label_var = "fig:" + label_key(name)
+
         auto_template = self._detect_figure_template(editor.text())
 
         _DEFAULT_WIDTHS = {
@@ -207,10 +236,10 @@ class ImageOpsMixin:
         le_width = QLineEdit(default_width)
         form.addRow(_("Genişlik:"), le_width)
 
-        le_caption = QLineEdit(name)
+        le_caption = QLineEdit(caption_var)
         form.addRow(_("Caption:"), le_caption)
 
-        le_label = QLineEdit(f"fig:{name}")
+        le_label = QLineEdit(label_var)
         form.addRow(_("Label:"), le_label)
 
         bb = QDialogButtonBox(
@@ -225,8 +254,8 @@ class ImageOpsMixin:
 
         template = cb_template.currentData()
         width = le_width.text().strip() or "0.8\\textwidth"
-        caption = le_caption.text().strip() or name
-        label = le_label.text().strip() or f"fig:{name}"
+        caption = le_caption.text().strip() or caption_var
+        label = le_label.text().strip() or label_var
 
         snippet = self._build_figure_snippet(template, rel_path, width, caption, label)
 
@@ -235,6 +264,20 @@ class ImageOpsMixin:
         editor.setCursorPosition(line, col)
         editor.ensureLineVisible(line)
         editor.setFocus()
+
+        # YOL kaçırılamaz: `graphicx` dosyanın birebir adını istiyor, `\%`
+        # yazmak dosyayı bulunamaz yapar. Ama sessiz de kalınmamalı, çünkü
+        # bu satır derlenmiyor. Ölçüldü (2026-09-06, pdflatex): yol içinde
+        #   %  -> "! File ended while scanning use of \Gin@ii."
+        #   #  -> "! Illegal parameter number in definition of \@tempb."
+        # Boşluk, `& $ ^ ~ { }` ise sorunsuz derleniyor, o yüzden listede yok.
+        # Kullanıcı hatayı derleme kütüğünde görmeden önce sebebini öğreniyor.
+        sorunlu = [k for k in ("%", "#") if k in rel_path]
+        if sorunlu:
+            self._status.showMessage(
+                _("Dosya adındaki {} LaTeX'te görsel yolu olarak "
+                  "kullanılamıyor; dosyayı yeniden adlandırın")
+                .format(" ve ".join(sorunlu)))
 
     def _paste_image(self):
         """Ctrl+V ile panodaki resmi media/'a kaydet ve görsel ekleme akışına sok.
