@@ -5,6 +5,7 @@ import shutil
 import tempfile
 from html import escape as _kacir
 
+from core.fs_ops import KAYNAK_UZANTILARI
 from core.version import VERSION
 from core.log import get_logger, log_path as _log_path
 from PyQt6.QtCore import QCoreApplication
@@ -146,7 +147,7 @@ class MainWindow(
         # Komut satırından gelen dosyayı aç (Windows "Birlikte Aç" / Linux)
         if open_file and os.path.isfile(open_file):
             ext = os.path.splitext(open_file)[1].lower()
-            if ext in ('.tex', '.cls', '.sty', '.bib'):
+            if ext in self._OPENABLE_EXT:
                 self._open_file_in_editor(open_file)
                 self._file_tree.set_root(os.path.dirname(open_file))
 
@@ -1262,7 +1263,12 @@ class MainWindow(
     # --- İkinci örnekten gelen istek ---
 
     # 'Birlikte Aç' ile gelen dosyalar; sürükle-bırakla aynı küme.
-    _OPENABLE_EXT = ('.tex', '.cls', '.sty', '.bib')
+    # TEK KAYNAK core.fs_ops.KAYNAK_UZANTILARI: klasör ağacı, hızlı aç ve
+    # projede ara da oradan alıyor. Bu sabit bir kez sürükle-bırakla
+    # birleştirilmişti (aşağıdaki `_handle_dropped_urls` yorumu) ama kümenin
+    # kalan dört kopyası elle yazılı kalmıştı; komut satırından gelen dosya
+    # (__init__) da kendi demetini taşıyordu.
+    _OPENABLE_EXT = KAYNAK_UZANTILARI
 
     def open_from_other_instance(self, path: str):
         """Çalışan örneğe iletilen dosyayı aç ve pencereyi öne getir.

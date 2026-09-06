@@ -6,6 +6,7 @@ canlı hata üretmiyordu; testler, engelledikleri kırılmayı tutuyor.
 """
 
 import os
+import pathlib
 import re
 import types
 
@@ -206,3 +207,105 @@ def test_olagan_degerler_bozulmadan_gorunuyor(guncelleme_diyalogu):
     html, _ = guncelleme_diyalogu(dict(TEMEL))
     duz = _gorunen(html)
     assert "v1.0.21" in duz and "not" in duz
+
+
+# --- Uzanti kumesi BES DOSYADA degil, TEK yerde tanimli olmali ---
+#
+# Yukaridaki test `_OPENABLE_EXT` ile surukle-birak yolunu baglamisti; ama
+# ayni dortlu ALTI yerde yaziliydi (file_tree x2, main_window x2, quick_open,
+# project_search). Altisi da ayniydi, yani canli hata yoktu; kirilma bir
+# sonraki uzanti eklendiginde geliyordu. Olculdu 2026-09-06: kopyalardan
+# BIRINE `.ltx` eklemek uc yuzeyi ayristiriyor ("Birlikte Ac" aciyor, hizli
+# ac listelemiyor, projede ara aramiyor, agac duzenlenebilir saymiyor).
+# Kopyalardan biri (file_tree._EXTENSIONS) zaten OLUYDU.
+#
+# Asagidaki KAYNAK KAPISI asil is goreni: yeni bir kopya yazilirsa kirilir.
+# Kimlik kapilari ise mevcut yuzeylerin ayni nesneden turedigini tutar.
+# (Calisma aninda sabiti yeniden baglayip yayilmayi sinamak ANLAMSIZ:
+# tuketiciler degeri import aninda bagliyor ve gercek degisiklik kaynagi
+# duzenlemek.)
+
+_UZANTI_DESENI = re.compile(
+    r"""["']\.tex["']\s*,\s*["']\.cls["']\s*,\s*["']\.sty["']\s*,\s*["']\.bib["']""")
+_UZANTI_HARIC = ("tests/", "web/", "desktop/.venv-build/", "tmp/",
+                 ".temp_files/")
+
+
+def _uzanti_demeti_gecisleri():
+    """Demetin birinci-taraf kaynakta gectigi yerler (yorumlar haric)."""
+    import subprocess
+    kok = pathlib.Path(__file__).resolve().parents[1]
+    r = subprocess.run(["git", "ls-files", "*.py"], cwd=kok,
+                       capture_output=True, text=True, encoding="utf-8")
+    out = []
+    for rel in r.stdout.split():
+        if rel.startswith(_UZANTI_HARIC):
+            continue
+        p = kok / rel
+        if not p.is_file():
+            continue
+        for i, satir in enumerate(p.read_text(encoding="utf-8").splitlines(), 1):
+            if satir.lstrip().startswith("#"):
+                continue           # yorumdaki anlatim kopya degil
+            if _UZANTI_DESENI.search(satir):
+                out.append("%s:%d" % (rel, i))
+    return out
+
+
+def test_uzanti_demeti_kaynakta_TEK_KEZ_yazili():
+    """Kirilirsa: kume yeniden kopyalanmis demektir.
+
+    Asil kapi bu: kimlik testleri var olan yuzeyleri tutar, bu test YENI
+    bir kopyanin eklenmesini engeller.
+    """
+    gecisler = _uzanti_demeti_gecisleri()
+    assert len(gecisler) == 1, "uzanti demeti birden fazla yerde: %s" % gecisler
+    assert gecisler[0].startswith("core/fs_ops.py"), gecisler
+
+
+def test_uzanti_kapisi_BOS_KOSMUYOR():
+    """Desen gercekten bir sey yakaliyor mu (regex bozulursa test yesil kalir)."""
+    assert _UZANTI_DESENI.search('X = (".tex", ".cls", ".sty", ".bib")')
+    assert _UZANTI_DESENI.search("X = {'.tex', '.cls', '.sty', '.bib'}")
+    assert not _UZANTI_DESENI.search('X = (".tex", ".bib")')
+
+
+def test_her_yuzey_AYNI_nesneden_turuyor(qapp):
+    """Klasor agaci, hizli ac, projede ara ve 'Birlikte Ac' tek kaynakta."""
+    from core.fs_ops import KAYNAK_UZANTILARI
+    import core.project_search as ps
+    import gui.quick_open as qo
+    import gui.file_tree as ft
+    from gui.main_window import MainWindow
+
+    assert ps.KAYNAK_UZANTILARI is KAYNAK_UZANTILARI
+    assert qo._EXT_FILES is KAYNAK_UZANTILARI
+    assert MainWindow._OPENABLE_EXT is KAYNAK_UZANTILARI
+    assert set(ft._EDITABLE) == set(KAYNAK_UZANTILARI)
+    # `iter_project_files`in varsayilan argumani da ayni nesne olmali
+    assert ps.iter_project_files.__defaults__[0] is KAYNAK_UZANTILARI
+
+
+def test_OLU_sabit_geri_gelmedi(qapp):
+    """`file_tree._EXTENSIONS` tanimliydi ve hicbir yerden okunmuyordu."""
+    import gui.file_tree as ft
+    assert not hasattr(ft, "_EXTENSIONS"), "ölü sabit geri gelmiş"
+
+
+def test_kume_DEGISMEDI_ve_yuzeyler_calisiyor(qapp, tmp_path):
+    """Asiri duzeltme kapisi: tek kaynaga almak davranisi degistirmemeli."""
+    from core.fs_ops import KAYNAK_UZANTILARI
+    import core.project_search as ps
+    import gui.quick_open as qo
+    import gui.file_tree as ft
+
+    assert set(KAYNAK_UZANTILARI) == {".tex", ".cls", ".sty", ".bib"}
+    # `str.endswith` demet ister; kume olsaydi quick_open patlardi
+    assert isinstance(KAYNAK_UZANTILARI, tuple)
+    assert ".tex" in ft._EDITABLE and ".png" not in ft._EDITABLE
+
+    for ad in ("a.tex", "b.sty", "c.png"):
+        (tmp_path / ad).write_text("x\n", encoding="utf-8")
+    assert sorted(qo.collect_project_files(str(tmp_path))) == ["a.tex", "b.sty"]
+    bulunan = [os.path.basename(p) for p in ps.iter_project_files(str(tmp_path))]
+    assert sorted(bulunan) == ["a.tex", "b.sty"]

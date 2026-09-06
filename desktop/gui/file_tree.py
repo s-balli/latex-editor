@@ -33,10 +33,11 @@ _MAX_DEPTH = 5
 _ = lambda s: QCoreApplication.translate("FileTree", s)
 _logger = get_logger("file_tree")
 
-# Derlenebilir/doğrudan ilgili dosyalar
-_EXTENSIONS = {".tex", ".cls", ".sty", ".bib"}
-# Editörde açılabilir dosyalar
-_EDITABLE = {".tex", ".cls", ".sty", ".bib"}
+# Editörde açılabilir dosyalar. TEK KAYNAK core.fs_ops.KAYNAK_UZANTILARI.
+# Burada iki sabit vardı: `_EXTENSIONS` ("derlenebilir/doğrudan ilgili") ve
+# `_EDITABLE`. İkisi de aynı dörtlüydü ve `_EXTENSIONS` HİÇ okunmuyordu
+# (ölçüldü 2026-09-06: depoda tek geçişi kendi tanımı), o yüzden kaldırıldı.
+_EDITABLE = set(fs_ops.KAYNAK_UZANTILARI)
 # Gizlenecek dosya uzantıları (build artifact, geçici)
 _HIDDEN_EXT = {".pdf", ".log", ".aux", ".toc", ".bbl", ".bcf", ".blg", ".fdb_latexmk", ".fls", ".synctex.gz", ".gz", ".out", ".run.xml", ".idx", ".ilg", ".ind", ".lof", ".lot", ".nav", ".snm", ".vrb"}
 

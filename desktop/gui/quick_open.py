@@ -15,8 +15,10 @@ from core.project_search import SKIP_DIRS as _SKIP_DIRS
 
 _ = lambda s: QCoreApplication.translate("QuickOpenDialog", s)
 
-# Editörün açabildiği dosya türleri (sürükle-bırak/_open_file_in_editor ile aynı küme)
-_EXT_FILES = (".tex", ".cls", ".sty", ".bib")
+# Editörün açabildiği dosya türleri (sürükle-bırak/_open_file_in_editor ile
+# aynı küme). TEK KAYNAK: yorumun söylediği "aynı küme" artık gerçekten aynı
+# nesne; eskiden burada ayrı bir kopya duruyordu.
+from core.fs_ops import KAYNAK_UZANTILARI as _EXT_FILES
 _MAX_LISTED = 200
 
 

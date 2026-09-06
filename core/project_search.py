@@ -26,8 +26,10 @@ SKIP_DIRS = {
 }
 
 # Editörün açabildiği dosya türleri — arama sonucuna tıklayınca dosyanın
-# gerçekten açılabilmesi gerekiyor.
-KAYNAK_UZANTILARI = (".tex", ".cls", ".sty", ".bib")
+# gerçekten açılabilmesi gerekiyor. TEK KAYNAK core.fs_ops; buradaki ad
+# korunuyor çünkü `iter_project_files`/`search_project`in varsayılan
+# argümanı ve modülün dışa açık yüzeyi.
+from core.fs_ops import KAYNAK_UZANTILARI  # noqa: F401
 
 # Sonuç ve maliyet sınırları. Sınıra takılan arama SESSİZ KESİLMEZ:
 # search_project ikinci dönüş değeriyle "kesildi" bilgisini verir ve arayan

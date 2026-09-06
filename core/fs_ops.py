@@ -15,6 +15,21 @@ yaratan makinede değil karşı taraftaki makinede patlıyor.
 import os
 import re
 
+# Editörün KAYNAK sayıp açtığı uzantılar. TEK KAYNAK: klasör ağacı, hızlı aç,
+# projede ara, "Birlikte Aç" ve sürükle-bırak hepsi buradan alır.
+#
+# ALTI ayrı kopya vardı (file_tree ×2, main_window ×2, quick_open,
+# project_search) ve altısı da aynıydı, yani canlı hata yoktu; kırılma bir
+# sonraki uzantı eklendiğinde geliyordu. Ölçüldü 2026-09-06: kopyalardan
+# BİRİNE `.ltx` eklemek üç yüzeyi ayrıştırıyor ("Birlikte Aç" açıyor, hızlı
+# aç listelemiyor, projede ara aramıyor, ağaç düzenlenebilir saymıyor).
+# Depo bu dersi bir kez almıştı ama yalnız iki yüzeyi bağlamıştı
+# (bkz. main_window._OPENABLE_EXT yorumu). Kopyalardan biri
+# (file_tree._EXTENSIONS) zaten ölüydü: tanımlı, hiç okunmuyor.
+#
+# Demet (küme değil): `str.endswith` demet istiyor (quick_open).
+KAYNAK_UZANTILARI = (".tex", ".cls", ".sty", ".bib")
+
 # Windows'ta dosya adında yasak karakterler. Ayraçlar (/ \) ayrıca yasak:
 # bu modül TEK bir klasör içinde iş yapıyor, ad yol taşıyamaz.
 _YASAK_KARAKTER = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
