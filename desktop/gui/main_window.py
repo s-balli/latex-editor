@@ -194,12 +194,11 @@ class MainWindow(
         self._restore_state()
         self._apply_theme()
 
-        # Komut satırından gelen dosyayı aç (Windows "Birlikte Aç" / Linux)
-        if open_file and os.path.isfile(open_file):
-            ext = os.path.splitext(open_file)[1].lower()
-            if ext in self._OPENABLE_EXT:
-                self._open_file_in_editor(open_file)
-                self._file_tree.set_root(os.path.dirname(open_file))
+        # Komut satırından gelen dosyayı aç (Windows "Birlikte Aç" / Linux).
+        # Kural `_dis_yolu_ac`ta: ikinci örneğin yolu da aynı yerden geçiyor,
+        # ikisi bir kez ayrışmıştı (bkz. o metodun ölçümü).
+        if self._dis_yolu_ac(open_file, "Komut satırından"):
+            self._file_tree.set_root(os.path.dirname(open_file))
 
         # Klasör sürümleniyorsa geçmiş sekmesini doldur
         self._refresh_history()
@@ -1329,6 +1328,41 @@ class MainWindow(
     # (__init__) da kendi demetini taşıyordu.
     _OPENABLE_EXT = KAYNAK_UZANTILARI
 
+    def _dis_yolu_ac(self, path: str, nereden: str) -> bool:
+        """Dışarıdan gelen yolu aç; açamıyorsan SEBEBİNİ söyle.
+
+        İki giriş noktasının TEK kuralı: komut satırı (`__init__`, "Birlikte
+        Aç" ile ilk açılış) ve çalışan örneğe iletilen yol
+        (`open_from_other_instance`). Kural iki yerde ayrı yazılıydı ve
+        ayrışmıştı: ikinci örnek desteklenmeyen türü söylüyor, ilk açılış
+        SESSİZ kalıyordu. Ölçüldü (2026-09-06), aynı `.png` ile:
+
+            ilk açılış   -> durum çubuğu "Hazır", oturumdan kalan sekme açık
+            ikinci örnek -> "Bu dosya türü açılamıyor: resim.png"
+
+        Kullanıcı dosyasına çift tıklayıp alakasız bir belge görüyordu.
+
+        Dönüş: dosya gerçekten açıldı mı (çağıran ona göre ağaç kökü kurar).
+        """
+        path = (path or "").strip()
+        if not path:
+            return False
+        if not os.path.isfile(path):
+            _logger.warning("%s gelen dosya bulunamadı: %s", nereden, path)
+            self._status.showMessage(
+                _("Dosya bulunamadı: {name}").format(name=os.path.basename(path)))
+            return False
+        if os.path.splitext(path)[1].lower() not in self._OPENABLE_EXT:
+            # Sessiz kalmıyoruz: pencere açılıyor ama hiçbir şey
+            # yüklenmiyordu, kullanıcı yalnız log'a bakarak anlayabilirdi.
+            _logger.info("%s desteklenmeyen tür: %s", nereden, path)
+            self._status.showMessage(
+                _("Bu dosya türü açılamıyor: {name}").format(
+                    name=os.path.basename(path)))
+            return False
+        self._open_file_in_editor(path)
+        return True
+
     def open_from_other_instance(self, path: str):
         """Çalışan örneğe iletilen dosyayı aç ve pencereyi öne getir.
 
@@ -1336,21 +1370,7 @@ class MainWindow(
         açmaz; yolu buraya iletip çıkar. Yol boş olabilir: kullanıcı yalnız
         uygulamayı yeniden başlatmayı denemiştir, o zaman sadece öne gel.
         """
-        path = (path or "").strip()
-        if path and os.path.isfile(path):
-            if os.path.splitext(path)[1].lower() in self._OPENABLE_EXT:
-                self._open_file_in_editor(path)
-            else:
-                # Sessiz kalmıyoruz: pencere öne geliyor ama hiçbir şey
-                # açılmıyordu, kullanıcı yalnız log'a bakarak anlayabilirdi.
-                _logger.info("İkinci örnekten desteklenmeyen tür: %s", path)
-                self._status.showMessage(
-                    _("Bu dosya türü açılamıyor: {name}").format(
-                        name=os.path.basename(path)))
-        elif path:
-            _logger.warning("İkinci örnekten gelen dosya bulunamadı: %s", path)
-            self._status.showMessage(
-                _("Dosya bulunamadı: {name}").format(name=os.path.basename(path)))
+        self._dis_yolu_ac(path, "İkinci örnekten")
 
         # Simge durumundaysa geri al, sonra öne getir. Windows arka plandaki
         # sürecin pencere aktifleştirmesini kısıtlayabilir; o durumda görev

@@ -181,7 +181,7 @@ def _pencere_stub():
     def _ac(path, add_recent=True):
         kayit.acilan.append(path)
 
-    return SimpleNamespace(
+    ns = SimpleNamespace(
         _OPENABLE_EXT=('.tex', '.cls', '.sty', '.bib'),
         _open_file_in_editor=_ac,
         _status=SimpleNamespace(
@@ -194,6 +194,14 @@ def _pencere_stub():
         activateWindow=lambda: None,
         _kayit=kayit,
     )
+    # "Aç ya da sebebini söyle" kuralı `_dis_yolu_ac`ta ve komut satırı yolu
+    # da oradan geçiyor. Stub'a kuralın KOPYASI konmuyor, GERÇEĞİ bağlanıyor:
+    # kopya olsaydı bu dosya kuralın ikinci tanımı olur ve tam da bu turda
+    # kapatılan ayrışmayı geri getirirdi.
+    from gui.main_window import MainWindow
+    ns._dis_yolu_ac = lambda path, nereden: MainWindow._dis_yolu_ac(
+        ns, path, nereden)
+    return ns
 
 
 def _isle(stub, path):

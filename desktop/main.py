@@ -114,10 +114,27 @@ def _register_file_association():
                 # Aktif ikon temasına da kopyala (sistem ikonunu ezer)
                 try:
                     import subprocess
+                    # TIMEOUT ŞART. Bu iki çağrı (burası ve aşağıdaki
+                    # update-desktop-database) deponun timeout GEÇMEYEN tek
+                    # iki subprocess çağrısıydı ve ikisi de AÇILIŞ yolunda:
+                    # `main()` sırası QApplication -> _register_file_association
+                    # -> MainWindow, yani bunlar dönene kadar ekranda hiçbir
+                    # pencere yok. `gsettings` bozuk bir dbus oturumunda
+                    # süresiz asılabiliyor. ÖLÇÜLDÜ (2026-09-06, PATH'e
+                    # asılan taklitle): her biri 10 sn bekleyen iki komutla
+                    # fonksiyon 20.7 saniye blokluyor, uygulama o süre
+                    # boyunca hiç açılmıyor.
+                    #
+                    # 5 saniye ÖLÇÜMDEN seçildi, tahminden değil: ikisinin de
+                    # gerçek süresi beşer koşuda 0.04-0.07 sn, yani sınır
+                    # yaklaşık yüz katı. Süre dolarsa kayıt yarım kalır ve
+                    # sonuç yalnızca kozmetik olur (.tex ikonu/"Birlikte Aç"
+                    # girdisi eksik kalır, sonraki açılışta yeniden denenir);
+                    # tersi, hiç açılmayan bir uygulamaydı.
                     result = subprocess.run(
                         ['gsettings', 'get', 'org.gnome.desktop.interface', 'icon-theme'],
                         capture_output=True, text=True,
-                        encoding="utf-8", errors="replace")
+                        encoding="utf-8", errors="replace", timeout=5)
                     if result.returncode == 0:
                         active_theme = result.stdout.strip().strip("'")
                         theme_base = os.path.expanduser(f"~/.local/share/icons/{active_theme}")
@@ -131,11 +148,13 @@ def _register_file_association():
                                 shutil.copy2(file_icon_src, os.path.join(pattern, 'text-x-tex.png'))
                 except Exception:
                     pass
-            # Mime veritabanını güncelle
+            # Mime veritabanını güncelle. Timeout gerekçesi ve 5 saniyenin
+            # ölçümü yukarıda. Süre dolarsa dıştaki `except Exception`
+            # yakalıyor; bu zaten fonksiyonun son adımı.
             import subprocess
             subprocess.run(
                 ["update-desktop-database", os.path.expanduser("~/.local/share/applications")],
-                capture_output=True,
+                capture_output=True, timeout=5,
             )
         except Exception:
             pass

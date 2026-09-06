@@ -133,8 +133,12 @@ def ana_pencere(monkeypatch, tmp_path):
 
     pencereler = []
 
-    def _kur(karar="discard"):
-        w = mw.MainWindow()
+    # `open_file`: komut satırından gelen yol ("Birlikte Aç" ile ilk açılış).
+    # Bu yolun kendi kapıları var ve ancak GERÇEK `__init__` üzerinden
+    # sınanabiliyor; fabrikayı genişletmek, kurulumun ikinci bir kopyasını
+    # çıkarmaktan iyi (bkz. yukarıdaki TEK KAYNAK notu).
+    def _kur(karar="discard", open_file=""):
+        w = mw.MainWindow(open_file=open_file)
         w._save_dialog = lambda ad: karar      # kirli sekme sorusu
         pencereler.append(w)
         return w

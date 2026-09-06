@@ -147,6 +147,45 @@ def test_urun_subprocess_cagrilari_encoding_belirtir():
         + "\n".join(f"  {f}:{ln}  subprocess.{ne}(text=True)" for f, ln, ne in eksik))
 
 
+def test_urun_subprocess_cagrilari_timeout_belirtir():
+    """ÜRÜN kodunda `subprocess.run` timeout= vermek ZORUNDA.
+
+    Timeoutsuz bir çağrı çocuk süreç bitene kadar bekler, yani "yavaş" ile
+    "asılmış" arasında fark kalmaz. GERÇEKTEN YAŞANDI (2026-09-06): deponun
+    timeout geçmeyen tek iki çağrısı `desktop/main.py`deydi (`gsettings` ve
+    `update-desktop-database`) ve ikisi de AÇILIŞ yolunda. `main()` sırası
+    QApplication -> _register_file_association -> MainWindow olduğu için
+    bunlar dönene kadar ekranda hiçbir pencere yok. `gsettings` bozuk bir
+    dbus oturumunda süresiz asılabiliyor.
+
+    ÖLÇÜLDÜ, PATH'e asılan taklitle: her biri 10 sn bekleyen iki komutla
+    kayıt fonksiyonu 20.7 saniye blokladı; timeout eklendikten sonra 10.0
+    saniyede sınırlandı. Gerçek süreleri beşer koşuda 0.04-0.07 sn.
+
+    `Popen` LİSTEDE DEĞİL: o zaten beklemiyor, süreci başlatıp dönüyor.
+    Bekleme `wait`/`communicate` çağıranın işi.
+    """
+    eksik = []
+    for y in _urun_dosyalari():
+        tree = ast.parse(y.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call):
+                continue
+            f = node.func
+            if not (isinstance(f, ast.Attribute)
+                    and f.attr in {"run", "check_output", "call"}):
+                continue
+            kw = {k.arg for k in node.keywords}
+            if None in kw:          # **kwargs ile geçiyor olabilir
+                continue
+            if "timeout" not in kw:
+                eksik.append((y.relative_to(_REPO).as_posix(), node.lineno,
+                              f.attr))
+    assert not eksik, (
+        "ürün kodunda timeout= verilmeyen subprocess çağrısı:\n"
+        + "\n".join(f"  {f}:{ln}  subprocess.{ne}(...)" for f, ln, ne in eksik))
+
+
 # test_paketleme_haric_listeleri_ayrismiyor BURADAN KALKTI (2026-08-31).
 # Kural yok olmadı, GEREKSİZLEŞTİ: hariç tutma listesi artık yalnız
 # "LaTeX Editor.spec"te yaşıyor, .bat dosyaları spec'i çağırıyor — iki liste

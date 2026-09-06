@@ -309,3 +309,97 @@ def test_kume_DEGISMEDI_ve_yuzeyler_calisiyor(qapp, tmp_path):
     assert sorted(qo.collect_project_files(str(tmp_path))) == ["a.tex", "b.sty"]
     bulunan = [os.path.basename(p) for p in ps.iter_project_files(str(tmp_path))]
     assert sorted(bulunan) == ["a.tex", "b.sty"]
+
+
+# ==========================================================================
+# Disaridan gelen yol: ILK ACILIS ile IKINCI ORNEK ayni cevabi vermeli
+#
+# Ayni soru iki yerde ayri yazilmisti ve ayrismisti. OLCULDU (2026-09-06),
+# ayni `.png` dosyasiyla:
+#
+#     ilk acilis (komut satiri) -> durum cubugu "Hazir", oturumdan kalan
+#                                  sekme acik, hicbir aciklama YOK
+#     ikinci ornek              -> "Bu dosya turu acilamiyor: resim.png"
+#
+# Kullanici .png'ye "Birlikte Ac" deyip alakasiz bir belge goruyordu. Kural
+# artik `MainWindow._dis_yolu_ac`ta; ikinci ornek de oradan geciyor.
+# ==========================================================================
+
+@pytest.fixture
+def iki_giris(ana_pencere, tmp_path):
+    """Ayni yolu IKI giristen de gecirip (mesaj, acildi_mi) doner."""
+    def _dosya(ad, olustur=True):
+        y = tmp_path / ad
+        if olustur:
+            y.write_text("x\n", encoding="utf-8")
+        return str(y)
+
+    def _ilk_acilis(yol):
+        w = ana_pencere(open_file=yol)
+        acildi = any((e.file_path or "") == yol
+                     for e in [w._editor_tabs.widget(i)
+                               for i in range(w._editor_tabs.count())])
+        return w._status.currentMessage(), acildi, w
+
+    def _ikinci_ornek(yol):
+        w = ana_pencere()
+        acilan = []
+        w._open_file_in_editor = lambda y, *a, **k: acilan.append(y)
+        w.open_from_other_instance(yol)
+        return w._status.currentMessage(), bool(acilan), w
+
+    return _dosya, _ilk_acilis, _ikinci_ornek
+
+
+def test_DESTEKLENMEYEN_tur_iki_giriste_de_AYNI_mesaj(iki_giris):
+    dosya, ilk, ikinci = iki_giris
+    yol = dosya("resim.png")
+    m1, acildi1, _w1 = ilk(yol)
+    m2, acildi2, _w2 = ikinci(yol)
+    assert not acildi1 and not acildi2
+    assert m1 == m2 != "", (m1, m2)
+    assert "resim.png" in m1, m1
+
+
+def test_OLMAYAN_dosya_iki_giriste_de_AYNI_mesaj(iki_giris):
+    dosya, ilk, ikinci = iki_giris
+    yol = dosya("yok.tex", olustur=False)
+    m1, acildi1, _w1 = ilk(yol)
+    m2, acildi2, _w2 = ikinci(yol)
+    assert not acildi1 and not acildi2
+    assert m1 == m2 != "", (m1, m2)
+    assert "yok.tex" in m1, m1
+
+
+def test_ILK_ACILIS_desteklenmeyen_turde_SESSIZ_KALMIYOR(iki_giris):
+    """Kusurun kendisi: eskiden burada hicbir sey soylenmiyordu."""
+    dosya, ilk, _ikinci = iki_giris
+    mesaj, acildi, _w = ilk(dosya("resim.png"))
+    assert not acildi
+    assert "resim.png" in mesaj, mesaj
+
+
+def test_DESTEKLENEN_dosya_ilk_aciliste_ACILIYOR_ve_hata_YOK(iki_giris):
+    """Asiri duzeltme kapisi: gecerli dosya yine acilmali, uyari cikmamali."""
+    dosya, ilk, _ikinci = iki_giris
+    yol = dosya("belge.tex")
+    mesaj, acildi, w = ilk(yol)
+    assert acildi, "gecerli .tex acilmadi"
+    assert "acilamiyor" not in mesaj.lower(), mesaj
+    assert _norm(w._file_tree._root) == _norm(os.path.dirname(yol))
+
+
+def test_BOS_yol_hicbir_sey_soylemiyor(ana_pencere):
+    """Uygulama dosyasiz da aciliyor; o normal hal, uyari uretmemeli."""
+    w = ana_pencere(open_file="")
+    assert "bulunamadı" not in w._status.currentMessage()
+    assert "açılamıyor" not in w._status.currentMessage()
+
+
+def test_IKI_giris_de_TEK_metottan_geciyor():
+    """Kirilirsa kural yine iki yerde yazili demektir."""
+    import inspect
+    from gui.main_window import MainWindow
+
+    for metot in (MainWindow.__init__, MainWindow.open_from_other_instance):
+        assert "_dis_yolu_ac" in inspect.getsource(metot), metot.__name__
