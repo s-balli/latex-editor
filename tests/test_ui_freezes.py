@@ -7,6 +7,7 @@
 """
 
 import os
+import sys
 import threading
 import time
 from types import SimpleNamespace
@@ -646,3 +647,130 @@ def test_BELGE_YOKKEN_fare_hareketi_sorunsuz(qapp):
         v.shutdown()
         v.close()
         qapp.processEvents()
+
+
+# =====================================================================
+# pandoc kontrolu: arka plan is parcacigi Qt'ye DOKUNMAMALI (2026-09-06)
+#
+# Eskiden her pencere kendi `_PandocCheckSignal` koprusunu kurup arka plan
+# thread'inden emit ediyordu. Pencere kapandiginda o thread'i durduran,
+# bekleyen ya da baglantiyi kesen hicbir sey yoktu; kontrol pencerenin
+# omrunden uzun surunce emit OLU nesneye gidiyordu. Ayni yarisin iki yuzu:
+# nesne tam olmusse PyQt "does not have a signal with the signature
+# ready(bool)" atip thread'i sessizce olduruyor, yok etme emit'in ortasina
+# denk gelirse serbest bellege yaziliyor ve SUREC 0xC0000005 ile oluyor.
+#
+# OLCULDU 2026-09-06, emit gecikmesi denetlenerek (5'er kosu):
+#      30 ms -> cokme 0/5      60 ms -> cokme 4/5     150 ms -> cokme 5/5
+#     400 ms -> cokme 2/5    5000 ms -> cokme 0/5
+# Gercek sure WSL'e bagli: ilk cagri 2770 ms (soguk), sonrakiler ~110 ms,
+# yani tam cokme bandinda. Belirti: tests/test_ana_pencere_yollari.py arka
+# arkaya kosturulunca 3. kosudan itibaren surec oluyordu; kod degismeden,
+# yalniz WSL isindiginda.
+#
+# Cozum cross-thread Qt erisimini TUMUYLE kaldiriyor: is parcacigi yalniz bir
+# Python degiskeni yaziyor, sonucu UI'ya tasiyan zamanlayici PENCERENIN
+# COCUGU (pencere olunce Qt onu da olduruyor). Sonuc surec genelinde
+# onbellekli, ikinci pencere WSL'e hic sormuyor.
+# =====================================================================
+
+_WIN = sys.platform == "win32"
+sadece_win = pytest.mark.skipif(not _WIN,
+                                reason="pandoc kontrolu yalniz Windows'ta "
+                                       "arka planda kosuyor")
+
+
+def test_pandoc_arka_plan_yolu_QT_NESNESINE_dokunmuyor():
+    """Kirilirsa: kontrol yine cross-thread Qt erisimi yapiyor demektir.
+
+    Bu kapi her platformda kosar: sinanan sey KAYNAGIN sekli.
+    """
+    import inspect
+    import gui.main_window as mw
+
+    kaynak = inspect.getsource(mw._pandoc_kontrolu_basla)
+    for yasak in ("emit", "QObject", "pyqtSignal", "self."):
+        assert yasak not in kaynak, (
+            "arka plan yolunda Qt erisimi geri gelmis: %r" % yasak)
+    assert not hasattr(mw, "_PandocCheckSignal"), (
+        "olu sinyal koprusu sinifi geri gelmis")
+
+
+@pytest.fixture
+def _pandoc_taze(monkeypatch):
+    """Surec genelindeki pandoc onbellegini test basina sifirla."""
+    import gui.main_window as mw
+    monkeypatch.setattr(mw, "_pandoc_sonuc", None, raising=False)
+    monkeypatch.setattr(mw, "_pandoc_thread", None, raising=False)
+    yield mw
+
+
+@sadece_win
+def test_pandoc_sonucu_UI_ya_zamanlayiciyla_ulasiyor(qapp, ana_pencere,
+                                                     _pandoc_taze,
+                                                     monkeypatch):
+    import core.exporter as ex
+    monkeypatch.setattr(ex, "pandoc_available",
+                        lambda: (time.sleep(0.05), False)[-1])
+
+    w = ana_pencere()
+    assert w._pandoc_bekleyici.parent() is w, "zamanlayici pencerenin cocugu degil"
+    assert _spin(qapp, lambda: not w._pandoc_bekleyici.isActive()), \
+        "zamanlayici durmadi (sonuc hic ulasmadi)"
+    assert w._pandoc_available is False, w._pandoc_available
+
+
+@sadece_win
+def test_pandoc_sonucu_ONBELLEKLI_ikinci_pencere_sormuyor(qapp, ana_pencere,
+                                                          _pandoc_taze,
+                                                          monkeypatch):
+    """WSL'e pencere basina sormak gereksiz; ilk kontrol yeter."""
+    import core.exporter as ex
+    cagri = []
+    monkeypatch.setattr(ex, "pandoc_available",
+                        lambda: (cagri.append(1), False)[-1])
+
+    w1 = ana_pencere()
+    assert _spin(qapp, lambda: not w1._pandoc_bekleyici.isActive())
+    once = len(cagri)
+    assert once == 1, cagri
+
+    w2 = ana_pencere()
+    assert len(cagri) == once, "ikinci pencere yeniden sordu: %s" % cagri
+    assert w2._pandoc_available is False
+    assert not hasattr(w2, "_pandoc_bekleyici"), \
+        "onbellek varken zamanlayici kurulmamali"
+
+
+@sadece_win
+def test_pencere_kontrol_BITMEDEN_yok_edilince_istisna_YOK(qapp, ana_pencere,
+                                                           _pandoc_taze,
+                                                           monkeypatch):
+    """Kusurun ta kendisi: pencere olurken arka plan sonucu geliyor.
+
+    Eskiden bu emit olu koprude patliyordu (iyi durumda AttributeError, kotu
+    durumda surecin olmesi).
+    """
+    import core.exporter as ex
+    serbest = threading.Event()
+    monkeypatch.setattr(ex, "pandoc_available",
+                        lambda: (serbest.wait(10), False)[-1])
+
+    istisnalar = []
+    asil = threading.excepthook
+    monkeypatch.setattr(threading, "excepthook",
+                        lambda a: istisnalar.append(a.exc_type.__name__))
+
+    w = ana_pencere()
+    w._save_dialog = lambda ad: "discard"
+    w.close()
+    w.deleteLater()
+    del w
+    qapp.processEvents()
+    qapp.processEvents()
+
+    serbest.set()               # kontrol simdi bitiyor, pencere coktan gitti
+    assert _spin(qapp, lambda: _pandoc_taze._pandoc_sonuc is not None), \
+        "arka plan kontrolu hic tamamlanmadi"
+    threading.excepthook = asil
+    assert not istisnalar, "olen pencere is parcaciginda istisna uretti: %s" % istisnalar
