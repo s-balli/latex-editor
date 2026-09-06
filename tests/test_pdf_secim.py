@@ -638,3 +638,121 @@ def test_sag_tik_menusunun_DAVRANISI_bozulmadi(qapp, duz_pdf):
         v.shutdown()
         v.close()
         qapp.processEvents()
+
+
+# =====================================================================
+# Ctrl+tik YALNIZ SyncTeX ters aramasi olmali
+#
+# `_selection_start_label_pos` yalnizca `_selection_press` icinde
+# sifirlaniyor. Ctrl+tik dali `_selection_press` CAGIRMIYOR (secim
+# baslatmaz) ama BIRAKMA yolu o degiskene bakiyor; onceki siradan kalan
+# deger yuzunden birakma "tiklama" sayilip 150 ms'lik gecikmeli BAGLANTI
+# TIKLAMASI kuruluyordu.
+#
+# OLCULDU (2026-09-06), ayni Ctrl+tik:
+#     once sayfaya tiklanmamissa -> ['TERS_ARAMA']
+#     once bir kez tiklanmissa   -> ['TERS_ARAMA', 'BAGLANTI']
+#
+# hyperref'li bir belgede her `\ref`/`\cite` bir baglantidir; kaynaga
+# gitmek icin Ctrl+tiklayan kullanici ayni anda PDF'i baska bir yere
+# firlatiyor ya da tarayici aciyordu. Kusur GIZLI ONCEKI DURUMA bagli
+# oldugu icin ilk etkilesimde hic gorunmuyor.
+# =====================================================================
+
+from PyQt6.QtCore import QEvent, QPointF, Qt          # noqa: E402
+from PyQt6.QtGui import QMouseEvent                   # noqa: E402
+
+_SOL = Qt.MouseButton.LeftButton
+_CTRL = Qt.KeyboardModifier.ControlModifier
+_YOK = Qt.KeyboardModifier.NoModifier
+
+
+def _fare(tur, nokta, mods=_YOK, dugme=_SOL):
+    basili = dugme if tur != QEvent.Type.MouseButtonRelease \
+        else Qt.MouseButton.NoButton
+    return QMouseEvent(tur, QPointF(*nokta), QPointF(*nokta), dugme, basili,
+                       mods)
+
+
+@pytest.fixture
+def izlenen(qapp, duz_pdf):
+    """Gercek PdfViewer; ters arama ve baglanti tiklamasi kayda geciyor."""
+    v = _viewer(qapp, duz_pdf, render_bekle=False)
+    kayit = []
+    v._handle_reverse_click = lambda pos, obj: kayit.append("TERS_ARAMA")
+    v._handle_link_click = lambda pos, obj: kayit.append("BAGLANTI")
+
+    etiket = v._page_labels[0]
+
+    def _tikla(mods=_YOK, nokta=(40, 40)):
+        v.eventFilter(etiket, _fare(QEvent.Type.MouseButtonPress, nokta, mods))
+        v.eventFilter(etiket, _fare(QEvent.Type.MouseButtonRelease, nokta,
+                                    mods))
+        t = v._pending_click_timer
+        if t is not None and t.isActive():      # 150 ms'i beklemeden tetikle
+            t.timeout.emit()
+            t.stop()
+
+    v.tikla = _tikla
+    v.kayit = kayit
+    yield v
+    v.close()
+    v.deleteLater()
+    qapp.processEvents()
+
+
+def test_CTRL_TIK_onceki_tiklamadan_ETKILENMIYOR(izlenen):
+    """Kusurun kendisi: ayni giris, gizli duruma gore iki ayri davranis."""
+    izlenen.tikla()                       # sirradan kalan capa
+    izlenen.kayit.clear()
+    izlenen.tikla(_CTRL)
+    assert izlenen.kayit == ["TERS_ARAMA"], izlenen.kayit
+
+
+def test_CTRL_TIK_ilk_etkilesimde_de_ayni(izlenen):
+    """Kusurun gorunmedigi hal; iki yol AYNI sonucu vermeli."""
+    izlenen.tikla(_CTRL)
+    assert izlenen.kayit == ["TERS_ARAMA"], izlenen.kayit
+
+
+def test_ART_ARDA_ctrl_tik_temiz_kaliyor(izlenen):
+    izlenen.tikla()
+    izlenen.kayit.clear()
+    izlenen.tikla(_CTRL)
+    izlenen.tikla(_CTRL)
+    assert izlenen.kayit == ["TERS_ARAMA", "TERS_ARAMA"], izlenen.kayit
+
+
+def test_DUZ_TIKLAMA_baglantiyi_HALA_aciyor(izlenen):
+    """ASIRI DUZELTME KAPISI: capa temizligi duz tiklamayi bozmamali."""
+    izlenen.tikla()
+    assert izlenen.kayit == ["BAGLANTI"], izlenen.kayit
+
+
+def test_CTRL_TIKTEN_SONRA_duz_tiklama_calisiyor(izlenen):
+    izlenen.tikla(_CTRL)
+    izlenen.kayit.clear()
+    izlenen.tikla()
+    assert izlenen.kayit == ["BAGLANTI"], izlenen.kayit
+
+
+def test_CTRL_TIK_gecikmeli_zamanlayici_KURMUYOR(izlenen):
+    """Kurulmamali: kurulursa 150 ms sonra tiklama yolu yine calisir."""
+    izlenen.tikla()
+    etiket = izlenen._page_labels[0]
+    izlenen.eventFilter(etiket, _fare(QEvent.Type.MouseButtonPress, (40, 40),
+                                      _CTRL))
+    izlenen.eventFilter(etiket, _fare(QEvent.Type.MouseButtonRelease, (40, 40),
+                                      _CTRL))
+    t = izlenen._pending_click_timer
+    assert t is None or not t.isActive(), "Ctrl+tik gecikmeli tiklama kurdu"
+
+
+def test_CTRL_TIK_secim_capasini_TEMIZLIYOR(izlenen):
+    """Duzeltmenin mekanizmasi: birakma yolunun bakti degisken sifirlanmali."""
+    izlenen.tikla()
+    assert izlenen._selection_start_label_pos is not None, "ön koşul"
+    etiket = izlenen._page_labels[0]
+    izlenen.eventFilter(etiket, _fare(QEvent.Type.MouseButtonPress, (40, 40),
+                                      _CTRL))
+    assert izlenen._selection_start_label_pos is None

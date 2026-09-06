@@ -55,6 +55,24 @@ class PdfEventsMixin:
 
             if event.button() == Qt.MouseButton.LeftButton:
                 if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
+                    # SEÇİM DURUMU TEMİZLENİYOR. Bu dal `_selection_press`
+                    # çağırmıyor (Ctrl+tık seçim başlatmaz) ama BIRAKMA yolu
+                    # `_selection_start_label_pos`a bakıyor ve o değişken
+                    # yalnız `_selection_press` içinde sıfırlanıyor. Önceki
+                    # sıradan kalan değer yüzünden bırakma "tıklama" sayılıp
+                    # 150 ms'lik gecikmeli BAĞLANTI TIKLAMASI kuruluyordu.
+                    #
+                    # ÖLÇÜLDÜ (2026-09-06), aynı Ctrl+tık:
+                    #   önce sayfaya tıklanmamışsa -> ['TERS_ARAMA']
+                    #   önce bir kez tıklanmışsa   -> ['TERS_ARAMA',
+                    #                                 'BAĞLANTI_TIKLAMASI']
+                    # hyperref'li belgede her `\ref`/`\cite` bir bağlantı,
+                    # yani kaynağa gitmek için Ctrl+tıklayan kullanıcı aynı
+                    # anda PDF'i başka yere fırlatıyor ya da tarayıcı açıyordu.
+                    #
+                    # Düz tıklama da `_selection_press` içinde aynı temizliği
+                    # yapıyor; bu dal onunla aynı hizaya geliyor.
+                    self._clear_selection()
                     self._handle_reverse_click(pos, obj)
                     return True
                 self._selection_press(pos, obj)
