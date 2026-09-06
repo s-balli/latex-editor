@@ -107,6 +107,22 @@ class PdfRenderMixin:
             self._update_nav()
 
     def clear(self):
+        # ÖNCE sunumdan çık. `enter_presentation` "belge var ve sayfa var"ı
+        # girişte şart koşuyor; `clear()` o değişmezi sonradan çiğniyordu:
+        # sunum penceresi ayrı bir tam ekran üst düzey pencere ve buraya
+        # dokunulmadığı için AÇIK KALIYORDU. Ölçüldü 2026-09-06: uygulamanın
+        # artık sahip olmadığı belgenin bayat karesi tam ekranda duruyor,
+        # `_page_count` 0 olduğu için sağa/sola/Home sessizce hiçbir şey
+        # yapmıyor (sunum donmuş görünüyor); `End` ise beş tuş dalından tek
+        # sınırsız olanı olduğu için `_current_page`i -1 yapıp araç çubuğunu
+        # "Sayfa 0 / 0"a düşürüyor.
+        # Ulaşılabilir yol: sunum sürerken arka planda bir derleme başarısız
+        # olur (compile_ops: PDF gösterilemezse clear()); ayrıca tab_ops
+        # (tümünü kapat / son sekme) ve file_ops de buraya geliyor.
+        # Ayrı bir yıkım kopyası YAZILMIYOR, var olan çıkış yolu çağrılıyor
+        # (bkz. aşağıdaki close_pdf notu: ikinci kopya bakımda tuzak).
+        if self._presentation_mode:
+            self.exit_presentation()
         if self._pdf:
             with pdfium_lock:
                 self._pdf.close()

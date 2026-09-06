@@ -382,3 +382,142 @@ def test_ileri_arama_CIFT_SAYFA_kipinde_de_calisiyor(viewer):
     viewer._toggle_dual_page(True)
     viewer.scroll_to_position(2, 10.0, 20.0)
     assert viewer._current_page == 1
+
+
+# =====================================================================
+# clear() sunum modunu kapatmiyordu (2026-09-06)
+#
+# `enter_presentation` "belge var ve sayfa var"i giriste sart kosuyor;
+# `clear()` o degismezi SONRADAN cigniyordu. Sunum penceresi ayri bir tam
+# ekran ust duzey pencere, sayfa etiketlerinin yikimindan etkilenmiyor.
+#
+# Olculdu: clear() sonrasi uygulamanin artik sahip OLMADIGI belgenin bayat
+# karesi tam ekranda duruyor, `_page_count` 0 oldugu icin saga/sola/Home
+# sessizce hicbir sey yapmiyor (sunum donmus gorunuyor) ve arac cubugu
+# "Sayfa 0 / 0" gosteriyor.
+#
+# ULASILABILIR YOL: sunum surerken arka planda bir derleme basarisiz olur
+# (compile_ops: PDF gosterilemezse clear()); ayrica tab_ops (tumunu kapat,
+# son sekme) ve file_ops de clear() cagiriyor.
+#
+# Bu dallarin hicbiri test suitinde kosmuyordu: `_presentation_key_event`in
+# 28 satirinin TAMAMI kapsam disiydi (sys.settrace ile olculdu).
+# =====================================================================
+
+
+def _tus(k):
+    from PyQt6.QtCore import QEvent, Qt
+    from PyQt6.QtGui import QKeyEvent
+    return QKeyEvent(QEvent.Type.KeyPress, k, Qt.KeyboardModifier.NoModifier)
+
+
+def _K():
+    from PyQt6.QtCore import Qt
+    return Qt.Key
+
+
+@gui
+def test_sunum_ACIKKEN_clear_sunumu_kapatiyor(viewer, qapp):
+    """Kirilirsa: clear() sunum durumuna yine dokunmuyor demektir."""
+    viewer.enter_presentation()
+    qapp.processEvents()
+    # Kapi bos kosmasin: sunum gercekten acilmis olmali
+    assert viewer._presentation_mode is True
+    assert viewer._presentation_widget is not None
+
+    viewer.clear()
+    qapp.processEvents()
+
+    assert viewer._presentation_mode is False, "sunum acik kaldi"
+    assert viewer._presentation_widget is None, "sunum penceresi yok edilmedi"
+    assert viewer._current_page >= 0, viewer._current_page
+
+
+@gui
+def test_clear_sonrasi_TUS_OLAYI_konumu_bozamiyor(viewer, qapp):
+    """`End` bes tus dalindan tek SINIRSIZ olani: _page_count-1 = -1 yazardi.
+
+    Olay GERCEK yoldan (eventFilter) gonderiliyor: `_presentation_key_event`i
+    dogrudan cagirmak gecerli bir sinama degil, uretimde oraya yalniz
+    `_presentation_mode` ACIKKEN ulasiliyor.
+    """
+    viewer.enter_presentation()
+    qapp.processEvents()
+    viewer.clear()
+    qapp.processEvents()
+
+    hedef = viewer._presentation_widget or viewer
+    viewer.eventFilter(hedef, _tus(_K().Key_End))
+
+    assert viewer._current_page >= 0, viewer._current_page
+    viewer._update_nav()
+    assert "0 / 0" not in viewer._lbl_page.text(), viewer._lbl_page.text()
+
+
+@gui
+def test_clear_sunum_ACILMAMISKEN_de_sorunsuz(viewer, qapp):
+    """Karsi durum: koruma sunum kullanilmayan siradan yolu bozmamali."""
+    assert viewer._presentation_mode is False
+    viewer.clear()
+    qapp.processEvents()
+    assert viewer._presentation_mode is False
+
+
+@gui
+def test_ust_uste_clear_sorunsuz(viewer, qapp):
+    viewer.enter_presentation()
+    qapp.processEvents()
+    for _ in range(3):
+        viewer.clear()
+        qapp.processEvents()
+    assert viewer._presentation_mode is False
+
+
+@gui
+def test_clear_sonrasi_yeniden_yukleyip_sunum_ACILABILIYOR(viewer, qapp,
+                                                           tmp_path):
+    """Kapatma tek yonlu olmamali: yeni belge gelince sunum yine acilabilmeli."""
+    viewer.enter_presentation()
+    qapp.processEvents()
+    viewer.clear()
+    qapp.processEvents()
+
+    assert viewer.load_pdf(_pdf_kur(tmp_path))
+    viewer.enter_presentation()
+    qapp.processEvents()
+    assert viewer._presentation_mode is True
+    assert viewer._presentation_widget is not None
+    viewer.exit_presentation()
+    qapp.processEvents()
+
+
+@gui
+def test_sunum_GEZINMESI_hala_calisiyor(viewer, qapp):
+    """Asiri duzeltme kapisi: koruma sunumun kendisini bozmamali.
+
+    Kapi yalniz "cokmuyor" demiyor, tuslarin GERCEKTEN is gordugunu tutuyor.
+    """
+    K = _K()
+    assert viewer._page_count == 2, viewer._page_count
+    viewer.enter_presentation()
+    qapp.processEvents()
+    try:
+        viewer._presentation_key_event(_tus(K.Key_Right))
+        assert viewer._current_page == 1, viewer._current_page
+        viewer._presentation_key_event(_tus(K.Key_Left))
+        assert viewer._current_page == 0, viewer._current_page
+        viewer._presentation_key_event(_tus(K.Key_End))
+        assert viewer._current_page == 1, viewer._current_page
+        viewer._presentation_key_event(_tus(K.Key_Home))
+        assert viewer._current_page == 0, viewer._current_page
+        # sinirda durmali
+        viewer._presentation_key_event(_tus(K.Key_Left))
+        assert viewer._current_page == 0, viewer._current_page
+    finally:
+        viewer._presentation_key_event(_tus(K.Key_Escape))
+        qapp.processEvents()
+
+    assert viewer._presentation_mode is False, "Escape sunumu kapatmadi"
+    # Escape belgeyi SILMEMELI (clear ile karistirilmasin)
+    assert viewer._pdf is not None
+    assert viewer._page_count == 2
