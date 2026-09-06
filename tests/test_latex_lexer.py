@@ -837,3 +837,200 @@ def test_blok_ortasindan_devam_dogru_stil_uretiyor(qapp):
     ref.lexer().styleText(0, len(data))
     assert _all_styles(editor, len(data)) == _all_styles(ref, len(data)), \
         "blok ortasından devam eden tarama tam taramadan sapıyor"
+
+
+# =====================================================================
+# Çok satırlı KOMUT ARGÜMANI satır sayacını kaydırıyordu (2026-09-06)
+#
+# `_consume_braces` / `_consume_brackets` çok satırlı bir argümanın satır
+# sonlarını kendi içinde yutuyor; ana döngünün `\n` dalı onlar için hiç
+# çalışmıyor ve `line_no` GERİDE KALIYORDU. Yukarıdaki
+# `test_incremental_restyle_inside_verbatim_stays_verbatim` aynı sınıfın
+# blok tarayıcılarını kapatmış, argüman tarayıcılarını atlamıştı.
+#
+# İki sonucu ölçüldü:
+#   1. `_commit`e giden `exit_line` eksik oluyor; `base = exit_line -
+#      line_delta` negatife düşünce "bölge sonrası kuyruk" süzgeci taranan
+#      bölgenin KENDİ bayat girdisini kuyruk sanıp ötelİYOR ve hiçbir
+#      taramanın ziyaret etmediği satıra "güvenli" (0) damgası basıyordu.
+#      Sonraki artımlı tarama oradan başlayıp argümanın devamını DEFAULT
+#      boyuyordu. Gerçek tuş vuruşuyla üretimi: `\be` + Enter, `$` + Enter,
+#      `d` + Enter (otomatik tamamlama `\begin{` yapıyor).
+#   2. Argüman KAPANSA bile sonraki bütün satır numaraları bir eksik
+#      yazılıyordu (`\section{a` + yenisatır + `b}`).
+#
+# Düzeltme: yutulan satır sonu kadar sayaç ilerliyor ama o satırlara GİRDİ
+# YAZILMIYOR (durum modeli 0/1/2 "argüman içindeyim"i ifade edemiyor;
+# girdinin yokluğu zaten "burada başlanmaz" demek). `_commit`te
+# `_line_states` kuyruk sınırı `k > base` oldu. Aynı değişiklik
+# `_offset_states` ve `_block_ctx` için de denendi; 150 oturumluk tuş
+# vuruşu fuzz'ıyla hiçbir davranış farkı ölçülemediği için yapılmadı.
+# =====================================================================
+
+
+def _lexer_tam_tara(buf):
+    """Boş önbellekle tam tarama; (editor, lexer) döndür."""
+    editor = _make_editor()
+    editor.setText(buf)
+    lexer = editor.lexer()
+    lexer.reset_state()
+    lexer.invalidate_cache()
+    lexer.styleText(0, len(buf.encode("utf-8")))
+    return editor, lexer
+
+
+def test_coklu_satir_argumani_SATIR_NUMARASINI_kaydirmiyor(qapp):
+    """Kırılırsa: argüman tarayıcıları yuttukları satırları saymıyor demektir."""
+    buf = "\\section{a\nb}\nmetin\n$x$\n"
+    editor, lexer = _lexer_tam_tara(buf)
+    assert max(lexer._line_states) == buf.count("\n"), \
+        f"satır sayacı geride: {dict(lexer._line_states)}"
+
+
+def test_argumanin_YUTTUGU_satir_onbellege_girmiyor(qapp):
+    """Başı argümanın içinde kalan satır 'güvenli' sayılamaz.
+
+    Durum modeli (0/1/2) 'argüman içindeyim'i ifade edemiyor; sahte bir 0
+    'buradan başlanabilir' demek olurdu.
+    """
+    buf = "\\section{a\nb}\nmetin\n"
+    editor, lexer = _lexer_tam_tara(buf)
+    assert lexer._line_states.get(1) is None, \
+        f"argüman içindeki satıra girdi yazıldı: {dict(lexer._line_states)}"
+    # Argüman kapandıktan SONRAKİ satırlar normal şekilde önbellekte
+    assert lexer._line_states.get(2) == 0
+    assert lexer._line_states.get(3) == 0
+
+
+def test_kapanmamis_arguman_UYDURULMUS_girdi_uretmiyor(qapp):
+    """`_commit`in kuyruk süzgeci taranan bölgenin girdisini ötelememeli.
+
+    Kırılırsa: sınır yine `k >= base`, yani çıkış satırının kendisi de
+    kuyruk sayılıyor demektir.
+    """
+    editor = _make_editor()
+    lexer = editor.lexer()
+    editor.setText("\\begin{")
+    lexer.reset_state()
+    lexer.invalidate_cache()
+    lexer.styleText(0, editor.length())
+
+    editor.setText("\\begin{$\n$")
+    lexer.invalidate_cache()
+    lexer.styleText(0, editor.length())
+
+    assert lexer._line_states.get(1) is None, \
+        f"hiçbir taramanın ziyaret etmediği satıra damga: {dict(lexer._line_states)}"
+
+
+# --- Gerçek tuş vuruşları: kullanıcının gördüğü yol ---
+#
+# Doğrudan `setText` ile sınamak GEÇERSİZ: setText bütün stilleri sıfırlıyor,
+# oysa gerçek düzenleme dokunulmayan baytların stilini KORUYOR. Kusur da tam
+# olarak "korunan stiller ile yeni taramanın çeliştiği" yerde çıkıyor.
+
+def _tus_vurusuyla_stiller(ops):
+    """ops'u gerçek tuş vuruşlarıyla uygula; (ekrandaki, taze, metin) döndür."""
+    from PyQt6.QtCore import Qt
+    from PyQt6.QtTest import QTest
+    from gui.editor import EditorWidget
+    from gui.theme import THEMES
+
+    app = QApplication.instance()
+    ed = EditorWidget()
+    ed.apply_theme(THEMES["dark"])
+    ed.show()
+    ed.setFocus()
+    app.processEvents()
+    for op in ops:
+        if op[0] == "yaz":
+            QTest.keyClicks(ed, op[1])
+            QTest.keyClick(ed, Qt.Key.Key_Return)
+        elif op[0] == "satir_uzerine":
+            h = op[1]
+            if h < ed.lines():
+                ed.setSelection(h, 0, h, len(ed.text(h).rstrip("\n")))
+                QTest.keyClicks(ed, op[2])
+        app.processEvents()
+    ed.repaint()
+    app.processEvents()
+
+    metin = ed.text()
+    n = len(metin.encode("utf-8"))
+    ekrandaki = _all_styles(ed, n)
+    ed.deleteLater()
+    app.processEvents()
+
+    ref = _make_editor()
+    ref.setText(metin)
+    ref.lexer().reset_state()
+    ref.lexer().invalidate_cache()
+    ref.lexer().styleText(0, n)
+    return ekrandaki, _all_styles(ref, n), metin
+
+
+_TUS_VAKALARI = [
+    # kesif_BO'nun delta debugging ile bulduğu EN KISA üretim
+    ("en kisa uretim", [("yaz", "\\be"), ("yaz", "$"), ("yaz", "d")]),
+    ("kapanmamis kose parantez",
+     [("yaz", "\\cite["), ("yaz", "a"), ("yaz", "b")]),
+    ("ic ice kume satira yayilmis",
+     [("yaz", "\\section{a{b"), ("yaz", "c"), ("yaz", "}}")]),
+    ("arguman kapaniyor sonra duzenleme",
+     [("yaz", "\\section{a"), ("yaz", "b}"), ("yaz", "metin"),
+      ("satir_uzerine", 1, "$z$")]),
+    ("arguman icinde math",
+     [("yaz", "\\section{$x"), ("yaz", "y$}"), ("yaz", "son")]),
+    ("verbatim + kapanmamis kume",
+     [("yaz", "\\begin{verbatim}"), ("yaz", "\\begin{"), ("yaz", "kod")]),
+    ("cok satirli math sonrasi arguman",
+     [("yaz", "$$"), ("yaz", "x"), ("yaz", "$$ \\section{a"), ("yaz", "b")]),
+    # KONTROL: sözel/math olmayan sıradan düzenleme de sapmamalı
+    ("siradan metin", [("yaz", "duz metin"), ("yaz", "ikinci satir"),
+                       ("satir_uzerine", 0, "degistirildi")]),
+]
+
+
+@pytest.mark.parametrize("ad,ops", _TUS_VAKALARI, ids=[a for a, _ in _TUS_VAKALARI])
+def test_gercek_tus_vurusu_TAZE_taramayla_ayni(qapp, ad, ops):
+    """Artımlı renklendirme, aynı metnin sıfırdan renklendirmesiyle aynı olmalı."""
+    ekrandaki, taze, metin = _tus_vurusuyla_stiller(ops)
+    if ekrandaki != taze:
+        i = next(k for k, (x, y) in enumerate(zip(ekrandaki, taze)) if x != y)
+        raise AssertionError(
+            f"{ad}: belge={metin.encode('utf-8')!r} ilk farklı bayt={i} "
+            f"ekranda={ekrandaki[i]} olması gereken={taze[i]}")
+
+
+def test_onbellek_HALA_is_goruyor(qapp):
+    """Aşırı düzeltme kapısı: düzeltme 'her tuşta baştan tara'ya kaçmamalı.
+
+    Kaçsaydı tarama her zaman byte 0'dan başlardı ve büyük belgelerde her
+    tuş vuruşu tam reparse olurdu (bu dosyanın en başındaki 2. regresyon).
+    """
+    editor = _make_editor()
+    buf = "\\section{Bolum}\nmetin satiri\n" * 300
+    editor.setText(buf)
+    lexer = editor.lexer()
+    data = buf.encode("utf-8")
+    lexer.reset_state()
+    lexer.invalidate_cache()
+    lexer.styleText(0, len(data))
+
+    baslangiclar = []
+    orig = lexer.startStyling
+
+    def spy(pos, *a, **k):
+        baslangiclar.append(pos)
+        return orig(pos, *a, **k)
+
+    lexer.startStyling = spy
+    try:
+        gec = _byte_offset_of_line(buf, 580)
+        lexer.styleText(gec, gec + 5)
+    finally:
+        lexer.startStyling = orig
+
+    assert baslangiclar, "styleText hiç startStyling çağırmadı"
+    assert min(baslangiclar) > 0, \
+        f"tarama belgenin başına döndü: {baslangiclar}"

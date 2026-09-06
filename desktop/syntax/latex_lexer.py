@@ -255,6 +255,13 @@ class LatexLexer(QsciLexerCustom):
         # "açılışı atla" parametresi eklemektir.
         in_math = False
         in_verbatim = False
+        # Şu an üzerinde olduğumuz satırın BAŞI bir komut argümanının içinde
+        # mi kaldı. Öyleyse o satır için önbelleğe girdi YAZILAMAZ: durum
+        # modeli (0/1/2) 'argüman içindeyim'i ifade edemiyor ve sahte bir 0
+        # 'buradan başlanabilir' demek olurdu (bkz. aşağıdaki setdefault).
+        # Math/verbatim bloklarında gerek yok: _blok_satirlari yuttuğu her
+        # satıra gerçek durumu (1/2) + bağlamı yazıyor.
+        arg_ici_satir = False
         i = line_start
 
         # Blok ORTASINDAN basladiysak once acik blogu kapat.
@@ -289,6 +296,7 @@ class LatexLexer(QsciLexerCustom):
                 s = self._state_val(in_math, in_verbatim)
                 new_states[line_no] = s
                 new_offsets[i] = s
+                arg_ici_satir = False   # bu satırın başına ÜST DÜZEYDE gelindi
                 if (i >= end and byte_delta is not None
                         and self._offset_states.get(i - byte_delta) == s):
                     self._commit(scan_line, scan_start, line_no, i,
@@ -347,7 +355,32 @@ class LatexLexer(QsciLexerCustom):
                     in_math = not closed
                     i = pos
                     continue
+                onceki = i
                 i = self._style_command(source, i, n)
+                # Coklu satira yayilan bir arguman (`\begin{...`, `\section{a
+                # <yenisatir>b}`) satir sonlarini _consume_braces/_brackets
+                # ICINDE yutuyor; ana dongunun `\n` dali onlar icin hic
+                # calismiyor ve line_no GERIDE KALIYORDU. Iki sonucu da
+                # olculdu (2026-09-06):
+                #   - _commit'e giden exit_line eksik oluyor; base =
+                #     exit_line - line_delta NEGATIFE dusunce "bolge sonrasi
+                #     kuyruk" filtresi taranan bolgenin KENDI bayat girdisini
+                #     yakalayip oteliyor ve hicbir taramanin ziyaret etmedigi
+                #     bir satira "guvenli" (0) damgasi basiyordu. Bir sonraki
+                #     artimli tarama oradan basliyor ve kapanmamis argumanin
+                #     ortasini DEFAULT boyuyordu.
+                #   - Arguman KAPANSA bile sonraki butun satir numaralari bir
+                #     eksik yaziliyordu (`\section{a\nb}` sonrasi olculdu).
+                # Yutulan satirlar icin GIRDI YAZILMIYOR, yalnizca sayac
+                # ilerliyor: girdinin YOKLUGU zaten "burada baslanmaz" demek
+                # (_baslanabilir None icin False). Durum modeli (0/1/2)
+                # "arguman icindeyim"i ifade edemiyor; sahte bir 0 yazmaktansa
+                # bos birakmak dogru olan. Ustunde kaldigimiz satirin BASI da
+                # argumanin icinde: bayrak sondaki setdefault'u susturuyor.
+                yutulan = source.count(b"\n", onceki, i)
+                if yutulan:
+                    line_no += yutulan
+                    arg_ici_satir = True
                 continue
 
             if ch in b"{}":
@@ -377,7 +410,17 @@ class LatexLexer(QsciLexerCustom):
         # ama çıkış 0; düz atama 0 yazıp önbelleği BAYATLATIYORDU. Bir sonraki
         # artımlı tarama o satırı 'güvenli' sanıp math dışında başlıyor ve
         # yanlış renklendiriyordu (2026-08-31, seed 33354692582 adım 20→21).
-        new_states.setdefault(line_no, self._state_val(in_math, in_verbatim))
+        #
+        # Tarama, BAŞI bir komut argümanının içinde kalan bir satırda
+        # bittiyse o satır 'güvenli' DEĞİL: bir sonraki tarama oradan
+        # başlarsa argümanın devamını DEFAULT boyar. Argüman kapanmış
+        # olsa da fark etmiyor; belirleyici olan satır BAŞININ nerede
+        # kaldığı (`\section{$x <yenisatir> y$}` ile ölçüldü). Sahte bir 0
+        # yazmak yerine girdi hiç yazılmıyor; yokluk 'burada başlanmaz'
+        # demek ve geri yürüyüş bir üst satıra iniyor.
+        if not arg_ici_satir:
+            new_states.setdefault(line_no,
+                                  self._state_val(in_math, in_verbatim))
         self._commit(scan_line, scan_start, line_no, n,
                      new_states, new_offsets, total_lines, n, new_ctx)
 
@@ -445,8 +488,22 @@ class LatexLexer(QsciLexerCustom):
         states = self._line_states
         base = exit_line - line_delta  # exit_line'ın eski koordinattaki karşılığı
         self._line_states = {k: v for k, v in states.items() if k < scan_line}
+        # Sınır DIŞARIDA (`k > base`, `k >= base` DEĞİL): base, çıkış satırının
+        # kendisinin eski karşılığı; o satır taranan bölgenin son satırı, kuyruk
+        # değil. Uzun süre farksızdı çünkü `new_states` çıkış satırını her zaman
+        # yazıp öteleneni EZİYORDU. Tarama, başı bir komut argümanının içinde
+        # kalan bir satırda bitince artık bilerek yazmıyor (bkz. styleText
+        # sonundaki setdefault); `>=` ile bayat girdi bir satır ileri ötelenip
+        # HİÇBİR TARAMANIN ZİYARET ETMEDİĞİ satıra 'güvenli' (0) damgası
+        # basıyordu. Ölçüldü 2026-09-06: `\begin{` yazıp altına satır eklemek
+        # yetiyor (tests/test_latex_lexer.py, üç kapı birden kırılıyor).
+        #
+        # Diğer iki harita (_offset_states, _block_ctx) bilerek `>=` kaldı:
+        # aynı değişiklik onlarda da denendi ve 150 oturumluk tuş vuruşu
+        # fuzz'ıyla 10 sınır durumunda HİÇBİR davranış farkı ölçülemedi. Kanıtsız
+        # değişiklik girmesin diye dokunulmadı; buradaki fark bilinçli.
         self._line_states.update(
-            {k + line_delta: v for k, v in states.items() if k >= base})
+            {k + line_delta: v for k, v in states.items() if k > base})
         self._line_states.update(new_states)
 
         # _block_ctx (blok ortasindan devam icin) _line_states ile AYNI
