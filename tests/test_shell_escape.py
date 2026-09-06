@@ -8,6 +8,7 @@ belgedeki `\\write18`i çalıştırmaya yetiyordu. Kararın kullanıcıda kalmas
 
 import os
 import re
+from types import SimpleNamespace
 import shutil
 import subprocess
 
@@ -509,3 +510,152 @@ def test_derle_sh_sozdizimi():
     r = subprocess.run(["bash", "-n"], input=ham, capture_output=True)
     ayrinti = (r.stderr or r.stdout).decode("utf-8", "replace")
     assert r.returncode == 0, ayrinti
+
+
+# =====================================================================
+# Sıfırlama, kararın YAZILDIĞI anahtarı bulmalı
+#
+# `_shell_escape_karari(hedef)` anahtarı hedefe göre seçiyor: belge ağaç
+# kökünün ALTINDA değilse belgenin kendi dizini kullanılıyor (52fdd97).
+# `_reset_shell_escape` ise `_shell_escape_kok()`u HEDEFSİZ çağırıyordu,
+# yani anahtar her zaman ağaç köküydü.
+#
+# ÖLÇÜLDÜ (2026-09-06), ağaç kökü A iken B'den açılmış indirilmiş bir
+# şablona 'Evet' denmiş hâlde:
+#
+#     karar yazılan anahtar : B
+#     sıfırlamanın aradığı  : A
+#     sonuç                 : hiçbir şey silinmiyor, kullanıcıya "kayıtlı
+#                             cevap yok" deniyor, izin duruyor ve sonraki
+#                             derlemede sorulmadan -shell-escape gidiyor
+#
+# Yani kullanıcı güvenmediği bir şablona verdiği izni GERİ ALAMIYORDU;
+# üstelik bu özellik tam o senaryo için yazılmıştı.
+# =====================================================================
+
+def _disaridan_stub(kok, belge_yolu, ayarlar=None):
+    """Ağaç kökü `kok`, AÇIK belge `belge_yolu` (kökün dışında olabilir)."""
+    class _S(CompileOpsMixin, StubMain):
+        pass
+
+    s = _S(root=str(kok))
+    # Sekmeye EKLEMİYORUZ: StubMain editörleri gerçek bir QTabWidget'e
+    # koyuyor ve orası QWidget istiyor. Sınanan yol yalnızca
+    # `_current_editor()`i okuyor, sekme dizisini hiç kullanmıyor.
+    s._editors = [SimpleNamespace(file_path=str(belge_yolu))]
+    if ayarlar:
+        s._settings.d.update(ayarlar)
+    return s
+
+
+@gui
+def test_KOK_DISINDAKI_belgenin_izni_geri_alinabiliyor(tmp_path, monkeypatch):
+    """Kusurun kendisi: indirilmiş şablona verilen izin geri alınamıyordu."""
+    a, b = tmp_path / "a", tmp_path / "b"
+    _yaz(a, "ana.tex", "\\usepackage{minted}\n")
+    _yaz(b, "sablon.tex", "\\usepackage{minted}\n")
+
+    stub = _disaridan_stub(a, b / "sablon.tex")
+    mb = _sor(monkeypatch, stub, _SahteMB.StandardButton.Yes)
+    assert stub._shell_escape_karari(str(b / "sablon.tex")) is True
+    assert len(mb.sorular) == 1
+
+    stub._reset_shell_escape()
+    assert "sıfırlandı" in stub._status.msg, stub._status.msg
+
+    # Sonraki derlemede YENİDEN sorulmalı
+    assert stub._shell_escape_karari(str(b / "sablon.tex")) is True
+    assert len(mb.sorular) == 2, "izin duruyor, yeniden sorulmadı"
+
+
+@gui
+def test_KOK_DISINDAKI_belge_BASKA_projenin_iznini_silmiyor(tmp_path):
+    """AŞIRI DÜZELTME KAPISI: B üzerindeyken A'nınki durmalı."""
+    a, b = tmp_path / "a", tmp_path / "b"
+    _yaz(a, "ana.tex", "\\usepackage{minted}\n")
+    _yaz(b, "sablon.tex", "\\usepackage{minted}\n")
+    kayit = {CompileOpsMixin._SE_IZINLI: [os.path.normpath(str(a))]}
+
+    stub = _disaridan_stub(a, b / "sablon.tex", kayit)
+    stub._reset_shell_escape()
+
+    kalan = stub._settings.d[CompileOpsMixin._SE_IZINLI]
+    assert os.path.normpath(str(a)) in kalan, "başka projenin izni silindi"
+    assert "yok" in stub._status.msg, stub._status.msg
+
+
+@gui
+def test_KOK_ALTINDAKI_belgede_davranis_AYNEN_suruyor(tmp_path, monkeypatch):
+    """Olağan hâl: proje başına tek karar, alt klasör başına değil."""
+    _yaz(tmp_path / "bolumler", "bolum1.tex", "\\usepackage{minted}\n")
+    _yaz(tmp_path, "ana.tex", "\\usepackage{minted}\n")
+
+    stub = _disaridan_stub(tmp_path, tmp_path / "bolumler" / "bolum1.tex")
+    _sor(monkeypatch, stub, _SahteMB.StandardButton.Yes)
+    assert stub._shell_escape_karari(
+        str(tmp_path / "bolumler" / "bolum1.tex")) is True
+    # Anahtar ağaç kökü olmalı, alt klasör değil
+    assert os.path.normpath(str(tmp_path)) in stub._settings.d[
+        CompileOpsMixin._SE_IZINLI]
+
+    stub._reset_shell_escape()
+    assert "sıfırlandı" in stub._status.msg
+    assert not stub._settings.d[CompileOpsMixin._SE_IZINLI]
+
+
+@gui
+def test_HIC_DOSYA_ACIK_DEGILKEN_cokmuyor(tmp_path):
+    class _S(CompileOpsMixin, StubMain):
+        pass
+
+    stub = _S(root=str(tmp_path))
+    stub._reset_shell_escape()
+    assert stub._status.msg
+
+
+@gui
+def test_SIFIRLAMA_ile_KARAR_ayni_anahtari_hesapliyor(tmp_path):
+    """Kırılırsa iki taraf yine ayrı anahtar üretiyor demektir."""
+    a, b = tmp_path / "a", tmp_path / "b"
+    _yaz(a, "ana.tex", "x\n")
+    _yaz(b, "sablon.tex", "x\n")
+    for kok, belge in ((a, a / "ana.tex"), (a, b / "sablon.tex")):
+        stub = _disaridan_stub(kok, belge)
+        karar = stub._shell_escape_kok(str(belge))
+        sifirlama = stub._shell_escape_kok(stub._sifirlanacak_hedef())
+        assert os.path.normpath(karar) == os.path.normpath(sifirlama), belge
+
+
+@gui
+def test_TEX_ROOT_ile_yonlenen_belgede_de_ayni_anahtar(tmp_path):
+    r"""`% !TEX root` hedefi BAŞKA dizine taşıyorsa anahtar da oradan gelmeli.
+
+    Kararı yazan yol anahtarı `_resolve_compile_target`ten çıkan HEDEFE göre
+    üretiyor. Sıfırlama ham dosya yolunu kullansaydı alt klasör adını
+    hesaplardı ve iki taraf yine ayrışırdı; mutasyon sınamasında
+    "% !TEX root çözümlemesi atlanıyor" mutantı tam bu boşluktan KAÇTI
+    (2026-09-06).
+
+    Kurulum ayrımı görünür kılıyor: ağaç kökü `a`, belge ise
+    `b/bolumler/bolum.tex` ve kökü `b/ana.tex`. Doğru anahtar `b`, ham yoldan
+    hesaplansaydı `b/bolumler` olurdu.
+    """
+    a, b = tmp_path / "a", tmp_path / "b"
+    _yaz(a, "ana.tex", "\\documentclass{article}\n\\begin{document}x\\end{document}\n")
+    _yaz(b, "ana.tex", "\\documentclass{article}\n\\begin{document}x\\end{document}\n")
+    _yaz(b / "bolumler", "bolum.tex", "% !TEX root = ../ana.tex\nMetin.\n")
+
+    stub = _disaridan_stub(a, b / "bolumler" / "bolum.tex")
+
+    hedef = stub._sifirlanacak_hedef()
+    assert os.path.normpath(hedef) == os.path.normpath(str(b / "ana.tex")), (
+        "kök belgeye çözümlenmedi: %s" % hedef)
+
+    dogru = os.path.normpath(stub._shell_escape_kok(str(b / "ana.tex")))
+    assert dogru == os.path.normpath(str(b)), dogru
+
+    stub._settings.d[CompileOpsMixin._SE_IZINLI] = [dogru]
+    stub._reset_shell_escape()
+    assert not stub._settings.d[CompileOpsMixin._SE_IZINLI], (
+        "alt klasör anahtarı hesaplandı, izin silinemedi")
+    assert "sıfırlandı" in stub._status.msg

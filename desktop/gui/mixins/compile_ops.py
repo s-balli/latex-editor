@@ -156,9 +156,46 @@ class CompileOpsMixin:
             return os.path.normpath(hedef_dizin)
         return os.path.normpath(kok or hedef_dizin)
 
+    def _sifirlanacak_hedef(self) -> str:
+        """Kabuk erişimi anahtarının hesaplanacağı belge.
+
+        Kararı YAZAN yol (`_compile`) anahtarı `_resolve_compile_target`ten
+        çıkan HEDEFE göre üretiyor. Sıfırlama da aynı hedefi kullanmak
+        zorunda, yoksa iki taraf ayrı anahtar hesaplar.
+        """
+        editor = self._current_editor()
+        yol = getattr(editor, "file_path", "") if editor else ""
+        if yol:
+            hedef, _msg = self._resolve_compile_target(yol)
+            if hedef:
+                return hedef
+            return yol
+        return getattr(self, "_compile_target", "") or ""
+
     def _reset_shell_escape(self):
-        """Bu proje için kayıtlı kabuk erişimi cevabını unut."""
-        kok = self._shell_escape_kok()
+        """Bu proje için kayıtlı kabuk erişimi cevabını unut.
+
+        HEDEF GEÇİLİYOR. Eskiden `_shell_escape_kok()` argümansız
+        çağrılıyordu, yani anahtar her zaman AĞAÇ KÖKÜ oluyordu; oysa kararı
+        yazan yol (`_shell_escape_karari`) belge kökün dışındaysa BELGENİN
+        DİZİNİNİ kullanıyor (52fdd97). İki taraf ayrı anahtar hesaplıyordu.
+
+        ÖLÇÜLDÜ (2026-09-06), ağaç kökü A iken B'den açılan indirilmiş bir
+        şablona 'Evet' denmiş hâlde:
+
+            karar yazılan anahtar : B
+            sıfırlamanın aradığı  : A
+            sonuç                 : hiçbir şey silinmiyor, kullanıcıya
+                                    "kayıtlı cevap yok" deniyor, izin duruyor
+                                    ve sonraki derlemede sorulmadan
+                                    `-shell-escape` gönderiliyor
+
+        Yani kullanıcı, güvenmediği bir şablona verdiği izni geri alamıyordu;
+        üstelik bu özellik tam o senaryo için yazılmıştı
+        (bkz. `_shell_escape_karari` gerekçesi). Ters yönü de vardı: A için
+        kayıtlı izin varken B üzerinde çalışırken sıfırlamak A'nınkini siler.
+        """
+        kok = self._shell_escape_kok(self._sifirlanacak_hedef())
         silindi = False
         for anahtar in (self._SE_IZINLI, self._SE_RED):
             liste = self._se_liste(self._settings, anahtar)
