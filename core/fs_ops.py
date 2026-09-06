@@ -30,6 +30,36 @@ import re
 # Demet (küme değil): `str.endswith` demet istiyor (quick_open).
 KAYNAK_UZANTILARI = (".tex", ".cls", ".sty", ".bib")
 
+# LaTeX derlemesinin ÜRETTİĞİ dosyalar. "Bu bir derleme artığı mı" sorusu iki
+# yerde soruluyor ve iki liste ayrışmıştı: dosya ağacı (gizlensin mi) ile
+# sürümleme (.gitignore şablonu). ÖLÇÜLDÜ (2026-09-06), dört uzantı ayrı
+# cevap alıyordu:
+#
+#   .run.xml  sürümleme yoksayıyor, ağaç KAYNAK sanıp gösteriyor
+#   .dvi      aynı şekilde
+#   .xdv      aynı şekilde
+#   .gz       ağaç gizliyor, sürümleme geçmişe alıyor
+#
+# `.run.xml` ağacın kendi listesinde ZATEN VARDI ama ölü girdiydi: ağaç
+# `os.path.splitext` ile bakıyor, o da iki noktalı adı göremiyor
+# (`ana.run.xml` -> `.xml`). O yüzden burada UZANTI değil SONEK tutuluyor
+# ve eşleştirme `endswith` ile yapılıyor.
+#
+# `.pdf` BİLEREK DIŞARIDA: iki anlamlı. `ana.tex` yanındaki `ana.pdf` çıktı,
+# `Figures/Sample.pdf` ise vektörel şekil. Ayrımı `file_tree._dosya_gizli_mi`
+# yapıyor; sürümleme ise `.pdf`i kendi şablonunda ayrıca sayıyor.
+DERLEME_ARTIKLARI = (
+    ".aux", ".bbl", ".bcf", ".blg", ".dvi", ".fdb_latexmk", ".fls",
+    ".idx", ".ilg", ".ind", ".lof", ".log", ".lot", ".nav", ".out",
+    ".run.xml", ".snm", ".synctex.gz", ".toc", ".vrb", ".xdv",
+)
+
+
+def derleme_artigi_mi(ad: str) -> bool:
+    """Dosya adı bir LaTeX derleme artığı mı (`.pdf` HARİÇ, bkz. yukarısı)."""
+    dusuk = ad.lower()
+    return any(dusuk.endswith(sonek) for sonek in DERLEME_ARTIKLARI)
+
 # Windows'ta dosya adında yasak karakterler. Ayraçlar (/ \) ayrıca yasak:
 # bu modül TEK bir klasör içinde iş yapıyor, ad yol taşıyamaz.
 _YASAK_KARAKTER = re.compile(r'[<>:"/\\|?*\x00-\x1f]')

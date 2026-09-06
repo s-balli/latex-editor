@@ -12,6 +12,8 @@ import os
 import time
 from dataclasses import dataclass
 
+from core import fs_ops
+
 _logger = logging.getLogger("latex_editor.versioning")
 
 try:
@@ -37,32 +39,14 @@ _AUTHOR = b"LaTeX Editor <latex-editor@local>"
 # LaTeX derleme artıkları geri üretilebilir; geçmişe girmesinler. PDF de
 # bilinçli olarak dışarıda (sürümleme kaynak kurtarma amaçlı; isteyen
 # .gitignore'dan çıkarabilir).
-IGNORE_TEMPLATE = """\
-# LaTeX derleme artıkları (geri üretilebilir)
-*.aux
-*.log
-*.out
-*.toc
-*.lof
-*.lot
-*.bbl
-*.blg
-*.bcf
-*.run.xml
-*.fls
-*.fdb_latexmk
-*.synctex.gz
-*.idx
-*.ilg
-*.ind
-*.nav
-*.snm
-*.vrb
-*.dvi
-*.xdv
-# PDF yeniden derlenebilir; sürümlenmesini isterseniz son satırı silin
-*.pdf
-"""
+# Liste ELLE YAZILMIYOR: `fs_ops.DERLEME_ARTIKLARI` tek kaynak. Buradaki ve
+# dosya ağacındaki kopyalar ayrışmıştı (bkz. o sabitin yorumundaki ölçüm).
+IGNORE_TEMPLATE = (
+    "# LaTeX derleme artıkları (geri üretilebilir)\n"
+    + "".join("*%s\n" % sonek for sonek in fs_ops.DERLEME_ARTIKLARI)
+    + "# PDF yeniden derlenebilir; sürümlenmesini isterseniz son satırı silin\n"
+      "*.pdf\n"
+)
 
 
 @dataclass

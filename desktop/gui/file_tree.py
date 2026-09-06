@@ -39,7 +39,15 @@ _logger = get_logger("file_tree")
 # (ölçüldü 2026-09-06: depoda tek geçişi kendi tanımı), o yüzden kaldırıldı.
 _EDITABLE = set(fs_ops.KAYNAK_UZANTILARI)
 # Gizlenecek dosya uzantıları (build artifact, geçici)
-_HIDDEN_EXT = {".pdf", ".log", ".aux", ".toc", ".bbl", ".bcf", ".blg", ".fdb_latexmk", ".fls", ".synctex.gz", ".gz", ".out", ".run.xml", ".idx", ".ilg", ".ind", ".lof", ".lot", ".nav", ".snm", ".vrb"}
+# Artık listesi BURADA DEĞİL: `fs_ops.DERLEME_ARTIKLARI` tek kaynak, çünkü
+# aynı soruyu sürümlemenin `.gitignore` şablonu da soruyor ve ikisi ayrışmıştı
+# (ölçüm o sabitin yorumunda). Eşleştirme de `splitext` değil `endswith`:
+# `ana.run.xml` iki noktalı ve `splitext` ona `.xml` diyordu, yani bu dosya
+# eski listede VARDI ama hiç eşleşmiyordu.
+#
+# Bare `.gz` ARTIK GİZLENMİYOR. Tek gerçek örneği `.synctex.gz` ve o zaten
+# sonek olarak listede; `veri.csv.gz` gibi bir dosya ise kullanıcının koyduğu
+# kaynaktır, gizlenmesi yanlıştı (sürümleme de onu zaten geçmişe alıyordu).
 
 
 def _dosya_gizli_mi(ad: str, dizin: str, kok: str, tex_adlari: set) -> bool:
@@ -73,7 +81,7 @@ def _dosya_gizli_mi(ad: str, dizin: str, kok: str, tex_adlari: set) -> bool:
     """
     ext = os.path.splitext(ad)[1].lower()
     if ext != ".pdf":
-        return ext in _HIDDEN_EXT
+        return fs_ops.derleme_artigi_mi(ad)
     if os.path.splitext(ad)[0] in tex_adlari:
         return True
     return os.path.normpath(dizin) == os.path.normpath(kok)
