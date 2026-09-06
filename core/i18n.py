@@ -52,12 +52,52 @@ def init(app=None):
         app.installTranslator(translator)
         _backend = _QtBackend(translator)
         _logger.info("Çeviri yüklendi: %s", locale)
+        _qt_cevirmenini_yukle(app, locale, _logger)
     else:
         mevcut = ([f for f in os.listdir(_trans_dir) if f.endswith(".qm")]
                   if os.path.isdir(_trans_dir) else "(dizin yok)")
         _logger.warning(
             "Çeviri dosyası yüklenemedi: %s, dizindeki .qm dosyaları: %s",
             qm_path, mevcut)
+
+
+_qt_translator = None       # Qt'nin kendi kataloğu; referans TUTULMALI
+
+
+def _qt_cevirmenini_yukle(app, locale, logger):
+    """Qt'nin KENDİ metinlerini de çevir (qtbase_<dil>.qm).
+
+    Uygulama yalnız `latexeditor_<dil>.qm`i yüklüyordu. Qt'nin kendi ürettiği
+    arayüz parçaları o katalogda yok: `QLineEdit`/`QTextEdit` sağ tık menüsü
+    (Undo/Redo/Cut/Copy/Paste/Delete/Select All), dosya ve renk diyaloglarının
+    düğmeleri, standart buton metinleri. Türkçe arayüzde bunlar İngilizce
+    kalıyordu (kullanıcı bildirdi 2026-09-06: kaynakça süzme kutusunun sağ tık
+    menüsü). `qtbase_tr.qm` PyQt6 ile birlikte GELİYOR, yüklenmiyordu.
+
+    Referans MODÜL DÜZEYİNDE tutuluyor: `installTranslator` sahiplik almıyor,
+    yerel değişken kalsa çeviri fixture biter bitmez düşerdi.
+
+    PAKETLENMİŞ SÜRÜMDE DE ÇALIŞIR, iki uçtan da bakıldı (PyInstaller 6.x):
+    - Qt hook'u `QtCore -> ['qt', 'qtbase']` eşlemesinden `qtbase_*.qm`i
+      toplayıp `PyQt6/Qt6/translations` altına koyuyor.
+    - `pyi_rth_pyqt6` çalışma anı hook'u Qt önekini `_MEIPASS/PyQt6/Qt6`
+      yapıyor; `TranslationsPath` de önekin altındaki `translations`.
+    Yani aşağıdaki `QLibraryInfo.path` donmuş uygulamada da dosyaları bulur.
+    Hook toplayamazsa uyarı basıp geçiyoruz; menüler İngilizce kalır, çökmez.
+    """
+    global _qt_translator
+    from PyQt6.QtCore import QLibraryInfo, QTranslator
+
+    dizin = QLibraryInfo.path(QLibraryInfo.LibraryPath.TranslationsPath)
+    ceviren = QTranslator()
+    if ceviren.load("qtbase_" + locale, dizin):
+        app.installTranslator(ceviren)
+        _qt_translator = ceviren
+        logger.info("Qt çevirisi yüklendi: qtbase_%s", locale)
+    else:
+        # İngilizce Qt'nin KAYNAK dili: katalog olmaması normal, uyarı değil.
+        (logger.debug if locale.startswith("en") else logger.warning)(
+            "Qt çevirisi yüklenemedi: qtbase_%s (dizin: %s)", locale, dizin)
 
 
 def translator(ctx: str):

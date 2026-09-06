@@ -313,6 +313,69 @@ class EditorWidget(QsciScintilla):
                 return m.group(1).strip()
         return None
 
+    def contextMenuEvent(self, event):
+        """Sağ tık menüsü. QScintilla'nın YERLEŞİĞİ KULLANILMIYOR.
+
+        Yerleşik menü kendi çeviri kataloğundan besleniyor; uygulama yalnız
+        `latexeditor_<dil>.qm`i yüklüyor, o katalog yüklenmiyor ve metinler
+        kaynak dilinde kalıyor. Ölçüldü 2026-09-06, arayüz dili Türkçeyken
+        `createStandardContextMenu()` şunu döndürüyordu:
+        ['&Undo', '&Redo', 'Cu&t', '&Copy', '&Paste', 'Delete', 'Select All'].
+        Qt'nin `qtbase_*.qm`ini yüklemek de çözmez: bu metinler Qt'nin değil
+        QScintilla'nın kataloğunda.
+
+        Depodaki diğer menüler (dosya ağacı, çıktı paneli, sekme çubuğu)
+        zaten kendi menülerini kuruyor ve `_()` kullanıyor; editör almamıştı.
+        """
+        from PyQt6.QtWidgets import QMenu
+
+        menu = QMenu(self)
+        t = self._theme
+        if t:
+            menu.setStyleSheet(
+                f"QMenu {{ background: {t['bg_toolbar']}; color: {t['fg_primary']}; "
+                f"border: 1px solid {t['border_separator']}; padding: 4px; }}"
+                f"QMenu::item {{ padding: 5px 24px; border-radius: 3px; }}"
+                f"QMenu::item:selected {{ background: {t['bg_pressed']}; }}"
+                # `fg_dim` DEĞİL: deponun karşıtlık kapısı onu menü zemininde
+                # 6 temada eşiğin altında buluyor (1.84-2.52). `fg_muted`
+                # hem geçiyor hem etkin öğeden (fg_primary) ayrılıyor.
+                f"QMenu::item:disabled {{ color: {t['fg_muted']}; }}"
+                f"QMenu::separator {{ height: 1px; background: {t['border_separator']}; "
+                f"margin: 4px 8px; }}"
+            )
+
+        secim = self.hasSelectedText()
+        salt_okunur = self.isReadOnly()
+        panoda_metin = bool(QApplication.clipboard().text())
+
+        # Kısayollar menüde GÖRÜNÜYOR ama buradan bağlanmıyor: Ctrl+Z/Y/X/C/V
+        # ve Ctrl+A'yı QScintilla'nın kendisi işliyor. Menüde yazmaları
+        # kullanıcıya kısayolu öğretiyor (yerleşik menü de öyle yapıyordu).
+        for metin, kisayol, etkin, islem in (
+            (_("Geri Al"), "Ctrl+Z", self.isUndoAvailable() and not salt_okunur,
+             self.undo),
+            (_("Yinele"), "Ctrl+Y", self.isRedoAvailable() and not salt_okunur,
+             self.redo),
+            (None, None, None, None),
+            (_("Kes"), "Ctrl+X", secim and not salt_okunur, self.cut),
+            (_("Kopyala"), "Ctrl+C", secim, self.copy),
+            (_("Yapıştır"), "Ctrl+V", panoda_metin and not salt_okunur,
+             self.paste),
+            (_("Sil"), "", secim and not salt_okunur, self.removeSelectedText),
+            (None, None, None, None),
+            (_("Tümünü Seç"), "Ctrl+A", bool(self.text()), self.selectAll),
+        ):
+            if metin is None:
+                menu.addSeparator()
+                continue
+            act = menu.addAction(f"{metin}\t{kisayol}" if kisayol else metin)
+            act.setEnabled(bool(etkin))
+            act.triggered.connect(lambda _c=False, f=islem: f())
+
+        menu.exec(event.globalPos())
+        event.accept()
+
     def keyPressEvent(self, event):
         # F2 -> imleç altındaki \label / \ref / \cite anahtarını yeniden adlandır
         if event.key() == Qt.Key.Key_F2 and not event.modifiers():

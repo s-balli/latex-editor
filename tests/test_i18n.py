@@ -69,7 +69,11 @@ class TestInit:
                 MockSettings.return_value.value.return_value = "en"
                 init(app=mock_app)
 
-        mock_app.installTranslator.assert_called_once_with(mock_translator)
+        # init() IKI cevirmen kuruyor: uygulamanin katalogu, sonra
+        # Qt'nin kendi katalogu (qtbase_<dil>.qm). Testin derdi
+        # ILKI; `assert_called_once` ikinciyi kusur sanardi.
+        assert mock_app.installTranslator.call_args_list[0][0][0] \
+            is mock_translator
         import core.i18n as mod
         assert mod._backend is not None
 
@@ -108,7 +112,8 @@ class TestInit:
                 MockSettings.return_value.value.return_value = ""
                 init(app=mock_app)
 
-        call_args = mock_translator.load.call_args[0][0]
+        # ILK yukleme uygulamanin katalogu; ikincisi Qt'nin.
+        call_args = mock_translator.load.call_args_list[0][0][0]
         assert call_args.endswith(f"latexeditor_{VARSAYILAN_DIL}.qm"), call_args
 
     @patch("core.i18n.os.path.isfile", return_value=True)
@@ -124,7 +129,9 @@ class TestInit:
                 MockSettings.return_value.value.return_value = "tr"
                 init(app=mock_app)
 
-        assert mock_translator.load.call_args[0][0].endswith("latexeditor_tr.qm")
+        # ILK yukleme uygulamanin katalogu; ikincisi Qt'nin.
+        assert mock_translator.load.call_args_list[0][0][0].endswith(
+            "latexeditor_tr.qm")
 
 
 # --- translator ---
