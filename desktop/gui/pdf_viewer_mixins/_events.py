@@ -149,6 +149,26 @@ class PdfEventsMixin:
         QTimer.singleShot(100, self._render_visible)
 
     def _update_link_cursor(self, pos, obj):
-        has_link = self._link_at_pos(pos, obj) is not None
+        # KİLİDİ BEKLEMEDEN al. Bu yol HER fare hareketinde çalışıyor ve
+        # `_link_at_pos` içinde `pdfium_lock` alıyordu; kilit render işçisindeyse
+        # UI thread o sayfanın render'ı bitene kadar bloke oluyordu. Ölçüldü
+        # 2026-09-06: işçi kilidi 500 ms tutarken TEK fare hareketi UI'ı
+        # 500.5 ms bekletiyor (kilit boşken aynı hareket 0.075 ms). Render
+        # işçisinin kendi yorumu "uç zoomda tek sayfa render'ı ~3 sn sürebilir"
+        # diyor, yani fareyi gezdirmek saniyelerce donma demekti.
+        # `pdfium_lock.py`nin kuralı "blokta tutulan süre kısa olmalı"; işçi
+        # tarafı bunu tutuyor, bekleyen taraf UI'dı.
+        #
+        # İmleç KOZMETİK: kilit meşgulse güncellemeyi atlamak, imlecin bir süre
+        # eski hâlinde kalmasından ibaret. TIKLAMA yolu (`_handle_link_click`)
+        # bilerek BEKLEMEYE devam ediyor: tıklama atlanamaz.
+        # RLock olduğu için `_link_at_pos`ın içerideki `with pdfium_lock`u aynı
+        # thread'de yeniden girip hemen geçiyor.
+        if not pdfium_lock.acquire(blocking=False):
+            return
+        try:
+            has_link = self._link_at_pos(pos, obj) is not None
+        finally:
+            pdfium_lock.release()
         cursor = Qt.CursorShape.PointingHandCursor if has_link else Qt.CursorShape.ArrowCursor
         self._pages_widget.setCursor(cursor)

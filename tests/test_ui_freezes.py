@@ -468,3 +468,181 @@ def test_render_edilen_pixmap_yalniz_label_da_tutuluyor(qapp, tmp_path):
         v.shutdown()
         v.deleteLater()
         qapp.processEvents()
+
+
+# =====================================================================
+# Fare hareketi UI thread'ini pdfium kilidinde bekletiyordu (2026-09-06)
+#
+# `_events._handle_page_event` HER MouseMove olayinda `_update_link_cursor`
+# cagiriyor; o da `_link_at_pos` icinde `pdfium_lock`u BEKLEYEREK aliyordu.
+# Kilit render iscisindeyse UI thread o sayfanin render'i bitene kadar
+# bloke oluyordu. Olculdu: isci kilidi 500 ms tutarken TEK fare hareketi
+# UI'i 500.5 ms bekletiyor (kilit bosken ayni hareket 0.075 ms). Render
+# iscisinin kendi yorumu "uc zoomda tek sayfa render'i ~3 sn surebilir"
+# diyor.
+#
+# `pdfium_lock.py`nin kurali: "Blokta tutulan sure kisa olmali, yoksa UI
+# uzun bir render partisi boyunca donardi." Isci tarafi kurali tutuyordu
+# (kilidi sayfa basina aliyor), bekleyen taraf UI'di.
+#
+# Duzeltme: imlec yolu kilidi BEKLEMEDEN aliyor, mesgulse imlec oldugu gibi
+# kaliyor. TIKLAMA yolu bilerek bekliyor: tiklama atlanamaz.
+#
+# KAPILAR ZAMANA DEGIL DAVRANISA bakiyor (CI'da zamanlama kirilgan olur):
+# kilit mesgulken imlec yolu pdfium'a HIC sormamali, tiklama yolu ise
+# beklenip SORMALI.
+# =====================================================================
+
+
+@pytest.fixture
+def _pdf_gorucu(qapp, tmp_path):
+    """Uc sayfalik gercek PDF yuklu gorucu + pdfium cagri sayaci."""
+    pypdfium2 = pytest.importorskip("pypdfium2")
+    from gui.pdf_viewer import PdfViewer
+    import gui.pdf_viewer_mixins._events as ev
+
+    yol = str(tmp_path / "a.pdf")
+    d = pypdfium2.PdfDocument.new()
+    for _ in range(3):
+        d.new_page(400, 600)
+    d.save(yol)
+    d.close()
+
+    sayac = []
+    asil = ev.get_link_at_point
+
+    def _sayan(*a, **k):
+        sayac.append(1)
+        return asil(*a, **k)
+
+    ev.get_link_at_point = _sayan
+    v = PdfViewer(theme=THEMES["dark"])
+    v.resize(900, 700)
+    assert v.load_pdf(yol)
+    qapp.processEvents()
+    try:
+        yield v, v._page_labels[0], sayac
+    finally:
+        ev.get_link_at_point = asil
+        v.shutdown()
+        v.close()
+        qapp.processEvents()
+
+
+def _fare_hareketi(x, y):
+    from PyQt6.QtCore import QEvent, QPointF, Qt
+    from PyQt6.QtGui import QMouseEvent
+    return QMouseEvent(QEvent.Type.MouseMove, QPointF(x, y),
+                       Qt.MouseButton.NoButton, Qt.MouseButton.NoButton,
+                       Qt.KeyboardModifier.NoModifier)
+
+
+class _KilitTutan:
+    """pdfium_lock'u baska bir thread'de tut (render iscisini taklit eder)."""
+
+    def __init__(self):
+        from gui.pdfium_lock import pdfium_lock
+        self._lock = pdfium_lock
+        self._alindi = threading.Event()
+        self._birak = threading.Event()
+        self._t = None
+
+    def __enter__(self):
+        def _calis():
+            with self._lock:
+                self._alindi.set()
+                self._birak.wait(10)
+
+        self._t = threading.Thread(target=_calis, daemon=True)
+        self._t.start()
+        assert self._alindi.wait(5), "yardimci thread kilidi alamadi"
+        return self
+
+    def __exit__(self, *a):
+        self._birak.set()
+        self._t.join(5)
+        return False
+
+
+def test_fare_hareketi_MESGUL_kilidi_beklemiyor(_pdf_gorucu):
+    """Kirilirsa: imlec yolu kilidi yine BEKLEYEREK aliyor demektir.
+
+    Zamanlama degil DAVRANIS siniyor: kilit mesgulken pdfium'a hic
+    sorulmamali. Sorulsaydi cagri kilidin serbest kalmasini beklerdi.
+    """
+    v, label, sayac = _pdf_gorucu
+    sayac.clear()
+    with _KilitTutan():
+        v.eventFilter(label, _fare_hareketi(30, 50))
+    assert sayac == [], "kilit mesgulken pdfium'a soruldu (yol bloke olur)"
+
+
+def test_fare_hareketi_kilit_BOSKEN_calisiyor(_pdf_gorucu):
+    """Karsi durum: duzeltme imleci tumuyle olduren bir sey olmamali."""
+    v, label, sayac = _pdf_gorucu
+    sayac.clear()
+    v.eventFilter(label, _fare_hareketi(30, 50))
+    assert len(sayac) == 1, "kilit bosken imlec yolu pdfium'a sormadi"
+
+
+def test_MESGUL_kilitte_cok_sayida_hareket_hizli(_pdf_gorucu):
+    """Kilit mesgulken bir suru hareket birikse de hicbiri beklememeli."""
+    v, label, sayac = _pdf_gorucu
+    sayac.clear()
+    with _KilitTutan():
+        t0 = time.monotonic()
+        for i in range(50):
+            v.eventFilter(label, _fare_hareketi(20 + i, 40))
+        gecen = time.monotonic() - t0
+    assert sayac == []
+    # Genis pay: 50 atlanan hareket milisaniyeler surer; BEKLESEYDI
+    # yardimci thread'in 10 sn'lik tutusuna takilirdi.
+    assert gecen < 2.0, "hareketler bekledi: %.2f sn" % gecen
+
+
+def test_TIKLAMA_yolu_kilidi_BEKLIYOR(_pdf_gorucu):
+    """Asiri duzeltme kapisi: tiklama atlanamaz, o yol beklemeli.
+
+    Kirilirsa: bloklamayan alim tiklama yoluna da sizmis demektir ve
+    render sirasinda baglanti tiklamalari sessizce dusverirdi.
+    """
+    v, label, sayac = _pdf_gorucu
+    sayac.clear()
+    tutan = _KilitTutan()
+    tutan.__enter__()
+    # Kisa sure sonra birak; tiklama yolu beklemeli ve SONRA sormali.
+    threading.Timer(0.15, tutan._birak.set).start()
+    try:
+        v._handle_link_click(_fare_hareketi(30, 50).position().toPoint(), label)
+    finally:
+        tutan._birak.set()
+        tutan._t.join(5)
+    assert sayac, "tiklama yolu pdfium'a hic sormadi (atlamis)"
+
+
+def test_atlanan_hareket_KILIDI_SIZDIRMIYOR(_pdf_gorucu):
+    """`acquire(blocking=False)` basarisiz olunca release edilmemeli."""
+    from gui.pdfium_lock import pdfium_lock
+
+    v, label, _sayac = _pdf_gorucu
+    with _KilitTutan():
+        v.eventFilter(label, _fare_hareketi(30, 50))
+    # Kilit serbest kalmis olmali
+    assert pdfium_lock.acquire(blocking=False), "kilit sizdi"
+    pdfium_lock.release()
+    # Ve yol yeniden calisiyor olmali
+    v.eventFilter(label, _fare_hareketi(31, 51))
+
+
+def test_BELGE_YOKKEN_fare_hareketi_sorunsuz(qapp):
+    """Sinir: PDF yuklenmemis gorucude hareket patlamamali."""
+    pytest.importorskip("pypdfium2")
+    from gui.pdf_viewer import PdfViewer
+
+    v = PdfViewer(theme=THEMES["dark"])
+    try:
+        v.eventFilter(v, _fare_hareketi(5, 5))
+    finally:
+        v.shutdown()
+        v.close()
+        qapp.processEvents()
