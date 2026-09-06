@@ -10,6 +10,7 @@ doğru etikete (tex_path:line veya page) uygulanır.
 import os
 
 from core.log import get_logger
+from gui.synctex import ARAC_YOK
 from gui.synctex_worker import SyncTexWorker
 from PyQt6.QtCore import QCoreApplication
 
@@ -53,8 +54,29 @@ class SyncTexMixin:
             context=(tex_path, line, quiet),
         )
 
+    def _synctex_araci_yok(self) -> None:
+        """`synctex` çalıştırılamadığında kullanıcıya DOĞRU sebebi söyle.
+
+        Eskiden bu durum da "Eşleşme bulunamadı" veriyordu: kullanıcı
+        konumu yanlış sanıp aynı yeri tekrar deniyor, oysa yapması gereken
+        TeX Live kurmaktı. Ölçüldü (2026-09-06): synctex kurulu değilse
+        native çağrı FileNotFoundError, `wsl -e synctex` ise çıkış 127
+        veriyor; gerçekten eşleşme yokken çıkış 255.
+
+        Mesaj iki uygulama noktasında da BURADAN geliyor; ileri ve geri
+        aramanın aynı sebebe iki ayrı cevap vermesi bu dosyanın zaten bir
+        kez ödediği bedeldi.
+        """
+        _logger.warning("SyncTeX aracı çalıştırılamadı")
+        self._status.showMessage(
+            _("SyncTeX: synctex aracı çalıştırılamadı, TeX Live kurulumunu "
+              "denetleyin (Ortam Denetimi)"))
+
     def _apply_forward(self, result, context):
         tex_path, line, quiet = context
+        if result is ARAC_YOK:
+            self._synctex_araci_yok()
+            return
         if result:
             _logger.info("SyncTeX forward: %s:%d → sayfa %d", os.path.basename(tex_path), line, result.page)
             self._pdf_viewer.scroll_to_position(
@@ -109,6 +131,9 @@ class SyncTexMixin:
 
     def _apply_reverse(self, result, context):
         page = context
+        if result is ARAC_YOK:
+            self._synctex_araci_yok()
+            return
         if result and result.file_path:
             _logger.info("SyncTeX reverse: sayfa %d → %s:%d", page, os.path.basename(result.file_path), result.line)
             self._goto_line(result.file_path, result.line)

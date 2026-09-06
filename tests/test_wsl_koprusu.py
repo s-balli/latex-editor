@@ -226,11 +226,23 @@ class TestHataYollari:
         monkeypatch.setattr(synctex, "_ZAMAN_ASIMI", 1)
         assert synctex.forward_search(r"C:\x\a.tex", 1, 1, r"C:\x\a.pdf") is None
 
-    def test_wsl_hic_yoksa_None(self, monkeypatch, tmp_path):
-        """WSL kurulu değil: FileNotFoundError yakalanmalı."""
+    def test_wsl_hic_yoksa_ARAC_YOK(self, monkeypatch, tmp_path):
+        """WSL kurulu değil: FileNotFoundError yakalanmalı, işaret ARAC_YOK.
+
+        Bu iddia `is None`dı ve `None` artık "koştu, eşleşme yok" demek.
+        WSL'in hiç olmaması tam da "araç çalıştırılamadı" hâli; kullanıcıya
+        "Eşleşme bulunamadı" denmesi onu konumu yanlış sanmaya götürüyordu
+        (bkz. tests/test_synctex_koprusu.py başlığındaki ölçüm).
+
+        `ARAC_YOK` falsy olduğu için `if result:` yazan çağıranlar için
+        davranış değişmedi; testin eski niyeti (istisna sızmasın, sonuç
+        "yok" sayılsın) korunuyor.
+        """
         monkeypatch.setattr(synctex, "_PLATFORM", "win32")
         monkeypatch.setenv("PATH", str(tmp_path))   # `wsl` bulunamaz
-        assert synctex.forward_search(r"C:\x\a.tex", 1, 1, r"C:\x\a.pdf") is None
+        sonuc = synctex.forward_search(r"C:\x\a.tex", 1, 1, r"C:\x\a.pdf")
+        assert sonuc is synctex.ARAC_YOK
+        assert not sonuc, "falsy kalmalı: eski çağıranlar bozulmasın"
 
 
 class TestKodlama:

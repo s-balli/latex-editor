@@ -33,6 +33,41 @@ if _PLATFORM == "win32":
     _SI.wShowWindow = 0  # SW_HIDE
 
 
+class _AracYok:
+    """`synctex` ÇALIŞTIRILAMADI işareti; `None` "koştu, eşleşme yok" demek.
+
+    Üç durum vardı ve üçü de `None` dönüyordu, yani kullanıcı üçünde de
+    "SyncTeX: Eşleşme bulunamadı" görüyordu. ÖLÇÜLDÜ (2026-09-06):
+
+        synctex kurulu değil (native)   FileNotFoundError
+        WSL var, TeX Live yok           çıkış 127, stderr "command not found"
+        koştu, o noktada eşleşme yok    çıkış 255, stdout'ta sürüm başlığı
+
+    İlk ikisinde kullanıcı konumu yanlış sanıp aynı yeri tekrar deniyordu;
+    yapması gereken TeX Live kurmaktı. Aynı ders `.synctex.gz` denetiminde
+    bir kez alınmıştı (bkz. `synctex_ops._on_reverse_search` yorumu).
+
+    FALSY: `if result:` yazan çağıranlar bugünkü davranışı sürdürsün,
+    ayrımı isteyen `result is ARAC_YOK` diye sorsun. Böylece işaret bir yerde
+    unutulursa sessizce "eşleşme var" sanılmıyor.
+    """
+
+    __slots__ = ()
+
+    def __bool__(self) -> bool:
+        return False
+
+    def __repr__(self) -> str:                       # pragma: no cover
+        return "ARAC_YOK"
+
+
+ARAC_YOK = _AracYok()
+
+# `wsl -e <komut>` komutu bulamazsa kabuk 127 döndürüyor (ölçüldü). synctex'in
+# kendi "eşleşme yok" çıkışı 255; ikisi karışmıyor.
+_KOMUT_YOK = 127
+
+
 @dataclass
 class ForwardResult:
     page: int
@@ -129,12 +164,17 @@ def _forward_wsl(tex_path: str, line: int, col: int, pdf_path: str,
         r = subprocess.run(cmd, capture_output=True, text=True,
                            encoding="utf-8", errors="replace", timeout=_ZAMAN_ASIMI,
                            startupinfo=_SI, creationflags=_SUBPROCESS_FLAGS)
+        if r.returncode == _KOMUT_YOK:
+            return ARAC_YOK
         if r.returncode != 0 or r.stdout is None:
             return None
         return _parse_forward(r.stdout)
-    except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
-        _logger.warning("SyncTeX forward (WSL) başarısız: %s:%d (%s)", tex_path, line, e)
+    except subprocess.TimeoutExpired as e:
+        _logger.warning("SyncTeX forward (WSL) zaman aşımı: %s:%d (%s)", tex_path, line, e)
         return None
+    except (FileNotFoundError, OSError) as e:
+        _logger.warning("SyncTeX forward (WSL) çalıştırılamadı: %s:%d (%s)", tex_path, line, e)
+        return ARAC_YOK
 
 
 def _forward_native(tex_path: str, line: int, col: int, pdf_path: str,
@@ -148,12 +188,17 @@ def _forward_native(tex_path: str, line: int, col: int, pdf_path: str,
         r = subprocess.run(cmd, capture_output=True, text=True,
                            encoding="utf-8", errors="replace",
                            timeout=_ZAMAN_ASIMI, env=clean_child_env())
+        if r.returncode == _KOMUT_YOK:
+            return ARAC_YOK
         if r.returncode != 0 or r.stdout is None:
             return None
         return _parse_forward(r.stdout)
-    except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
-        _logger.warning("SyncTeX forward (native) başarısız: %s:%d (%s)", tex_path, line, e)
+    except subprocess.TimeoutExpired as e:
+        _logger.warning("SyncTeX forward (native) zaman aşımı: %s:%d (%s)", tex_path, line, e)
         return None
+    except (FileNotFoundError, OSError) as e:
+        _logger.warning("SyncTeX forward (native) çalıştırılamadı: %s:%d (%s)", tex_path, line, e)
+        return ARAC_YOK
 
 
 def _reverse_wsl(page: int, x: float, y: float, pdf_path: str,
@@ -167,15 +212,20 @@ def _reverse_wsl(page: int, x: float, y: float, pdf_path: str,
         r = subprocess.run(cmd, capture_output=True, text=True,
                            encoding="utf-8", errors="replace", timeout=_ZAMAN_ASIMI,
                            startupinfo=_SI, creationflags=_SUBPROCESS_FLAGS)
+        if r.returncode == _KOMUT_YOK:
+            return ARAC_YOK
         if r.returncode != 0 or r.stdout is None:
             return None
         parsed = _parse_reverse(r.stdout)
         if parsed:
             parsed.file_path = wsl_to_windows(parsed.file_path)
         return parsed
-    except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
-        _logger.warning("SyncTeX reverse (WSL) başarısız: sayfa %d (%s)", page, e)
+    except subprocess.TimeoutExpired as e:
+        _logger.warning("SyncTeX reverse (WSL) zaman aşımı: sayfa %d (%s)", page, e)
         return None
+    except (FileNotFoundError, OSError) as e:
+        _logger.warning("SyncTeX reverse (WSL) çalıştırılamadı: sayfa %d (%s)", page, e)
+        return ARAC_YOK
 
 
 def _reverse_native(page: int, x: float, y: float, pdf_path: str,
@@ -188,9 +238,14 @@ def _reverse_native(page: int, x: float, y: float, pdf_path: str,
         r = subprocess.run(cmd, capture_output=True, text=True,
                            encoding="utf-8", errors="replace",
                            timeout=_ZAMAN_ASIMI, env=clean_child_env())
+        if r.returncode == _KOMUT_YOK:
+            return ARAC_YOK
         if r.returncode != 0 or r.stdout is None:
             return None
         return _parse_reverse(r.stdout)
-    except (subprocess.TimeoutExpired, FileNotFoundError, OSError) as e:
-        _logger.warning("SyncTeX reverse (native) başarısız: sayfa %d (%s)", page, e)
+    except subprocess.TimeoutExpired as e:
+        _logger.warning("SyncTeX reverse (native) zaman aşımı: sayfa %d (%s)", page, e)
         return None
+    except (FileNotFoundError, OSError) as e:
+        _logger.warning("SyncTeX reverse (native) çalıştırılamadı: sayfa %d (%s)", page, e)
+        return ARAC_YOK
