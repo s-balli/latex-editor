@@ -756,3 +756,91 @@ def test_CTRL_TIK_secim_capasini_TEMIZLIYOR(izlenen):
     izlenen.eventFilter(etiket, _fare(QEvent.Type.MouseButtonPress, (40, 40),
                                       _CTRL))
     assert izlenen._selection_start_label_pos is None
+
+
+# =====================================================================
+# Çift tıklama TAM kelimeyi seçmeli
+#
+# Geri yürüyen döngü sınırı `start`ta sınıyordu ve sınır bulununca `start`
+# SINIRIN ÜSTÜNDE kalıyordu; ileri giden döngü ise `end + 1`e baktığı için
+# o taraf doğruydu. ÖLÇÜLDÜ (2026-09-06), "Alfa Beta Gama" belgesinde her
+# karaktere çift tıklanarak:
+#
+#     'Alfa'    dogru (metnin ILK kelimesi: `start > 0` dongyu 0'da durduruyor)
+#     ' Beta'   BASTA BOSLUK
+#     ' Gama'   BASTA BOSLUK
+#
+# Yani ilk kelime dışında her kelime baştaki boşlukla seçiliyor ve sağ tık >
+# Kopyala panoya o boşlukla gidiyordu.
+# =====================================================================
+
+_COK_KELIME = "Alfa Beta Gama"
+
+
+@pytest.fixture
+def cift_tik(qapp, tmp_path):
+    """Belgeyi kur, i. karakterin üstüne çift tıkla, seçileni döndür."""
+    yol = _pdf_yaz(tmp_path / "kelimeler.pdf", metin=_COK_KELIME)
+    v = _viewer(qapp, yol)
+    etiket = v._page_labels[0]
+
+    def _nokta(i):
+        with pdfium_lock:
+            sayfa = v._pdf[0]
+            tp = sayfa.get_textpage()
+            kutu = tp.get_charbox(i, loose=False)
+            g = geometri(sayfa)
+            olcek = v._olcek(0)
+            x1, y1 = gorsele(g, kutu[0], kutu[1], olcek)
+            x2, y2 = gorsele(g, kutu[2], kutu[3], olcek)
+        return QPoint(int((x1 + x2) / 2), int((y1 + y2) / 2))
+
+    def _tikla(i):
+        v._selection_dblclick(_nokta(i), etiket)
+        return v._selected_text, v._selection_char_range
+
+    _tikla.viewer = v
+    yield _tikla
+    v.close()
+    v.deleteLater()
+    qapp.processEvents()
+
+
+@pytest.mark.parametrize("idx,beklenen", [
+    (0, "Alfa"), (3, "Alfa"),
+    (5, "Beta"), (8, "Beta"),
+    (10, "Gama"), (13, "Gama"),
+])
+def test_CIFT_TIK_tam_kelimeyi_seciyor(cift_tik, idx, beklenen):
+    secilen, _aralik = cift_tik(idx)
+    assert secilen == beklenen, repr(secilen)
+
+
+@pytest.mark.parametrize("idx", [5, 8, 10, 13])
+def test_ILK_KELIME_DISINDAKILERDE_bastaki_bosluk_YOK(cift_tik, idx):
+    """Kusurun kendisi: yalnız metnin ilk kelimesi doğruydu."""
+    secilen, _aralik = cift_tik(idx)
+    assert secilen == secilen.strip(), repr(secilen)
+
+
+@pytest.mark.parametrize("idx", [4, 9])
+def test_BOSLUGA_cift_tiklayinca_secim_YOK(cift_tik, idx):
+    """Eskiden boşluk + SONRAKİ kelime seçiliyordu; boşluk seçimi işe yaramaz."""
+    secilen, aralik = cift_tik(idx)
+    assert secilen == "", repr(secilen)
+    assert aralik is None
+
+
+def test_ARALIK_da_bosluk_kapsamiyor(cift_tik):
+    """Vurgu da metinle aynı aralığı kullanıyor; kayarsa ekranda görünür."""
+    _secilen, aralik = cift_tik(5)
+    assert aralik == (0, 5, 8), aralik
+
+
+def test_KOPYALA_bosluksuz_metni_veriyor(cift_tik):
+    """Kusurun kullaniciya ulastigi yer: sag tik > Kopyala."""
+    from PyQt6.QtWidgets import QApplication as _QA
+    cift_tik(5)
+    _QA.clipboard().setText("")
+    cift_tik.viewer._copy_selection()
+    assert _QA.clipboard().text() == "Beta", repr(_QA.clipboard().text())

@@ -141,9 +141,25 @@ class PdfSelectionMixin:
                     return
 
                 total = textpage.count_chars()
+                # Boşluğa çift tıklandıysa seçilecek kelime yok. Eski kod
+                # burada da aşağıdaki asimetriden dolayı boşluk + SONRAKİ
+                # kelimeyi seçiyordu (ölçüldü: ' Beta').
+                if self._is_word_boundary(textpage, idx):
+                    return
                 start = idx
                 end = idx
-                while start > 0 and not self._is_word_boundary(textpage, start):
+                # SINIR `start - 1`de sınanıyor, `start`ta DEĞİL. Eskiden
+                # `start` sınanıyordu ve döngü sınırın ÜSTÜNDE duruyordu, yani
+                # seçim kelimenin ÖNÜNDEKİ boşluğu da kapsıyordu. İleri giden
+                # döngü `end + 1`e baktığı için o taraf zaten doğruydu;
+                # asimetri buradaydı.
+                #
+                # ÖLÇÜLDÜ (2026-09-06, "Alfa Beta Gama" belgesinde her
+                # karaktere çift tıklanarak): metnin İLK kelimesi doğru
+                # (`start > 0` koşulu döngüyü 0'da durduruyor), ötekilerin
+                # hepsi baştan boşluklu: 'Alfa' ama ' Beta', ' Gama'.
+                # Panoya da o boşlukla gidiyordu.
+                while start > 0 and not self._is_word_boundary(textpage, start - 1):
                     start -= 1
                 while end < total - 1 and not self._is_word_boundary(textpage, end + 1):
                     end += 1
