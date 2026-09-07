@@ -521,3 +521,127 @@ def test_sunum_GEZINMESI_hala_calisiyor(viewer, qapp):
     # Escape belgeyi SILMEMELI (clear ile karistirilmasin)
     assert viewer._pdf is not None
     assert viewer._page_count == 2
+
+
+# =====================================================================
+# Sunum kipi olay yonlendirmesi ve FARE gezinmesi (olculdu 2026-09-07)
+#
+# `_presentation_key_event` zaten kapida ama DOGRUDAN cagriliyor; onu gercek
+# girdiye baglayan `eventFilter` -> `_handle_presentation_event` yolu HIC
+# kosmuyordu. Yonlendirme kosulu bozulsa tuslar sessizce islemez olurdu ve
+# var olan test bunu gormezdi.
+#
+# Fare gezinmesi (sol tik ileri, sag tik geri) de bastan sona test disiydi.
+# =====================================================================
+
+
+def _fare(dugme):
+    from PyQt6.QtCore import QEvent, QPointF, Qt
+    from PyQt6.QtGui import QMouseEvent
+    return QMouseEvent(QEvent.Type.MouseButtonPress, QPointF(10, 10),
+                       QPointF(10, 10), dugme, dugme,
+                       Qt.KeyboardModifier.NoModifier)
+
+
+def _sunum_ozeti(v):
+    """Sunum etiketindeki goruntunun TAM karmasi.
+
+    Seyrek ornekleme YETMIYOR: ilk olcumde her 37. sutun / 41. satir
+    ornekleniyordu ve sayfalar arasindaki kucuk glif farkini kaciriyordu,
+    yani "goruntu hic degismiyor" gibi YANLIS bir bulgu uretti (2026-09-07).
+    """
+    import hashlib
+    pm = v._presentation_label.pixmap()
+    if pm is None or pm.isNull():
+        return None
+    img = pm.toImage()
+    ptr = img.bits()
+    ptr.setsize(img.sizeInBytes())
+    return hashlib.md5(bytes(ptr)).hexdigest()
+
+
+@gui
+def test_sunum_TUSU_eventFilter_uzerinden_geliyor(viewer, qapp):
+    """Yonlendirme kapisi: tus gercek olay yolundan gelmeli."""
+    K = _K()
+    viewer.enter_presentation()
+    qapp.processEvents()
+    try:
+        yutuldu = viewer.eventFilter(viewer._presentation_label,
+                                     _tus(K.Key_Right))
+        assert yutuldu is True, "olay yutulmadi, altta baska bir sey isliyor"
+        assert viewer._current_page == 1
+    finally:
+        viewer._presentation_key_event(_tus(K.Key_Escape))
+        qapp.processEvents()
+
+
+@gui
+def test_sunum_SOL_tik_ileri_SAG_tik_geri(viewer, qapp):
+    from PyQt6.QtCore import Qt
+    K = _K()
+    assert viewer._page_count == 2, viewer._page_count
+    viewer.enter_presentation()
+    qapp.processEvents()
+    try:
+        assert viewer.eventFilter(viewer._presentation_label,
+                                  _fare(Qt.MouseButton.LeftButton)) is True
+        assert viewer._current_page == 1, "sol tik ileri gitmedi"
+        viewer.eventFilter(viewer._presentation_label,
+                           _fare(Qt.MouseButton.RightButton))
+        assert viewer._current_page == 0, "sag tik geri gitmedi"
+    finally:
+        viewer._presentation_key_event(_tus(K.Key_Escape))
+        qapp.processEvents()
+
+
+@gui
+def test_sunum_tikta_SINIRDA_duruyor(viewer, qapp):
+    from PyQt6.QtCore import Qt
+    K = _K()
+    viewer.enter_presentation()
+    qapp.processEvents()
+    try:
+        viewer.eventFilter(viewer._presentation_label,
+                           _fare(Qt.MouseButton.RightButton))
+        assert viewer._current_page == 0, "ilk sayfada geri gitti"
+        viewer._current_page = viewer._page_count - 1
+        viewer.eventFilter(viewer._presentation_label,
+                           _fare(Qt.MouseButton.LeftButton))
+        assert viewer._current_page == viewer._page_count - 1, \
+            "son sayfada ileri gitti"
+    finally:
+        viewer._presentation_key_event(_tus(K.Key_Escape))
+        qapp.processEvents()
+
+
+@gui
+def test_sunum_tikta_GORUNTU_gercekten_degisiyor(viewer, qapp):
+    """Sayac ilerlese de EKRAN degismezse kullanici ayni slaytta kalir."""
+    from PyQt6.QtCore import Qt
+    K = _K()
+    viewer.enter_presentation()
+    qapp.processEvents()
+    try:
+        ilk = _sunum_ozeti(viewer)
+        assert ilk is not None, "kapi bos kosuyor: sunum goruntusu hic yok"
+        viewer.eventFilter(viewer._presentation_label,
+                           _fare(Qt.MouseButton.LeftButton))
+        qapp.processEvents()
+        assert viewer._current_page == 1
+        assert _sunum_ozeti(viewer) != ilk, "sayfa degisti ama goruntu ayni"
+    finally:
+        viewer._presentation_key_event(_tus(K.Key_Escape))
+        qapp.processEvents()
+
+
+@gui
+def test_sunum_DISINDA_fare_sunum_yoluna_girmiyor(viewer, qapp):
+    """Asiri duzeltme kapisi: sunum kapaliyken tik sayfayi degistirmemeli."""
+    from PyQt6.QtCore import Qt
+    assert viewer._presentation_mode is False
+    viewer._current_page = 0
+    viewer.eventFilter(viewer._presentation_label,
+                       _fare(Qt.MouseButton.LeftButton))
+    qapp.processEvents()
+    assert viewer._current_page == 0
