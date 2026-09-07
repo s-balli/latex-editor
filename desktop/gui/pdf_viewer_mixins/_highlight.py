@@ -15,8 +15,13 @@ class PdfHighlightMixin:
             f"border: 2px solid {t['pdf_hl_border']}; "
             "border-radius: 2px;"
         )
-        w = width if width > 0 else label.width() - x + 4
-        hl.setGeometry(max(x - 4, 0), y - 2, w, max(height, 20))
+        # Dolgu İKİ kenara da uygulanmalı. Genişlik verilmeyen dalda `+4`
+        # sol taraftaki `-4`ü telafi ediyordu, genişlik verilen dal bunu
+        # almamıştı: kutu 4 px sola kayıyor ve kelimenin sağını kesiyordu
+        # (ölçüldü 2026-09-07: sol fark -4 px, sağ fark -4 px).
+        sol = max(x - 4, 0)
+        sag = x + width + 4 if width > 0 else label.width()
+        hl.setGeometry(sol, y - 2, sag - sol, max(height, 20))
         hl.show()
         hl.raise_()
         self._highlight_label = hl

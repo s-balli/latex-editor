@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import QLabel
 
 from gui.pdfium_lock import pdfium_lock
 from gui.pdf_donusum import geometri, gorsele, kutu_gorsele
-from PyQt6.QtCore import QCoreApplication, QPoint
+from PyQt6.QtCore import QCoreApplication
 _ = lambda s: QCoreApplication.translate("PdfViewer", s)
 
 from gui.pdf_search_worker import PdfSearchWorker
@@ -92,15 +92,15 @@ class PdfSearchMixin:
                 # `get_charbox` DONDURULMEMIS kullanici uzayinda, `get_height()`
                 # ise GORSEL boyutu veriyor; ikisini karistirmak /Rotate'li
                 # sayfada koordinati bozuyordu (bkz. gui/pdf_donusum.py).
-                _mx, match_y = gorsele(geometri(sayfa), left, top, scale)
+                match_x, match_y = gorsele(geometri(sayfa), left, top, scale)
         except Exception:
-            match_y = 0
+            match_x = match_y = 0
 
-        # Eşleşme konumuna scroll
+        # Eşleşme konumuna scroll. Yatay da ŞART: yakınlaştırılmış belgede
+        # sağdaki eşleşme doğru satıra iniyor ama ekranın dışında kalıyordu
+        # (bkz. _navigation._hedefe_kaydir).
         # Dual modda pos() satıra göredir; _events/_synctex ile aynı mapTo yolu
-        abs_y = label.mapTo(self._pages_widget, QPoint(0, 0)).y() + int(match_y)
-        viewport_height = self._scroll.viewport().height()
-        self._scroll.verticalScrollBar().setValue(max(0, abs_y - viewport_height // 3))
+        self._hedefe_kaydir(label, int(match_x), int(match_y), 0, 3)
         self._current_page = page_idx
         self._update_nav()
 

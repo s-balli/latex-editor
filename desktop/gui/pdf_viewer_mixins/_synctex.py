@@ -1,6 +1,6 @@
 """PdfViewer SyncTeX mixin — ileri/geri arama koordinat dönüşümü."""
 
-from PyQt6.QtCore import QPoint, QTimer
+from PyQt6.QtCore import QTimer
 from gui.pdf_donusum import geometri, gorselden_syncteze, synctex_kutusu
 from gui.pdfium_lock import pdfium_lock
 
@@ -56,12 +56,18 @@ class PdfSyncTexMixin:
             # gelir, vurgu/konum hesabı onu beklemez
             self._request_render(idx)
 
+        # Genişliğe de yükseklikteki soru soruluyor: "synctex verdi mi".
+        # `synctex_kutusu` genişliği en az 1 px'e kırpıyor, yani W alanı
+        # olmayan kayıtta `_show_highlight`in "satır sonuna kadar" dalı hiç
+        # çalışmıyor, kullanıcı bir kelime yerine 1 px'lik çizgi görüyordu.
+        # W alanı gerçekten eksik olabiliyor (bkz. gui/synctex.py: `width`
+        # varsayılanı 0.0).
         h_pixel = h_kutu if height else 20
-        self._show_highlight(label, int(x_pixel), int(y_pixel), h_pixel, w_pixel)
+        w_gecerli = int(w_pixel) if width else 0
+        self._show_highlight(label, int(x_pixel), int(y_pixel), h_pixel,
+                             w_gecerli)
 
-        abs_y = label.mapTo(self._pages_widget, QPoint(0, 0)).y() + int(y_pixel)
-        viewport_height = self._scroll.viewport().height()
-        self._scroll.verticalScrollBar().setValue(max(0, abs_y - viewport_height // 2))
+        self._hedefe_kaydir(label, int(x_pixel), int(y_pixel), w_gecerli, 2)
         self._current_page = idx
         self._update_nav()
         QTimer.singleShot(100, self._render_visible)

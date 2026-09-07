@@ -3,7 +3,7 @@
 import os
 
 from gui.pdfium_lock import pdfium_lock
-from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtCore import QPoint, Qt, QTimer
 from PyQt6.QtGui import QWheelEvent
 
 from PyQt6.QtCore import QCoreApplication
@@ -43,6 +43,42 @@ class PdfNavigationMixin:
         if 0 <= index < len(self._page_labels):
             self._scroll.ensureWidgetVisible(self._page_labels[index])
             QTimer.singleShot(100, self._render_visible)
+
+    def _hedefe_kaydir(self, label, x_pixel: int, y_pixel: int,
+                       genislik: int = 0, dikey_bolen: int = 2):
+        """Sayfa içindeki bir noktayı görüntüye getir: dikey VE yatay.
+
+        Çağıranlar yalnız dikey kaydırıyordu. ÖLÇÜLDÜ (2026-09-07), %300
+        yakınlaştırmada 612 pt'lik sayfa 2754 px, görüntü penceresi 404 px:
+        sağ kenara yakın bir hedefte hem SyncTeX ileri araması hem metin
+        araması doğru satıra iniyor ama hedef yatayda 1850 px dışarıda
+        kalıyor. Kullanıcının gördüğü şey "hiçbir şey olmadı".
+
+        Metin aramasında yatay konum zaten hesaplanıp atılıyordu.
+
+        Yatayda hedef görünüyorsa DOKUNULMUYOR: her atlamada ortalamak aynı
+        bölgedeki ardışık eşleşmelerde görüntüyü sarsardı. Hedef görüntüden
+        genişse sol kenarı öncelikli, yani başı kesilmiyor.
+        """
+        sol_ust = label.mapTo(self._pages_widget, QPoint(0, 0))
+        dikey = self._scroll.verticalScrollBar()
+        pencere_y = self._scroll.viewport().height()
+        dikey.setValue(max(0, sol_ust.y() + y_pixel - pencere_y // dikey_bolen))
+
+        yatay = self._scroll.horizontalScrollBar()
+        if yatay.maximum() <= 0:
+            return                      # sayfa zaten sığıyor
+        pencere_x = self._scroll.viewport().width()
+        sol = sol_ust.x() + x_pixel
+        sag = sol + max(genislik, 0)
+        kenar = 40
+        if sol - kenar < yatay.value():
+            hedef = sol - kenar
+        elif sag + kenar > yatay.value() + pencere_x:
+            hedef = min(sag + kenar - pencere_x, sol - kenar)
+        else:
+            return
+        yatay.setValue(max(0, min(hedef, yatay.maximum())))
 
     def zoom_in(self):
         self._zoom = min(self._zoom + 0.05, 3.0)
