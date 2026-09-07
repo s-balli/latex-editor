@@ -52,6 +52,26 @@ class _ExportRunner(QObject):
 
 class FileOpsMixin:
 
+    def _dialog_dizini(self) -> str:
+        """Dosya diyaloglarının başlayacağı klasör.
+
+        Boş dize verilince Qt SÜREÇ ÇALIŞMA DİZİNİNİ kullanıyor (ölçüldü
+        2026-09-07) ve o dizinin kullanıcının projesiyle ilgisi yok. Açık
+        klasör zaten elde duruyordu, yalnız `_quick_open` kullanıyordu:
+        ölçüldü, dört dialog'un dördü de boş yol gönderiyordu.
+
+        LaTeX'te bunun bedeli gezinmekten fazlası: proje kökünün DIŞINA
+        kaydedilen bir dosya `\\input` ile bulunmuyor ve dosya ağacında
+        görünmüyor.
+        """
+        kok = getattr(getattr(self, "_file_tree", None), "_root", "")
+        if kok and os.path.isdir(kok):
+            return kok
+        ed = self._current_editor()
+        if ed is not None and getattr(ed, "file_path", ""):
+            return os.path.dirname(ed.file_path)
+        return ""
+
     def _open_folder(self):
         path = QFileDialog.getExistingDirectory(self, _("Klasör Aç"))
         if not path:
@@ -84,7 +104,8 @@ class FileOpsMixin:
 
     def _new_file(self):
         path, _sel_filter = QFileDialog.getSaveFileName(
-            self, _("Yeni Dosya"), "", _("LaTeX Dosyaları (*.tex);;Tüm Dosyalar (*)")
+            self, _("Yeni Dosya"), self._dialog_dizini(),
+            _("LaTeX Dosyaları (*.tex);;Tüm Dosyalar (*)")
         )
         if not path:
             return
@@ -114,7 +135,7 @@ class FileOpsMixin:
 
     def _open_file(self):
         paths, _sel_filter = QFileDialog.getOpenFileNames(
-            self, _("Dosya Aç"), "",
+            self, _("Dosya Aç"), self._dialog_dizini(),
             _("LaTeX Dosyaları (*.tex *.cls *.sty *.bib);;Tüm Dosyalar (*)")
         )
         for p in paths:
@@ -227,8 +248,12 @@ class FileOpsMixin:
         if not editor:
             return
         try:
+            # Varsayılan, belgenin KENDİ yolu: "aynı yere, başka adla"
+            # en sık istenen şey ve ad da hazır geliyor.
+            varsayilan = editor.file_path or os.path.join(
+                self._dialog_dizini(), editor.display_name)
             path, _sel_filter = QFileDialog.getSaveFileName(
-                self, _("Farklı Kaydet"), "",
+                self, _("Farklı Kaydet"), varsayilan,
                 _("LaTeX Dosyaları (*.tex);;Tüm Dosyalar (*)")
             )
         except Exception as e:
@@ -312,17 +337,25 @@ class FileOpsMixin:
         recent = self._settings.value("recent_files", [])
         if isinstance(recent, str):
             recent = [recent]
-        if not recent:
+        # "(boş)" kararı SÜZÜLMÜŞ listeye bakıyor. Eskiden ham listeye
+        # bakıyordu: beş girdinin beşi de silinmişse koşul False oluyor,
+        # döngü de hiçbir şey eklemiyor ve menü BOMBOŞ açılıyordu (ölçüldü
+        # 2026-09-07: kayıtlı 5 girdi, menüde 0 öğe, yer tutucu da yok).
+        # Kullanıcının gördüğü şey bozuk bir menü.
+        #
+        # Var olmayan girdi listeden SİLİNMİYOR: kopmuş bir ağ sürücüsündeki
+        # dosya unutulmamalı, yalnız o an gösterilmemeli.
+        var_olanlar = [p for p in recent if os.path.isfile(p)]
+        if not var_olanlar:
             act = self._recent_menu.addAction(_("(boş)"))
             act.setEnabled(False)
             return
-        for path in recent:
-            if os.path.isfile(path):
-                # Yol lambda'da DEĞİL öğenin verisinde taşınıyor; menü tek bir
-                # `triggered` sinyaline bağlı (bkz. main_window._setup_menus).
-                # Öğe başına kapanış kurmak sızdırıyordu.
-                act = self._recent_menu.addAction(os.path.basename(path))
-                act.setData(path)
+        for path in var_olanlar:
+            # Yol lambda'da DEĞİL öğenin verisinde taşınıyor; menü tek bir
+            # `triggered` sinyaline bağlı (bkz. main_window._setup_menus).
+            # Öğe başına kapanış kurmak sızdırıyordu.
+            act = self._recent_menu.addAction(os.path.basename(path))
+            act.setData(path)
 
     def _on_recent_triggered(self, action):
         """Son Açılanlar'dan bir öğe seçildi; yol öğenin verisinde."""
@@ -354,7 +387,11 @@ class FileOpsMixin:
             self._status.showMessage(_("Dışa aktarma zaten sürüyor, bitmesini bekleyin"))
             return
 
-        default_name = os.path.splitext(os.path.basename(editor.file_path))[0] + ext
+        # Ad tek başına SÜREÇ ÇALIŞMA DİZİNİNE göre çözülüyordu; çıktı
+        # belgenin yanına önerilmeli.
+        default_name = os.path.join(
+            os.path.dirname(editor.file_path),
+            os.path.splitext(os.path.basename(editor.file_path))[0] + ext)
         dest, _sel_filter = QFileDialog.getSaveFileName(
             self, _("Dışa Aktar") + ": " + fmt_name, default_name,
             fmt_name + f" (*{ext});;" + _("Tüm Dosyalar (*)")

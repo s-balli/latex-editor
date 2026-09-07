@@ -511,3 +511,163 @@ def test_motor_algilama_BUYUK_HARFLI_uzantida_da_kosuyor(qapp, tmp_path,
 
     assert len(cagrilan) == 2, (
         "buyuk harfli uzantida algilama atlandi: %s" % cagrilan)
+
+
+# =====================================================================
+# Dosya diyalogları AÇIK PROJEDEN başlamalı
+#
+# Dördü de `QFileDialog`a boş yol veriyordu; Qt boş yolda süreç çalışma
+# dizinini kullanıyor (ölçüldü 2026-09-07) ve o dizinin kullanıcının
+# projesiyle ilgisi yok. Proje kökü zaten elde duruyordu, yalnız
+# `_quick_open` kullanıyordu.
+#
+# LaTeX'te bedeli gezinmekten fazlası: proje kökünün dışına kaydedilen bir
+# dosya `\input` ile bulunmuyor ve dosya ağacında görünmüyor.
+# =====================================================================
+
+
+class _DialogKaydedici:
+    """Statik QFileDialog fonksiyonlarının yerine geçer; argümanı saklar."""
+
+    def __init__(self):
+        self.cagrilar = []
+
+    def getSaveFileName(self, parent, baslik, dizin="", suzgec="", *a, **k):
+        self.cagrilar.append((baslik, dizin))
+        return "", ""
+
+    def getOpenFileNames(self, parent, baslik, dizin="", suzgec="", *a, **k):
+        self.cagrilar.append((baslik, dizin))
+        return [], ""
+
+
+@pytest.fixture
+def dialog_kaydi(monkeypatch):
+    from gui.mixins import file_ops as fo
+    k = _DialogKaydedici()
+    monkeypatch.setattr(fo, "QFileDialog", k)
+    return k
+
+
+def _proje_stub(tmp_path, ad="bolum3.tex"):
+    """Kökü açık, alt klasörde bir belge açık pencere."""
+    proje = tmp_path / "proje"
+    (proje / "bolumler").mkdir(parents=True)
+    belge = proje / "bolumler" / ad
+    belge.write_text("\\documentclass{article}\n", encoding="utf-8")
+    ed = EditorWidget()
+    assert ed.open_file(str(belge))
+    stub = _Stub([ed])
+    stub._file_tree._root = str(proje)
+    return stub, str(proje), str(belge)
+
+
+def test_YENI_DOSYA_proje_kokunden_basliyor(qapp, tmp_path, dialog_kaydi):
+    r"""Kırılırsa: yeni dosya projenin dışına düşüyor ve `\input` bulmuyor."""
+    stub, proje, _belge = _proje_stub(tmp_path)
+    stub._new_file()
+    assert dialog_kaydi.cagrilar, "dialog hiç açılmadı"
+    assert dialog_kaydi.cagrilar[0][1] == proje
+
+
+def test_DOSYA_AC_proje_kokunden_basliyor(qapp, tmp_path, dialog_kaydi):
+    stub, proje, _belge = _proje_stub(tmp_path)
+    stub._open_file()
+    assert dialog_kaydi.cagrilar[0][1] == proje
+
+
+def test_FARKLI_KAYDET_belgenin_kendi_yolunu_oneriyor(qapp, tmp_path,
+                                                      dialog_kaydi):
+    """"Aynı yere, başka adla" en sık istenen şey; ad da hazır gelmeli."""
+    stub, _proje, belge = _proje_stub(tmp_path)
+    stub._save_file_as()
+    assert dialog_kaydi.cagrilar[0][1] == os.path.normpath(belge)
+
+
+def test_DISA_AKTAR_belgenin_YANINA_oneriyor(qapp, tmp_path, dialog_kaydi):
+    """Çıplak ad süreç çalışma dizinine göre çözülüyordu."""
+    stub, _proje, belge = _proje_stub(tmp_path)
+    stub._pandoc_available = True
+    stub._save_if_open = lambda p: True
+    stub._export_file("HTML", ".html")
+    assert dialog_kaydi.cagrilar[0][1] == os.path.join(
+        os.path.dirname(os.path.normpath(belge)), "bolum3.html")
+
+
+def test_KLASOR_YOKKEN_belgenin_yanindan_basliyor(qapp, tmp_path,
+                                                  dialog_kaydi):
+    """Proje açık değilse açık belgenin klasörü kullanılmalı."""
+    stub, _proje, belge = _proje_stub(tmp_path)
+    stub._file_tree._root = ""
+    stub._new_file()
+    assert dialog_kaydi.cagrilar[0][1] == os.path.dirname(
+        os.path.normpath(belge))
+
+
+def test_HICBIR_SEY_yokken_bos_yol_donuyor(qapp, tmp_path, dialog_kaydi):
+    """Aşırı düzeltme kapısı: uydurma bir dizine gitmemeli."""
+    stub = _Stub([])
+    stub._file_tree._root = ""
+    assert stub._dialog_dizini() == ""
+
+
+def test_kok_SILINMISSE_uydurulmuyor(qapp, tmp_path):
+    """Ayar dosyasında kalmış eski bir kök gerçek olmayabilir."""
+    stub = _Stub([])
+    stub._file_tree._root = str(tmp_path / "yok_boyle_bir_yer")
+    assert stub._dialog_dizini() == ""
+
+
+# =====================================================================
+# Son Açılanlar: girdilerin hepsi silinmişse menü BOMBOŞ açılıyordu
+#
+# "(boş)" kararı HAM listeye bakıyordu: beş girdinin beşi de silinmişse
+# koşul False, döngü de hiçbir şey eklemiyor. Ölçüldü (2026-09-07):
+# kayıtlı 5 girdi, menüde 0 öğe, yer tutucu da yok.
+# =====================================================================
+
+
+def test_recent_menu_TUM_girdiler_silinmisse_bos_yer_tutucu_koyuyor(
+        qapp, tmp_path):
+    from PyQt6.QtWidgets import QMenu
+    stub = _RecentStub([EditorWidget()])
+    stub._recent_menu = QMenu()
+    olu = [str(tmp_path / ("olu%d.tex" % i)) for i in range(5)]
+    stub._settings.setValue("recent_files", olu)
+
+    stub._refresh_recent_menu()
+
+    eylemler = stub._recent_menu.actions()
+    assert len(eylemler) == 1, "menü boş açıldı ya da ölü girdi gösterdi"
+    assert not eylemler[0].isEnabled()
+    assert eylemler[0].data() is None
+
+
+def test_recent_menu_var_olan_girdiler_HALA_gosteriliyor(qapp, tmp_path):
+    """Aşırı düzeltme kapısı: yaşayan girdiler yer tutucuya kurban gitmesin."""
+    from PyQt6.QtWidgets import QMenu
+    canli = tmp_path / "canli.tex"
+    canli.write_text("x", encoding="utf-8")
+    stub = _RecentStub([EditorWidget()])
+    stub._recent_menu = QMenu()
+    stub._settings.setValue(
+        "recent_files", [str(tmp_path / "olu.tex"), str(canli)])
+
+    stub._refresh_recent_menu()
+
+    veriler = [a.data() for a in stub._recent_menu.actions()]
+    assert veriler == [str(canli)]
+
+
+def test_recent_menu_olu_girdiyi_LISTEDEN_silmiyor(qapp, tmp_path):
+    """Kopmuş bir ağ sürücüsündeki dosya unutulmamalı, yalnız o an
+    gösterilmemeli."""
+    from PyQt6.QtWidgets import QMenu
+    stub = _RecentStub([EditorWidget()])
+    stub._recent_menu = QMenu()
+    olu = [str(tmp_path / "olu.tex")]
+    stub._settings.setValue("recent_files", olu)
+
+    stub._refresh_recent_menu()
+
+    assert stub._settings.value("recent_files") == olu
