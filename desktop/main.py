@@ -160,6 +160,32 @@ def _register_file_association():
             pass
 
 
+def _dosya_argumanlari(argv) -> list:
+    """Komut satırındaki VAR OLAN dosya yollarını sırasıyla döndür.
+
+    HEPSİ, yalnız ilki değil. Linux `.desktop` girdisi `Exec=... %F` yazıyor
+    ve şartnamede `%f` TEK dosya, `%F` dosya LİSTESİ demek: dosya
+    yöneticisinde üç .tex seçip "Birlikte Aç" demek TEK sürece üç argümanla
+    giriyor. ÖLÇÜLDÜ (2026-09-07, üretim kodunun yazdığı .desktop okunarak):
+    ilk dosyada `break` ediliyordu, diğer ikisi sessizce düşüyordu ve hiçbir
+    mesaj çıkmıyordu.
+
+    Windows tarafında kayıt defteri `"%1"` yazıyor, yani dosya başına ayrı
+    çağrı geliyor; orada liste zaten tek elemanlı kalıyor.
+
+    Dosya OLMAYAN argümanlar atlanıyor (bayraklar, silinmiş yollar).
+    Yinelenenler bir kez alınıyor: aynı yol iki kez verilirse ikinci
+    `_dis_yolu_ac` çağrısı yeni sekme açmaz ama gereksizdir.
+    """
+    yollar = []
+    for arg in argv:
+        if os.path.isfile(arg):
+            yol = os.path.normpath(arg)
+            if yol not in yollar:
+                yollar.append(yol)
+    return yollar
+
+
 def main():
     # Yakalanmayan Python istisnalarını logla
     def _handle_exception(exc_type, exc_value, exc_tb):
@@ -176,12 +202,9 @@ def main():
     init_i18n(app)
     _register_file_association()
 
-    # Komut satırından dosya yolu geldiyse al (Windows "Birlikte Aç")
-    file_arg = ""
-    for arg in sys.argv[1:]:
-        if os.path.isfile(arg):
-            file_arg = os.path.normpath(arg)
-            break
+    # Komut satırından gelen dosyalar ("Birlikte Aç", çift tıklama, `%F`)
+    dosyalar = _dosya_argumanlari(sys.argv[1:])
+    file_arg = dosyalar[0] if dosyalar else ""
 
     single = SingleInstance()
     if not single.try_become_primary():
@@ -189,6 +212,10 @@ def main():
         # uyarısı vardı ve dosya AÇILMIYORDU — "Birlikte Aç" ilk açılıştan
         # sonra işlevsizdi. Artık yol çalışan örneğe iletilip sessizce çıkılır.
         if single.send(file_arg):
+            # Kalanlar da iletilir: ilkinin ulaşması kanalın çalıştığını
+            # gösteriyor. `send` her çağrıda yeni soket açıyor.
+            for _ek in dosyalar[1:]:
+                single.send(_ek)
             sys.exit(0)
         QMessageBox.warning(
             None,
@@ -198,7 +225,7 @@ def main():
         )
         sys.exit(1)
 
-    window = MainWindow(open_file=file_arg)
+    window = MainWindow(open_file=file_arg, ek_dosyalar=dosyalar[1:])
     window.show()
     # `dinleyiciye_bagla`: pencere kurulurken gelmis istekler de iletilir.
     # Duz `connect` o boslukta gelen dosyayi sessizce dusuruyordu

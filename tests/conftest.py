@@ -137,8 +137,8 @@ def ana_pencere(monkeypatch, tmp_path):
     # Bu yolun kendi kapıları var ve ancak GERÇEK `__init__` üzerinden
     # sınanabiliyor; fabrikayı genişletmek, kurulumun ikinci bir kopyasını
     # çıkarmaktan iyi (bkz. yukarıdaki TEK KAYNAK notu).
-    def _kur(karar="discard", open_file=""):
-        w = mw.MainWindow(open_file=open_file)
+    def _kur(karar="discard", open_file="", ek_dosyalar=()):
+        w = mw.MainWindow(open_file=open_file, ek_dosyalar=ek_dosyalar)
         w._save_dialog = lambda ad: karar      # kirli sekme sorusu
         pencereler.append(w)
         return w

@@ -160,7 +160,7 @@ class MainWindow(
     YazimOpsMixin,
     QMainWindow,
 ):
-    def __init__(self, open_file: str = ""):
+    def __init__(self, open_file: str = "", ek_dosyalar=()):
         super().__init__()
         self.setWindowTitle(f"LaTeX Editor v{VERSION}")
         self.resize(*ekrana_sigan_boyut(1400, 900))
@@ -199,6 +199,10 @@ class MainWindow(
         # ikisi bir kez ayrışmıştı (bkz. o metodun ölçümü).
         if self._dis_yolu_ac(open_file, "Komut satırından"):
             self._file_tree.set_root(os.path.dirname(open_file))
+        # Kalan dosyalar AYNI kuraldan geçiyor; ağaç kökü yalnız ilkine
+        # göre kuruluyor. `%F` ile gelen liste burada bitiyor.
+        for _ek in ek_dosyalar:
+            self._dis_yolu_ac(_ek, "Komut satırından")
 
         # Klasör sürümleniyorsa geçmiş sekmesini doldur
         self._refresh_history()

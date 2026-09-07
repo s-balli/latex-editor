@@ -99,6 +99,20 @@ def doi_akisi(qapp, tmp_path, monkeypatch):
 
     for ed in acilanlar:
         ed.deleteLater()
+    # DeferredDelete kuyruğu AÇIKÇA boşaltılıyor. `processEvents` onu
+    # işlemiyor (conftest'te iki kardeş fixture bu dersi zaten yazmış), yani
+    # buradaki düz `processEvents` "silinmeyi bekleyen editörler AYAKTAYKEN
+    # olay döngüsünü çevir" demekti. Suite'in bilinen yarışı tam orada
+    # patlıyor: Scintilla'nın idle timer'ı serbest bırakılmış alıcıya düşüyor
+    # (conftest._sahipsiz_qsci_temizle'deki gdb izi).
+    #
+    # ÖLÇÜLDÜ (2026-09-07, WSL/Linux, tam suite): bu satır olmadan takıma
+    # BEŞ test eklenmesi çökmeyi 0/2'den 4/4'e çıkarıyordu ve segfault hep bu
+    # satırdaydı. Eklenen testler bu dosyadan SONRA koşuyor, yani sebep onlar
+    # değil; sadece GC/tahsis zamanlamasını kaydırıp bekleyen yarışı
+    # tetikliyorlar.
+    from PyQt6.QtCore import QCoreApplication, QEvent
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
     qapp.processEvents()
 
 

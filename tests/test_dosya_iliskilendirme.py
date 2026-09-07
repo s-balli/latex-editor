@@ -110,3 +110,101 @@ def test_desktop_dosyasinin_geri_kalani_duruyor(monkeypatch, tmp_path):
     for alan in ("[Desktop Entry]", "Name=LaTeX Editor", "Type=Application",
                  "MimeType=text/x-tex;", "Icon=latex-editor"):
         assert alan in icerik, alan
+
+
+# ==========================================================================
+# Komut satirindan gelen COGUL dosya
+#
+# Uretilen `.desktop` `Exec=... %F` yaziyor. Sartnamede `%f` TEK dosya, `%F`
+# dosya LISTESI demek: dosya yoneticisinde uc .tex secip "Birlikte Ac" demek
+# TEK surece uc argumanla giriyor. `main()` ilk dosyada `break` ediyordu,
+# digerleri sessizce dusuyordu (olculdu 2026-09-07, uretim kodunun yazdigi
+# .desktop okunarak). Kullanici uc belge secip birini goruyordu.
+# ==========================================================================
+
+
+def test_desktop_COGUL_dosya_bildiriyor(monkeypatch, tmp_path):
+    """Kapinin dayandigi vaat: `%F`.
+
+    Bir gun `%f`ye donulurse (dosya basina ayri cagri) asagidaki cogul
+    isleme gereksizlesir; bu test o kararin bilerek alinmasini saglar.
+    """
+    icerik = _desktop_uret(monkeypatch, tmp_path, "/tmp/LaTeX Editor.AppImage")
+    exec_satiri = next(s for s in icerik.splitlines()
+                       if s.startswith("Exec="))
+    assert exec_satiri.endswith(" %F"), exec_satiri
+
+
+def test_TUM_dosya_argumanlari_aliniyor(tmp_path):
+    import main as m
+
+    yollar = []
+    for ad in ("bolum1.tex", "bolum2.tex", "bolum3.tex"):
+        p = tmp_path / ad
+        p.write_text("x\n", encoding="utf-8")
+        yollar.append(str(p))
+
+    alinan = m._dosya_argumanlari(yollar)
+
+    assert alinan == [os.path.normpath(y) for y in yollar]
+
+
+def test_dosya_OLMAYAN_argumanlar_atlaniyor(tmp_path):
+    """Bayraklar ve silinmis yollar liste disi; ayni yol iki kez verilirse
+    bir kez aliniyor."""
+    import main as m
+
+    var = tmp_path / "var.tex"
+    var.write_text("x\n", encoding="utf-8")
+    yok = str(tmp_path / "yok.tex")
+
+    alinan = m._dosya_argumanlari(
+        ["--debug", yok, str(var), str(tmp_path), str(var)])
+
+    assert alinan == [os.path.normpath(str(var))]
+
+
+def test_UC_dosya_UC_sekme_aciyor(ana_pencere, tmp_path):
+    """Kirilirsa kullanici uc belge secip yalnizca birini gorur ve neden
+    digerlerinin acilmadigini soyleyen hicbir sey yoktur.
+
+    Ek dosyalar BASKA bir klasorde: hepsi ayni klasorde olsaydi agac koku
+    hangi dosyaya gore kuruldugu gorunmezdi ve asagidaki kok iddiasi bos
+    kalirdi (ilk halinde oyleydi, mutasyon yakalamadi).
+    """
+    ilk_dizin = tmp_path / "ana"
+    ek_dizin = tmp_path / "ekler"
+    ilk_dizin.mkdir()
+    ek_dizin.mkdir()
+
+    yollar = []
+    for dizin, ad in ((ilk_dizin, "bolum1.tex"),
+                      (ek_dizin, "bolum2.tex"),
+                      (ek_dizin, "bolum3.tex")):
+        p = dizin / ad
+        p.write_text("\\section{%s}\n" % ad, encoding="utf-8")
+        yollar.append(os.path.normpath(str(p)))
+
+    w = ana_pencere(open_file=yollar[0], ek_dosyalar=yollar[1:])
+
+    acik = [w._editor_tabs.widget(i).file_path
+            for i in range(w._editor_tabs.count())]
+    assert acik == yollar, acik
+    # Kok ILK dosyaya gore: kullanicinin sectigi ilk belge projeyi belirler.
+    assert os.path.normcase(w._file_tree._root) == \
+        os.path.normcase(os.path.normpath(str(ilk_dizin)))
+
+
+def test_ek_dosya_YOKKEN_davranis_ayni(ana_pencere, tmp_path):
+    """Asiri duzeltme kapisi: tek dosyayla acilis bozulmamali, agac koku de
+    ILK dosyaya gore kurulmali."""
+    p = tmp_path / "tek.tex"
+    p.write_text("x\n", encoding="utf-8")
+
+    w = ana_pencere(open_file=os.path.normpath(str(p)))
+
+    acik = [w._editor_tabs.widget(i).file_path
+            for i in range(w._editor_tabs.count())]
+    assert acik == [os.path.normpath(str(p))]
+    assert os.path.normcase(w._file_tree._root) == \
+        os.path.normcase(os.path.normpath(str(tmp_path)))
