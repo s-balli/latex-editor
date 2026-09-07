@@ -8,7 +8,7 @@ yalnızca değerleri toplar ve önizler. Mevcut bir tabular bloğu düzenleniyor
 import csv
 import re
 
-from PyQt6.QtCore import QCoreApplication
+from PyQt6.QtCore import QCoreApplication, QEvent, QObject, Qt
 from PyQt6.QtWidgets import (
     QCheckBox, QComboBox, QDialog, QDialogButtonBox, QFileDialog,
     QFormLayout, QGridLayout, QHBoxLayout, QLabel, QLineEdit,
@@ -34,6 +34,31 @@ _ALIGNS = [
 _ENVS = ("tabular", "tabularx", "longtable")
 
 
+class _TekerlekSuzgeci(QObject):
+    """Odakta OLMAYAN sayı/açılır kutularda fare tekerleğini yut.
+
+    Qt'de `QSpinBox` ve `QComboBox` tekerleğe, üzerlerine gelinmesi yeterli
+    olacak biçimde yanıt veriyor. Bu dialogda ızgara kaydırılıyor ve imleç
+    kolayca bir kutunun üstünden geçiyor; sonuç sessiz veri kaybı.
+
+    ÖLÇÜLDÜ (2026-09-07), tek bir tekerlek tıkıyla:
+      kolon kutusu   5 -> 4  ve o kolondaki hücreler GİTTİ (geri artırınca
+                             boş geliyor, dialogda geri alma da yok)
+      ortam kutusu   tabular -> tabularx
+      hizalama       Orta (c) -> Sağ (r)
+
+    Kullanıcı hiçbirini istememişti; kaydırmak istemişti. Odaklıyken tekerlek
+    ÇALIŞMAYA DEVAM EDİYOR: kutuya bilerek tıklayan kullanıcının alışkanlığı
+    bozulmasın.
+    """
+
+    def eventFilter(self, obj, event):
+        if event.type() == QEvent.Type.Wheel and not obj.hasFocus():
+            event.ignore()
+            return True
+        return False
+
+
 class TableWizardDialog(QDialog):
     """Hücrelere yazarak/CSV yükleyerek LaTeX tablosu üret."""
 
@@ -44,8 +69,18 @@ class TableWizardDialog(QDialog):
         self._existing = list(existing_labels or [])
         self._label_manual = False
         self._updating = False
+        # TEK süzgeç nesnesi: her kutuya ayrı nesne kurmak gereksiz, üstelik
+        # dinamik kurulan hizalama kutuları için de aynısı kullanılıyor.
+        self._tekerlek_suzgeci = _TekerlekSuzgeci(self)
         self._setup_ui()
         self._update_preview()
+
+    def _tekerleksiz(self, w):
+        """Kutuyu tekerlek kazalarına kapat (bkz. _TekerlekSuzgeci)."""
+        # StrongFocus: tekerlek kutuyu ODAKLAMASIN da. QComboBox varsayılanı
+        # WheelFocus, yani süzgeç olmasa tekerlek hem odaklar hem değiştirirdi.
+        w.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
+        w.installEventFilter(self._tekerlek_suzgeci)
 
     # --- kurulum ---
 
@@ -73,6 +108,10 @@ class TableWizardDialog(QDialog):
         self._env = QComboBox()
         self._env.addItems(list(_ENVS))
         top.addWidget(self._env)
+        # Kaydırırken imlecin üstünden geçtiği kutu değer değiştirmesin
+        # (bkz. _TekerlekSuzgeci; hizalama kutuları _on_cols_changed'te).
+        for _w in (self._rows, self._cols, self._env):
+            self._tekerleksiz(_w)
         top.addStretch()
         self._btn_csv = QPushButton(_("CSV Yükle..."))
         top.addWidget(self._btn_csv)
@@ -201,6 +240,7 @@ class TableWizardDialog(QDialog):
                     w.deleteLater()
             for col in range(self._cols.value()):
                 combo = QComboBox()
+                self._tekerleksiz(combo)
                 for label, _token in _ALIGNS:
                     combo.addItem(label)
                 combo.setCurrentIndex({"l": 0, "c": 1, "r": 2, "p": 3}.get(

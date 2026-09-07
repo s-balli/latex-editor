@@ -599,3 +599,148 @@ def test_varsayilan_sinirlar_buyutulmeden_duruyor(qapp):
     dlg = TableWizardDialog()
     assert dlg._rows.maximum() == 1000
     assert dlg._cols.maximum() == 30
+
+
+# =====================================================================
+# Fare tekerleği, kaydırırken tabloyu değiştirmemeli
+#
+# Qt'de QSpinBox ve QComboBox tekerleğe, üzerlerine gelinmesi yeterli olacak
+# biçimde yanıt veriyor. Bu dialogda ızgara kaydırılıyor ve imleç kolayca bir
+# kutunun üstünden geçiyor. ÖLÇÜLDÜ (2026-09-07), TEK tekerlek tıkıyla:
+#
+#   kolon kutusu   5 -> 4  ve o kolondaki hücreler GİTTİ
+#   ortam kutusu   tabular -> tabularx
+#   hizalama       Orta (c) -> Sağ (r)
+#
+# Kolon kaybı geri gelmiyor: sayıyı yeniden 5 yapmak boş hücreler veriyor ve
+# dialogda geri alma yok. Kullanıcı hiçbirini istememişti, kaydırmak
+# istemişti.
+# =====================================================================
+
+from PyQt6.QtCore import QEvent, QPoint, QPointF, Qt  # noqa: E402
+from PyQt6.QtGui import QWheelEvent  # noqa: E402
+
+
+def _tekerlek_olayi():
+    """Bir tık aşağı."""
+    return QWheelEvent(
+        QPointF(5, 5), QPointF(5, 5), QPoint(0, 0), QPoint(0, -120),
+        Qt.MouseButton.NoButton, Qt.KeyboardModifier.NoModifier,
+        Qt.ScrollPhase.NoScrollPhase, False)
+
+
+def _dolu_izgara(dlg, nsatir, nkolon):
+    dlg._rows.setValue(nsatir)
+    dlg._cols.setValue(nkolon)
+    for i in range(nsatir):
+        for j in range(nkolon):
+            dlg._grid.setItem(i, j, QTableWidgetItem("h%d%d" % (i, j)))
+
+
+def test_tekerlek_KOLON_sayisini_degistirmiyor(qapp):
+    """Kırılırsa: kaydırmak isteyen kullanıcı bir kolon dolusu hücreyi
+    uyarısız kaybediyor ve geri alma yok."""
+    dlg = TableWizardDialog()
+    try:
+        _dolu_izgara(dlg, 2, 5)
+
+        qapp.sendEvent(dlg._cols, _tekerlek_olayi())
+
+        assert dlg._cols.value() == 5
+        assert dlg._grid.item(0, 4) is not None
+        assert dlg._grid.item(0, 4).text() == "h04"
+    finally:
+        dlg.deleteLater()
+        qapp.processEvents()
+
+
+def test_tekerlek_SATIR_sayisini_degistirmiyor(qapp):
+    dlg = TableWizardDialog()
+    try:
+        _dolu_izgara(dlg, 4, 2)
+
+        qapp.sendEvent(dlg._rows, _tekerlek_olayi())
+
+        assert dlg._rows.value() == 4
+        assert dlg._grid.item(3, 0).text() == "h30"
+    finally:
+        dlg.deleteLater()
+        qapp.processEvents()
+
+
+def test_tekerlek_ORTAMI_degistirmiyor(qapp):
+    """Ortam değişimi üretilen kodun tamamını değiştiriyor."""
+    dlg = TableWizardDialog()
+    try:
+        _dolu_izgara(dlg, 2, 2)
+        once = dlg._env.currentText()
+
+        qapp.sendEvent(dlg._env, _tekerlek_olayi())
+
+        assert dlg._env.currentText() == once
+        assert "\\begin{%s}" % once in dlg.result_text()
+    finally:
+        dlg.deleteLater()
+        qapp.processEvents()
+
+
+def test_tekerlek_HIZALAMAYI_degistirmiyor(qapp):
+    """Hizalama kutuları `_on_cols_changed`te DİNAMİK kuruluyor; süzgeç
+    orada da takılmalı."""
+    dlg = TableWizardDialog()
+    try:
+        _dolu_izgara(dlg, 2, 3)
+        kutu = dlg._align_box.itemAt(0).widget()
+        once = kutu.currentIndex()
+
+        qapp.sendEvent(kutu, _tekerlek_olayi())
+
+        assert kutu.currentIndex() == once
+        assert "{ccc}" in dlg.result_text()
+    finally:
+        dlg.deleteLater()
+        qapp.processEvents()
+
+
+def test_ODAKLIYKEN_tekerlek_CALISIYOR(qapp):
+    """Aşırı düzeltme kapısı: kutuya bilerek tıklayan kullanıcının
+    alışkanlığı bozulmamalı; kapatılan yalnız 'üstünden geçerken'."""
+    dlg = TableWizardDialog()
+    try:
+        _dolu_izgara(dlg, 2, 5)
+        dlg.show()                      # odak alabilmesi için
+        dlg._cols.setFocus()
+        qapp.processEvents()
+        if not dlg._cols.hasFocus():
+            pytest.skip("offscreen platformda odak kurulamadı")
+
+        qapp.sendEvent(dlg._cols, _tekerlek_olayi())
+
+        assert dlg._cols.value() == 4
+    finally:
+        dlg.deleteLater()
+        qapp.processEvents()
+
+
+def test_suzgec_YALNIZ_tekerlegi_yutuyor(qapp):
+    """Kırılırsa kutular kullanılamaz olur: tıklama da odaklanmamış bir
+    kutuya gelen olaydır, yutulursa kutuya hiç girilemez.
+
+    Süzgecin sözleşmesi doğrudan sınanıyor: yalnız Wheel, yalnız odak yokken.
+    """
+    from PyQt6.QtGui import QMouseEvent
+
+    dlg = TableWizardDialog()
+    try:
+        suzgec = dlg._tekerlek_suzgeci
+        assert not dlg._cols.hasFocus()
+
+        tik = QMouseEvent(QEvent.Type.MouseButtonPress, QPointF(5, 5),
+                          Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton,
+                          Qt.KeyboardModifier.NoModifier)
+        assert suzgec.eventFilter(dlg._cols, tik) is False
+
+        assert suzgec.eventFilter(dlg._cols, _tekerlek_olayi()) is True
+    finally:
+        dlg.deleteLater()
+        qapp.processEvents()
