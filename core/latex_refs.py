@@ -293,9 +293,11 @@ def collect_input_paths(base_path: str) -> list[str]:
     return sorted(rels)
 
 
-# Grafik uzantıları: derleyicinin/graphicx'in kabul ettiği yaygın biçimler
-# (uygulamanın sürükle-bırak/yapıştır da desteklediği küme).
-_IMG_EXTS = (".png", ".jpg", ".jpeg", ".pdf", ".eps")
+# Grafik uzantıları: derleyicinin/graphicx'in kabul ettiği yaygın biçimler.
+# TEK KAYNAK: sürükle-bırak da (main_window._handle_dropped_urls) buradan
+# okuyor. Yorum zaten "aynı küme" diyordu ama orada elle yazılmış ikinci
+# bir kopya duruyordu; `_OPENABLE_EXT` bu dersi bir kez almıştı.
+IMG_EXTS = (".png", ".jpg", ".jpeg", ".pdf", ".eps")
 
 
 def collect_image_paths(base_path: str) -> list[str]:
@@ -313,7 +315,7 @@ def collect_image_paths(base_path: str) -> list[str]:
     for root, dirs, files in os.walk(bdir):
         dirs[:] = [d for d in dirs if not d.startswith('.')]
         for fn in files:
-            if not fn.lower().endswith(_IMG_EXTS) or fn.lower() == base_pdf:
+            if not fn.lower().endswith(IMG_EXTS) or fn.lower() == base_pdf:
                 continue
             rel = os.path.relpath(os.path.join(root, fn), bdir)
             rels.append(rel.replace(os.sep, '/'))

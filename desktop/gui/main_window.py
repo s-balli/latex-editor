@@ -7,6 +7,7 @@ import threading
 from html import escape as _kacir
 
 from core.fs_ops import KAYNAK_UZANTILARI
+from core.latex_refs import IMG_EXTS
 from core.version import VERSION
 from core.log import get_logger, log_path as _log_path
 from PyQt6.QtCore import QCoreApplication
@@ -1337,19 +1338,40 @@ class MainWindow(
         self._handle_dropped_urls(event.mimeData().urls())
 
     def _handle_dropped_urls(self, urls):
+        """Pencereye bırakılan yolları işle; işleyemiyorsan SEBEBİNİ söyle.
+
+        Dışarıdan yol gelen ÜÇÜNCÜ giriş. Diğer ikisi (komut satırı ve ikinci
+        örnek) `_dis_yolu_ac`ta birleştirilmişti; sürükle bırak o birleşmeye
+        hiç girmemişti ve SESSİZ kalıyordu. ÖLÇÜLDÜ (2026-09-08), aynı
+        pencerede:
+
+            veri.csv   bırakıldı -> hiçbir şey olmadı, durum çubuğu "Hazır"
+            rapor.docx bırakıldı -> hiçbir şey olmadı, durum çubuğu "Hazır"
+            bir klasör bırakıldı -> hiçbir şey olmadı, durum çubuğu "Hazır"
+            aynı veri.csv KOMUT SATIRINDAN -> "Bu dosya türü açılamıyor"
+
+        Kullanıcı dosyayı pencereye sürüklüyor, hiçbir şey olmuyor ve neden
+        olmadığını söyleyen bir şey yok.
+
+        Görsel dalı ayrı kalıyor: `.png` komut satırından açılamaz (doğrusu
+        da o) ama editöre bırakılınca `\\includegraphics` üretiyor.
+        """
         for url in urls:
             path = url.toLocalFile()
-            if os.path.isfile(path):
-                ext = os.path.splitext(path)[1].lower()
-                # TEK KAYNAK `_OPENABLE_EXT`. Burada kendi demeti duruyordu ve
-                # sabitin yorumu "sürükle-bırakla AYNI küme" diyordu; ikisi
-                # aynıydı ama tek kaynak DEĞİLDİ. Ölçüldü: sabite bir uzantı
-                # eklendiğinde "Birlikte Aç" onu açıyor, sürükle-bırak
-                # görmezden geliyordu.
-                if ext in self._OPENABLE_EXT:
-                    self._open_file_in_editor(path)
-                elif ext in ('.png', '.jpg', '.jpeg', '.pdf', '.eps'):
-                    self._insert_image(path)
+            ext = os.path.splitext(path)[1].lower()
+            if os.path.isfile(path) and ext in IMG_EXTS:
+                self._insert_image(path)
+                continue
+            if os.path.isdir(path):
+                # Klasör "açılamayan tür" değil: uygulama klasör AÇABILIYOR,
+                # yalnız bırakarak değil. Mesaj o yüzden yönlendirici.
+                self._status.showMessage(
+                    _("Klasör bırakılamaz; açmak için Ctrl+O: {name}").format(
+                        name=os.path.basename(path.rstrip("/\\")) or path))
+                continue
+            # TEK KAYNAK `_dis_yolu_ac`: desteklenen tür kümesi de,
+            # "bulunamadı"/"bu tür açılamıyor" mesajları da orada.
+            self._dis_yolu_ac(path, "Sürükle bırak")
 
     # --- İkinci örnekten gelen istek ---
 

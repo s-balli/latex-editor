@@ -537,3 +537,114 @@ def test_satira_git_SATIR_SIFIRSA_imlece_dokunmuyor(qapp, tmp_path):
     stub._goto_line(yol_a, 0)
 
     assert eda.getCursorPosition() == (3, 0)
+
+
+# ==========================================================================
+# UCUNCU giris: surukle birak
+#
+# Ayni yol uc yerden geliyor: komut satiri, ikinci ornek ve surukle birak.
+# Ilk ikisi bir turda `_dis_yolu_ac`ta birlestirilmisti; ucuncusu o
+# birlesmeye hic girmemis ve SESSIZ kalmisti. OLCULDU (2026-09-08), ayni
+# pencerede:
+#
+#   veri.csv   birakildi -> hicbir sey olmadi, durum cubugu "Hazir"
+#   rapor.docx birakildi -> hicbir sey olmadi, durum cubugu "Hazir"
+#   bir klasor birakildi -> hicbir sey olmadi, durum cubugu "Hazir"
+#   ayni veri.csv KOMUT SATIRINDAN -> "Bu dosya turu acilamiyor: veri.csv"
+#
+# Kullanici dosyayi pencereye surukluyor, hicbir sey olmuyor ve neden
+# olmadigini soyleyen bir sey yok.
+# ==========================================================================
+
+
+@pytest.fixture
+def birakan(ana_pencere, tmp_path):
+    """Pencereye yol birakip (acilanlar, gorseller, mesaj) doner."""
+    from PyQt6.QtCore import QUrl
+
+    w = ana_pencere()
+    acilanlar, gorseller = [], []
+    w._open_file_in_editor = lambda p, *a, **k: acilanlar.append(p)
+    w._insert_image = lambda p: gorseller.append(p)
+
+    def _birak(yol):
+        acilanlar.clear()
+        gorseller.clear()
+        w._status.showMessage("Hazır")
+        w._handle_dropped_urls([QUrl.fromLocalFile(str(yol))])
+        return acilanlar[:], gorseller[:], w._status.currentMessage()
+
+    _birak.w = w
+    return _birak
+
+
+def test_desteklenmeyen_tur_BIRAKILINCA_da_sebep_soyleniyor(birakan, tmp_path,
+                                                            iki_giris):
+    """Kırılırsa kullanıcı dosyayı pencereye sürükler, hiçbir şey olmaz ve
+    neden olmadığını söyleyen hiçbir şey yoktur."""
+    p = tmp_path / "veri.csv"
+    p.write_text("a,b\n", encoding="utf-8")
+
+    acilan, gorsel, mesaj = birakan(p)
+
+    assert not acilan and not gorsel
+    assert "veri.csv" in mesaj and mesaj != "Hazır", mesaj
+    # Komut satırıyla AYNI cümle: kural tek yerde
+    dosya, ilk, _ikinci = iki_giris
+    m_komut, _a, _w = ilk(dosya("veri.csv"))
+    assert mesaj == m_komut, (mesaj, m_komut)
+
+
+def test_OLMAYAN_yol_birakilinca_bulunamadi_diyor(birakan, tmp_path):
+    acilan, gorsel, mesaj = birakan(tmp_path / "yok.tex")
+
+    assert not acilan and not gorsel
+    assert "yok.tex" in mesaj and mesaj != "Hazır", mesaj
+
+
+def test_KLASOR_birakilinca_yonlendirici_mesaj(birakan, tmp_path):
+    """Klasör 'açılamayan tür' değil: uygulama klasör açabiliyor, yalnız
+    bırakarak değil. Mesaj o yüzden ne yapılacağını söylemeli."""
+    d = tmp_path / "projem"
+    d.mkdir()
+
+    acilan, gorsel, mesaj = birakan(d)
+
+    assert not acilan and not gorsel
+    assert "projem" in mesaj and "Ctrl+O" in mesaj, mesaj
+
+
+def test_TEX_birakilinca_hala_aciliyor(birakan, tmp_path):
+    """Aşırı düzeltme kapısı."""
+    p = tmp_path / "belge.tex"
+    p.write_text("\\documentclass{article}\n", encoding="utf-8")
+
+    acilan, gorsel, mesaj = birakan(p)
+
+    assert [_norm(a) for a in acilan] == [_norm(str(p))] and not gorsel
+    assert "açılamıyor" not in mesaj, mesaj
+
+
+def test_GORSEL_birakilinca_hala_ekleniyor(birakan, tmp_path):
+    """Aşırı düzeltme kapısı: `.png` komut satırından açılamaz (doğrusu da
+    o) ama bırakılınca includegraphics üretmeli, uyarı değil."""
+    p = tmp_path / "sekil.png"
+    p.write_bytes(b"\x89PNG\r\n")
+
+    acilan, gorsel, mesaj = birakan(p)
+
+    assert [_norm(g) for g in gorsel] == [_norm(str(p))] and not acilan
+    assert "açılamıyor" not in mesaj, mesaj
+
+
+def test_gorsel_uzanti_kumesi_TEK_KAYNAK():
+    """Kırılırsa küme iki yerde yazılı demektir: `latex_refs` bir uzantı
+    kazanınca sürükle bırak onu görmezden gelirdi."""
+    import inspect
+    from core.latex_refs import IMG_EXTS
+    import gui.main_window as mw
+
+    kaynak = inspect.getsource(mw.MainWindow._handle_dropped_urls)
+    assert "IMG_EXTS" in kaynak, "sürükle bırak kendi demetini taşıyor"
+    for ek in (".png", ".pdf", ".eps"):
+        assert ek in IMG_EXTS
