@@ -98,5 +98,18 @@ class StubMain:
     def _goto_line(self, path, line):
         self.goto_calls.append((path, line))
 
+    def _editor_by_path(self, path):
+        """MainWindow'daki tek kaynak aramanın stub karşılığı (yoksa None).
+
+        Gerçeği `_editor_tabs` üzerinde `EditorWidget` süzüyor; burada
+        `editors=` ile verilenler yeter, SimpleNamespace editörler de dahil.
+        """
+        import os as _os
+        hedef = _os.path.normpath(path)
+        for ed in self._editors:
+            if _os.path.normpath(getattr(ed, "file_path", "") or "") == hedef:
+                return ed
+        return None
+
     def _maybe_auto_audit(self):
         pass  # CompileOpsMixin kalıtan stub'larda gerçek metot ezer

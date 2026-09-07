@@ -288,7 +288,7 @@ class YazimOpsMixin:
         self._output_panel.show_yazim(bulgular, ed.file_path or "", toplam)
 
     # -- sağ tık --
-    def _on_yazim_oneri(self, kelime: str):
+    def _on_yazim_oneri(self, kelime: str, dosya: str = ""):
         if self._yazim_denetleyici is None:
             return
         # Öneri üretimi YAVAŞ (ölçüldü: 0.1-1.2 sn/kelime), o yüzden yalnız
@@ -307,9 +307,9 @@ class YazimOpsMixin:
             self, _("Yazım Denetimi"),
             _("'{k}' yerine:").format(k=kelime), oneriler, 0, False)
         if tamam and secim:
-            self._yazim_degistir(kelime, secim)
+            self._yazim_degistir(kelime, secim, dosya)
 
-    def _yazim_degistir(self, eski: str, yeni: str):
+    def _yazim_degistir(self, eski: str, yeni: str, dosya: str = ""):
         """Seçilen öneriyi belgede uygula, YALNIZ tarayıcının kelime saydığı
         yerlerde.
 
@@ -321,9 +321,17 @@ class YazimOpsMixin:
         Oysa tarayıcı komutların, matematiğin ve verbatim'in içini bilerek hiç
         denetlemiyor; oralarda bulgu zaten hiç oluşmuyor.
 
-        Konum bilgisi buraya ULAŞMIYOR (panel sinyali yalnız kelimeyi taşıyor),
-        o yüzden "hepsini değiştir" davranışı korunuyor; değişen tek şey,
-        artık yalnız DÜZ METİN geçişlerinin değişmesi.
+        Hedef belge `dosya` ile geliyor, `_current_editor()` DEĞİL. Ölçüldü
+        (2026-09-07): A.tex denetlenip B.tex sekmesine geçildikten sonra
+        panelde duran bulguya sağ tık -> "Öneriler..." -> düzeltme B.tex'e
+        yazıldı, A.tex'e hiç dokunulmadı ve durum çubuğu "değiştirildi" dedi.
+        Bulgu listesi sekme değişiminde temizlenmiyor (derlemeyi de aşıyor),
+        yani bu yol sıradan kullanımda açık. `dosya` boşken eski davranış
+        sürüyor: doğrudan çağıran testler ve konumsuz kullanımlar için.
+
+        SATIR/SÜTUN yine ulaşmıyor, o yüzden "hepsini değiştir" davranışı
+        korunuyor; değişen tek şey, artık yalnız DÜZ METİN geçişlerinin ve
+        yalnız DOĞRU BELGEDE değişmesi.
 
         Aksan makrosuyla yazılmış geçişler (`M\\"{u}hendislik`) atlanıyor:
         özgün metindeki uzunluk çözülmüş kelimeden farklı, ofsetle kesmek
@@ -335,9 +343,17 @@ class YazimOpsMixin:
         kullanıcının o oturumda yazdığı HER ŞEY geri alınamaz oluyor; üstelik
         imleç belgenin sonuna, görünüm de en başa atlıyordu.
         """
-        ed = self._current_editor()
+        ed = self._editor_by_path(dosya) if dosya else self._current_editor()
         if ed is None:
+            # Bulgu bayat: denetimden sonra sekme kapanmış olabilir. Sessizce
+            # cari belgeye yazmak yanlış belgeyi bozardı.
+            self._status.showMessage(
+                _("Bulgunun geldiği belge açık değil: {name}").format(
+                    name=os.path.basename(dosya) or dosya), 4000)
             return
+        if dosya:
+            # Değişiklik GÖRÜNÜR olsun: sol tık da hedef sekmeye geçiyor.
+            self._editor_tabs.setCurrentWidget(ed)
         from core.yazim import kelimeleri_cikar
         metin = ed.text()
         yerler = [k.ofset for k in kelimeleri_cikar(metin)

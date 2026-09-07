@@ -55,8 +55,15 @@ class OutputPanel(QWidget):
     bibliography_requested = pyqtSignal()
     # Yazım denetimi istendi: (dil, ikinci_dil_var_mi)
     yazim_denetle_requested = pyqtSignal(str, bool)
-    # Bir bulguya öneri istendi: (kelime)
-    yazim_oneri_requested = pyqtSignal(str)
+    # Bir bulguya öneri istendi: (kelime, bulgunun_geldigi_dosya)
+    #
+    # DOSYA ŞART. Eskiden yalnız kelime taşınıyordu ve düzeltme
+    # `_current_editor()`e yazılıyordu. ÖLÇÜLDÜ (2026-09-07): A.tex denetlenip
+    # B.tex sekmesine geçildikten sonra panelde DURAN bulguya sağ tık ->
+    # "Öneriler..." -> düzeltme B.tex'e gitti, A.tex'e hiç dokunulmadı ve
+    # durum çubuğu "değiştirildi" yazdı. Dosyayı panel zaten biliyor:
+    # `show_yazim` onu UserRole'de tutuyor ve SOL tık doğru belgeye atlıyor.
+    yazim_oneri_requested = pyqtSignal(str, str)
     # Kelime kullanıcı sözlüğüne eklensin: (kelime)
     yazim_sozluge_ekle = pyqtSignal(str)
 
@@ -565,11 +572,14 @@ class OutputPanel(QWidget):
         if item is None:
             return
         kelime = item.text().split("  ", 1)[-1]
+        # Bulgunun geldiği dosya, sol tıkın kullandığı yerden okunuyor.
+        veri = item.data(Qt.ItemDataRole.UserRole)
+        dosya = veri[0] if veri else ""
         menu = QMenu(self)
         # Öneri ÜRETİLMİYOR, İSTENİYOR: ölçüldü, kelime başına 0.1-1.2 sn.
         # Bütün liste için önden hesaplamak paneli kilitler.
         menu.addAction(_("Öneriler..."),
-                       lambda: self.yazim_oneri_requested.emit(kelime))
+                       lambda: self.yazim_oneri_requested.emit(kelime, dosya))
         menu.addAction(_("Sözlüğe ekle"),
                        lambda: self.yazim_sozluge_ekle.emit(kelime))
         menu.addSeparator()

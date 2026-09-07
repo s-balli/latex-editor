@@ -654,3 +654,144 @@ def test_BOZUK_arsiv_uygulamayi_dusurmuyor(qapp, tmp_path, monkeypatch):
     assert yo._sozluk_dizini_gerekli_mi("tr_TR") == ""
     assert not (tmp_path / "tr_TR.dic").exists()
     assert not (tmp_path / "tr_TR.dic.tmp").exists()
+
+
+# =====================================================================
+# Öneri HANGİ BELGEYE yazılıyor?
+#
+# Panel sinyali yalnız kelimeyi taşıyordu ve `_yazim_degistir`
+# `_current_editor()`e yazıyordu. ÖLÇÜLDÜ (2026-09-07): A.tex denetlenip
+# B.tex sekmesine geçildikten sonra panelde DURAN bulguya sağ tık ->
+# "Öneriler..." -> düzeltme B.tex'e gitti, A.tex'e hiç dokunulmadı ve durum
+# çubuğu "'yanlis' -> 'yanlisi' değiştirildi" yazdı.
+#
+# Yol sıradan: bulgu listesi sekme değişiminde temizlenmiyor (`clear()` bile
+# ona dokunmuyor, derlemeyi de aşıyor). Dosyayı panel zaten biliyor:
+# `show_yazim` onu UserRole'de tutuyor ve SOL tık doğru belgeye atlıyor.
+# =====================================================================
+
+BULGULU = "Bu satirda kelme yazilmis.\n"
+
+
+class _CokBelgeliStub(_Stub):
+    """İki GERÇEK editör: düzeltmenin hangisine indiği ölçülebilsin."""
+
+    def __init__(self, editorler, aktif):
+        _Stub.__init__(self, editor=aktif, editors=list(editorler))
+        d = Denetleyici()
+        d._sozluk = _SahteSozluk([])
+        self._yazim_denetleyici = d
+        self._yazim_anahtar = ("tr_TR", "")
+
+
+def _iki_belge():
+    a = _yazan_editor("A belgesi: " + BULGULU, "C:/x/A.tex")
+    b = _yazan_editor("B belgesi: " + BULGULU, "C:/x/B.tex")
+    return a, b
+
+
+def test_oneri_BULGUNUN_belgesine_yaziliyor(qapp):
+    """Kırılırsa: kullanıcı görmediği bir belgeyi, haberi olmadan, her
+    geçişinde değiştirmiş olur; üstelik durum çubuğu başarı yazar."""
+    a, b = _iki_belge()
+    try:
+        s = _CokBelgeliStub([a, b], aktif=b)   # kullanıcı B.tex sekmesinde
+
+        s._yazim_degistir("kelme", "kelime", "C:/x/A.tex")
+
+        assert "kelime" in a.text(), "bulgunun belgesi düzeltilmedi"
+        assert "kelme" in b.text() and "kelime" not in b.text(), \
+            "cari belgeye yazıldı: %r" % b.text()
+    finally:
+        a.deleteLater()
+        b.deleteLater()
+        qapp.processEvents()
+
+
+def test_oneri_hedef_SEKMESINE_geciyor(qapp):
+    """Değişiklik görünür olmalı. Sol tık da hedef sekmeye geçiyor; sessizce
+    başka bir belgeyi değiştirip kullanıcıyı yerinde bırakmak, düzeltmenin
+    olup olmadığını belirsiz kılar."""
+    a, b = _iki_belge()
+    try:
+        # B.tex 0. sekme: aksi hâlde A.tex zaten cari olurdu ve kapı boş
+        # kalırdı (ilk hâlinde öyleydi, mutasyon yakalamadı).
+        s = _CokBelgeliStub([b, a], aktif=b)
+        assert s._editor_tabs.currentWidget() is b
+
+        s._yazim_degistir("kelme", "kelime", "C:/x/A.tex")
+
+        assert s._editor_tabs.currentWidget() is a
+    finally:
+        a.deleteLater()
+        b.deleteLater()
+        qapp.processEvents()
+
+
+def test_bulgunun_belgesi_KAPALIYSA_hicbir_belge_degismiyor(qapp):
+    """Bulgu bayat olabilir: denetimden sonra sekme kapanmış olabilir.
+
+    Kırılırsa cari belgeye yazılır, yani en kötü hâl: kullanıcı A.tex'i
+    kapatmış, B.tex'te çalışıyor ve B.tex bozuluyor.
+    """
+    _a, b = _iki_belge()
+    try:
+        s = _CokBelgeliStub([b], aktif=b)      # A.tex sekmesi kapatıldı
+        onceki = b.text()
+
+        s._yazim_degistir("kelme", "kelime", "C:/x/A.tex")
+
+        assert b.text() == onceki
+        assert "A.tex" in s._status.currentMessage(), \
+            "sessiz kaldı: %r" % s._status.currentMessage()
+    finally:
+        _a.deleteLater()
+        b.deleteLater()
+        qapp.processEvents()
+
+
+def test_dosya_VERILMEZSE_cari_belge_duzeltiliyor(qapp):
+    """Aşırı düzeltme kapısı: konumsuz çağrı eski davranışı sürdürmeli."""
+    a, b = _iki_belge()
+    try:
+        s = _CokBelgeliStub([a, b], aktif=b)
+
+        s._yazim_degistir("kelme", "kelime")
+
+        assert "kelime" in b.text()
+        assert "kelime" not in a.text()
+    finally:
+        a.deleteLater()
+        b.deleteLater()
+        qapp.processEvents()
+
+
+def test_panel_sag_tik_DOSYAYI_da_yayiyor(qapp):
+    """Panel tarafındaki kapı: sinyal kelimeyi tek başına taşımamalı.
+
+    Handler doğru olsa bile panel dosyayı yaymazsa kusur geri gelir.
+    """
+    from PyQt6.QtWidgets import QMenu
+
+    p = OutputPanel(theme=THEMES["dark"])
+    p.show_yazim([Bulgu("kelme", 1, 10, 10)], "C:/x/A.tex", 5)
+    yayilan = []
+    p.yazim_oneri_requested.connect(lambda k, d: yayilan.append((k, d)))
+
+    asil = QMenu.exec
+
+    def _oneriyi_tetikle(self, *a, **k):
+        for act in self.actions():
+            if act.text().startswith("Öneriler"):
+                act.trigger()
+                return act
+        return None
+
+    QMenu.exec = _oneriyi_tetikle
+    try:
+        p._on_yazim_context_menu(
+            p._yazim_list.visualItemRect(p._yazim_list.item(0)).center())
+    finally:
+        QMenu.exec = asil
+
+    assert yayilan == [("kelme", "C:/x/A.tex")], "yayılan: %r" % (yayilan,)
