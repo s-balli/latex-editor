@@ -200,7 +200,10 @@ def main():
 
     window = MainWindow(open_file=file_arg)
     window.show()
-    single.file_received.connect(window.open_from_other_instance)
+    # `dinleyiciye_bagla`: pencere kurulurken gelmis istekler de iletilir.
+    # Duz `connect` o boslukta gelen dosyayi sessizce dusuruyordu
+    # (bkz. single_instance._ilet).
+    single.dinleyiciye_bagla(window.open_from_other_instance)
 
     exit_code = app.exec()
     single.stop()

@@ -69,11 +69,17 @@ class SingleInstance(QObject):
 
     file_received = pyqtSignal(str)   # iletilen dosya yolu ("" = yalnız öne getir)
 
+    # Dinleyici bağlanana kadar bekletilecek istek sayısı. Gerçekçi en kötü
+    # hâl birkaç dosya (kullanıcı arka arkaya çift tıklıyor); sınır yine de
+    # var, çünkü soketi aynı kullanıcının herhangi bir süreci açabiliyor.
+    _MAX_BEKLEYEN = 32
+
     def __init__(self, parent=None):
         super().__init__(parent)
         self._ad = f"latex-editor-{_kullanici()}"
         self._lock: QLockFile | None = None
         self._server: QLocalServer | None = None
+        self._bekleyen: list[str] = []
 
     # --- birincil taraf ---
 
@@ -152,10 +158,48 @@ class SingleInstance(QObject):
             # bekliyor; sinyal işleyicisi (dosya açma, pencere öne alma) uzun
             # sürerse onu boşuna bekletmeyelim.
             sock.disconnectFromServer()
-            self.file_received.emit(yol)
+            self._ilet(yol)
 
         sock.readyRead.connect(oku)
         sock.disconnected.connect(sock.deleteLater)
+
+    def _ilet(self, yol: str):
+        """İsteği dinleyiciye ver; dinleyici YOKSA kuyruğa al.
+
+        Sunucu `try_become_primary` içinde dinlemeye başlıyor, ama çağıran
+        sinyali pencereyi kurduktan SONRA bağlıyor. Aradaki boşlukta gelen
+        istek dinleyicisiz `emit` ediliyor ve SESSİZCE kayboluyordu; gönderen
+        ise teslim onayını aldığı için 0 ile çıkıyor, yani kullanıcı çift
+        tıkladığı dosyanın hiç açılmadığını görüp sebebini bilmiyordu.
+
+        ÖLÇÜLDÜ (2026-09-07): pencere kurulurken gönderilen yol için gönderen
+        `send() -> True` alıyor, birincil tarafta bağlantıdan sonra hiçbir şey
+        gelmiyor. Aynı senaryoda sinyal ÖNCE bağlıysa yol düzgün ulaşıyor.
+
+        Boşluğun açıldığı gerçek yol: `MainWindow.__init__` oturumu geri
+        yüklerken `_open_file_in_editor` çağırıyor ve UTF-8 olmayan bir
+        dosyada `EditorWidget.open_file` modal uyarı gösteriyor. Modal olay
+        döngüsünü döndürüyor, yani istek tam o sırada işlenebiliyor.
+        """
+        if self.receivers(self.file_received) > 0:
+            self.file_received.emit(yol)
+        elif len(self._bekleyen) < self._MAX_BEKLEYEN:
+            self._bekleyen.append(yol)
+            _logger.info("Dinleyici henüz yok, istek kuyruğa alındı: %s",
+                         yol or "(yalnız öne getir)")
+        else:
+            _logger.warning("Bekleyen istek kuyruğu dolu; düşürüldü: %s", yol)
+
+    def dinleyiciye_bagla(self, islev):
+        """`file_received`i bağla ve BEKLEYEN istekleri ilet.
+
+        Doğrudan `file_received.connect(...)` de çalışıyor; bekleyen kuyruğu
+        boşaltan yol budur.
+        """
+        self.file_received.connect(islev)
+        bekleyen, self._bekleyen = self._bekleyen, []
+        for yol in bekleyen:
+            self.file_received.emit(yol)
 
     # --- ikincil taraf ---
 

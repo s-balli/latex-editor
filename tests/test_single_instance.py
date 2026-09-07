@@ -409,3 +409,133 @@ def test_parcali_cerceve_HALA_birlestiriliyor(qapp, temiz_ad):
         s.abort()
     finally:
         birinci.stop()
+
+
+# =====================================================================
+# Dinleyici baglanmadan ONCE gelen istek sessizce kayboluyordu (2026-09-07)
+#
+# `main()` sirasi: try_become_primary (sunucu BURADA dinliyor) -> MainWindow
+# kurulumu -> window.show() -> file_received baglantisi. Aradaki boslukta
+# gelen istek dinleyicisiz `emit` ediliyor ve dusuyordu; gonderen ise teslim
+# onayini aldigi icin 0 ile cikiyordu. Kullanici cift tikladigi dosyanin hic
+# acilmadigini goruyor, sebebini bilmiyor.
+#
+# OLCULDU: pencere kurulurken gonderilen yol icin `send() -> True`, birincil
+# tarafta baglantidan sonra HICBIR SEY gelmiyor.
+#
+# Boslugun acildigi gercek yol: `MainWindow.__init__` oturumu geri yuklerken
+# `_open_file_in_editor` cagiriyor ve UTF-8 olmayan bir dosyada
+# `EditorWidget.open_file` MODAL uyari gosteriyor; modal olay dongusunu
+# donduruyor ve istek tam o sirada isleniyor.
+# =====================================================================
+
+
+def _ikinci_gonder(qapp, yol=""):
+    """Ikinci ornek gibi gonder; teslim onayini dondur."""
+    ikinci = SingleInstance()
+    assert ikinci.try_become_primary() is False
+    return ikinci.send(yol)
+
+
+def test_dinleyici_YOKKEN_gelen_yol_KAYBOLMUYOR(qapp, temiz_ad, tmp_path):
+    """Kirilirsa: kullanicinin cift tikladigi dosya hic acilmiyor."""
+    tex = tmp_path / "gec.tex"
+    tex.write_text("x\n", encoding="utf-8", newline="")
+    birinci = SingleInstance()
+    assert birinci.try_become_primary() is True
+    try:
+        # Pencere HENUZ kurulmadi: hicbir dinleyici yok.
+        assert _ikinci_gonder(qapp, str(tex)) is True, "teslim onayi gelmedi"
+        qapp.processEvents()
+
+        gelenler = []
+        birinci.dinleyiciye_bagla(gelenler.append)
+        assert _bekle(qapp, lambda: gelenler), "bekleyen istek iletilmedi"
+        assert gelenler == [str(tex)]
+    finally:
+        birinci.stop()
+
+
+def test_dinleyici_YOKKEN_bos_istek_de_bekliyor(qapp, temiz_ad):
+    """Bos yol "yalniz one getir" demek; o da kaybolmamali."""
+    birinci = SingleInstance()
+    assert birinci.try_become_primary() is True
+    try:
+        assert _ikinci_gonder(qapp, "") is True
+        qapp.processEvents()
+        gelenler = []
+        birinci.dinleyiciye_bagla(gelenler.append)
+        assert _bekle(qapp, lambda: gelenler == [""]), "one getirme istegi dustu"
+    finally:
+        birinci.stop()
+
+
+def test_DOGRUDAN_connect_hala_calisiyor(qapp, temiz_ad, tmp_path):
+    """Asiri duzeltme kapisi: dinleyici VARKEN istek kuyruga girmemeli,
+    dogrudan iletilmeli."""
+    tex = tmp_path / "duz.tex"
+    tex.write_text("x\n", encoding="utf-8", newline="")
+    birinci = SingleInstance()
+    assert birinci.try_become_primary() is True
+    try:
+        gelenler = []
+        birinci.file_received.connect(gelenler.append)
+        assert _ikinci_gonder(qapp, str(tex)) is True
+        assert _bekle(qapp, lambda: gelenler)
+        assert gelenler == [str(tex)]
+        assert birinci._bekleyen == [], "dinleyici varken kuyruga alindi"
+    finally:
+        birinci.stop()
+
+
+def test_kuyruk_BIR_KEZ_bosaltiliyor(qapp, temiz_ad, tmp_path):
+    """Ikinci baglanti ayni dosyayi tekrar acmamali."""
+    tex = tmp_path / "tek.tex"
+    tex.write_text("x\n", encoding="utf-8", newline="")
+    birinci = SingleInstance()
+    assert birinci.try_become_primary() is True
+    try:
+        assert _ikinci_gonder(qapp, str(tex)) is True
+        qapp.processEvents()
+        ilk = []
+        birinci.dinleyiciye_bagla(ilk.append)
+        assert _bekle(qapp, lambda: ilk)
+
+        ikinci_liste = []
+        birinci.dinleyiciye_bagla(ikinci_liste.append)
+        qapp.processEvents()
+        assert ikinci_liste == [], "bekleyen kuyruk iki kez iletildi"
+    finally:
+        birinci.stop()
+
+
+def test_bekleyen_kuyrugu_SINIRLI(qapp):
+    """Soketi ayni kullanicinin herhangi bir sureci acabiliyor; kuyruk
+    sinirsiz buyumemeli.
+
+    SOKET KULLANILMIYOR: sinir kurali `_ilet`in kendisinde ve otuz yedi
+    gercek gonderim yapan surum ASILIYORDU (olculdu 2026-09-07: 900 sn'de
+    bitmedi, mutasyon kosumunu da olduruyordu). Soket yolu ustteki testlerde
+    zaten kapida.
+    """
+    si = SingleInstance()
+    sinir = SingleInstance._MAX_BEKLEYEN
+    for i in range(sinir + 5):
+        si._ilet("/tmp/d%d.tex" % i)
+    assert len(si._bekleyen) == sinir, (
+        "kuyruk %d girdi tuttu, sinir %d" % (len(si._bekleyen), sinir))
+    # Ilk gelenler tutulmus olmali (en yenileri atmak degil, tasanlari atmak)
+    assert si._bekleyen[0] == "/tmp/d0.tex"
+    assert si._bekleyen[-1] == "/tmp/d%d.tex" % (sinir - 1)
+
+
+def test_main_DINLEYICIYE_BAGLA_kullaniyor():
+    """Kural kapida: `main()` duz `connect`e geri donmesin.
+
+    Duz `connect` bu boslukta gelen dosyayi sessizce dusuruyordu.
+    """
+    import pathlib
+    kok = pathlib.Path(__file__).resolve().parents[1]
+    kaynak = (kok / "desktop" / "main.py").read_text(encoding="utf-8")
+    assert "single.dinleyiciye_bagla(" in kaynak
+    assert "file_received.connect" not in kaynak
