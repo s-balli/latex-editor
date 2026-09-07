@@ -266,6 +266,33 @@ class VersionOpsMixin:
     # --- Geçmiş eylemleri (panel sinyali) ---
 
     def _on_version_action(self, action: str, sha: str):
+        """Sürüm geçmişi panelinden gelen eylem. SLOT: istisna KAÇMAMALI.
+
+        Ölçüm aşağıdaki `ValueError` yorumunda: PyQt6'da slot içindeki
+        yakalanmamış istisna süreci öldürüyor, yani öbür sekmelerdeki
+        kaydedilmemiş iş de gidiyor. Koruma o zaman TEK BİR vaka için
+        eklenmişti; oysa aynı gövdede korumasız disk işlemleri kalmıştı
+        (ölçüldü 2026-09-07):
+
+          `_restore_version` -> `_write_atomic` salt okunur hedefte
+            PermissionError atıyor ve slottan KAÇIYOR (okuma yolu sarılıydı,
+            yazma sarılı değildi)
+          `_drop_all_history` -> `drop_all` sarılı değil, oysa kardeşi
+            `_drop_version` sarılı
+
+        Tek tek sarmak yerine SINIR sarılıyor: ileride eklenen bir eylem de
+        korumayı kendiliğinden alır. Traceback günlüğe gidiyor, kullanıcıya
+        sebep söyleniyor.
+        """
+        try:
+            self._version_action(action, sha)
+        except Exception as exc:                          # noqa: BLE001
+            _logger.error("Sürüm eylemi başarısız: %s", action, exc_info=True)
+            QMessageBox.critical(
+                self, _("Sürüm Geçmişi"),
+                _("İşlem tamamlanamadı:\n\n{e}").format(e=exc))
+
+    def _version_action(self, action: str, sha: str):
         root = self._version_root()
         if not root:
             self._status.showMessage(_("Önce bir klasör açın"))

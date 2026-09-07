@@ -459,3 +459,158 @@ def test_ayri_surucu_SILME_eylemini_etkilemiyor(qapp, monkeypatch):
     stub._on_version_action("drop", "abc1234")    # patlamamalı
 
     assert stub.mesajlar == []                    # No dendi, mesaj da yok
+
+
+# =====================================================================
+# Slot sinirindan istisna KACIYORDU (2026-09-07)
+#
+# `_on_version_action`in kendi yorumu kurali yaziyor: PyQt6'da slot icindeki
+# yakalanmamis istisna sureci olduruyor, yani obur sekmelerdeki
+# kaydedilmemis is de gidiyor. Koruma o zaman TEK vaka icin eklenmisti
+# (ayri surucu / relpath) ve ayni govdede korumasiz disk islemleri kalmisti.
+#
+# OLCULDU:
+#   `_restore_version` -> `_write_atomic` salt okunur hedefte PermissionError
+#     atiyor ve slottan KACIYOR (okuma yolu sariliydi, YAZMA degildi)
+#   `_drop_all_history` -> `drop_all` sarili degil, kardesi `_drop_version`
+#     sarili
+#
+# Koruma artik SINIRDA: ileride eklenen eylem de kendiliginden aliyor.
+# =====================================================================
+
+
+class _SinirStub(VersionOpsMixin):
+    """Slot sinirini kosturmak icin gereken en az iskelet."""
+
+    def __init__(self, kok, editor=None):
+        self._file_tree = SimpleNamespace(_root=kok)
+        self._ed = editor
+        self.mesajlar = []
+        self.uyarilar = []
+        self._status = SimpleNamespace(
+            showMessage=lambda m, *a: self.mesajlar.append(m),
+            clearMessage=lambda: None)
+
+    def _current_editor(self):
+        return self._ed
+
+    def _refresh_history(self, select_tab=False):
+        pass
+
+
+def _sinir_kur(monkeypatch, stub):
+    """Onay "Yes", kritik uyari stub'a yazilsin."""
+    import gui.mixins.version_ops as vo
+    monkeypatch.setattr(vo.QMessageBox, "question",
+                        staticmethod(lambda *a, **k: 16384))     # Yes
+    monkeypatch.setattr(
+        vo.QMessageBox, "critical",
+        staticmethod(lambda *a, **k: stub.uyarilar.append(
+            a[2] if len(a) > 2 else "")))
+    return vo
+
+
+def _geri_yukleme_kur(tmp_path, monkeypatch):
+    tex = tmp_path / "ana.tex"
+    tex.write_bytes(b"KULLANICININ ICERIGI\n")
+    ed = EditorWidget()
+    assert ed.open_file(str(tex))
+    stub = _SinirStub(str(tmp_path), ed)
+    vo = _sinir_kur(monkeypatch, stub)
+    monkeypatch.setattr(vo, "versioning", SimpleNamespace(
+        file_bytes=lambda root, sha, rel: b"ESKI SURUM\n"))
+    return tex, stub
+
+
+def test_GERI_YUKLEME_yazamazsa_slottan_istisna_KACMIYOR(qapp, tmp_path,
+                                                         monkeypatch):
+    """Kirilirsa: yazilamayan bir dosyada geri yuklemeye basmak uygulamayi
+    olduruyor ve obur sekmelerdeki kaydedilmemis is gidiyor.
+
+    Yazma hatasi DOGRUDAN uretiliyor. Dosya sistemi izniyle uretmek
+    tasinabilir degil: `os.chmod(dosya, S_IREAD)` Windows'ta engelliyor ama
+    Linux'ta ENGELLEMIYOR, cunku `_write_atomic` yanina yazip `os.replace`
+    yapiyor ve bunun icin dizin izni yetiyor (olculdu 2026-09-07: bu test
+    ilk halinde WSL'de dustu). Gercek tetikleyici asagida, Windows'a
+    isaretli testte.
+    """
+    tex, stub = _geri_yukleme_kur(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        EditorWidget, "_write_atomic",
+        staticmethod(lambda *a, **k: (_ for _ in ()).throw(
+            OSError("disk doldu"))))
+
+    stub._on_version_action("restore", "abc1234")      # patlamamali
+
+    assert stub.uyarilar, "kullaniciya sebep soylenmedi"
+    assert "disk doldu" in str(stub.uyarilar), "sebep mesaja girmedi"
+    assert not any("Geri y" in m for m in stub.mesajlar), \
+        "yazma basarisizken 'Geri yuklendi' dedi"
+    assert tex.read_bytes() == b"KULLANICININ ICERIGI\n", \
+        "dosya degismis kaldi"
+
+
+@pytest.mark.skipif(os.name != "nt",
+                    reason="salt okunur DOSYA yalniz Windows'ta yazmayi "
+                           "engelliyor; Linux'ta os.replace icin dizin izni "
+                           "yetiyor")
+def test_SALT_OKUNUR_dosyada_geri_yukleme_oldurmuyor(qapp, tmp_path,
+                                                     monkeypatch):
+    """Gercek tetikleyici: kullanicinin salt okunur isaretledigi .tex."""
+    import stat
+    tex, stub = _geri_yukleme_kur(tmp_path, monkeypatch)
+    os.chmod(str(tex), stat.S_IREAD)
+    try:
+        stub._on_version_action("restore", "abc1234")
+    finally:
+        os.chmod(str(tex), stat.S_IWRITE)
+
+    assert stub.uyarilar, "kullaniciya sebep soylenmedi"
+    assert tex.read_bytes() == b"KULLANICININ ICERIGI\n"
+
+
+def test_TUM_GECMISI_SIL_patlarsa_slottan_istisna_KACMIYOR(qapp, tmp_path,
+                                                           monkeypatch):
+    """`drop_all` .git'i cop kutusuna tasiyor; kilitli dosya ya da izin
+    hatasi olagan."""
+    stub = _SinirStub(str(tmp_path))
+    vo = _sinir_kur(monkeypatch, stub)
+    monkeypatch.setattr(vo, "versioning", SimpleNamespace(
+        repo_status=lambda root: SimpleNamespace(foreign=False, remotes=[]),
+        drop_all=lambda root: (_ for _ in ()).throw(OSError(".git kilitli"))))
+
+    stub._on_version_action("drop_all", "abc1234")      # patlamamali
+
+    assert stub.uyarilar, "kullaniciya sebep soylenmedi"
+    assert "kilitli" in str(stub.uyarilar), "sebep mesaja girmedi"
+
+
+def test_SAGLAM_geri_yukleme_hala_calisiyor(qapp, tmp_path, monkeypatch):
+    """Asiri duzeltme kapisi: koruma dogru yolu engellememeli."""
+    tex = tmp_path / "ana.tex"
+    tex.write_bytes(b"KULLANICININ ICERIGI\n")
+    ed = EditorWidget()
+    assert ed.open_file(str(tex))
+
+    stub = _SinirStub(str(tmp_path), ed)
+    vo = _sinir_kur(monkeypatch, stub)
+    monkeypatch.setattr(vo, "versioning", SimpleNamespace(
+        file_bytes=lambda root, sha, rel: b"ESKI SURUM\n"))
+
+    stub._on_version_action("restore", "abc1234")
+
+    assert tex.read_bytes() == b"ESKI SURUM\n"
+    assert stub.uyarilar == [], "saglam yolda uyari cikti"
+    assert any("Geri y" in m for m in stub.mesajlar)
+
+
+def test_slot_govdesi_AYRI_metotta():
+    """Kural kapida: sinir sarmalayicisi kaldirilip govde geri tasinmasin."""
+    import inspect
+    from gui.mixins.version_ops import VersionOpsMixin as V2
+    kaynak = inspect.getsource(V2._on_version_action)
+    assert "self._version_action(action, sha)" in kaynak
+    assert "except Exception" in kaynak
+    # Govde artik ayri metotta ve gercek isi orada yapiyor
+    govde = inspect.getsource(V2._version_action)
+    assert "_restore_version" in govde and "_drop_all_history" in govde
