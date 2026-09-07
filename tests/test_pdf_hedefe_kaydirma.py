@@ -15,6 +15,7 @@ kaydırma çubuğu aralığında yaşıyor, sahte nesnenin arkasında görünmü
 
 import ctypes
 import os
+import time
 
 import pytest
 
@@ -78,7 +79,7 @@ def _pdf_yaz(yol, x_pt=METIN_X_PT, y_pt=METIN_Y_PT):
     return str(yol)
 
 
-def _dongu(ms=30):
+def _dongu(ms=5):
     """Gerçek olay döngüsü.
 
     `processEvents` tek başına yetmiyor: Qt'de `deleteLater` DeferredDelete
@@ -88,6 +89,42 @@ def _dongu(ms=30):
     d = QEventLoop()
     QTimer.singleShot(ms, d.quit)
     d.exec()
+
+
+def _bekle(kosul, saniye=3.0):
+    """Koşul sağlanana kadar olay döngüsünü çevir; sağlandı mı döndür.
+
+    SABİT süreli bekleme kırılgan: yeni yerleşim eşzamanlı hazır olmuyor ve
+    ne kadar süreceği makine yüküne bağlı. ÖLÇÜLDÜ (2026-09-07): buradaki
+    testler `sys.settrace` altında koşan kapsam ölçümünde ve 0 ms'lik
+    döngüyle düşüyordu. Artık beklenen ŞEY yazılıyor, süre değil.
+    """
+    bitis = time.monotonic() + saniye
+    while not kosul() and time.monotonic() < bitis:
+        _dongu(5)
+    return kosul()
+
+
+def _bekle_kararli(v, saniye=3.0):
+    """Yerleşim DURULANA kadar bekle: iki turda aynı geometri.
+
+    "Aralık değişti" ya da "maximum > 0" gibi koşullar ARA bir durumda da
+    sağlanıyor. ÖLÇÜLDÜ (2026-09-07): %300 yakınlaştırmada yatay maximum
+    2368 olacakken koşul 302'de geçti ve test yanlış geometriyle koştu.
+    """
+    onceki = None
+    bitis = time.monotonic() + saniye
+    while time.monotonic() < bitis:
+        if not v._page_labels:
+            return False
+        simdi = (v._page_labels[0].width(), v._page_labels[0].height(),
+                 v._scroll.horizontalScrollBar().maximum(),
+                 v._scroll.verticalScrollBar().maximum())
+        if simdi == onceki:
+            return True
+        onceki = simdi
+        _dongu(10)
+    return False
 
 
 @pytest.fixture
@@ -107,7 +144,7 @@ def gorucu(qapp, tmp_path):
 def _yakinlastir(v, zoom=ZOOM):
     v._zoom = zoom
     v._update_page_sizes()
-    _dongu()
+    assert _bekle_kararli(v), "yerleşim durulmadı"
     assert v._scroll.horizontalScrollBar().maximum() > 0, \
         "kapı boş koşuyor: sayfa görüntüye sığıyor, yatay kaydırma yok"
 
@@ -195,7 +232,7 @@ def test_sayfa_SIGIYORSA_yatay_kaydirma_yapilmiyor(gorucu):
     v = gorucu
     v._zoom = 0.2
     v._update_page_sizes()
-    _dongu()
+    assert _bekle_kararli(v), "yerleşim durulmadı"
     assert v._scroll.horizontalScrollBar().maximum() == 0
     v.scroll_to_position(1, 0.0, 92.0, float(METIN_X_PT), 60.0, 14.0)
     _dongu()

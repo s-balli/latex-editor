@@ -188,3 +188,147 @@ def test_arac_cubugu_hover_i_bg_hover_ve_accent_kullaniyor():
         assert t["accent"] in hover["border"], ad
         assert (hover["background"] != taban["background"]
                 or hover["border"] != taban["border"]), ad
+
+
+# =====================================================================
+# ThemeManager: tema DEGISTIRME hic kosmuyordu (olculdu 2026-09-07)
+#
+# `apply()` govdesinin tamami, bilinmeyen tema yedegi ve eksik anahtar
+# uyarisi kapsam disiydi. Tema degistirmek bu sinifin varlik sebebi.
+# =====================================================================
+
+
+@pytest.fixture(scope="module")
+def qapp():
+    """ThemeManager bir QObject; sinyal baglamak icin uygulama nesnesi sart."""
+    import os
+    from PyQt6.QtWidgets import QApplication
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    yield QApplication.instance() or QApplication([])
+
+
+class _SahteAyar:
+    """QSettings yerine: yazilani saklar, disk kullanmaz."""
+
+    def __init__(self, baslangic=None):
+        self._d = dict(baslangic or {})
+        self.yazilanlar = []
+
+    def value(self, anahtar, varsayilan=None):
+        return self._d.get(anahtar, varsayilan)
+
+    def setValue(self, anahtar, deger):
+        self._d[anahtar] = deger
+        self.yazilanlar.append((anahtar, deger))
+
+
+def _yonetici(baslangic=None):
+    from gui.theme import ThemeManager
+    return ThemeManager(_SahteAyar(baslangic))
+
+
+def test_tema_DEGISTIRMEK_isliyor_ve_kaydediliyor(qapp):
+    """Kirilirsa: tema secmek hicbir sey yapmiyor demektir."""
+    y = _yonetici({"theme": "dark"})
+    gelen = []
+    y.theme_changed.connect(gelen.append)
+
+    y.apply("light")
+
+    assert y.current_name == "light"
+    assert y.theme is THEMES["light"]
+    assert y._settings.yazilanlar == [("theme", "light")]
+    assert len(gelen) == 1 and gelen[0] is THEMES["light"]
+
+
+def test_BILINMEYEN_tema_hicbir_sey_degistirmiyor(qapp):
+    y = _yonetici({"theme": "dark"})
+    gelen = []
+    y.theme_changed.connect(gelen.append)
+
+    y.apply("boyle-bir-tema-yok")
+
+    assert y.current_name == "dark"
+    assert y._settings.yazilanlar == []
+    assert gelen == []
+
+
+def test_AYNI_tema_yeniden_yayinlanmiyor(qapp):
+    """Her widget'a yeniden stil uygulamak bedava degil."""
+    y = _yonetici({"theme": "dark"})
+    gelen = []
+    y.theme_changed.connect(gelen.append)
+
+    y.apply("dark")
+
+    assert gelen == []
+    assert y._settings.yazilanlar == []
+
+
+def test_AYARDAKI_tema_gecersizse_koyuya_dusuyor(qapp):
+    """Ayar dosyasi elle duzenlenmis ya da tema kaldirilmis olabilir."""
+    y = _yonetici({"theme": "artik-olmayan-tema"})
+    assert y.current_name == "dark"
+    assert y.theme is THEMES["dark"]
+
+
+def test_AYARDAKI_tema_gecerliyse_korunuyor(qapp):
+    """Asiri duzeltme kapisi: yedek her seferinde devreye girmemeli."""
+    y = _yonetici({"theme": "nord"})
+    assert y.current_name == "nord"
+
+
+def test_eksik_anahtar_UYARI_birakiyor(qapp, monkeypatch, caplog):
+    """`_validate_themes` bulgusunu yalniz gunluge yaziyor; o yol hic
+    kosmuyordu, yani uyarinin gercekten cikip cikmadigi bilinmiyordu."""
+    import logging
+    from gui import theme as tema_modulu
+
+    bozuk = dict(THEMES)
+    bozuk["bozuk_tema"] = {"bg_primary": "#000"}      # geri kalani eksik
+    monkeypatch.setattr(tema_modulu, "THEMES", bozuk)
+
+    with caplog.at_level(logging.WARNING):
+        tema_modulu._validate_themes()
+
+    kayit = " ".join(r.getMessage() for r in caplog.records)
+    assert "bozuk_tema" in kayit
+    assert "fg_primary" in kayit, "eksik anahtarlar sayilmamis"
+
+
+def test_tema_ADI_yalniz_koyu_ve_acik_icin_cevriliyor(qapp):
+    """Dracula, Nord, Monokai ozel ad; cevrilmemeli."""
+    y = _yonetici({"theme": "dark"})
+    assert y.theme_label("dracula") == "Dracula"
+    assert y.theme_label("nord") == "Nord"
+    # Koyu/Acik cevri katmanindan geciyor: kimlik cevirisinde ayni kaliyor
+    assert y.theme_label("dark") in ("Koyu", "Dark")
+    assert y.theme_label("light") in ("Açık", "Light")
+
+
+def test_ozel_tema_ADLARI_katalogda_YOK(qapp):
+    """`_TRANSLATABLE` yalniz Koyu/Acik; otekiler ozel ad.
+
+    Mutasyon `if name in self._TRANSLATABLE` korumasini kaldirinca hicbir
+    test dusmedi ve sebebi kapi boslugu DEGILDI: ceviri katmani bilmedigi
+    dizgeyi aynen donduruyor (olculdu 2026-09-07, katalogda karsiligi yok).
+    Kural ancak "katalogda bu adlar olmasin" diye yazilinca anlamli.
+    """
+    from gui.theme import ThemeManager
+    assert ThemeManager._TRANSLATABLE == {"dark", "light"}
+    ts = (_REPO / "desktop" / "translations"
+          / "latexeditor_tr.ts").read_text(encoding="utf-8")
+    for ad in ("Dracula", "Nord", "Monokai", "Gruvbox"):
+        assert "<source>%s</source>" % ad not in ts, (
+            "'%s' bir ozel ad, cevrilmemeli" % ad)
+
+
+def test_BILINMEYEN_tema_adi_oldugu_gibi_donuyor(qapp):
+    y = _yonetici({"theme": "dark"})
+    assert y.theme_label("hicbir-yerde-yok") == "hicbir-yerde-yok"
+
+
+def test_available_themes_YEDI_temayi_veriyor(qapp):
+    y = _yonetici({"theme": "dark"})
+    assert y.available_themes() == list(THEMES.keys())
+    assert len(y.available_themes()) >= 7

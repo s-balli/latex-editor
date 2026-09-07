@@ -18,6 +18,7 @@ kapı: dördü de hiç koşmuyordu (ölçüldü 2026-09-07).
 """
 
 import os
+import time
 
 import pytest
 
@@ -76,7 +77,7 @@ def _cok_sayfali_pdf(yol, sayfa=SAYFA_SAYISI):
     return str(yol)
 
 
-def _dongu(ms=50):
+def _dongu(ms=5):
     """Gerçek olay döngüsü.
 
     Yerleşim eşzamanlı hazır olmadığı için ŞART; `processEvents` yetmiyor
@@ -93,11 +94,49 @@ def gorucu(qapp, tmp_path):
     v.resize(700, 600)
     v.show()
     assert v.load_pdf(_cok_sayfali_pdf(tmp_path / "zoom.pdf"))
-    _dongu()
+    assert _bekle(lambda: len(v._page_labels) == SAYFA_SAYISI
+                  and v._scroll.verticalScrollBar().maximum() > 0), \
+        "belge yerleşmedi"
     yield v
     v.shutdown()
     v.close()
     QApplication.instance().sendPostedEvents(None, QEvent.Type.DeferredDelete)
+
+
+def _bekle(kosul, saniye=3.0):
+    """Koşul sağlanana kadar olay döngüsünü çevir; sağlandı mı döndür.
+
+    SABİT süreli bekleme kırılgan: yeni yerleşim eşzamanlı hazır olmuyor ve
+    ne kadar süreceği makine yüküne bağlı. ÖLÇÜLDÜ (2026-09-07): buradaki
+    testler `sys.settrace` altında koşan kapsam ölçümünde ve 0 ms'lik
+    döngüyle düşüyordu. Artık beklenen ŞEY yazılıyor, süre değil.
+    """
+    bitis = time.monotonic() + saniye
+    while not kosul() and time.monotonic() < bitis:
+        _dongu(5)
+    return kosul()
+
+
+def _olcek_yerlesti(v, _eski_max=None):
+    """Ölçek değişikliğinin yerleşmesini bekle: iki turda aynı geometri.
+
+    "Aralık değişti" YETMİYOR, ARA bir durumda da sağlanıyor. ÖLÇÜLDÜ
+    (2026-09-07): %300 yakınlaştırmada yatay maximum 2368 olacakken
+    böyle bir koşul 302'de geçiyor ve test yanlış geometriyle koşuyor.
+    """
+    onceki = None
+    bitis = time.monotonic() + 3.0
+    while time.monotonic() < bitis:
+        if not v._page_labels:
+            return False
+        simdi = (v._page_labels[0].width(), v._page_labels[0].height(),
+                 v._scroll.horizontalScrollBar().maximum(),
+                 v._scroll.verticalScrollBar().maximum())
+        if simdi == onceki:
+            return True
+        onceki = simdi
+        _dongu(10)
+    return False
 
 
 def _orta_icerik(v):
@@ -138,8 +177,11 @@ def test_ZOOM_bakilan_yeri_koruyor(gorucu, islem, adim):
     v = gorucu
     sayfa, oran = _ortala(v)
     for _ in range(adim):
+        eski_max = v._scroll.verticalScrollBar().maximum()
         getattr(v, islem)()
-        _dongu()          # gerçek kullanımda her adım ayrı bir olay
+        # Gerçek kullanımda her adım ayrı bir olay; adımın yerleşmesi
+        # beklenmezse çapa eski geometriden hesaplanıyor.
+        assert _olcek_yerlesti(v, eski_max), "ölçek değişikliği yerleşmedi"
     yeni_sayfa, yeni_oran = _orta_icerik(v)
     assert yeni_sayfa == sayfa, (
         "sayfa kaydı: %s -> %s" % (sayfa, yeni_sayfa))
@@ -152,8 +194,9 @@ def test_GENISLIGE_SIGDIR_bakilan_yeri_koruyor(gorucu):
     """Sığdırma da bir ölçek değişikliği; yer korunmalı."""
     v = gorucu
     sayfa, oran = _ortala(v)
+    eski_max = v._scroll.verticalScrollBar().maximum()
     v.fit_width()
-    _dongu()
+    assert _olcek_yerlesti(v, eski_max)
     yeni_sayfa, yeni_oran = _orta_icerik(v)
     assert yeni_sayfa == sayfa
     assert abs(yeni_oran - oran) < 0.05
@@ -178,8 +221,9 @@ def test_capa_UYGULANDIKTAN_sonra_temizleniyor(gorucu):
     """Bayrak kalırsa sonraki sıradan kaydırmalar da çapaya çekilirdi."""
     v = gorucu
     _ortala(v)
+    eski_max = v._scroll.verticalScrollBar().maximum()
     v.zoom_in()
-    _dongu()
+    assert _olcek_yerlesti(v, eski_max)
     assert v._bekleyen_zoom_capasi is None
 
 
@@ -193,12 +237,11 @@ def test_GENISLIGE_SIGDIR_sayfayi_goruntuye_sigdiriyor(gorucu):
     v = gorucu
     v._zoom = 2.0
     v._update_page_sizes()
-    _dongu()
-    assert v._scroll.horizontalScrollBar().maximum() > 0, \
+    assert _bekle(lambda: v._scroll.horizontalScrollBar().maximum() > 0), \
         "kapı boş koşuyor: sayfa zaten sığıyor"
 
     v.fit_width()
-    _dongu()
+    assert _bekle(lambda: v._scroll.horizontalScrollBar().maximum() == 0)
 
     pencere = v._scroll.viewport().width()
     en = v._page_labels[0].width()
@@ -215,7 +258,8 @@ def test_GENISLIGE_SIGDIR_sayfayi_goruntuye_sigdiriyor(gorucu):
 def test_SAYFAYA_SIGDIR_sayfanin_TAMAMINI_sigdiriyor(gorucu):
     v = gorucu
     v.fit_page()
-    _dongu()
+    assert _bekle(lambda: v._page_labels[0].height()
+                  <= v._scroll.viewport().height()), "sığdırma yerleşmedi"
     et = v._page_labels[0]
     assert et.width() <= v._scroll.viewport().width()
     assert et.height() <= v._scroll.viewport().height()
