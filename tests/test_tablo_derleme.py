@@ -111,3 +111,36 @@ class TestOrtamlarDerleniyor:
     def test_ortam_derleniyor(self, opts):
         _derlenmeli([["Ad", "Değer"], ["R^2", "0,91"], ["%pay", "5~10"]],
                     ["l", "p"], opts)
+
+
+class TestSusluParantezVeEtiketDerleniyor:
+    """Ikisi de DIZGE testiyle yakalanamazdi: sorun uretilen kodun
+    LaTeX'te ne yaptigi."""
+
+    @pytest.mark.parametrize("hucre", ["{1,2}", "Ca{2+}", "a}b", "{"])
+    def test_suslu_parantezli_hucre_derleniyor(self, hucre):
+        _derlenmeli([["Olcut", "Deger"], [hucre, "1"]], ["l", "r"])
+
+    @pytest.mark.parametrize("baslik", ["Baslik}", "Kume {a,b}"])
+    def test_suslu_parantezli_baslik_derleniyor(self, baslik):
+        _derlenmeli([["a", "b"], ["c", "d"]], ["l", "r"],
+                    TableOptions(caption=baslik, wrap_table=True))
+
+    @pytest.mark.parametrize("etiket", [
+        "tab:a%b", "tab:a}b", "tab:a" + chr(92) + "b", "tab:a#b",
+        "tab:a\x08b",
+    ])
+    def test_ozel_karakterli_etiket_derleniyor(self, etiket):
+        _derlenmeli([["a", "b"], ["c", "d"]], ["l", "r"],
+                    TableOptions(label=etiket, wrap_table=True))
+
+    def test_MESRU_etiket_hala_calisiyor(self):
+        """Asiri duzeltme kapisi: eleme dogru etiketi bozmamali; `\\ref`
+        de cozulmeli."""
+        from core.latex_tables import guvenli_label
+        etiket = "tab:sonuc-2"
+        kod = build_tabular([["a", "b"], ["c", "d"]], ["l", "r"],
+                            TableOptions(label=etiket, wrap_table=True))
+        assert guvenli_label(etiket) == etiket
+        ok, hata = _derle(kod + "\n\nBasvuru: \\ref{%s}" % etiket)
+        assert ok, hata

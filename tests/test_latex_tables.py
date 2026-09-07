@@ -5,7 +5,7 @@ import re
 
 import pytest
 
-from core.latex_tables import (
+from core.latex_tables import (guvenli_label, 
     TableOptions, build_col_spec, build_tabular, csv_to_rows, escape_cell,
     extract_caption_label, format_tabular, parse_first_tabular,
     parse_tabular_at, slugify, suggest_label, unescape_cell,
@@ -457,3 +457,86 @@ class TestSapkaVeTilde:
         kod = build_tabular([["Olcut", "Deger"], ["R^2", "0,91"]], ["l", "r"])
         # Kaçırılmamış tek başına `^` kalmamalı
         assert re.search(r"(?<!\\)\^(?!\{\})", kod) is None
+
+
+# =====================================================================
+# Suslu parantez ve ETIKET (olculdu 2026-09-07, gercek pdflatex)
+#
+# escape_cell `{` ve `}` kacirmiyordu: hucrede ya da baslikta tek bir `}`
+# belgeyi DERLENEMEZ yapiyor. Kosulsuz kacirmak da olmaz, `\textbf{x}`
+# bozulur; kural "ters boluk YOKSA kacir".
+#
+# `\label` argumani ise HAM gidiyordu. Alti karakter denendi, BESI belgeyi
+# dusurdu (`%`, `}`, `{`, `\`, `#`); yalniz bosluk gecti. Etiket bir
+# ANAHTAR oldugu icin kacirilmiyor, ELENIYOR.
+# =====================================================================
+
+
+class TestSusluParantezKacisi:
+
+    @pytest.mark.parametrize("ham, beklenen", [
+        ("{1,2}", r"\{1,2\}"),
+        ("Ca{2+}", r"Ca\{2+\}"),
+        ("}", r"\}"),
+        ("{", r"\{"),
+    ])
+    def test_komut_yokken_kaciriliyor(self, ham, beklenen):
+        assert escape_cell(ham) == beklenen
+
+    @pytest.mark.parametrize("ham", [
+        r"\textbf{x}", r"\textit{a{b}}",
+    ])
+    def test_komut_varken_DOKUNULMUYOR(self, ham):
+        """Asiri duzeltme kapisi: kacirmak komutu bozardi."""
+        assert escape_cell(ham) == ham
+
+    def test_komutlu_hucrede_ozel_karakter_YINE_kaciriliyor(self):
+        """Ters boluk varken yalniz SUSLU PARANTEZ atlaniyor.
+
+        `$` gibi karakterler eskiden oldugu gibi kaciriliyor (bkz.
+        test_eski_kacislar_bozulmadi); ilk yazdigim vaka bunu yanlis
+        varsaymisti.
+        """
+        assert escape_cell(r"$\frac{1}{2}$") == r"\$\frac{1}{2}\$"
+
+    def test_karar_HAM_metne_bakiyor(self):
+        """`%` kacisi ters boluk EKLIYOR; karar ona bakarsa hicbir hucrede
+        suslu parantez kacirilmazdi."""
+        assert escape_cell("%{a}") == r"\%\{a\}"
+
+    @pytest.mark.parametrize("ham", ["{1,2}", "Ca{2+}", "a}b", "%{a}"])
+    def test_roundtrip_suslu(self, ham):
+        assert unescape_cell(escape_cell(ham)) == ham
+
+
+class TestGuvenliEtiket:
+
+    @pytest.mark.parametrize("ham, beklenen", [
+        ("tab:a%b", "tab:ab"),
+        ("tab:a}b", "tab:ab"),
+        ("tab:a{b", "tab:ab"),
+        ("tab:a" + chr(92) + "b", "tab:ab"),
+        ("tab:a#b", "tab:ab"),
+        ("tab:a&b", "tab:ab"),
+        ("tab:a$b", "tab:ab"),
+        ("tab:a\x08b", "tab:ab"),
+    ])
+    def test_belgeyi_dusuren_karakterler_ELENIYOR(self, ham, beklenen):
+        assert guvenli_label(ham) == beklenen
+
+    def test_bosluk_tireye_iniyor(self):
+        assert guvenli_label("tab:a b") == "tab:a-b"
+        assert guvenli_label("tab:a   b") == "tab:a-b"
+
+    @pytest.mark.parametrize("ham", ["tab:sonuc-2", "fig.1", "tab:x_1",
+                                     "tab:sonuç"])
+    def test_MESRU_etiket_dokunulmuyor(self, ham):
+        """Asiri duzeltme kapisi. Turkce harf ELENMIYOR: `tab:sonuç` gercek
+        pdflatex'te derleniyor (olculdu)."""
+        assert guvenli_label(ham) == ham
+
+    def test_uretilen_blok_ELENMIS_etiketi_tasiyor(self):
+        kod = build_tabular([["a", "b"], ["c", "d"]], ["c", "c"],
+                            TableOptions(label="tab:a%b", wrap_table=True))
+        assert "\\label{tab:ab}" in kod
+        assert "tab:a%b" not in kod

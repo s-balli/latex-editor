@@ -30,13 +30,53 @@ _ESCAPE_MAP = {"^": "\\^{}", "~": "\\~{}"}
 _ESCAPE_RE = re.compile(r"([%&_#$^~])")
 
 
+# Süslü parantez YALNIZ komut olmayan metinde kaçırılıyor. ÖLÇÜLDÜ
+# (2026-09-07, gerçek pdflatex): hücrede ya da başlıkta tek bir `}` belgeyi
+# DERLENEMEZ yapıyor ("Baslik}" ile blok düştü). Koşulsuz kaçırmak da olmaz:
+# bu alanlarda komut yazmak bilerek destekleniyor (aşağıdaki docstring) ve
+# `\textbf{x}` -> `\textbf\{x\}` olup o da düşerdi. Ters eğik çizgi YOKSA
+# süslü parantezin gruplama işi de yoktur, yani kaçırmak güvenli.
+_BRACE_RE = re.compile(r"([{}])")
+
+
 def escape_cell(text: str) -> str:
     """Hücre metnindeki LaTeX özel karakterlerini kaçır (ters eğik çizgi hariç)."""
+    ham = text.strip()
+    # SIRA ÖNEMLİ: süslü parantez ÖNCE. Sonraki değişim `^` için `\^{}`
+    # üretiyor ve sonra kaçırılırsa `\^\{\}` çıkıp derleme düşüyor (var olan
+    # `TestSapkaVeTilde` testleri bunu yakaladı).
+    out = _BRACE_RE.sub(lambda m: "\\" + m.group(1),
+                        ham) if "\\" not in ham else ham
     return _ESCAPE_RE.sub(
-        lambda m: _ESCAPE_MAP.get(m.group(1), "\\" + m.group(1)), text.strip())
+        lambda m: _ESCAPE_MAP.get(m.group(1), "\\" + m.group(1)), out)
 
 
-_UNESCAPE_RE = re.compile(r"\\([%&_#$])|\\([\^~])\{\}")
+# `\label` argümanı dizgiye YAZILMIYOR ama kod olarak okunuyor: yorum işareti
+# satırı kesiyor, süslü parantez dengeyi bozuyor, ters eğik çizgi komut
+# başlatıyor. ÖLÇÜLDÜ (2026-09-07, gerçek pdflatex): denenen altı karakterden
+# BEŞİ belgeyi derlenemez yapıyor (`%`, `}`, `{`, `\`, `#`); yalnız boşluk
+# geçiyor.
+# Denetim karakterleri de eleniyor: panodan ya da `extract_caption_label`
+# ile gelen metinde bulunabiliyor ve LaTeX onlarda da düşüyor (ölçüldü:
+# `tab:a\x08b` derlenmiyor). Türkçe harfler ELENMİYOR, `tab:sonuç` gerçek
+# pdflatex'te derleniyor (aynı ölçüm).
+_LABEL_YASAK = re.compile(r"[%\\{}#&$~^\x00-\x1f\x7f]")
+
+
+def guvenli_label(text: str) -> str:
+    """Etiketi `\\label` içinde güvenli hâle getir.
+
+    KAÇIRMA değil ELEME: etiket bir ANAHTAR ve `\\ref` ile birebir eşleşmesi
+    gerekiyor; `\\%` gibi bir kaçış anahtarın kendisini değiştirir ve
+    kullanıcının `\\ref{...}` yazarken kaçışı da bilmesi gerekirdi.
+
+    Boşluklar tireye iniyor: LaTeX kabul ediyor ama `\\ref` yazmayı
+    zorlaştırıyor. `suggest_label` da tireli slug üretiyor, yani biçim aynı.
+    """
+    return re.sub(r"\s+", "-", _LABEL_YASAK.sub("", text.strip()))
+
+
+_UNESCAPE_RE = re.compile(r"\\([%&_#${}])|\\([\^~])\{\}")
 
 
 def unescape_cell(text: str) -> str:
@@ -131,7 +171,7 @@ def build_tabular(rows: list[list[str]], aligns: list[str],
     if opts.caption:
         head.append(f"{ind}\\caption{{{escape_cell(opts.caption)}}}")
     if opts.label:
-        head.append(f"{ind}\\label{{{opts.label}}}")
+        head.append(f"{ind}\\label{{{guvenli_label(opts.label)}}}")
     return "\n".join(head) + "\n" + body + "\n\\end{table}"
 
 
