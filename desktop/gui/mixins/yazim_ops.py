@@ -270,6 +270,12 @@ class YazimOpsMixin:
         Aksan makrosuyla yazılmış geçişler (`M\\"{u}hendislik`) atlanıyor:
         özgün metindeki uzunluk çözülmüş kelimeden farklı, ofsetle kesmek
         onları bozardı. Bozmaktansa dokunmamak doğru.
+
+        Değişim `_replace_in_editor` üzerinden gidiyor, `setText` ile DEĞİL.
+        Ölçüldü (2026-09-07): `setText` belgenin bütün geri alma geçmişini
+        siliyor (`isUndoAvailable` True -> False), yani yalnız öneri değil,
+        kullanıcının o oturumda yazdığı HER ŞEY geri alınamaz oluyor; üstelik
+        imleç belgenin sonuna, görünüm de en başa atlıyordu.
         """
         ed = self._current_editor()
         if ed is None:
@@ -281,10 +287,8 @@ class YazimOpsMixin:
                   and metin[k.ofset:k.ofset + len(eski)] == eski]
         if not yerler:
             return
-        # Sondan başa: her değişim kendinden SONRAKİ ofsetleri kaydırır.
-        for o in reversed(yerler):
-            metin = metin[:o] + yeni + metin[o + len(eski):]
-        ed.setText(metin)
+        self._replace_in_editor(ed, [(o, o + len(eski)) for o in yerler],
+                                yeni, imleci_koru=True)
         self._status.showMessage(
             _("'{e}' -> '{y}' değiştirildi").format(e=eski, y=yeni), 4000)
         self._yazim_calistir()

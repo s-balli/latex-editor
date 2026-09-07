@@ -19,6 +19,8 @@ try:
     from PyQt6.QtCore import Qt
     from gui.output_panel import OutputPanel
     from gui.theme import THEMES
+    from gui.editor import EditorWidget
+    from gui.mixins.edit_ops import EditOpsMixin
     from gui.mixins.yazim_ops import (YazimOpsMixin, _sozluk_dizini_gerekli_mi,
                                       kullanici_sozlugu_yolu, sozluk_dizini)
     from core.yazim import Bulgu, Denetleyici
@@ -91,7 +93,7 @@ class _SahteSozluk:
         return iter(["oneri1", "oneri2"])
 
 
-class _Stub(YazimOpsMixin, StubMain):
+class _Stub(YazimOpsMixin, EditOpsMixin, StubMain):
     """Mixin + paylaşımlı stub.
 
     Editör `editors=` ile VERİLMİYOR: StubMain onları gerçek QWidget sanıp
@@ -373,24 +375,30 @@ def test_cleanup_thread_yokken_cokmez(qapp):
 
 
 def _yazan_editor(metin, yol="C:/x/main.tex"):
-    """Yazılanı SAKLAYAN editör.
+    """GERÇEK editör.
 
-    `_editor`ın setText'i yutuyor; öneri testleri belgenin SON hâline bakmak
-    zorunda, yoksa "bozuldu mu" sorusu hiç sorulamaz.
+    Sahte bir editör bu testleri geçirir ama hiçbir şey ölçmez: imleç,
+    kaydırma ve geri alma yığını yalnız QsciScintilla'da var. Öneri uygulama
+    kusuru (bkz. aşağıdaki "kullanıcının yeri" bölümü) tam da bu yüzden
+    sahtenin arkasında saklanıyordu.
     """
-    kutu = {"m": metin}
-    return SimpleNamespace(text=lambda: kutu["m"], file_path=yol,
-                           display_name="main.tex",
-                           setText=lambda s: kutu.__setitem__("m", s),
-                           getCursorPosition=lambda: (0, 0))
+    ed = EditorWidget()
+    ed.setText(metin)
+    ed._file_path = yol
+    return ed
 
 
-def _oneri_uygula(metin, eski, yeni):
+def _oneri_stub(metin):
     s = _Stub(editor=_yazan_editor(metin))
     d = Denetleyici()
     d._sozluk = _SahteSozluk([])
     s._yazim_denetleyici = d
     s._yazim_anahtar = ("tr_TR", "")
+    return s
+
+
+def _oneri_uygula(metin, eski, yeni):
+    s = _oneri_stub(metin)
     s._yazim_degistir(eski, yeni)
     return s._current_editor().text()
 
@@ -418,3 +426,110 @@ def test_oneri_VERBATIM_icine_girmiyor(qapp):
         "\\begin{verbatim}\nsec kod\n\\end{verbatim}\nsec metin\n",
         "sec", "seç")
     assert sonuc == "\\begin{verbatim}\nsec kod\n\\end{verbatim}\nseç metin\n"
+
+
+# =====================================================================
+# Öneri uygulama: KULLANICININ YERİ ve GEÇMİŞİ durmalı
+#
+# `_yazim_degistir` belgeyi `setText` ile baştan yazıyordu. Ölçüldü
+# (2026-09-07), 400 satırlık belgede 302. satırda çalışan kullanıcı için:
+#   imleç (302, 25) -> (403, 0), görünüm 265. satırdan 0'a atlıyor
+#   `isUndoAvailable` True -> False: öneri geri alınamıyor, üstelik o
+#   oturumda ELLE yazılmış her şeyin geçmişi de siliniyor
+# Kural zaten aynı depoda yazılıydı: `_replace_in_editor` "undo korunur,
+# tek adım" diyor. Değişim artık oradan geçiyor.
+# =====================================================================
+
+
+UZUN_BELGE = "\n".join(
+    ["\\documentclass{article}", "\\begin{document}"]
+    + ["Bu satirda yanlis yazilmis bir kelme var." if i in (40, 300)
+       else "Siradan bir metin satiri %d." % i for i in range(400)]
+    + ["\\end{document}", ""])
+HATA_SATIRI = 302        # iki geçiş var: 42. ve 302. satır
+
+
+def _uzun_stub(imlec_sutun=25, ilk_gorunen=265):
+    s = _oneri_stub(UZUN_BELGE)
+    ed = s._current_editor()
+    ed.setCursorPosition(HATA_SATIRI, imlec_sutun)
+    ed.setFirstVisibleLine(ilk_gorunen)
+    return s, ed
+
+
+def test_oneri_IMLECI_yerinde_birakiyor(qapp):
+    """Kullanıcı panelde çalışıyor, belgede bir yere gitmek istemedi."""
+    s, ed = _uzun_stub()
+    s._yazim_degistir("kelme", "kelime")
+    assert ed.getCursorPosition() == (HATA_SATIRI, 25)
+
+
+def test_oneri_KAYDIRMAYI_bozmuyor(qapp):
+    """Görünüm kaymamalı.
+
+    `setCursorPosition` görünümü imlece çekiyor (ölçüldü: 265 -> 269), yani
+    imleci geri koymak tek başına yetmiyor; ilk görünen satır da geri
+    kurulmak zorunda.
+    """
+    s, ed = _uzun_stub()
+    s._yazim_degistir("kelme", "kelime")
+    assert ed.firstVisibleLine() == 265
+
+
+def test_oneri_TEK_undo_ile_geri_aliniyor(qapp):
+    """Yanlış öneri seçmek geri alınabilmeli."""
+    s, ed = _uzun_stub()
+    onceki = ed.text()
+    s._yazim_degistir("kelme", "kelime")
+    assert ed.text() != onceki
+    ed.undo()
+    assert ed.text() == onceki
+
+
+def test_oneri_ONCEKI_GECMISI_silmiyor(qapp):
+    """Asıl zarar bu: `setText` yalnız öneriyi değil, kullanıcının o oturumda
+    yazdığı HER ŞEYİ geri alınamaz yapıyordu."""
+    s, ed = _uzun_stub()
+    ed.insertAt("ELLE YAZILAN. ", 5, 0)
+    assert ed.isUndoAvailable()
+    s._yazim_degistir("kelme", "kelime")
+    assert ed.isUndoAvailable()
+    ed.undo()          # öneriyi geri al
+    ed.undo()          # elle yazılanı geri al
+    assert "ELLE YAZILAN" not in ed.text()
+
+
+def test_oneri_degisikligi_ISARETLIYOR(qapp):
+    """Kaydedilmemiş değişiklik göstergesi yanmalı, yoksa kullanıcı
+    düzeltmeyi kaydetmeden çıkar."""
+    s, ed = _uzun_stub()
+    ed.setModified(False)
+    s._yazim_degistir("kelme", "kelime")
+    assert ed.isModified()
+
+
+@pytest.mark.parametrize("sutun, beklenen", [
+    (4, 4),      # kelimeden ÖNCE: kaymamalı
+    (13, 14),    # kelimeden SONRA: kelime uzadı, imleç aynı metin yerinde kalmalı
+])
+def test_oneri_AYNI_SATIRDA_imleci_kaydiriyor(qapp, sutun, beklenen):
+    """Aynı satırda imleçten önce değişen geçiş sütunu kaydırıyor."""
+    s = _oneri_stub("bir kelme iki\nikinci satir\n")
+    ed = s._current_editor()
+    ed.setCursorPosition(0, sutun)
+    s._yazim_degistir("kelme", "kelime")
+    assert ed.text().startswith("bir kelime iki")
+    assert ed.getCursorPosition() == (0, beklenen)
+
+
+def test_oneri_setText_ILE_yazmiyor(qapp):
+    """Kural tek kaynakta kalsın: değişim `_replace_in_editor`dan geçmeli.
+
+    Belgeyi baştan yazan her yol (setText) geri alma yığınını siler; bu testi
+    bir davranış testi değil, o yola dönüşü engelleyen bir kapı olarak koydum.
+    """
+    s, ed = _uzun_stub()
+    cagrildi = []
+    ed.setText = lambda m: cagrildi.append(m)
+    s._yazim_degistir("kelme", "kelime")
+    assert cagrildi == []

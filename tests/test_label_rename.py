@@ -485,3 +485,29 @@ def test_rename_bibitem_duplicate_blocked(qapp, tmp_path):
 
     warn.assert_called_once()
     assert ed.text() == main.read_text(encoding="utf-8")
+
+
+def test_rename_IMLECI_ilk_gecise_tasiyor(qapp, tmp_path):
+    """Yeniden adlandırmada imleç ilk geçişe gitmeli.
+
+    `_replace_in_editor` yazım önerisi için `imleci_koru=True` seçeneği
+    aldı; buradaki varsayılan sessizce değişirse kullanıcı "ne değişti"
+    geri bildirimini kaybeder. O yüzden varsayılan da sınanıyor.
+    """
+    main = tmp_path / "m.tex"
+    main.write_text(
+        "birinci satir\n\\label{fig:a}\nortada\n\\ref{fig:a}\n",
+        encoding="utf-8")
+    ed = EditorWidget()
+    ed._file_path = str(main)
+    ed.setText(main.read_text(encoding="utf-8"))
+    ed.setCursorPosition(3, 0)
+
+    stub = _StubMain(editors=[ed])
+    with patch("gui.mixins.edit_ops.QInputDialog.getText",
+               return_value=("fig:yeni", True)):
+        MainWindow._on_rename_label(stub, "fig:a")
+
+    satir, sutun = ed.getCursorPosition()
+    assert satir == 1
+    assert ed.text().split("\n")[1][:sutun].endswith("fig:yeni")

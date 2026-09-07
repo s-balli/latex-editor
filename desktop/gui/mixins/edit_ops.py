@@ -510,10 +510,25 @@ class EditOpsMixin:
         except OSError:
             return None
 
-    def _replace_in_editor(self, target, spans, new_key: str):
-        """Aralıkları alttan üste seç-değiştir: undo korunur, tek adım."""
+    def _replace_in_editor(self, target, spans, new_key: str,
+                           imleci_koru: bool = False):
+        """Aralıkları alttan üste seç-değiştir: undo korunur, tek adım.
+
+        ``imleci_koru`` çağıranın niyetini ayırıyor. Yeniden adlandırmada
+        kullanıcı değişimi kendi istedi, imleci ilk geçişe taşımak "ne
+        değişti" göstermek oluyor. Yazım önerisinde ise kullanıcı panelde
+        çalışıyor, belgede bir yere gitmek istemedi; yeri korunmalı.
+
+        Yerinde koruma ucuz: değişen metin satır atlamadığı için satır
+        numaraları hiç kaymıyor, yalnız imleçle AYNI satırda ve ondan ÖNCE
+        değişen geçişler sütunu kaydırıyor. ``setCursorPosition`` görünümü
+        imlece çektiğinden ilk görünen satır ondan SONRA geri kuruluyor.
+        """
         full = target.text()
         first_line, first_col = 0, 0
+        imlec_satir, imlec_sutun = target.getCursorPosition()
+        ilk_gorunen = target.firstVisibleLine()
+        kayma = 0
         target.beginUndoAction()
         try:
             for s, e in sorted(spans, reverse=True):
@@ -521,11 +536,17 @@ class EditOpsMixin:
                 line_start = full.rfind('\n', 0, s) + 1
                 col_s, col_e = s - line_start, e - line_start
                 first_line, first_col = line, col_s
+                if line == imlec_satir and col_s < imlec_sutun:
+                    kayma += len(new_key) - (col_e - col_s)
                 target.setSelection(line, col_s, line, col_e)
                 target.replaceSelectedText(new_key)
         finally:
             target.endUndoAction()
-        target.setCursorPosition(first_line, first_col + len(new_key))
+        if imleci_koru:
+            target.setCursorPosition(imlec_satir, max(0, imlec_sutun + kayma))
+            target.setFirstVisibleLine(ilk_gorunen)
+        else:
+            target.setCursorPosition(first_line, first_col + len(new_key))
 
     def _apply_renamings(self, paths, span_fn, new_key: str) -> tuple[int, list[str]]:
         """``paths`` içindeki dosyalarda ``span_fn(text)`` aralıklarını değiştir.
