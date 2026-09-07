@@ -50,7 +50,7 @@ _PDFIUM_METOTLARI = {
 _PDFIUM_FONKSIYONLARI = {
     "render_page_to_qimage", "render_page_to_pixmap", "PdfDocument",
     "get_link_at_point", "resolve_link_action",
-    "resolve_dest_scroll_y", "get_dest_page_index",
+    "resolve_dest_scroll_xy", "get_dest_page_index",
 }
 # Belgeyi ARGÜMAN alan yerleşikler: len(doc) FPDF_GetPageCount'a iner, yani
 # metot çağrısı gibi görünmediği hâlde pdfium'a girer. Aynı sınıf: iter/list.

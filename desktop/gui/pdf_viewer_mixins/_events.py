@@ -2,7 +2,7 @@
 
 import webbrowser
 
-from PyQt6.QtCore import QCoreApplication, QEvent, QPoint, Qt, QTimer
+from PyQt6.QtCore import QCoreApplication, QEvent, Qt, QTimer
 from PyQt6.QtWidgets import QMessageBox
 
 from core.log import get_logger
@@ -10,7 +10,7 @@ from gui.pdfium_lock import pdfium_lock
 from gui.pdf_donusum import geometri, kullaniciya
 
 from gui.pdf_links import (
-    get_link_at_point, resolve_link_action, resolve_dest_scroll_y, get_dest_page_index,
+    get_link_at_point, resolve_link_action, resolve_dest_scroll_xy, get_dest_page_index,
 )
 
 _logger = get_logger("pdf_viewer")
@@ -177,13 +177,13 @@ class PdfEventsMixin:
             # geometri(): dönme + DÖNDÜRÜLMEMİŞ boyut. Eskiden buraya
             # get_height() (GÖRSEL yükseklik) veriliyordu; /Rotate'li sayfada
             # bağlantı bambaşka bir yere gidiyordu (bkz. pdf_links).
-            scroll_y = resolve_dest_scroll_y(
+            hedef_x, hedef_y = resolve_dest_scroll_xy(
                 self._pdf.raw, dest, geometri(self._pdf[idx]), scale)
 
         # Dual modda label satır widget'ının çocuğudur: pos() satıra göre olur.
-        # _synctex.py'deki gibi pages_widget'e göre hesapla.
-        abs_y = label.mapTo(self._pages_widget, QPoint(0, 0)).y() + scroll_y
-        self._scroll.verticalScrollBar().setValue(max(0, abs_y - 20))
+        # _synctex.py'deki gibi pages_widget'e göre hesapla; yatayı da
+        # `_hedefe_kaydir` yapıyor (bkz. _navigation).
+        self._hedefe_kaydir(label, hedef_x, hedef_y, 0, 20)
         self._current_page = idx
         self._update_nav()
         QTimer.singleShot(100, self._render_visible)

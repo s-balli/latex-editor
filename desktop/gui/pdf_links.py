@@ -90,8 +90,18 @@ def resolve_link_action(pdf_raw, link):
     return None
 
 
-def resolve_dest_scroll_y(pdf_raw, dest, g, scale: float) -> int:
-    """PDF destination'ın scroll Y pozisyonunu hesapla.
+def resolve_dest_scroll_xy(pdf_raw, dest, g, scale: float):
+    """PDF destination'ın sayfa içi (x, y) piksel konumunu hesapla.
+
+    X de DÖNÜYOR. Eskiden yalnız y dönüyordu, oysa XYZ hedefi x'i de taşıyor
+    ve dönüşüm onu zaten hesaplıyordu; atılan değer buydu. Yakınlaştırılmış
+    belgede iki sütunlu şablonda sağ sütuna giden bir `\\ref` doğru satıra
+    iniyor ama hedef yatayda ekranın dışında kalıyordu (ölçüldü 2026-09-07:
+    612 pt'lik sayfa %300'de 2754 px, görüntü penceresi 404 px, hedef
+    x=500 pt). Kardeş yollar (SyncTeX ileri araması, metin araması) aynı
+    dersi bir tur önce almıştı.
+
+    FitH x vermiyor: orada 0, yani sayfanın sol kenarı.
 
     ``g``: HEDEF sayfanın ``pdf_donusum.geometri()`` bilgisi. Burada eskiden
     GÖRSEL yükseklik duruyordu ve `(yükseklik - y) * ölçek` ile /Rotate 0
@@ -116,16 +126,17 @@ def resolve_dest_scroll_y(pdf_raw, dest, g, scale: float) -> int:
     if view_mode == _pdfium_raw.PDFDEST_VIEW_XYZ and num_params.value >= 2:
         x, y = params[0], params[1]
         if y >= 0:
-            return _sinirla(gorsele(g, x, y, scale)[1])
+            gx, gy = gorsele(g, x, y, scale)
+            return _sinirla(gx), _sinirla(gy)
     elif view_mode == _pdfium_raw.PDFDEST_VIEW_FITH and num_params.value >= 1:
         y = params[0]
         if y >= 0:
             # 90/270'te dikey konumu x belirliyor (bkz. dönüşüm tablosu),
             # FitH ise x vermiyor. Yanlış yere gitmektense sayfa başı.
             if donme in (90, 270):
-                return 0
-            return _sinirla(gorsele(g, 0.0, y, scale)[1])
-    return 0
+                return 0, 0
+            return 0, _sinirla(gorsele(g, 0.0, y, scale)[1])
+    return 0, 0
 
 
 def _sinirla(vy: float) -> int:

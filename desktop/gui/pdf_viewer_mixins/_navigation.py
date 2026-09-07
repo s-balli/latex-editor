@@ -45,7 +45,7 @@ class PdfNavigationMixin:
             QTimer.singleShot(100, self._render_visible)
 
     def _hedefe_kaydir(self, label, x_pixel: int, y_pixel: int,
-                       genislik: int = 0, dikey_bolen: int = 2):
+                       genislik: int = 0, dikey_pay: int = 0):
         """Sayfa içindeki bir noktayı görüntüye getir: dikey VE yatay.
 
         Çağıranlar yalnız dikey kaydırıyordu. ÖLÇÜLDÜ (2026-09-07), %300
@@ -59,11 +59,14 @@ class PdfNavigationMixin:
         Yatayda hedef görünüyorsa DOKUNULMUYOR: her atlamada ortalamak aynı
         bölgedeki ardışık eşleşmelerde görüntüyü sarsardı. Hedef görüntüden
         genişse sol kenarı öncelikli, yani başı kesilmiyor.
+
+        ``dikey_pay``: hedef, görüntünün üstünden bu kadar aşağıda dursun.
+        Çağıranların alışkanlığı farklı ve korunuyor: ileri arama ortalıyor,
+        metin araması üçte bire koyuyor, iç bağlantı 20 px pay bırakıyor.
         """
         sol_ust = label.mapTo(self._pages_widget, QPoint(0, 0))
         dikey = self._scroll.verticalScrollBar()
-        pencere_y = self._scroll.viewport().height()
-        dikey.setValue(max(0, sol_ust.y() + y_pixel - pencere_y // dikey_bolen))
+        dikey.setValue(max(0, sol_ust.y() + y_pixel - dikey_pay))
 
         yatay = self._scroll.horizontalScrollBar()
         if yatay.maximum() <= 0:

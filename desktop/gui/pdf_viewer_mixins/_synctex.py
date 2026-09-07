@@ -67,7 +67,8 @@ class PdfSyncTexMixin:
         self._show_highlight(label, int(x_pixel), int(y_pixel), h_pixel,
                              w_gecerli)
 
-        self._hedefe_kaydir(label, int(x_pixel), int(y_pixel), w_gecerli, 2)
+        self._hedefe_kaydir(label, int(x_pixel), int(y_pixel), w_gecerli,
+                            self._scroll.viewport().height() // 2)
         self._current_page = idx
         self._update_nav()
         QTimer.singleShot(100, self._render_visible)

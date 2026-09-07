@@ -12,11 +12,11 @@ içindekiler bağlantısına bastığında belge doğru yere kayıyor mu.
 
 YER GERÇEKLİĞİ RENDER'DAN OKUNUYOR, koddan değil. Hedefin hemen ardına kalın
 siyah bir çizgi konuyor; sayfa pdfium ile render edilip o çizginin piksel
-satırı bulunuyor. Beklenen değer bu; `resolve_dest_scroll_y` onun yakınında
+satırı bulunuyor. Beklenen değer bu; `resolve_dest_scroll_xy` onun yakınında
 kalmalı. Böylece test dönüşüm formülünün kendisini değil, GÖRÜNEN sonucu
 denetliyor.
 
-ÖLÇÜLEN KUSUR (2026-09-05): `resolve_dest_scroll_y`, GÖRSEL yüksekliği alıp
+ÖLÇÜLEN KUSUR (2026-09-05): `resolve_dest_scroll_xy`, GÖRSEL yüksekliği alıp
 `/Rotate 0` formülünü uyguluyordu. Destination koordinatları ise
 DÖNDÜRÜLMEMİŞ kullanıcı uzayında.
 
@@ -41,7 +41,7 @@ pdfium = pytest.importorskip("pypdfium2")
 
 from gui.pdf_donusum import geometri                                 # noqa: E402
 from gui.pdf_links import (get_dest_page_index, get_link_at_point,   # noqa: E402
-                           resolve_dest_scroll_y, resolve_link_action)
+                           resolve_dest_scroll_xy, resolve_link_action)
 from gui.pdfium_lock import pdfium_lock                              # noqa: E402
 
 OLCEK = 1.5
@@ -154,7 +154,8 @@ class TestBaglantiDogruYereGoturuyor:
             with pdfium_lock:
                 sayfa = pdf[idx]
                 g = geometri(sayfa)
-                cikan = resolve_dest_scroll_y(pdf.raw, hedefler[idx], g, OLCEK)
+                cikan = resolve_dest_scroll_xy(pdf.raw, hedefler[idx],
+                                               g, OLCEK)[1]
                 beklenen = _cizgi_satiri(sayfa.render(scale=OLCEK).to_pil())
             assert beklenen is not None, \
                 "sayfa %d render'ında işaret çizgisi bulunamadı" % idx
@@ -171,7 +172,8 @@ class TestBaglantiDogruYereGoturuyor:
             with pdfium_lock:
                 sayfa = pdf[idx]
                 g = geometri(sayfa)
-                cikan = resolve_dest_scroll_y(pdf.raw, hedefler[idx], g, OLCEK)
+                cikan = resolve_dest_scroll_xy(pdf.raw, hedefler[idx],
+                                               g, OLCEK)[1]
                 yukseklik = int(sayfa.get_height() * OLCEK)
             assert 0 <= cikan <= yukseklik, \
                 "sayfa %d (/Rotate %d): scroll %d px, sayfa 0..%d px" % (
@@ -207,7 +209,7 @@ class TestBaglantiDogruYereGoturuyor:
 # ---------------------------------------------------------------------------
 # Çağrı yerinin kendisi: PdfViewer._goto_dest
 #
-# Yukarıdaki testler `resolve_dest_scroll_y`yi DOĞRUDAN çağırıyor, yani
+# Yukarıdaki testler `resolve_dest_scroll_xy`yi DOĞRUDAN çağırıyor, yani
 # `_events._goto_dest`in ona ne verdiğini sınamıyorlar. MUTASYONLA ÖLÇÜLDÜ:
 # çağrı yerini eski haline (GÖRSEL yükseklik) döndürmek hiçbir testi
 # düşürmüyordu, yani kapı tam oradan boştu. Aşağıdaki test zinciri uçtan uca

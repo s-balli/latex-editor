@@ -100,7 +100,8 @@ class PdfSearchMixin:
         # sağdaki eşleşme doğru satıra iniyor ama ekranın dışında kalıyordu
         # (bkz. _navigation._hedefe_kaydir).
         # Dual modda pos() satıra göredir; _events/_synctex ile aynı mapTo yolu
-        self._hedefe_kaydir(label, int(match_x), int(match_y), 0, 3)
+        self._hedefe_kaydir(label, int(match_x), int(match_y), 0,
+                            self._scroll.viewport().height() // 3)
         self._current_page = page_idx
         self._update_nav()
 

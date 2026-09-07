@@ -173,7 +173,7 @@ def test_donme_istisnayi_yutuyor():
 # ---------------------------------------------------------------------------
 # İç bağlantı hedefi (PDF destination) de aynı dönüşümden geçmeli
 #
-# `resolve_dest_scroll_y` GÖRSEL yüksekliği alıp `(yükseklik - y) * ölçek`
+# `resolve_dest_scroll_xy` GÖRSEL yüksekliği alıp `(yükseklik - y) * ölçek`
 # ile /Rotate 0 formülünü uyguluyordu. Destination koordinatları ise
 # DÖNDÜRÜLMEMİŞ kullanıcı uzayında; kardeş yol `_events._link_at_pos` bu
 # dönüşümü zaten yapıyordu, burası atlanmıştı.
@@ -185,7 +185,7 @@ def test_donme_istisnayi_yutuyor():
 # ---------------------------------------------------------------------------
 
 praw = pytest.importorskip("pypdfium2.raw")
-from gui.pdf_links import resolve_dest_scroll_y                     # noqa: E402
+from gui.pdf_links import resolve_dest_scroll_xy                     # noqa: E402
 
 
 def _sahte_gorunum(mod, degerler):
@@ -221,7 +221,7 @@ class TestDestKaydirmaKonumu:
     @pytest.mark.parametrize("donme", [0, 90, 180, 270])
     def test_xyz_hedefi_donusum_tablosuna_uyuyor(self, donme, xyz):
         g = (donme, self.W, self.H)
-        assert resolve_dest_scroll_y(None, None, g, self.OLCEK) == \
+        assert resolve_dest_scroll_xy(None, None, g, self.OLCEK)[1] == \
             int(self.BEKLENEN[donme])
 
     @pytest.mark.parametrize("donme", [90, 180, 270])
@@ -236,13 +236,13 @@ class TestDestKaydirmaKonumu:
         assert eski != int(self.BEKLENEN[donme]), \
             "vaka ayrım göstermiyor, test hiçbir şey ölçmüyor"
         g = (donme, self.W, self.H)
-        assert resolve_dest_scroll_y(None, None, g, self.OLCEK) != eski
+        assert resolve_dest_scroll_xy(None, None, g, self.OLCEK)[1] != eski
 
     def test_rotate_0_eski_degerle_BIREBIR_ayni(self, xyz):
         """Gündelik belgede hiçbir şey değişmemeli."""
         eski = int((self.H - self.Y) * self.OLCEK)
-        assert resolve_dest_scroll_y(None, None, (0, self.W, self.H),
-                                     self.OLCEK) == eski
+        assert resolve_dest_scroll_xy(None, None, (0, self.W, self.H),
+                                      self.OLCEK)[1] == eski
 
     @pytest.mark.parametrize("donme", [0, 90, 180, 270])
     def test_sonuc_hicbir_zaman_negatif_degil(self, donme, monkeypatch):
@@ -255,8 +255,8 @@ class TestDestKaydirmaKonumu:
         monkeypatch.setattr(praw, "FPDFDest_GetView",
                             _sahte_gorunum(praw.PDFDEST_VIEW_XYZ,
                                            [313.8, 4200.0, 0.0]))
-        assert resolve_dest_scroll_y(None, None, (donme, self.W, self.H),
-                                     self.OLCEK) >= 0
+        assert all(v >= 0 for v in resolve_dest_scroll_xy(
+            None, None, (donme, self.W, self.H), self.OLCEK))
 
     @pytest.mark.parametrize("donme,beklenen", [
         (0, int((792.0 - 700.0) * 1.5)),
@@ -268,8 +268,8 @@ class TestDestKaydirmaKonumu:
         """FitH yalnız y veriyor; 90/270'te yanlış yere gitmektense sayfa başı."""
         monkeypatch.setattr(praw, "FPDFDest_GetView",
                             _sahte_gorunum(praw.PDFDEST_VIEW_FITH, [700.0]))
-        assert resolve_dest_scroll_y(None, None, (donme, self.W, self.H),
-                                     1.5) == beklenen
+        assert resolve_dest_scroll_xy(None, None, (donme, self.W, self.H),
+                                      1.5)[1] == beklenen
 
     @pytest.mark.parametrize("mod", ["FIT", "FITV", "FITR", "FITB"])
     def test_desteklenmeyen_gorunum_sayfa_basina_goturuyor(self, mod, monkeypatch):
@@ -279,10 +279,10 @@ class TestDestKaydirmaKonumu:
             pytest.skip("pypdfium2'de PDFDEST_VIEW_%s yok" % mod)
         monkeypatch.setattr(praw, "FPDFDest_GetView",
                             _sahte_gorunum(sabit, [1.0, 2.0, 3.0, 4.0]))
-        assert resolve_dest_scroll_y(None, None, (90, self.W, self.H), 1.5) == 0
+        assert resolve_dest_scroll_xy(None, None, (90, self.W, self.H), 1.5) == (0, 0)
 
     def test_eksik_parametre_sayfa_basina_goturuyor(self, monkeypatch):
         """XYZ iki parametre istiyor; bozuk belgede tek gelebilir."""
         monkeypatch.setattr(praw, "FPDFDest_GetView",
                             _sahte_gorunum(praw.PDFDEST_VIEW_XYZ, [150.0]))
-        assert resolve_dest_scroll_y(None, None, (0, self.W, self.H), 1.5) == 0
+        assert resolve_dest_scroll_xy(None, None, (0, self.W, self.H), 1.5) == (0, 0)
