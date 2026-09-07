@@ -64,6 +64,8 @@ class PdfViewer(
         self._sayfa_pt: dict[int, tuple[float, float]] = {}
         self._current_page = 0
         self._zoom = 0.75
+        # Yakinlastirmada korunacak bakis noktasi (bkz. _navigation)
+        self._bekleyen_zoom_capasi = None
         self._page_labels: list[QLabel] = []
         self._render_gen = 0
         self._pres_cache: dict[tuple, QPixmap] = {}

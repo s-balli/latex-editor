@@ -83,19 +83,64 @@ class PdfNavigationMixin:
             return
         yatay.setValue(max(0, min(hedef, yatay.maximum())))
 
-    def zoom_in(self):
-        self._zoom = min(self._zoom + 0.05, 3.0)
+    def _zoom_capasi_al(self):
+        """Görüntünün ORTASINDAKİ (sayfa, sayfa içi oran).
+
+        Ölçek değişince sayfa yükseklikleri büyüyor, kaydırma çubuğunun
+        değeri ise duruyor: kullanıcının baktığı yer kayıyor. ÖLÇÜLDÜ
+        (2026-09-07, altı sayfalık belge, %75'ten dört adım): görüntünün
+        ortası 4. sayfanın %50'sinden 3. sayfanın %77'sine gidiyor, yani
+        bir sayfa geriye. Yakınlaştırma da uzaklaştırma da bunu yapıyor.
+        """
+        dikey = self._scroll.verticalScrollBar()
+        orta = dikey.value() + self._scroll.viewport().height() // 2
+        for i, etiket in enumerate(self._page_labels):
+            ust = etiket.mapTo(self._pages_widget, QPoint(0, 0)).y()
+            if ust <= orta < ust + etiket.height():
+                return i, (orta - ust) / max(etiket.height(), 1)
+        return None
+
+    def _zoom_capasini_uygula(self):
+        """Bekleyen çapayı geri koy.
+
+        `verticalScrollBar().rangeChanged`den çağrılıyor, zamanlayıcıdan
+        DEĞİL: yeni yerleşim eşzamanlı olarak hazır olmuyor. ÖLÇÜLDÜ
+        (2026-09-07), `_update_page_sizes` hemen ardından sayfa konumu hâlâ
+        eski; `layout().activate()`, `sendPostedEvents(LayoutRequest)` ve
+        `processEvents()` de yetmiyor, 0 ms'lik zamanlayıcı da erken. Buna
+        karşılık `rangeChanged` TAM BİR KEZ ve yerleşmiş düzenle geliyor.
+        """
+        capa = self._bekleyen_zoom_capasi
+        self._bekleyen_zoom_capasi = None       # yeniden girmeyi kes
+        if capa is None:
+            return
+        i, oran = capa
+        if i >= len(self._page_labels):
+            return
+        etiket = self._page_labels[i]
+        ust = etiket.mapTo(self._pages_widget, QPoint(0, 0)).y()
+        hedef = (ust + int(oran * etiket.height())
+                 - self._scroll.viewport().height() // 2)
+        self._scroll.verticalScrollBar().setValue(max(0, hedef))
+
+    def _zoom_uygula(self, yeni: float):
+        """Ölçeği değiştir; kullanıcının baktığı yeri koru.
+
+        Üç çağıran (zoom_in, zoom_out, _fit_zoom) aynı dört satırı
+        taşıyordu; çapa da o yüzden üç yerde eklenmek zorunda kalırdı.
+        """
+        self._bekleyen_zoom_capasi = self._zoom_capasi_al()
+        self._zoom = max(0.05, min(yeni, 3.0))
         self._pres_cache.clear()
         self._update_page_sizes()
         QTimer.singleShot(50, self._render_visible)
         self._update_nav()
 
+    def zoom_in(self):
+        self._zoom_uygula(self._zoom + 0.05)
+
     def zoom_out(self):
-        self._zoom = max(self._zoom - 0.05, 0.05)
-        self._pres_cache.clear()
-        self._update_page_sizes()
-        QTimer.singleShot(50, self._render_visible)
-        self._update_nav()
+        self._zoom_uygula(self._zoom - 0.05)
 
     def _fit_zoom(self, mode: str):
         """mode: 'width' veya 'page'"""
@@ -129,15 +174,8 @@ class PdfNavigationMixin:
         margin = 20
         fit_w = (vp_w - margin) / pw if pw > 0 else 0.75
         fit_h = (vp_h - margin) / ph if ph > 0 else 0.75
-        if mode == "width":
-            self._zoom = fit_w
-        else:
-            self._zoom = min(fit_w, fit_h)
-        self._zoom = max(0.05, min(self._zoom, 3.0))
-        self._pres_cache.clear()
-        self._update_page_sizes()
-        QTimer.singleShot(50, self._render_visible)
-        self._update_nav()
+        yeni = fit_w if mode == "width" else min(fit_w, fit_h)
+        self._zoom_uygula(yeni)
 
     def fit_width(self):
         self._fit_zoom("width")

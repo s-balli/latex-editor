@@ -306,6 +306,10 @@ class PdfUISetupMixin:
 
         self._scroll.setWidget(self._pages_widget)
         self._scroll.verticalScrollBar().valueChanged.connect(self._on_scroll)
+        # Olcek degisince yerlesim ESZAMANLI hazir olmuyor; capayi geri
+        # koymanin dogru ani aralik guncellenmesi (bkz. _navigation).
+        self._scroll.verticalScrollBar().rangeChanged.connect(
+            lambda _mn, _mx: self._zoom_capasini_uygula())
         self._pages_widget.setMouseTracking(True)
         self._pages_widget.installEventFilter(self)
         body.addWidget(self._scroll)
