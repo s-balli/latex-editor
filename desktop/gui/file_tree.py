@@ -571,21 +571,36 @@ class FileTree(QWidget):
             self._delete_file(path)
 
     def _open_in_explorer(self, path: str):
-        """Dosyanın bulunduğu klasörü platforma göre aç."""
+        """Dosyanın bulunduğu klasörü platforma göre aç.
+
+        `Popen` SARILIYOR. Yardımcı komut her kurulumda bulunmuyor: Linux'ta
+        `xdg-open` xdg-utils paketinden geliyor ve minimal kurulumlarda yok,
+        AppImage ise rastgele dağıtımlarda koşuyor. ÖLÇÜLDÜ (2026-09-07):
+        komut yokken `FileNotFoundError` buradan kaçıyor ve tek çağıranı
+        `_on_context_menu`, yani bir SLOT. Bu depoda iki kez ölçüldü,
+        PyQt6'da slottan kaçan istisna süreci öldürüyor ve öbür sekmelerdeki
+        kaydedilmemiş iş de gidiyor (bkz. version_ops._on_version_action).
+        """
         import subprocess
         import sys
-        if sys.platform == "win32":
-            # DİZGE biçimi bilinçli. Genel kural "listeyi tercih et" ama
-            # explorer `/select,"yol"` biçimini bekliyor; liste verilince
-            # Python boşluklu yolda TÜM argümanı tırnaklıyor
-            # (`"/select,C:\... adi.tex"`) ve seçim çalışmıyor.
-            # Enjeksiyon riski yok: Windows dosya adlarında `"` zaten yasak
-            # ve `fs_ops.ad_hatasi` da onu reddediyor.
-            subprocess.Popen(f'explorer /select,"{path}"')
-        elif sys.platform == "darwin":
-            subprocess.Popen(["open", "-R", path])
-        else:
-            subprocess.Popen(["xdg-open", os.path.dirname(path)])
+        try:
+            if sys.platform == "win32":
+                # DİZGE biçimi bilinçli. Genel kural "listeyi tercih et" ama
+                # explorer `/select,"yol"` biçimini bekliyor; liste verilince
+                # Python boşluklu yolda TÜM argümanı tırnaklıyor
+                # (`"/select,C:\... adi.tex"`) ve seçim çalışmıyor.
+                # Enjeksiyon riski yok: Windows dosya adlarında `"` zaten
+                # yasak ve `fs_ops.ad_hatasi` da onu reddediyor.
+                subprocess.Popen(f'explorer /select,"{path}"')
+            elif sys.platform == "darwin":
+                subprocess.Popen(["open", "-R", path])
+            else:
+                subprocess.Popen(["xdg-open", os.path.dirname(path)])
+        except OSError as e:
+            _logger.error("Klasör açılamadı: %s", path, exc_info=True)
+            QMessageBox.warning(
+                self, _("Klasörde Aç"),
+                _("Klasör açılamadı:\n\n{e}").format(e=e))
 
     # ------------------------------------------------------------------
     # Yeni dosya / yeni klasör / yeniden adlandır

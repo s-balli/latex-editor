@@ -838,122 +838,136 @@ Windows: WSL içinde 'sudo apt install pandoc'</translation>
         <translation>🗑 Sil</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="604" />
+        <location filename="../gui/file_tree.py" line="602" />
+        <source>Klasörde Aç</source>
+        <translation>Klasörde Aç</translation>
+    </message>
+    <message>
+        <location filename="../gui/file_tree.py" line="603" />
+        <source>Klasör açılamadı:
+
+{e}</source>
+        <translation>Klasör açılamadı:
+
+{e}</translation>
+    </message>
+    <message>
+        <location filename="../gui/file_tree.py" line="619" />
         <source>Ad boş olamaz.</source>
         <translation>Ad boş olamaz.</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="605" />
+        <location filename="../gui/file_tree.py" line="620" />
         <source>'.' ve '..' ad olarak kullanılamaz.</source>
         <translation>'.' ve '..' ad olarak kullanılamaz.</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="606" />
+        <location filename="../gui/file_tree.py" line="621" />
         <source>Ad şu karakterleri içeremez:  &lt; &gt; : " / \ | ? *</source>
         <translation>Ad şu karakterleri içeremez:  &lt; &gt; : " / \ | ? *</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="608" />
+        <location filename="../gui/file_tree.py" line="623" />
         <source>Ad nokta veya boşlukla bitemez: Windows bunları sessizce siler ve dosyayı adıyla bulamazsınız.</source>
         <translation>Ad nokta veya boşlukla bitemez: Windows bunları sessizce siler ve dosyayı adıyla bulamazsınız.</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="611" />
+        <location filename="../gui/file_tree.py" line="626" />
         <source>Bu ad Windows'ta aygıt adı olarak ayrılmış (CON, PRN, AUX, NUL, COM1-9, LPT1-9); uzantı eklense de kullanılamaz.</source>
         <translation>Bu ad Windows'ta aygıt adı olarak ayrılmış (CON, PRN, AUX, NUL, COM1-9, LPT1-9); uzantı eklense de kullanılamaz.</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="614" />
+        <location filename="../gui/file_tree.py" line="629" />
         <source>Ad çok uzun (en fazla 255 karakter).</source>
         <translation>Ad çok uzun (en fazla 255 karakter).</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="615" />
+        <location filename="../gui/file_tree.py" line="630" />
         <source>Ad geçersiz.</source>
         <translation>Ad geçersiz.</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="638" />
+        <location filename="../gui/file_tree.py" line="653" />
         <source>Yeni Klasör</source>
         <translation>Yeni Klasör</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="638" />
+        <location filename="../gui/file_tree.py" line="653" />
         <source>Yeni Dosya</source>
         <translation>Yeni Dosya</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="639" />
+        <location filename="../gui/file_tree.py" line="654" />
         <source>Klasör adı:</source>
         <translation>Klasör adı:</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="639" />
+        <location filename="../gui/file_tree.py" line="654" />
         <source>Dosya adı (örn. bolum2.tex):</source>
         <translation>Dosya adı (örn. bolum2.tex):</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="681" />
-        <location filename="../gui/file_tree.py" line="647" />
+        <location filename="../gui/file_tree.py" line="696" />
+        <location filename="../gui/file_tree.py" line="662" />
         <source>'{name}' zaten var.</source>
         <translation>'{name}' zaten var.</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="651" />
+        <location filename="../gui/file_tree.py" line="666" />
         <source>Oluşturulamadı: {e}</source>
         <translation>Oluşturulamadı: {e}</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="661" />
+        <location filename="../gui/file_tree.py" line="676" />
         <source>Yeniden Adlandır</source>
         <translation>Yeniden Adlandır</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="663" />
+        <location filename="../gui/file_tree.py" line="678" />
         <source>Yeni ad:</source>
         <translation>Yeni ad:</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="687" />
+        <location filename="../gui/file_tree.py" line="702" />
         <source>Yeniden adlandırılamadı: {e}</source>
         <translation>Yeniden adlandırılamadı: {e}</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="721" />
+        <location filename="../gui/file_tree.py" line="736" />
         <source>Sil</source>
         <translation>Sil</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="722" />
+        <location filename="../gui/file_tree.py" line="737" />
         <source>'{name}' klasörünü ve İÇİNDEKİLERİ silmek istediğinize emin misiniz?
 (Geri dönüşüm kutusuna taşınır)</source>
         <translation>'{name}' klasörünü ve İÇİNDEKİLERİ silmek istediğinize emin misiniz?
 (Geri dönüşüm kutusuna taşınır)</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="724" />
+        <location filename="../gui/file_tree.py" line="739" />
         <source>'{name}' dosyasını silmek istediğinize emin misiniz?
 (Geri dönüşüm kutusuna taşınır)</source>
         <translation>'{name}' dosyasını silmek istediğinize emin misiniz?
 (Geri dönüşüm kutusuna taşınır)</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="728" />
+        <location filename="../gui/file_tree.py" line="743" />
         <source>Evet</source>
         <translation>Evet</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="729" />
+        <location filename="../gui/file_tree.py" line="744" />
         <source>Hayır</source>
         <translation>Hayır</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="737" />
+        <location filename="../gui/file_tree.py" line="752" />
         <source>Hata</source>
         <translation>Hata</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="737" />
+        <location filename="../gui/file_tree.py" line="752" />
         <source>Silinemedi: {e}</source>
         <translation>Silinemedi: {e}</translation>
     </message>

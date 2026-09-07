@@ -752,3 +752,154 @@ def test_ayni_adli_klasor_dosya_degisimi_goruluyor(qapp, tmp_path):
     (tmp_path / "x").write_text("artık dosya", encoding="utf-8")
 
     assert tree._collect_files(str(tmp_path)) != once
+
+
+# =====================================================================
+# "Klasorde Ac" yardimci komut YOKKEN uygulamayi olduruyordu (2026-09-07)
+#
+# `_open_in_explorer` uc platformda da `subprocess.Popen`i korumasiz
+# cagiriyordu. Komut yoksa `FileNotFoundError` atiyor ve tek cagirani
+# `_on_context_menu`, yani bir SLOT. Bu depoda iki kez olculdu: PyQt6'da
+# slottan kacan istisna sureci olduruyor ve obur sekmelerdeki kaydedilmemis
+# is de gidiyor (bkz. version_ops._on_version_action).
+#
+# Linux'ta `xdg-open` xdg-utils paketinden geliyor ve minimal kurulumlarda
+# YOK; AppImage rastgele dagitimlarda kosuyor.
+# =====================================================================
+
+
+class _KlasorStub:
+    """`_open_in_explorer`i kosturmak icin gereken en az iskelet."""
+
+    _open_in_explorer = FileTree._open_in_explorer
+
+
+def test_KLASORDE_AC_komut_yokken_istisna_ATMIYOR(qapp, tmp_path,
+                                                  monkeypatch):
+    """Kirilirsa: xdg-open kurulu olmayan bir Linux'ta menuden "Klasorde Ac"
+    uygulamayi olduruyor."""
+    import subprocess
+    from gui import file_tree as ft
+
+    dosya = tmp_path / "ana.tex"
+    dosya.write_text("x\n", encoding="utf-8")
+
+    def yok(*a, **k):
+        raise FileNotFoundError(2, "No such file or directory: 'xdg-open'")
+
+    monkeypatch.setattr(subprocess, "Popen", yok)
+    uyarilar = []
+    monkeypatch.setattr(ft.QMessageBox, "warning",
+                        staticmethod(lambda *a, **k: uyarilar.append(
+                            a[2] if len(a) > 2 else "")))
+
+    _KlasorStub()._open_in_explorer(str(dosya))       # patlamamali
+
+    assert uyarilar, "kullaniciya hicbir sey soylenmedi"
+    assert "xdg-open" in str(uyarilar), "sebep mesaja girmedi"
+
+
+def test_KLASORDE_AC_izin_hatasinda_da_ATMIYOR(qapp, tmp_path, monkeypatch):
+    """Komut var ama calistirilamiyor da olabilir (izin, kilit)."""
+    import subprocess
+    from gui import file_tree as ft
+
+    dosya = tmp_path / "ana.tex"
+    dosya.write_text("x\n", encoding="utf-8")
+    monkeypatch.setattr(subprocess, "Popen",
+                        lambda *a, **k: (_ for _ in ()).throw(
+                            PermissionError("izin yok")))
+    uyarilar = []
+    monkeypatch.setattr(ft.QMessageBox, "warning",
+                        staticmethod(lambda *a, **k: uyarilar.append("x")))
+
+    _KlasorStub()._open_in_explorer(str(dosya))
+
+    assert uyarilar
+
+
+def test_KLASORDE_AC_komut_VARSA_calisiyor(qapp, tmp_path, monkeypatch):
+    """Asiri duzeltme kapisi: koruma dogru yolu engellememeli."""
+    import subprocess
+    import sys as _sys
+    from gui import file_tree as ft
+
+    dosya = tmp_path / "ana.tex"
+    dosya.write_text("x\n", encoding="utf-8")
+    cagrilar = []
+    monkeypatch.setattr(subprocess, "Popen",
+                        lambda *a, **k: cagrilar.append(a[0]) or object())
+    uyarilar = []
+    monkeypatch.setattr(ft.QMessageBox, "warning",
+                        staticmethod(lambda *a, **k: uyarilar.append("x")))
+
+    _KlasorStub()._open_in_explorer(str(dosya))
+
+    assert len(cagrilar) == 1, "komut hic cagrilmadi"
+    assert uyarilar == [], "saglam yolda uyari cikti"
+    # Windows'ta DIZGE, otekilerde LISTE bekleniyor (explorer /select biçimi)
+    if _sys.platform == "win32":
+        assert isinstance(cagrilar[0], str)
+        assert "/select," in cagrilar[0]
+    else:
+        assert isinstance(cagrilar[0], list)
+
+
+# =====================================================================
+# Kapsam disi kalmis iki kural (olculdu 2026-09-07)
+# =====================================================================
+
+
+def test_CIFT_TIKLAMA_yalniz_duzenlenebilir_dosyayi_aciyor(qapp, tmp_path):
+    """Agacta .pdf ya da klasore cift tiklamak editor sekmesi acmamali."""
+    from PyQt6.QtCore import Qt
+    from PyQt6.QtWidgets import QTreeWidgetItem
+    from gui.file_tree import FileTree
+    from gui.theme import THEMES
+
+    tex = tmp_path / "ana.tex"
+    tex.write_text("x\n", encoding="utf-8")
+    pdf = tmp_path / "ana.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n")
+
+    tree = FileTree(theme=THEMES["dark"])
+    try:
+        acilan = []
+        tree.file_open_requested.connect(acilan.append)
+
+        for yol, duzenlenebilir in ((str(tex), True), (str(pdf), False),
+                                    (str(tmp_path), False)):
+            oge = QTreeWidgetItem([""])
+            oge.setData(0, Qt.ItemDataRole.UserRole, yol)
+            oge.setData(0, Qt.ItemDataRole.UserRole + 1, duzenlenebilir)
+            tree._on_double_click(oge, 0)
+
+        assert acilan == [str(tex)], "yalniz .tex acilmaliydi: %r" % acilan
+    finally:
+        tree.deleteLater()
+        qapp.processEvents()
+
+
+def test_GECIKMELI_TAZELEME_degisiklik_yoksa_agaci_kurmuyor(qapp, tmp_path):
+    """Dosya sistemi sinyali her dokunusta geliyor; anlik goruntu aynıysa
+    agaci yeniden kurmak bosa is."""
+    from gui.file_tree import FileTree
+    from gui.theme import THEMES
+
+    (tmp_path / "ana.tex").write_text("x\n", encoding="utf-8")
+    tree = FileTree(theme=THEMES["dark"])
+    try:
+        tree.set_root(str(tmp_path))
+        qapp.processEvents()
+        tazelemeler = []
+        tree.refresh = lambda: tazelemeler.append(1)
+
+        tree._do_deferred_refresh()
+        assert tazelemeler == [], "degisiklik yokken agac yeniden kuruldu"
+
+        (tmp_path / "yeni.tex").write_text("y\n", encoding="utf-8")
+        tree._do_deferred_refresh()
+        assert tazelemeler == [1], "degisiklikte tazelenmedi"
+    finally:
+        tree.deleteLater()
+        qapp.processEvents()
