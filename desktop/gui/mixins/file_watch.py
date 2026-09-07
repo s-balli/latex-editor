@@ -20,9 +20,15 @@ class FileWatchMixin:
     def _file_watch_init(self):
         self._watcher = QFileSystemWatcher(self)
         self._watcher.fileChanged.connect(self._file_watch_on_change)
+        # Silindiği hâlde sekmede TUTULAN dosyaların GERİ GELMESİNİ yakalamak
+        # için klasör izlemesi de gerekiyor (bkz. _silinen_izle).
+        self._watcher.directoryChanged.connect(self._file_watch_on_dir_change)
 
         self._pending_reloads: set[str] = set()
         self._save_hashes: dict[str, str] = {}
+        # Diskten silinmiş ama kullanıcı "Sekmede Tut" dediği için sekmesi
+        # açık duran yollar.
+        self._silinen_tutulanlar: set[str] = set()
         # Modal "dosya değişti" dialog'u açıkken yeniden tur koşmasın:
         # dialog exec() event loop'u döndürür, debounce timer tekrar tetiklenip
         # farklı dosyalar için ikinci/üçüncü promptu üst üste yığardı
@@ -56,6 +62,9 @@ class FileWatchMixin:
             self._watcher.removePath(path)
         self._save_hashes.pop(path, None)
         self._pending_reloads.discard(path)
+        # Sekme kapandıysa geri gelmesini beklemenin de anlamı kalmadı.
+        self._silinen_tutulanlar.discard(path)
+        self._silinen_izlemesini_toparla()
         _logger.debug("Watch kaldırıldı: %s", path)
 
     def _file_watch_record_save(self, path: str):
@@ -84,6 +93,56 @@ class FileWatchMixin:
         except OSError:
             return ""
         return h.hexdigest()
+
+    def _silinen_izle(self, path: str):
+        """Silindiği hâlde sekmede tutulan dosyanın GERİ GELMESİNİ bekle.
+
+        Dosya silinince `QFileSystemWatcher` yolu kendi listesinden düşürüyor
+        ve o yol bir daha haber vermiyor. Dosya sonradan geri gelirse
+        (`git checkout` ile dala dönmek, senkron istemcisinin dosyayı geri
+        koyması, çöp kutusundan kurtarmak) kullanıcıya HİÇBİR ŞEY
+        söylenmiyordu.
+
+        ÖLÇÜLDÜ (2026-09-08), gerçek akışla: dosya siliniyor, kullanıcı
+        "Sekmede Tut" diyor, iki saniye sonra dosya FARKLI içerikle geri
+        geliyor -> soru çıkmıyor ve ilk Ctrl+S geri gelen içeriği sessizce
+        eziyor. Aynı dosya silinmemiş olsaydı disk değişimi soru çıkaracaktı;
+        yani silme, dosyayı korumasız bırakıyordu.
+
+        (İlk ölçümüm "soru çıkıyor" demişti; orada `_process_single`ı ELLE
+        çağırdığım için yol hâlâ izleme listesindeydi ve silme ile geri gelme
+        milisaniyeler arayla oluyordu. Sinyalin sürdüğü gerçek akışta değil.)
+
+        Klasör izlemesi bu iş için: dosyanın kendisi yokken izlenemiyor.
+        """
+        self._silinen_tutulanlar.add(path)
+        dizin = os.path.dirname(path)
+        if dizin and os.path.isdir(dizin) and dizin not in self._watcher.directories():
+            self._watcher.addPath(dizin)
+
+    def _silinen_izlemesini_toparla(self):
+        """Artık gereği kalmayan klasör izlemelerini bırak."""
+        gerekli = {os.path.dirname(p) for p in self._silinen_tutulanlar}
+        for d in list(self._watcher.directories()):
+            if os.path.normpath(d) not in gerekli:
+                self._watcher.removePath(d)
+
+    def _file_watch_on_dir_change(self, dizin: str):
+        """Klasör değişti: beklediğimiz dosyalardan biri geri geldi mi?
+
+        Geri gelen dosya sıradan bir "diskte değişti" olayı gibi kuyruğa
+        giriyor; hash kaydı silinmiş olduğu için `_process_single` doğrudan
+        soruya düşüyor ve kullanıcı diskteki hâli yükleme şansını buluyor.
+        """
+        dizin = os.path.normpath(dizin)
+        for path in list(self._silinen_tutulanlar):
+            if os.path.dirname(path) != dizin or not os.path.isfile(path):
+                continue
+            self._silinen_tutulanlar.discard(path)
+            _logger.info("Silinen dosya geri geldi: %s", path)
+            self._pending_reloads.add(path)
+            self._debounce_timer.start()
+        self._silinen_izlemesini_toparla()
 
     def _file_watch_on_change(self, path: str):
         """QFileSystemWatcher.fileChanged sinyali handler — debounce."""
@@ -197,12 +256,18 @@ class FileWatchMixin:
                     self._editor_tabs.setCurrentIndex(idx)
                 self._save_file_as()
                 # Dialog iptal edilirse kayıt olmaz: sekme kirli hâliyle açık
-                # kalır (kapatmak, kurtarma teklifini boşa çıkarırdı).
+                # kalır (kapatmak, kurtarma teklifini boşa çıkarırdı). O hâlde
+                # eski yol hâlâ sekmenin yolu, yani geri gelmesi izlenmeli.
+                # Kayıt BAŞARILIYSA editörün yolu değişmiştir ve yenisini
+                # `file_ops._save_file_as` zaten izlemeye almıştır.
+                if os.path.normpath(editor.file_path or "") == path:
+                    self._silinen_izle(path)
                 _logger.info("Silinen dosya için Farklı Kaydet: %s", path)
                 return
             if clicked is not btn_close:
                 # "Sekmede Tut" (ve dialogun X ile kapatılması): içerik editörde
                 # durur, yol korunur — Ctrl+S dosyayı eski yerine geri yazar.
+                self._silinen_izle(path)
                 _logger.info("Silinen dosya sekmede tutuldu: %s", path)
                 return
             _logger.info("Silinen dosyanın sekmesi kaydedilmeden kapatıldı: %s", path)

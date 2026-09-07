@@ -330,3 +330,98 @@ def test_BAYRAK_istisnada_da_temizleniyor(qapp, tmp_path):
     finally:
         stub.deleteLater()
         qapp.processEvents()
+
+
+# =====================================================================
+# Silinen dosya GERİ GELİRSE
+#
+# Dosya silinince QFileSystemWatcher yolu kendi listesinden düşürüyor ve o
+# yol bir daha haber vermiyor. Kullanıcı "Sekmede Tut" dediyse sekme açık
+# kalıyor ama artık korumasız. ÖLÇÜLDÜ (2026-09-08), gerçek akışla: dosya
+# siliniyor, "Sekmede Tut", iki saniye sonra dosya FARKLI içerikle geri
+# geliyor -> soru çıkmıyor ve ilk Ctrl+S geri gelen içeriği sessizce eziyor.
+# Aynı dosya silinmemiş olsaydı disk değişimi soru çıkaracaktı; yani silme,
+# dosyayı korumasız bırakıyordu.
+#
+# Gerçek `directoryChanged` sinyalini beklemek zamanlamaya bağlı olurdu (bu
+# depoda o sınıf testler bir kez kırılganlık kaynağı oldu). Bunun yerine üç
+# parça ayrı ayrı sınanıyor: sinyal BAĞLI mı, klasör izlemeye ALINIYOR mu,
+# handler doğru davranıyor mu.
+# =====================================================================
+
+
+def test_dizin_sinyali_BAGLI(qapp, tmp_path):
+    """Kırılırsa aşağıdaki iki kapı da yeşil kalır ama özellik ölüdür."""
+    stub = _WatchStub()
+    assert stub._watcher.receivers(stub._watcher.directoryChanged) > 0
+
+
+def test_sekmede_tutulan_dosyanin_KLASORU_izlemeye_aliniyor(
+        qapp, tmp_path, monkeypatch):
+    ed, p = _acik_editor(tmp_path, kirli=True)
+    stub = _WatchStub([ed])
+    stub._file_watch_add(str(p))
+
+    _sil_ve_isle(stub, ed, p, monkeypatch, "Sekmede Tut")
+
+    assert os.path.normpath(str(p)) in stub._silinen_tutulanlar
+    izlenen = [os.path.normpath(d) for d in stub._watcher.directories()]
+    assert os.path.normpath(str(tmp_path)) in izlenen, izlenen
+
+
+def test_dosya_geri_gelince_SORU_kuyruga_giriyor(qapp, tmp_path, monkeypatch):
+    """Kırılırsa: geri gelen içerik ilk Ctrl+S ile sessizce eziliyor."""
+    ed, p = _acik_editor(tmp_path, kirli=True)
+    stub = _WatchStub([ed])
+    stub._file_watch_add(str(p))
+    _sil_ve_isle(stub, ed, p, monkeypatch, "Sekmede Tut")
+
+    p.write_text("DALDAN GELEN YENİ İÇERİK\n", encoding="utf-8")
+    stub._file_watch_on_dir_change(str(tmp_path))
+
+    assert os.path.normpath(str(p)) in stub._pending_reloads
+    assert stub._debounce_timer.isActive()
+    # Beklemenin sebebi kalmadı: klasör izlemesi de bırakılmalı
+    assert os.path.normpath(str(p)) not in stub._silinen_tutulanlar
+    assert stub._watcher.directories() == []
+
+
+def test_dosya_geri_GELMEDIYSE_soru_cikmiyor(qapp, tmp_path, monkeypatch):
+    """Aşırı düzeltme kapısı: klasörde BAŞKA bir dosya oluşması bizim
+    dosyamızın geri geldiği anlamına gelmiyor."""
+    ed, p = _acik_editor(tmp_path, kirli=True)
+    stub = _WatchStub([ed])
+    stub._file_watch_add(str(p))
+    _sil_ve_isle(stub, ed, p, monkeypatch, "Sekmede Tut")
+
+    (tmp_path / "baska.tex").write_text("x", encoding="utf-8")
+    stub._file_watch_on_dir_change(str(tmp_path))
+
+    assert stub._pending_reloads == set()
+    assert os.path.normpath(str(p)) in stub._silinen_tutulanlar
+
+
+def test_sekme_KAPATILIRSA_klasor_izlenmiyor(qapp, tmp_path, monkeypatch):
+    """Kapatılan sekmenin dosyasını beklemeye gerek yok; izleme sızmamalı."""
+    ed, p = _acik_editor(tmp_path, kirli=True)
+    stub = _WatchStub([ed])
+    stub._file_watch_add(str(p))
+    _sil_ve_isle(stub, ed, p, monkeypatch, "Sekmede Tut")
+    assert stub._watcher.directories() != []
+
+    stub._file_watch_remove(str(p))
+
+    assert stub._silinen_tutulanlar == set()
+    assert stub._watcher.directories() == []
+
+
+def test_SEKMEYI_KAPAT_seciminde_klasor_izlenmiyor(qapp, tmp_path, monkeypatch):
+    """Aşırı düzeltme kapısı: sekme kapandıysa beklenecek bir şey yok."""
+    ed, p = _acik_editor(tmp_path, kirli=True)
+    stub = _WatchStub([ed])
+    stub._file_watch_add(str(p))
+
+    _sil_ve_isle(stub, ed, p, monkeypatch, "Sekmeyi Kapat")
+
+    assert stub._silinen_tutulanlar == set()
+    assert stub._watcher.directories() == []
