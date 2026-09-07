@@ -34,6 +34,46 @@ class CompileOpsMixin:
                 self._file_watch_record_save(editor.file_path)
         return True
 
+    def _derleme_icin_kaydet(self, hedef: str) -> bool:
+        """Derlenen projedeki açık kirli sekmeleri kaydet (biri düşerse False).
+
+        Derleme DİSKTEN okuyor: `\\input`/`\\include` ile bağlı bölümler, `.bib`
+        ve `.sty` dosyaları editörün arabelleğini değil diskteki hâli görüyor.
+        Eskiden yalnız CARİ editör ve HEDEF kaydediliyordu. ÖLÇÜLDÜ
+        (2026-09-07), `\\input{bolum1}` bildiren bir projede: bolum1.tex
+        düzenlenip ana.tex sekmesine geçiliyor ve derleniyor; derleme anında
+        diskte bolum1.tex'in ESKİ hâli duruyor. PDF ile editörde görülen metin
+        ayrışıyor, hata satırları var olmayan içeriğe işaret ediyor ve hiçbir
+        uyarı çıkmıyor.
+
+        Kapsam PROJE ile sınırlı (`_shell_escape_kok`: belge ağaç kökünün
+        altındaysa kök, değilse belgenin dizini). Bütün açık sekmeleri
+        kaydetmek, kullanıcının başka bir klasörde açtığı ilgisiz bir belgeyi
+        de habersiz diske yazardı; üstelik salt okunur bir dosya oradaysa
+        derleme hiç başlamazdı. Sürümleme aynı sebeple diski hizalıyor ama
+        oradaki kapsam bilerek daha geniş (`version_ops._save_all_open`):
+        anlık görüntü deponun tamamını alıyor.
+
+        Yolu olmayan sekme atlanıyor: diske yazılmamış bir arabelleği LaTeX
+        zaten okuyamaz ve `save_file()` onda False döndüğü için derlemeyi
+        gereksiz yere keserdi.
+        """
+        kok = self._shell_escape_kok(hedef)
+        for i in range(self._editor_tabs.count()):
+            editor = self._editor_tabs.widget(i)
+            if not isinstance(editor, EditorWidget) or not editor.isModified():
+                continue
+            yol = editor.file_path
+            if not yol:
+                continue
+            if kok and not self._kok_kapsiyor_mu(kok, os.path.dirname(yol)):
+                continue
+            if not editor.save_file():
+                return False
+            if hasattr(self, "_file_watch_record_save"):
+                self._file_watch_record_save(editor.file_path)
+        return True
+
     def _resolve_compile_target(self, path: str) -> tuple[str, str]:
         """Derlenecek hedefi çözümle: (hedef_yolu, hata_mesajı).
 
@@ -229,7 +269,9 @@ class CompileOpsMixin:
             self._output_panel.show_cannot_compile(msg)
             self._status.showMessage(msg)
             return
-        if not self._save_if_open(editor.file_path) or not self._save_if_open(target):
+        if (not self._save_if_open(editor.file_path)
+                or not self._save_if_open(target)
+                or not self._derleme_icin_kaydet(target)):
             self._status.showMessage(_("Kayıt başarısız, derleme iptal"))
             return
         # Alt dosyadan kök derlendiyse motoru kökün içeriği belirler
@@ -261,7 +303,9 @@ class CompileOpsMixin:
             self._output_panel.show_cannot_compile(msg)
             self._status.showMessage(msg)
             return
-        if not self._save_if_open(path) or not self._save_if_open(target):
+        if (not self._save_if_open(path)
+                or not self._save_if_open(target)
+                or not self._derleme_icin_kaydet(target)):
             self._status.showMessage(_("Kayıt başarısız, derleme iptal"))
             return
         engine = self._engine_combo.currentText()
@@ -280,12 +324,22 @@ class CompileOpsMixin:
                                shell_escape=self._shell_escape_karari(target))
 
     def _stop_compile(self):
+        # Mesaj KOŞULLU: Esc her bağlamdan buraya düşüyor (bkz. `_on_esc`;
+        # bul çubuğu kapalıysa koşulsuz burayı çağırıyor). ÖLÇÜLDÜ
+        # (2026-09-07): hiçbir derleme yokken Esc'e basmak "Derleme
+        # durduruldu" yazıyordu, yani kullanıcı olmayan bir işlemin iptal
+        # edildiğini okuyordu.
+        #
+        # Durum sıfırlaması KOŞULSUZ kalıyor: ilerleme çubuğu ile imleç bir
+        # sebeple asılı kaldıysa Esc onları yine toparlasın.
+        calisiyordu = self._compiler.is_busy()
         self._compiler.stop()
         self._progress.hide()
         # stop() artık sonuç yaymıyor, dolayısıyla _on_compile_finished'in
         # yaptığı imleç geri alma da çalışmıyor: burada yapılmalı.
         self.setCursor(Qt.CursorShape.ArrowCursor)
-        self._status.showMessage(_("Derleme durduruldu"))
+        if calisiyordu:
+            self._status.showMessage(_("Derleme durduruldu"))
 
     def _on_esc(self):
         if self._find_bar and self._find_bar.isVisible():

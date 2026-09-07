@@ -84,6 +84,10 @@ class StubMain:
         self._err_index = -1
         # shell-escape kararı proje köküne bakıyor; ağaç yoksa hedefin dizini
         self._file_tree = SimpleNamespace(_root=root)
+        # Esc yönlendirmesi buna bakıyor (compile_ops._on_esc): bul çubuğu
+        # açıksa onu kapatır, değilse derlemeyi durdurur. Yokluğu handler'ı
+        # AttributeError ile düşürürdü; testler açıkken hâlini kendi kurar.
+        self._find_bar = None
         self.goto_calls = []
 
     def _current_editor(self):
