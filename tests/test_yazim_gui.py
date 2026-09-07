@@ -254,11 +254,20 @@ def test_en_US_icin_dizin_VERILMEZ(qapp):
     assert _sozluk_dizini_gerekli_mi("en_US") == ""
 
 
-def test_tr_TR_icin_dizin_dosya_VARSA_verilir(qapp, tmp_path, monkeypatch):
+def test_tr_TR_icin_dizin_IKI_dosya_VARSA_verilir(qapp, tmp_path,
+                                                  monkeypatch):
+    """`.dic` tek başına YETMİYOR.
+
+    Eskiden yalnız `.dic`e bakılıyordu. ÖLÇÜLDÜ (2026-09-07): `.aff` eksikken
+    dizin döndürülüyor ve spylls `FileNotFoundError` ile patlıyor, üstelik
+    `.aff` bir daha hiç açılmıyordu.
+    """
     monkeypatch.setattr("gui.mixins.yazim_ops.sozluk_dizini",
                         lambda: str(tmp_path))
     assert _sozluk_dizini_gerekli_mi("tr_TR") == ""      # dosya yok
-    (tmp_path / "tr_TR.dic").write_text("x", encoding="utf-8")
+    (tmp_path / "tr_TR.dic").write_text("1\nkelime\n", encoding="utf-8")
+    assert _sozluk_dizini_gerekli_mi("tr_TR") == "", ".aff yokken dizin verildi"
+    (tmp_path / "tr_TR.aff").write_text("SET UTF-8\n", encoding="utf-8")
     assert _sozluk_dizini_gerekli_mi("tr_TR") == str(tmp_path)
 
 
@@ -533,3 +542,115 @@ def test_oneri_setText_ILE_yazmiyor(qapp):
     ed.setText = lambda m: cagrildi.append(m)
     s._yazim_degistir("kelme", "kelime")
     assert cagrildi == []
+
+
+# =====================================================================
+# Sozluk acma YARIDA kalirsa kalici olarak bozuk kaliyordu (2026-09-07)
+#
+# `_sikistirilmisi_ac` ilk satirda "`.dic` var mi" diye bakip donuyordu.
+# OLCULDU, iki hal de bir daha HIC acilmiyor:
+#   kirpik `.dic` -> spylls HATASIZ yukluyor ve lookup("kelime") False,
+#                    yani dogru kelimeler yanlis isaretleniyor; kullanici
+#                    hicbir uyari gormuyor
+#   `.aff` eksik  -> FileNotFoundError
+#
+# Iki kural eklendi: yazma ATOMIK (yanina yaz, yerine koy) ve `.dic`
+# biciminin KENDI sayacina bakiliyor (ilk satir girdi sayisi).
+# =====================================================================
+
+
+def _xz_kur(dizin, dic=b"2\nkelime\nsozluk\n", aff=b"SET UTF-8\n"):
+    import lzma
+    (dizin / "tr_TR.dic.xz").write_bytes(lzma.compress(dic))
+    (dizin / "tr_TR.aff.xz").write_bytes(lzma.compress(aff))
+    return dic, aff
+
+
+def test_KIRPIK_dic_yeniden_aciliyor(qapp, tmp_path, monkeypatch):
+    """Kirilirsa: cokme sonrasi yazim denetimi dogru kelimeleri yanlis
+    isaretlemeye baslar ve bir daha kendine gelmez."""
+    monkeypatch.setattr("gui.mixins.yazim_ops.sozluk_dizini",
+                        lambda: str(tmp_path))
+    dic, aff = _xz_kur(tmp_path)
+    assert _sozluk_dizini_gerekli_mi("tr_TR") == str(tmp_path)
+
+    # Cokme taklidi: sayac 2 diyor ama tek satir var
+    (tmp_path / "tr_TR.dic").write_bytes(b"2\nkelime\n")
+
+    assert _sozluk_dizini_gerekli_mi("tr_TR") == str(tmp_path)
+    assert (tmp_path / "tr_TR.dic").read_bytes() == dic, "kirpik dosya onarilmadi"
+
+
+def test_AFF_eksikse_yeniden_aciliyor(qapp, tmp_path, monkeypatch):
+    monkeypatch.setattr("gui.mixins.yazim_ops.sozluk_dizini",
+                        lambda: str(tmp_path))
+    _dic, aff = _xz_kur(tmp_path)
+    assert _sozluk_dizini_gerekli_mi("tr_TR") == str(tmp_path)
+    (tmp_path / "tr_TR.aff").unlink()
+
+    assert _sozluk_dizini_gerekli_mi("tr_TR") == str(tmp_path)
+    assert (tmp_path / "tr_TR.aff").read_bytes() == aff
+
+
+def test_SAGLAM_dosyaya_dokunulmuyor(qapp, tmp_path, monkeypatch):
+    """Asiri duzeltme kapisi: her denetimde 9 MB yeniden acilmamali."""
+    monkeypatch.setattr("gui.mixins.yazim_ops.sozluk_dizini",
+                        lambda: str(tmp_path))
+    _xz_kur(tmp_path)
+    assert _sozluk_dizini_gerekli_mi("tr_TR") == str(tmp_path)
+
+    acmalar = []
+    monkeypatch.setattr("gui.mixins.yazim_ops._xz_ac",
+                        lambda k, c: acmalar.append(c) or True)
+    assert _sozluk_dizini_gerekli_mi("tr_TR") == str(tmp_path)
+    assert acmalar == [], "saglam sozluk yeniden acildi"
+
+
+def test_SAYACI_OLMAYAN_dic_bozuk_sayilmiyor(qapp, tmp_path, monkeypatch):
+    """Baska bir dil eklenirse bicimi farkli olabilir; durmadan yeniden
+    acmak yanlis olur."""
+    from gui.mixins.yazim_ops import _dic_saglam_mi
+    yol = tmp_path / "sayacsiz.dic"
+    yol.write_text("kelime\nsozluk\n", encoding="utf-8")
+    assert _dic_saglam_mi(str(yol)) is True
+
+
+def test_dic_saglamlik_denetimi_SAYIYOR(qapp, tmp_path):
+    from gui.mixins.yazim_ops import _dic_saglam_mi
+    tam = tmp_path / "tam.dic"
+    tam.write_text("2\na\nb\n", encoding="utf-8")
+    eksik = tmp_path / "eksik.dic"
+    eksik.write_text("2\na\n", encoding="utf-8")
+    assert _dic_saglam_mi(str(tam)) is True
+    assert _dic_saglam_mi(str(eksik)) is False
+    assert _dic_saglam_mi(str(tmp_path / "yok.dic")) is False
+
+
+def test_acma_yarida_kesilirse_KIRPIK_dosya_kalmiyor(qapp, tmp_path,
+                                                     monkeypatch):
+    """Atomik yazimin asil sebebi: hedef ya eski hali ya yeni hali olmali."""
+    import gui.mixins.yazim_ops as yo
+    monkeypatch.setattr("gui.mixins.yazim_ops.sozluk_dizini",
+                        lambda: str(tmp_path))
+    _xz_kur(tmp_path)
+
+    def patlayan_replace(a, b):
+        raise OSError("disk doldu")
+
+    monkeypatch.setattr(yo.os, "replace", patlayan_replace)
+    assert yo._xz_ac(str(tmp_path / "tr_TR.dic.xz"),
+                     str(tmp_path / "tr_TR.dic")) is False
+    assert not (tmp_path / "tr_TR.dic").exists(), "kirpik hedef birakildi"
+    assert not (tmp_path / "tr_TR.dic.tmp").exists(), "gecici dosya birakildi"
+
+
+def test_BOZUK_arsiv_uygulamayi_dusurmuyor(qapp, tmp_path, monkeypatch):
+    """Docstring'in verdigi soz: ozellik kapali kalir, uygulama calisir."""
+    import gui.mixins.yazim_ops as yo
+    monkeypatch.setattr("gui.mixins.yazim_ops.sozluk_dizini",
+                        lambda: str(tmp_path))
+    (tmp_path / "tr_TR.dic.xz").write_bytes(b"bu bir xz arsivi degil")
+    (tmp_path / "tr_TR.aff.xz").write_bytes(b"bu da degil")
+    assert yo._sozluk_dizini_gerekli_mi("tr_TR") == ""
+    assert not (tmp_path / "tr_TR.dic").exists()
+    assert not (tmp_path / "tr_TR.dic.tmp").exists()

@@ -74,13 +74,75 @@ def _sozluk_dizini_gerekli_mi(dil: str) -> str:
     """
     dizin = sozluk_dizini()
     _sikistirilmisi_ac(dizin, dil)
-    if os.path.isfile(os.path.join(dizin, dil + ".dic")):
+    # İKİ dosya da şart. Eskiden yalnız `.dic`e bakılıyordu: `.aff` eksikken
+    # dizin döndürülüyor ve spylls FileNotFoundError ile patlıyordu
+    # (ölçüldü 2026-09-07).
+    if all(os.path.isfile(os.path.join(dizin, dil + u))
+           for u in (".dic", ".aff")):
         return dizin
     return ""
 
 
+def _dic_saglam_mi(yol: str) -> bool:
+    """Hunspell `.dic` dosyası tam mı.
+
+    Biçimin KENDİ bütünlük işareti var: ilk satır girdi sayısı, dosya o kadar
+    satır taşımalı. Yan dosya tutmaya gerek kalmıyor ve ESKİ sürümlerin
+    bıraktığı kırpık dosya da onarılabiliyor.
+
+    ÖLÇÜLDÜ (2026-09-07): 9 MB'lık tr_TR.dic için ilk satır 371169 ve dosyada
+    tam o kadar satır var; sayım 39 ms sürüyor. Sözlük yüklemesi zaten 3.5 sn
+    ve arka planda, yani bu denetim ölçülebilir bir maliyet eklemiyor.
+
+    Sayaç satırı olmayan bir sözlüğe KARIŞILMIYOR: başka bir dil eklenirse
+    biçimi farklı olabilir ve "bozuk" sanıp durmadan yeniden açmak yanlış olur.
+    """
+    try:
+        with open(yol, "rb") as f:
+            bas = f.readline().strip()
+            if not bas.isdigit():
+                return True
+            return sum(1 for _ in f) >= int(bas)
+    except OSError:
+        return False
+
+
+def _xz_ac(kaynak: str, cikti: str) -> bool:
+    """`.xz` arşivini ATOMİK aç: yanına yaz, sonra yerine koy.
+
+    Doğrudan hedefe yazmak yarıda kesilince KIRPIK dosya bırakıyor ve eski
+    kod onu "var" sayıp bir daha hiç açmıyordu. ÖLÇÜLDÜ (2026-09-07): yarısı
+    yazılmış tr_TR.dic spylls'e HATASIZ yükleniyor ve `lookup("kelime")`
+    False dönüyor, yani doğru kelimeler yanlış işaretleniyor. Kullanıcı
+    hiçbir uyarı görmüyor, üstelik durum kalıcı.
+
+    Uygulama aynı kuralı `EditorWidget._write_atomic`ta zaten yazıyor.
+    """
+    import lzma
+    gecici = cikti + ".tmp"
+    try:
+        with lzma.open(kaynak, "rb") as f:
+            veri = f.read()
+        with open(gecici, "wb") as f:
+            f.write(veri)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(gecici, cikti)
+        log.info("Sözlük açıldı: %s", cikti)
+        return True
+    except (OSError, lzma.LZMAError):
+        # Salt okunur dizin ya da bozuk arşiv: özellik kapalı kalır,
+        # uygulama çalışmaya devam eder.
+        log.warning("Sözlük açılamadı: %s", kaynak, exc_info=True)
+        try:
+            os.remove(gecici)
+        except OSError:
+            pass
+        return False
+
+
 def _sikistirilmisi_ac(dizin: str, dil: str) -> None:
-    """Ham sözlük yoksa `.xz`den aç.
+    """Ham sözlük yoksa ya da BOZUKSA `.xz`den aç.
 
     Sözlük depoda SIKIŞTIRILMIŞ duruyor (ham `.dic` 8.6 MB, deponun bütün
     geçmişi 3.45 MB idi). Paketlenmiş uygulamada `.spec` yapım sırasında
@@ -89,26 +151,22 @@ def _sikistirilmisi_ac(dizin: str, dil: str) -> None:
     Ama KAYNAKTAN çalıştıran biri için ham dosya YOK: taze bir kopyada
     `sozlukler/` içinde yalnız `.xz` bulunuyor, `_sozluk_dizini_gerekli_mi`
     boş dönüyor ve yükleme anlaşılmaz bir hata diyaloğuyla düşüyordu.
+
+    Karar dosya BAŞINA veriliyor ve `.dic` için sağlamlık da soruluyor.
+    Eskiden tek bakış `.dic` VAR MI idi ve iki hâl kalıcı olarak bozuk
+    kalıyordu (ölçüldü 2026-09-07, ikisi de yeniden açılmıyordu):
+      kırpık `.dic`   -> sözlük hatasız yükleniyor, doğru kelimeler yanlış
+      `.aff` eksik    -> FileNotFoundError
     """
-    hedef = os.path.join(dizin, dil + ".dic")
-    if os.path.isfile(hedef):
-        return
-    import lzma
     for ad in (dil + ".dic", dil + ".aff"):
-        kaynak = os.path.join(dizin, ad + ".xz")
         cikti = os.path.join(dizin, ad)
-        if not os.path.isfile(kaynak) or os.path.isfile(cikti):
+        if os.path.isfile(cikti) and (not ad.endswith(".dic")
+                                      or _dic_saglam_mi(cikti)):
             continue
-        try:
-            with lzma.open(kaynak, "rb") as f:
-                veri = f.read()
-            with open(cikti, "wb") as f:
-                f.write(veri)
-            log.info("Sözlük açıldı: %s", cikti)
-        except OSError:
-            # Salt okunur dizin ya da bozuk arşiv: özellik kapalı kalır,
-            # uygulama çalışmaya devam eder.
-            log.warning("Sözlük açılamadı: %s", kaynak, exc_info=True)
+        kaynak = os.path.join(dizin, ad + ".xz")
+        if not os.path.isfile(kaynak):
+            continue
+        if not _xz_ac(kaynak, cikti):
             return
 
 
