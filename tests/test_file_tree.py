@@ -903,3 +903,177 @@ def test_GECIKMELI_TAZELEME_degisiklik_yoksa_agaci_kurmuyor(qapp, tmp_path):
     finally:
         tree.deleteLater()
         qapp.processEvents()
+
+
+# =====================================================================
+# Yenileme, kullanıcının ağaçtaki yerini korumalı
+#
+# `refresh()` ağacı `clear()` ile yıkıp baştan kuruyor. ÖLÇÜLDÜ
+# (2026-09-07): `bolumler/` ve altındaki `ekler/` açıkken bir dosya yaratmak
+# üçünü de kapatıyor ve seçim None oluyor; kullanıcı yeni yarattığı dosyayı
+# görmek için klasörleri baştan açmak zorunda kalıyor.
+#
+# Yenileme sıradan işlerde koşuyor: yeni dosya/klasör, yeniden adlandırma,
+# silme, kök değişimi ve DIŞARIDAN gelen her değişiklik (git pull, başka bir
+# editörün kaydı). Sonuncusu kullanıcı hiçbir şey yapmadan ağacı katlıyordu.
+# =====================================================================
+
+
+def _proje_agaci(tmp_path):
+    """bolumler/ekler/ ve Figures/ taşıyan küçük bir proje."""
+    (tmp_path / "ana.tex").write_text(
+        "\\documentclass{article}\\begin{document}x\\end{document}",
+        encoding="utf-8")
+    ekler = tmp_path / "bolumler" / "ekler"
+    ekler.mkdir(parents=True)
+    (tmp_path / "bolumler" / "b1.tex").write_text("x", encoding="utf-8")
+    (ekler / "ek1.tex").write_text("x", encoding="utf-8")
+    (tmp_path / "Figures").mkdir()
+    (tmp_path / "Figures" / "sekil.pdf").write_text("%PDF", encoding="utf-8")
+
+
+def _klasor_ogesi(tree, ad, kok=None):
+    """Adı `ad` geçen klasör öğesini derinlemesine bul."""
+    def gez(oge):
+        for i in range(oge.childCount()):
+            c = oge.child(i)
+            if ad in c.text(0):
+                return c
+            bulunan = gez(c)
+            if bulunan is not None:
+                return bulunan
+        return None
+
+    return gez(kok if kok is not None else tree.invisibleRootItem())
+
+
+def _acik_klasorler(tree):
+    acik = set()
+
+    def gez(oge):
+        for i in range(oge.childCount()):
+            c = oge.child(i)
+            if c.isExpanded():
+                acik.add(c.text(0))
+            gez(c)
+
+    gez(tree.invisibleRootItem())
+    return acik
+
+
+def test_yenileme_ACIK_klasorleri_kapatmiyor(qapp, tmp_path):
+    """Kırılırsa: kullanıcı dosya yarattığı anda ağaç katlanıyor ve yarattığı
+    dosya görünmez oluyor; dışarıdan gelen her değişiklikte de aynısı."""
+    _proje_agaci(tmp_path)
+    tree = FileTree(theme=THEMES["dark"])
+    try:
+        tree.set_root(str(tmp_path))
+        bolumler = _klasor_ogesi(tree._tree, "bolumler")
+        bolumler.setExpanded(True)
+        _klasor_ogesi(tree._tree, "ekler", bolumler).setExpanded(True)
+        assert _acik_klasorler(tree._tree) >= {"📁 bolumler", "📁 ekler"}
+
+        (tmp_path / "bolumler" / "b2.tex").write_text("x", encoding="utf-8")
+        tree.refresh()
+
+        acik = _acik_klasorler(tree._tree)
+        assert "📁 bolumler" in acik and "📁 ekler" in acik, acik
+        # Yeni dosya, açık kalan klasörün altında GÖRÜNÜR olmalı
+        assert _klasor_ogesi(tree._tree, "b2.tex") is not None
+    finally:
+        tree.deleteLater()
+        qapp.processEvents()
+
+
+def test_yenileme_ACILMAMIS_klasoru_ACMIYOR(qapp, tmp_path):
+    """Aşırı düzeltme kapısı: durum geri yükleniyor, `expandAll` yapılmıyor."""
+    _proje_agaci(tmp_path)
+    tree = FileTree(theme=THEMES["dark"])
+    try:
+        tree.set_root(str(tmp_path))
+        _klasor_ogesi(tree._tree, "bolumler").setExpanded(True)
+
+        tree.refresh()
+
+        assert "📁 Figures" not in _acik_klasorler(tree._tree)
+    finally:
+        tree.deleteLater()
+        qapp.processEvents()
+
+
+def test_yenileme_SECIMI_koruyor(qapp, tmp_path):
+    """Seçili öğe kayarsa kullanıcı ağaçtaki yerini kaybediyor."""
+    _proje_agaci(tmp_path)
+    tree = FileTree(theme=THEMES["dark"])
+    try:
+        tree.set_root(str(tmp_path))
+        bolumler = _klasor_ogesi(tree._tree, "bolumler")
+        bolumler.setExpanded(True)
+        hedef = _klasor_ogesi(tree._tree, "b1.tex", bolumler)
+        tree._tree.setCurrentItem(hedef)
+        yol = hedef.data(0, Qt.ItemDataRole.UserRole)
+
+        tree.refresh()
+
+        cari = tree._tree.currentItem()
+        assert cari is not None, "seçim kayboldu"
+        assert cari.data(0, Qt.ItemDataRole.UserRole) == yol
+    finally:
+        tree.deleteLater()
+        qapp.processEvents()
+
+
+def test_SILINEN_secili_dosya_yenilemede_cokme_yapmiyor(qapp, tmp_path):
+    """Seçili dosya diskten kalkmışsa geri yüklenecek öğe yok; sessizce
+    düşmeli, patlamamalı."""
+    _proje_agaci(tmp_path)
+    tree = FileTree(theme=THEMES["dark"])
+    try:
+        tree.set_root(str(tmp_path))
+        bolumler = _klasor_ogesi(tree._tree, "bolumler")
+        bolumler.setExpanded(True)
+        tree._tree.setCurrentItem(_klasor_ogesi(tree._tree, "b1.tex",
+                                                bolumler))
+
+        (tmp_path / "bolumler" / "b1.tex").unlink()
+        tree.refresh()
+
+        assert _klasor_ogesi(tree._tree, "b1.tex") is None
+        assert "📁 bolumler" in _acik_klasorler(tree._tree)
+    finally:
+        tree.deleteLater()
+        qapp.processEvents()
+
+
+# =====================================================================
+# Klasör taraması, AÇIK BELGENİN bağımlılık listesini silmemeli
+#
+# `update_input_tree` "Bu belgede" panelini dolduruyor ve depoda tek çağıranı
+# `tab_ops._on_tab_changed` (sekme değişimi). `refresh()` paneli
+# temizleyince, kullanıcı sekme değiştirene kadar BOŞ kalıyordu: bir dosya
+# yaratmak ya da dışarıdan gelen bir değişiklik listeyi sessizce siliyordu.
+# Klasör taraması belgenin bağımlılıklarını değiştirmiyor.
+# =====================================================================
+
+
+def test_yenileme_INPUT_agacini_silmiyor(qapp, tmp_path):
+    _proje_agaci(tmp_path)
+    ana = tmp_path / "ana.tex"
+    icerik = ("\\documentclass{article}\n\\begin{document}\n"
+              "\\input{bolumler/b1}\n\\end{document}\n")
+    ana.write_text(icerik, encoding="utf-8")
+
+    tree = FileTree(theme=THEMES["dark"])
+    try:
+        tree.set_root(str(tmp_path))
+        tree.update_input_tree(str(ana), icerik)          # sekme değişimi
+        once = tree._input_tree.invisibleRootItem().childCount()
+        assert once > 0, "ölçüm kurulamadı: bağımlılık listesi hiç dolmadı"
+
+        (tmp_path / "yeni.tex").write_text("x", encoding="utf-8")
+        tree.refresh()
+
+        assert tree._input_tree.invisibleRootItem().childCount() == once
+    finally:
+        tree.deleteLater()
+        qapp.processEvents()

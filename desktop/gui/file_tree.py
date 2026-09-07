@@ -296,18 +296,76 @@ class FileTree(QWidget):
             if ref.get('children'):
                 self._populate_input_tree(ref['children'], item)
 
+    def _agac_durumu(self):
+        """(açık klasör yolları, seçili öğenin yolu) — yenileme öncesi.
+
+        `refresh()` ağacı `clear()` ile yıkıp baştan kuruyor, yani kullanıcının
+        AÇTIĞI klasörler ve seçimi yok oluyordu. ÖLÇÜLDÜ (2026-09-07):
+        `bolumler/` ve altındaki `ekler/` açıkken bir dosya yaratmak
+        (`_yeni_oge` -> `refresh`) üçünü de kapatıyor ve seçim None oluyor;
+        yani kullanıcı yeni yarattığı dosyayı görmek için klasörleri baştan
+        açmak zorunda kalıyor.
+
+        Yenileme sıradan işlerde koşuyor: yeni dosya/klasör, yeniden
+        adlandırma, silme, kök değişimi ve DIŞARIDAN gelen her değişiklik
+        (git pull, başka bir editörün kaydı). Sonuncusu kullanıcı hiçbir şey
+        yapmadan ağacı katlıyordu.
+        """
+        acik = set()
+        secili = ""
+        cari = self._tree.currentItem()
+        if cari is not None:
+            yol = cari.data(0, Qt.ItemDataRole.UserRole)
+            secili = os.path.normpath(yol) if yol else ""
+
+        def gez(oge):
+            for i in range(oge.childCount()):
+                c = oge.child(i)
+                yol = c.data(0, Qt.ItemDataRole.UserRole)
+                if yol and c.isExpanded():
+                    acik.add(os.path.normpath(yol))
+                gez(c)
+
+        gez(self._tree.invisibleRootItem())
+        return acik, secili
+
+    def _agac_durumunu_uygula(self, acik: set, secili: str):
+        """Yenileme sonrası açık klasörleri ve seçimi geri koy.
+
+        Silinmiş/yeniden adlandırılmış yollar yeni ağaçta yok; onlar sessizce
+        düşüyor, çünkü artık gösterilecek bir öğeleri de yok.
+        """
+        def gez(oge):
+            for i in range(oge.childCount()):
+                c = oge.child(i)
+                yol = c.data(0, Qt.ItemDataRole.UserRole)
+                n = os.path.normpath(yol) if yol else ""
+                if n and n in acik:
+                    c.setExpanded(True)
+                if n and n == secili:
+                    self._tree.setCurrentItem(c)
+                gez(c)
+
+        gez(self._tree.invisibleRootItem())
+
     def refresh(self):
         if not self._root:
             return
+        acik, secili = self._agac_durumu()
         # Bekleyen kademeli denetimler eski (silinecek) öğelere bağlı — temizle
         self._pending_checks.clear()
         self._check_timer.stop()
         self._update_watcher()
         self._tree.clear()
-        self._input_tree.clear()
-        self._input_header.hide()
-        self._input_tree.hide()
+        # `\input` ağacına DOKUNULMUYOR. O, klasörün değil AÇIK BELGENİN
+        # bağımlılıklarını gösteriyor ve yalnız sekme değişiminde doluyor
+        # (`tab_ops._on_tab_changed` -> `update_input_tree`, depoda tek çağıran).
+        # Burada temizlenince panel, kullanıcı sekme değiştirene kadar BOŞ
+        # kalıyordu: bir dosya yaratmak ya da dışarıdan gelen bir değişiklik
+        # "Bu belgede" listesini sessizce siliyordu. Klasör taraması belgenin
+        # bağımlılıklarını değiştirmiyor.
         self._scan_dir()
+        self._agac_durumunu_uygula(acik, secili)
         if self._pending_checks:
             self._check_timer.start()
         self._save_snapshot()
