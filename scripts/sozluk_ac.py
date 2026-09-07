@@ -91,15 +91,39 @@ def ac(sessiz: bool = False) -> bool:
 
 
 def paketle() -> None:
-    """Ham `.dic`/`.aff` dosyalarindan `.xz` uret (bir kereye mahsus)."""
+    """Ham `.dic`/`.aff` dosyalarindan `.xz` uret (bir kereye mahsus).
+
+    ATOMIK YAZMA, tipki `ac()` gibi. Eskiden `.xz` DOGRUDAN hedefe
+    yaziliyordu ve kesilen bir yazma (Ctrl+C, dolu disk) deponun en degerli
+    ikili artefaktini bozuk birakiyordu. OLCULDU (2026-09-08): yazma ucte
+    birinde kesilince `.xz` 72 bayt yerine 24 bayt kaliyor ve acilmiyor
+    ("EOFError: Compressed file ended before the end-of-stream marker").
+
+    Sonucu yapim zincirinde YAKALANIYOR (`ac()` patlar, `.spec` yutar,
+    `paket_dogrula` yapimi dusurur), yani sessizce bozuk bir surum cikmiyor;
+    ama iyi `.xz` gitmis olur ve git'ten geri alinmasi gerekir. Kardes
+    fonksiyon bu dersi zaten yazmisti, bu almamisti.
+    """
     for ad in DOSYALAR:
         kaynak = os.path.join(DIZIN, ad)
         if not os.path.exists(kaynak):
             raise SystemExit("bulunamadi: sozlukler/%s" % ad)
-        ham = open(kaynak, "rb").read()
+        with open(kaynak, "rb") as f:
+            ham = f.read()
         sik = lzma.compress(ham, preset=9)
-        with open(kaynak + ".xz", "wb") as f:
-            f.write(sik)
+        hedef = kaynak + ".xz"
+        gecici = hedef + ".tmp"
+        try:
+            with open(gecici, "wb") as f:
+                f.write(sik)
+            os.replace(gecici, hedef)
+        except BaseException:
+            # BaseException: KeyboardInterrupt de yarim dosya birakmasin.
+            try:
+                os.unlink(gecici)
+            except OSError:
+                pass
+            raise
         print("  %s: %.2f MB -> %.2f MB"
               % (ad, len(ham) / 1048576, len(sik) / 1048576))
 

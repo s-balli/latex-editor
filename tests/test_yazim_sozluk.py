@@ -192,3 +192,112 @@ class TestYarimAcmaKendiniSurdurmuyor:
         assert not os.path.exists(hedef), "yarım dosya hedefe ulaştı"
         kalinti = [a for a in os.listdir(gecici_sozluk) if a.endswith(".tmp")]
         assert not kalinti, "geçici dosya temizlenmedi: %s" % kalinti
+
+
+# =====================================================================
+# `paketle()`: `.xz` ureten yon de atomik olmali
+#
+# `ac()` (acan yon) yarim yazmayi gecici dosya + `os.replace` ile kapatiyor
+# ve gerekcesini yaziyor; kardesi `paketle()` o dersi almamisti. OLCULDU
+# (2026-09-08): yazma ucte birinde kesilince `.xz` 72 bayt yerine 24 bayt
+# kaliyor ve acilmiyor ("EOFError: Compressed file ended before the
+# end-of-stream marker").
+#
+# Sonucu yapim zincirinde YAKALANIYOR (`ac()` patlar, `.spec` yutar,
+# `paket_dogrula` yapimi dusurur), yani sessizce bozuk bir surum cikmiyor;
+# ama deponun en degerli ikili artefakti gitmis olur.
+#
+# Bu testler GERCEK `sozlukler/`e dokunmuyor: kucuk sahte bir cift uzerinde
+# calisiyorlar, yoksa 8.6 MB'lik sikistirma her kosuda saniyeler alirdi.
+# =====================================================================
+
+
+@pytest.fixture
+def sahte_cift(tmp_path, monkeypatch):
+    """Kucuk bir ham `.dic`/`.aff` cifti; `sozluk_ac.DIZIN` oraya bakar."""
+    denek = tmp_path / "sozlukler"
+    denek.mkdir()
+    (denek / "tr_TR.dic").write_bytes(b"3\nbir\niki\nuc\n")
+    (denek / "tr_TR.aff").write_bytes(b"SET UTF-8\n")
+    monkeypatch.setattr(sozluk_ac, "DIZIN", str(denek))
+    return denek
+
+
+def test_paketle_ac_gidis_donusu(sahte_cift):
+    """Aşırı düzeltme kapısı: olağan yol bozulmamalı."""
+    import lzma
+
+    sozluk_ac.paketle()
+    ham = (sahte_cift / "tr_TR.dic").read_bytes()
+    (sahte_cift / "tr_TR.dic").unlink()
+
+    assert sozluk_ac.ac(sessiz=True)
+    assert (sahte_cift / "tr_TR.dic").read_bytes() == ham
+    with lzma.open(sahte_cift / "tr_TR.dic.xz", "rb") as f:
+        assert f.read() == ham
+
+
+def test_paketle_KESILIRSE_eski_xz_bozulmuyor(sahte_cift, monkeypatch):
+    """Kırılırsa deponun `.xz`i bozuk kalır ve git'ten geri alınması gerekir."""
+    sozluk_ac.paketle()                       # önce sağlam bir .xz üret
+    xz = sahte_cift / "tr_TR.dic.xz"
+    saglam = xz.read_bytes()
+
+    asil_open = sozluk_ac.open if hasattr(sozluk_ac, "open") else open
+
+    class _YarimYazan:
+        def __init__(self, f):
+            self._f = f
+
+        def write(self, veri):
+            self._f.write(veri[: max(1, len(veri) // 3)])
+            raise KeyboardInterrupt("yapım kesildi")
+
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            self._f.close()
+            return False
+
+    def sahte_open(yol, kip="r", *a, **k):
+        # `.xz.tmp` DE yakalanıyor: düzeltme geçici dosyaya yazıyor ve yalnız
+        # `.xz` aramak testi boşaltırdı (ölçüm betiğinde birebir yaşandı).
+        s = str(yol)
+        if (s.endswith(".xz") or s.endswith(".xz.tmp")) and "w" in kip:
+            return _YarimYazan(asil_open(yol, kip, *a, **k))
+        return asil_open(yol, kip, *a, **k)
+
+    import builtins
+    monkeypatch.setattr(builtins, "open", sahte_open)
+    with pytest.raises(KeyboardInterrupt):
+        sozluk_ac.paketle()
+    monkeypatch.undo()
+
+    assert xz.read_bytes() == saglam, "kesilen yazma .xz'yi bozdu"
+    kalinti = [a for a in os.listdir(sahte_cift) if a.endswith(".tmp")]
+    assert not kalinti, "geçici dosya temizlenmedi: %s" % kalinti
+
+
+# --- `ac()`in dejenere dalları -----------------------------------------
+
+
+def test_ac_dizin_YOKSA_False(tmp_path, monkeypatch):
+    """Sözlüksüz paketleme meşru bir hâl: patlamak değil False dönmek."""
+    monkeypatch.setattr(sozluk_ac, "DIZIN", str(tmp_path / "yok"))
+    assert sozluk_ac.ac(sessiz=True) is False
+
+
+def test_ac_xz_yoksa_HAM_dosyaya_dokunmuyor(sahte_cift):
+    """`.xz` yokken ham dosya elde: iş yok, sonuç kullanılabilir."""
+    ham = (sahte_cift / "tr_TR.dic").read_bytes()
+
+    assert sozluk_ac.ac(sessiz=True) is True
+    assert (sahte_cift / "tr_TR.dic").read_bytes() == ham
+
+
+def test_ac_hicbiri_yoksa_False(tmp_path, monkeypatch):
+    bos = tmp_path / "sozlukler"
+    bos.mkdir()
+    monkeypatch.setattr(sozluk_ac, "DIZIN", str(bos))
+    assert sozluk_ac.ac(sessiz=True) is False
