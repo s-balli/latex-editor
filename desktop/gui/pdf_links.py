@@ -1,10 +1,50 @@
 """PDF link çözümleme — pypdfium2 ctypes çağrıları."""
 
 import ctypes
+from urllib.parse import urlsplit
 
 from pypdfium2 import raw as _pdfium_raw
 
 from gui.pdf_donusum import gorsele
+
+# Belge bağlantısı olabilecek şemalar. Geri kalan her şey kabuğa gidiyor.
+IZINLI_SEMALAR = ("http", "https", "mailto")
+
+
+def acilabilir_uri(uri: str):
+    """PDF'ten gelen adresi açılabilir hâle getir; güvenli değilse None.
+
+    Çağıran bunu `webbrowser.open`a veriyor ve `webbrowser` Windows'ta
+    `os.startfile`a düşüyor (ölçüldü 2026-09-07: `_tryorder`ın ilk kaydı
+    `windows-default`, o da `os.startfile`), yani ShellExecute: adres TEK
+    TIKLAMAYLA program çalıştırabiliyor. Adres belgeyi yazanın denetiminde,
+    kullanıcının değil; uygulama aynı sebeple `\\write18`e de kapı koyuyor
+    (bkz. core/shell_escape.py).
+
+    ÖLÇÜLDÜ (2026-09-07), elle kurulmuş PDF'te `/S /URI` aksiyonu şunları
+    olduğu gibi geçiriyordu:
+      file:///C:/Windows/System32/calc.exe
+      \\\\sunucu\\pay\\kotu.exe
+      ms-msdt:/id PCWDiagnostic
+    `javascript:` ise hyperref'in kendi çıktısında da çıktı, yani sıradan
+    bir `\\href` bunu üretebiliyor.
+
+    ŞEMASIZ adres atılmıyor, başına `https://` konuyor: hyperref
+    `\\url{www.example.com}` için şemasız yazıyor (aynı ölçüm) ve o
+    bağlantılar meşru. Ama kabuğa ham verilemez, `os.startfile` onu dosya
+    adı sanıyor. Yol ya da UNC gibi görünen şemasız değerler adres değil.
+    """
+    u = (uri or "").strip()
+    if not u:
+        return None
+    # `urlsplit` şemayı zaten küçültüyor (ölçüldü: `FILE:` -> `file`), o
+    # yüzden burada ayrıca `.lower()` yok.
+    sema = urlsplit(u).scheme
+    if sema:
+        return u if sema in IZINLI_SEMALAR else None
+    if u.startswith(("/", "\\", ".")) or "\\" in u:
+        return None
+    return "https://" + u
 
 
 def get_link_at_point(page_raw, x_pts: float, y_pdf: float):
@@ -18,7 +58,11 @@ def get_link_at_point(page_raw, x_pts: float, y_pdf: float):
 def resolve_link_action(pdf_raw, link):
     """Link'in aksiyonunu çözümle.
 
-    Dönüş: ('uri', url_str) | ('goto', dest) | ('dest', dest) | None
+    Dönüş: ('uri', url_str) | ('guvensiz_uri', ham_str) | ('goto', dest)
+           | ('dest', dest) | None
+
+    Süzgeç ÜRETİM yerinde, çağıranda değil: aynı çözümlemeyi kullanan ikinci
+    bir yol eklenirse korumayı unutması yapısal olarak zorlaşsın.
     """
     try:
         action = _pdfium_raw.FPDFLink_GetAction(link)
@@ -30,7 +74,10 @@ def resolve_link_action(pdf_raw, link):
                 _pdfium_raw.FPDFAction_GetURIPath(pdf_raw, action, buf, bufsize)
                 uri = buf.value.decode("utf-8", errors="ignore")
                 if uri:
-                    return ("uri", uri)
+                    acilabilir = acilabilir_uri(uri)
+                    if acilabilir:
+                        return ("uri", acilabilir)
+                    return ("guvensiz_uri", uri)
             if action_type == _pdfium_raw.PDFACTION_GOTO:
                 dest = _pdfium_raw.FPDFAction_GetDest(pdf_raw, action)
                 if dest:

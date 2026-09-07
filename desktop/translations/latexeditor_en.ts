@@ -33,104 +33,104 @@ Enable it for '{k}'?
 (Your answer is remembered for this project.)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="171" />
+        <location filename="../gui/mixins/compile_ops.py" line="208" />
         <source>Kabuk erişimi izni sıfırlandı; sonraki derlemede sorulacak</source>
         <translation>Shell access permission reset; you will be asked on the next compile</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="174" />
+        <location filename="../gui/mixins/compile_ops.py" line="211" />
         <source>Bu proje için kayıtlı bir kabuk erişimi cevabı yok</source>
         <translation>No shell access answer is stored for this project</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="217" />
-        <location filename="../gui/mixins/compile_ops.py" line="182" />
+        <location filename="../gui/mixins/compile_ops.py" line="254" />
+        <location filename="../gui/mixins/compile_ops.py" line="219" />
         <source>Derleme sürüyor; bitmesini bekleyin veya Esc ile durdurun</source>
         <translation>Compilation in progress; wait for it to finish or stop it with Esc</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="187" />
+        <location filename="../gui/mixins/compile_ops.py" line="224" />
         <source>Derlenecek dosya yok</source>
         <translation>No file to compile</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="228" />
-        <location filename="../gui/mixins/compile_ops.py" line="196" />
+        <location filename="../gui/mixins/compile_ops.py" line="265" />
+        <location filename="../gui/mixins/compile_ops.py" line="233" />
         <source>Kayıt başarısız, derleme iptal</source>
         <translation>Save failed, compilation cancelled</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="251" />
+        <location filename="../gui/mixins/compile_ops.py" line="288" />
         <source>Derleme durduruldu</source>
         <translation>Compilation stopped</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="271" />
+        <location filename="../gui/mixins/compile_ops.py" line="308" />
         <source>Derleniyor...</source>
         <translation>Compiling...</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="303" />
+        <location filename="../gui/mixins/compile_ops.py" line="340" />
         <source>PDF açılamadı, motoru değiştirip tekrar deneyin</source>
         <translation>Could not open PDF, change the engine and try again</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="317" />
+        <location filename="../gui/mixins/compile_ops.py" line="354" />
         <source>PDF oluşturuldu ama boş, motoru değiştirip tekrar deneyin</source>
         <translation>PDF created but empty, try changing the engine</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="327" />
+        <location filename="../gui/mixins/compile_ops.py" line="364" />
         <source>hata</source>
         <translation>error(s)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="327" />
+        <location filename="../gui/mixins/compile_ops.py" line="364" />
         <source>Basarisiz</source>
         <translation>Failed</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="329" />
+        <location filename="../gui/mixins/compile_ops.py" line="366" />
         <source>Basarili</source>
         <translation>Successful</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="331" />
+        <location filename="../gui/mixins/compile_ops.py" line="368" />
         <source>uyari</source>
         <translation>warning(s)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="393" />
+        <location filename="../gui/mixins/compile_ops.py" line="430" />
         <source>Derleme sonrası referans denetimi açıldı</source>
         <translation>Post-compile reference audit enabled</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="394" />
+        <location filename="../gui/mixins/compile_ops.py" line="431" />
         <source>Derleme sonrası referans denetimi kapatıldı</source>
         <translation>Post-compile reference audit disabled</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="447" />
+        <location filename="../gui/mixins/compile_ops.py" line="484" />
         <source>Hata yok</source>
         <translation>No errors</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="456" />
+        <location filename="../gui/mixins/compile_ops.py" line="493" />
         <source>Hata konumu bulunamadı</source>
         <translation>Error location not found</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="460" />
+        <location filename="../gui/mixins/compile_ops.py" line="497" />
         <source>Satır</source>
         <translation>Line</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="475" />
+        <location filename="../gui/mixins/compile_ops.py" line="512" />
         <source>Otomatik Derle</source>
         <translation>Auto Compile</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="481" />
+        <location filename="../gui/mixins/compile_ops.py" line="518" />
         <source>Manuel</source>
         <translation>Manual</translation>
     </message>
@@ -386,12 +386,12 @@ Add a \bibliography{refs} line first; I can create the file for you afterwards.<
         <translation>Reference audit: no issues</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="583" />
+        <location filename="../gui/mixins/edit_ops.py" line="604" />
         <source>Yeniden Adlandırma</source>
         <translation>Rename</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="584" />
+        <location filename="../gui/mixins/edit_ops.py" line="605" />
         <source>'{o}' → '{n}': {c} dosya değiştirildi, {f} dosya değiştirilemedi.
 
 {liste}
@@ -404,57 +404,57 @@ Referanslar tutarsız kaldı. Bu dosyalara yazma izni verip işlemi tekrarlayın
 References are now inconsistent. Grant write permission to these files and retry, or fix them by hand.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="595" />
+        <location filename="../gui/mixins/edit_ops.py" line="616" />
         <source>Değişiklik yok: {k}</source>
         <translation>No changes: {k}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="621" />
+        <location filename="../gui/mixins/edit_ops.py" line="642" />
         <source>yeni ad:</source>
         <translation>new name:</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="648" />
-        <location filename="../gui/mixins/edit_ops.py" line="640" />
+        <location filename="../gui/mixins/edit_ops.py" line="669" />
+        <location filename="../gui/mixins/edit_ops.py" line="661" />
         <source>Etiketi Yeniden Adlandır</source>
         <translation>Rename Label</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="641" />
+        <location filename="../gui/mixins/edit_ops.py" line="662" />
         <source>Geçersiz etiket adı (harf, rakam, : . _ - kullanın)</source>
         <translation>Invalid label name (use letters, digits, : . _ -)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="745" />
-        <location filename="../gui/mixins/edit_ops.py" line="649" />
+        <location filename="../gui/mixins/edit_ops.py" line="766" />
+        <location filename="../gui/mixins/edit_ops.py" line="670" />
         <source>'{k}' adlı etiket projede zaten var.</source>
         <translation>A label named '{k}' already exists in the project.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="659" />
+        <location filename="../gui/mixins/edit_ops.py" line="680" />
         <source>Etiket yeniden adlandırıldı: {o} → {n} ({c} dosya)</source>
         <translation>Label renamed: {o} → {n} ({c} files)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="736" />
-        <location filename="../gui/mixins/edit_ops.py" line="674" />
+        <location filename="../gui/mixins/edit_ops.py" line="757" />
+        <location filename="../gui/mixins/edit_ops.py" line="695" />
         <source>Kaynakça Anahtarını Yeniden Adlandır</source>
         <translation>Rename Bibliography Key</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="738" />
-        <location filename="../gui/mixins/edit_ops.py" line="676" />
+        <location filename="../gui/mixins/edit_ops.py" line="759" />
+        <location filename="../gui/mixins/edit_ops.py" line="697" />
         <source>Geçersiz anahtar adı (harf, rakam, : . _ - kullanın)</source>
         <translation>Invalid key name (use letters, digits, : . _ -)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="701" />
+        <location filename="../gui/mixins/edit_ops.py" line="722" />
         <source>'{k}' anahtarı .bib'te zaten var.</source>
         <translation>A key named '{k}' already exists in the .bib file.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="757" />
-        <location filename="../gui/mixins/edit_ops.py" line="723" />
+        <location filename="../gui/mixins/edit_ops.py" line="778" />
+        <location filename="../gui/mixins/edit_ops.py" line="744" />
         <source>Kaynakça anahtarı yeniden adlandırıldı: {o} → {n} ({c} dosya)</source>
         <translation>Bibliography key renamed: {o} → {n} ({c} files)</translation>
     </message>
@@ -960,13 +960,13 @@ Windows: run 'sudo apt install pandoc' inside WSL</translation>
 </context><context>
     <name>FileWatchMixin</name>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="196" />
-        <location filename="../gui/mixins/file_watch.py" line="157" />
+        <location filename="../gui/mixins/file_watch.py" line="211" />
+        <location filename="../gui/mixins/file_watch.py" line="178" />
         <source>Dosya Silindi</source>
         <translation>File Deleted</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="159" />
+        <location filename="../gui/mixins/file_watch.py" line="180" />
         <source>{fname} dosyası diskten silindi.
 
 Bu dosyada kaydedilmemiş değişiklikleriniz var; sekmeyi kapatırsanız kaybolur.</source>
@@ -975,29 +975,29 @@ Bu dosyada kaydedilmemiş değişiklikleriniz var; sekmeyi kapatırsanız kaybol
 You have unsaved changes in this file; they will be lost if you close the tab.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="164" />
+        <location filename="../gui/mixins/file_watch.py" line="185" />
         <source>Farklı Kaydet...</source>
         <translation>Save As...</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="165" />
+        <location filename="../gui/mixins/file_watch.py" line="186" />
         <source>Sekmede Tut</source>
         <translation>Keep in Tab</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="166" />
+        <location filename="../gui/mixins/file_watch.py" line="187" />
         <source>Sekmeyi Kapat</source>
         <translation>Close Tab</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="197" />
+        <location filename="../gui/mixins/file_watch.py" line="212" />
         <source>{fname} dosyası diskten silindi.
 İlgili sekme kapatılacak.</source>
         <translation>{fname} has been deleted from disk.
 The tab will be closed.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="210" />
+        <location filename="../gui/mixins/file_watch.py" line="225" />
         <source>{fname} dosyası diskte değiştirildi.
 
 Kaydedilmemiş yerel değişiklikleriniz var.
@@ -1008,32 +1008,32 @@ You have unsaved local changes.
 Reloading from disk will discard your changes.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="215" />
+        <location filename="../gui/mixins/file_watch.py" line="230" />
         <source>Diskten Yükle</source>
         <translation>Reload from Disk</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="216" />
+        <location filename="../gui/mixins/file_watch.py" line="231" />
         <source>Kendiminkini Koru</source>
         <translation>Keep Mine</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="218" />
+        <location filename="../gui/mixins/file_watch.py" line="233" />
         <source>{fname} dosyası diskte başka bir program tarafından değiştirildi.</source>
         <translation>{fname} has been modified by another program.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="221" />
+        <location filename="../gui/mixins/file_watch.py" line="236" />
         <source>Yeniden Yükle</source>
         <translation>Reload</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="222" />
+        <location filename="../gui/mixins/file_watch.py" line="237" />
         <source>Yoksay</source>
         <translation>Ignore</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="225" />
+        <location filename="../gui/mixins/file_watch.py" line="240" />
         <source>Dosya Değiştirildi</source>
         <translation>File Changed</translation>
     </message>
@@ -2352,12 +2352,12 @@ Dictionary folder: {dizin}</translation>
         <translation>Replace '{k}' with:</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="289" />
+        <location filename="../gui/mixins/yazim_ops.py" line="293" />
         <source>'{e}' -&gt; '{y}' değiştirildi</source>
         <translation>'{e}' replaced with '{y}'</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="297" />
+        <location filename="../gui/mixins/yazim_ops.py" line="301" />
         <source>'{k}' sözlüğe eklendi</source>
         <translation>'{k}' added to dictionary</translation>
     </message>
@@ -2767,7 +2767,7 @@ Dictionary folder: {dizin}</translation>
 </context><context>
     <name>PdfViewer</name>
     <message>
-        <location filename="../gui/pdf_viewer_mixins/_selection.py" line="189" />
+        <location filename="../gui/pdf_viewer_mixins/_selection.py" line="205" />
         <source>Kopyala</source>
         <translation>Copy</translation>
     </message>
@@ -2845,6 +2845,24 @@ Dictionary folder: {dizin}</translation>
         <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="467" />
         <source>PDF Dosyaları (*.pdf)</source>
         <translation>PDF Files (*.pdf)</translation>
+    </message>
+    <message>
+        <location filename="../gui/pdf_viewer_mixins/_events.py" line="159" />
+        <source>Bağlantı Açılmadı</source>
+        <translation>Link Not Opened</translation>
+    </message>
+    <message>
+        <location filename="../gui/pdf_viewer_mixins/_events.py" line="160" />
+        <source>Bu bağlantı bir web adresi değil, o yüzden açılmadı:
+
+{u}
+
+Yalnızca http, https ve mailto bağlantıları açılıyor.</source>
+        <translation>This link is not a web address, so it was not opened:
+
+{u}
+
+Only http, https and mailto links are opened.</translation>
     </message>
     <message>
         <location filename="../gui/pdf_viewer_mixins/_render.py" line="94" />

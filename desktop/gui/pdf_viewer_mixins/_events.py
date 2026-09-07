@@ -2,14 +2,19 @@
 
 import webbrowser
 
-from PyQt6.QtCore import QEvent, QPoint, Qt, QTimer
+from PyQt6.QtCore import QCoreApplication, QEvent, QPoint, Qt, QTimer
+from PyQt6.QtWidgets import QMessageBox
 
+from core.log import get_logger
 from gui.pdfium_lock import pdfium_lock
 from gui.pdf_donusum import geometri, kullaniciya
 
 from gui.pdf_links import (
     get_link_at_point, resolve_link_action, resolve_dest_scroll_y, get_dest_page_index,
 )
+
+_logger = get_logger("pdf_viewer")
+_ = lambda s: QCoreApplication.translate("PdfViewer", s)  # noqa: E731
 
 
 class PdfEventsMixin:
@@ -136,8 +141,25 @@ class PdfEventsMixin:
         kind, data = resolved
         if kind == "uri":
             webbrowser.open(data)
+        elif kind == "guvensiz_uri":
+            self._guvensiz_baglanti(data)
         elif kind in ("goto", "dest"):
             self._goto_dest(data)
+
+    def _guvensiz_baglanti(self, ham: str):
+        """Açılmayan bağlantıyı SESSİZCE geçme.
+
+        Sessizlik kusur gibi görünürdü ("tıkladım, hiçbir şey olmadı") ve
+        kullanıcı sebebini hiç öğrenmezdi. Adres kısaltılarak gösteriliyor:
+        uzun bir /URI alanı diyaloğu ekran dışına taşırabilir.
+        """
+        _logger.warning("PDF bağlantısı açılmadı, izinli olmayan şema: %s",
+                        ham[:200])
+        QMessageBox.warning(
+            self, _("Bağlantı Açılmadı"),
+            _("Bu bağlantı bir web adresi değil, o yüzden açılmadı:\n\n{u}\n\n"
+              "Yalnızca http, https ve mailto bağlantıları açılıyor.")
+            .format(u=ham[:200] + ("..." if len(ham) > 200 else "")))
 
     def _goto_dest(self, dest):
         with pdfium_lock:
