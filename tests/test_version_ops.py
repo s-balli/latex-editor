@@ -614,3 +614,158 @@ def test_slot_govdesi_AYRI_metotta():
     # Govde artik ayri metotta ve gercek isi orada yapiyor
     govde = inspect.getsource(V2._version_action)
     assert "_restore_version" in govde and "_drop_all_history" in govde
+
+
+# =====================================================================
+# Sorular ÖNCE, geri dönüşsüz yan etki SONRA
+#
+# `_snapshot` sırası şuydu: onay -> `_save_all_open()` (DİSKE YAZAR) ->
+# "Sürüm adı" kutusu. ÖLÇÜLDÜ (2026-09-07), iki kirli sekmeyle: ad kutusunda
+# İptal -> sürüm YOK, depo YOK, durum mesajı YOK, ama iki dosya da diske
+# yazılmış. Kullanıcı ne sürüm aldı ne de değişikliklerini atabilir;
+# "diskten yeniden yükle" ve kapanışta atma seçenekleri gitti.
+#
+# Kuralı kodun kendisi yazmıştı ama yalnız İLK diyaloga uygulamıştı:
+# "iptal 'hiçbir şey olmadı' demeli". Aynı kural `edit_ops._add_by_doi`ta da
+# yazılı (DOI önce sorulur, .bib sonra yaratılır).
+# =====================================================================
+
+
+def _kirli_stub(tmp_path, monkeypatch, ad_verildi):
+    """İki kirli sekme; "Sürüm adı" kutusu `ad_verildi`ye göre davranır."""
+    import gui.mixins.version_ops as vo
+
+    yollar = []
+    editorler = []
+    for ad in ("ana.tex", "notlar.tex"):
+        p = tmp_path / ad
+        p.write_text("DISKTEKI ESKI\n", encoding="utf-8")
+        ed = EditorWidget()
+        assert ed.open_file(str(p))
+        ed.setText("YENI, KAYDEDILMEMIS\n")
+        editorler.append(ed)
+        yollar.append(p)
+
+    stub = _Stub(editorler, str(tmp_path))
+    monkeypatch.setattr(
+        vo.QInputDialog, "getText",
+        staticmethod(lambda *a, **k: ("sürüm", True) if ad_verildi
+                     else ("", False)))
+    return stub, editorler, yollar
+
+
+def test_surum_adi_IPTAL_edilirse_sekmeler_diske_yazilmiyor(
+        qapp, tmp_path, monkeypatch):
+    """Kırılırsa: vazgeçen kullanıcının bütün açık belgeleri geri dönüşsüz
+    biçimde diske yazılmış olur."""
+    stub, editorler, yollar = _kirli_stub(tmp_path, monkeypatch,
+                                          ad_verildi=False)
+    try:
+        stub._snapshot()
+
+        for p in yollar:
+            assert p.read_text(encoding="utf-8").strip() == "DISKTEKI ESKI", p
+        assert all(e.isModified() for e in editorler)
+        assert not V.is_repo(str(tmp_path))
+    finally:
+        for e in editorler:
+            e.deleteLater()
+        qapp.processEvents()
+
+
+def test_surum_adi_VERILIRSE_kayit_ve_surum_oluyor(qapp, tmp_path, monkeypatch):
+    """Aşırı düzeltme kapısı: olağan yol bozulmamalı, kayıt hâlâ sürümden
+    ÖNCE yapılmalı (yoksa sürüm bayat içeriği alır)."""
+    stub, editorler, yollar = _kirli_stub(tmp_path, monkeypatch,
+                                          ad_verildi=True)
+    try:
+        _snap(qapp, stub)
+
+        for p in yollar:
+            assert p.read_text(encoding="utf-8").strip() == "YENI, KAYDEDILMEMIS"
+        assert not any(e.isModified() for e in editorler)
+        assert V.is_repo(str(tmp_path))
+        assert "Sürüm kaydedildi" in stub._status.msg
+    finally:
+        for e in editorler:
+            e.deleteLater()
+        qapp.processEvents()
+
+
+def test_MESGULKEN_surum_adi_hic_sorulmuyor(qapp, tmp_path, monkeypatch):
+    """Reddedilecek bir istek için kullanıcıya ad yazdırmak boşuna; meşgul
+    denetimi diyaloglardan önce olmalı."""
+    import gui.mixins.version_ops as vo
+
+    stub, editorler, _yollar = _kirli_stub(tmp_path, monkeypatch,
+                                           ad_verildi=True)
+    try:
+        soruldu = []
+        monkeypatch.setattr(
+            vo.QInputDialog, "getText",
+            staticmethod(lambda *a, **k: (soruldu.append(1), ("x", True))[1]))
+        stub._snapshot_busy = True
+
+        stub._snapshot()
+
+        assert soruldu == []
+        assert "bekleyin" in stub._status.msg
+    finally:
+        stub._snapshot_busy = False
+        for e in editorler:
+            e.deleteLater()
+        qapp.processEvents()
+
+
+# =====================================================================
+# Sürüm alınırken depoyu değiştiren öbür eylemler
+#
+# `_snapshot` arka planda add+commit koşturuyor ve ikinci bir snapshot'ı
+# `_snapshot_busy` ile reddediyor; `drop`/`drop_all` aynı bayrağa hiç
+# bakmıyordu. ÖLÇÜLDÜ (2026-09-07), iş parçacığı add+commit'in içinde
+# tutulurken "Tüm geçmişi sil": `.git` hiçbir engele takılmadan çöp kutusuna
+# gitti ve hemen ardından kullanıcı, bilerek sildiği geçmiş için "Sürüm
+# kaydı başarısız: No git repository was found" hatası gördü.
+#
+# BOZULMA ÖLÇÜLMEDİ; ölçülen şey bu yanıltıcı mesaj.
+# =====================================================================
+
+
+def test_surum_alinirken_GECMIS_SILME_reddediliyor(qapp, tmp_path, monkeypatch):
+    silinen = []
+    monkeypatch.setattr(V, "drop_all", lambda root: silinen.append(root) or True)
+    monkeypatch.setattr(V, "drop_last", lambda root: silinen.append(root) or True)
+
+    stub, ed, _tex = _stub_with_editor(tmp_path, monkeypatch)
+    try:
+        stub._snapshot_busy = True
+
+        stub._on_version_action("drop_all", "")
+        stub._on_version_action("drop", "")
+
+        assert silinen == []
+        assert "bekleyin" in stub._status.msg
+    finally:
+        stub._snapshot_busy = False
+        ed.deleteLater()
+        qapp.processEvents()
+
+
+def test_MESGUL_DEGILKEN_gecmis_silme_calisiyor(qapp, tmp_path, monkeypatch):
+    """Aşırı düzeltme kapısı: kilit her zaman kapalı kalmamalı."""
+    silinen = []
+    monkeypatch.setattr(V, "drop_all", lambda root: silinen.append(root) or True)
+
+    stub, ed, _tex = _stub_with_editor(tmp_path, monkeypatch)
+    try:
+        import gui.mixins.version_ops as vo
+        monkeypatch.setattr(
+            vo.QMessageBox, "question",
+            staticmethod(lambda *a, **k: vo.QMessageBox.StandardButton.Yes))
+
+        stub._on_version_action("drop_all", "")
+
+        assert silinen == [str(tmp_path)]
+    finally:
+        ed.deleteLater()
+        qapp.processEvents()

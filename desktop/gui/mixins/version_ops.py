@@ -198,14 +198,27 @@ class VersionOpsMixin:
             self._status.showMessage(
                 _("Sürümleme için 'dulwich' paketi gerekli") + " (pip install dulwich)")
             return
-        # Onay ÖNCE: vazgeçen kullanıcının açık sekmeleri diske yazılmış olmasın
-        # (Ctrl+K'nın tek yan etkisi kayıt bile olsa, iptal 'hiçbir şey olmadı'
-        # demeli).
-        if not self._confirm_repo_use(root):
+        # Meşgul denetimi EN BAŞTA: reddedilecek bir istek için kullanıcıya
+        # onay sorup sürüm adı yazdırmak boşuna. (Eskiden ad kutusundan
+        # SONRAydı.)
+        #
+        # dulwich add+commit arka planda: büyük klasörde saniyeler sürer,
+        # senkron koşarken Ctrl+K arayüzü kilitleniyordu. İş sürerken ikinci
+        # snapshot reddedilir (yarışık/çift kayıt önlenir).
+        if getattr(self, "_snapshot_busy", False):
+            self._status.showMessage(_("Sürüm alınıyor; bitmesini bekleyin"))
             return
 
-        if not self._save_all_open():
-            self._status.showMessage(_("Kayıt başarısız, sürümleme iptal"))
+        # SORULAR ÖNCE, YAN ETKİ SONRA. Ctrl+K'nın tek geri dönüşsüz yan
+        # etkisi açık sekmeleri diske yazmak ve iptal 'hiçbir şey olmadı'
+        # demeli. Kural eskiden yalnız BU onaya uygulanmıştı; `_save_all_open`
+        # araya giriyor, sürüm adı kutusu ondan sonra geliyordu.
+        #
+        # ÖLÇÜLDÜ (2026-09-07), iki kirli sekmeyle: "Sürüm adı" kutusunda
+        # İptal -> sürüm YOK, depo YOK, mesaj YOK, ama iki dosya da diske
+        # yazılmış. Kullanıcı ne sürüm aldı ne de değişikliklerini atabilir:
+        # "diskten yeniden yükle" ve kapanışta atma seçenekleri gitti.
+        if not self._confirm_repo_use(root):
             return
 
         first = not versioning.is_repo(root)
@@ -215,12 +228,11 @@ class VersionOpsMixin:
             return
         msg = msg.strip() or (_("Başlangıç sürümü") if first else _("Güncelleme"))
 
-        # dulwich add+commit arka planda: büyük klasörde saniyeler sürer,
-        # senkron koşarken Ctrl+K arayüzü kilitleniyordu. İş sürerken ikinci
-        # snapshot reddedilir (yarışık/çift kayıt önlenir).
-        if getattr(self, "_snapshot_busy", False):
-            self._status.showMessage(_("Sürüm alınıyor; bitmesini bekleyin"))
+        # Buradan sonrası yan etki: kullanıcı bütün soruları geçti.
+        if not self._save_all_open():
+            self._status.showMessage(_("Kayıt başarısız, sürümleme iptal"))
             return
+
         if getattr(self, "_snapshot_runner", None) is None:
             self._snapshot_runner = _SnapshotRunner()
             self._snapshot_runner.done.connect(self._on_snapshot_done)
@@ -329,10 +341,26 @@ class VersionOpsMixin:
                 self._restore_version(root, sha, rel, editor)
             else:
                 self._copy_version_content(root, sha, rel, editor)
-        elif action == "drop":
-            self._drop_version(root)
-        elif action == "drop_all":
-            self._drop_all_history(root)
+        elif action in ("drop", "drop_all"):
+            # Arka planda sürüm alınıyorsa AYNI depoya yazma. `_snapshot`
+            # ikinci bir snapshot'ı bu bayrakla zaten reddediyor; depoyu
+            # değiştiren öbür iki eylem ona hiç bakmıyordu.
+            #
+            # ÖLÇÜLDÜ (2026-09-07), iş parçacığı add+commit'in içinde
+            # tutulurken "Tüm geçmişi sil": hiçbir engele takılmadan `.git`
+            # çöp kutusuna gitti ve hemen ardından kullanıcı, bilerek sildiği
+            # geçmiş için "Sürüm kaydı başarısız: No git repository was found"
+            # hatası gördü. BOZULMA ÖLÇÜLMEDİ, ölçülen şey bu yanıltıcı
+            # mesaj; ama iki eylemin aynı depoya aynı anda yazması için de
+            # bir sebep yok.
+            if getattr(self, "_snapshot_busy", False):
+                self._status.showMessage(
+                    _("Sürüm alınıyor; bitmesini bekleyin"))
+                return
+            if action == "drop":
+                self._drop_version(root)
+            else:
+                self._drop_all_history(root)
 
     def _show_version_diff(self, root: str, sha: str, rel: str):
         try:
