@@ -26,6 +26,7 @@ try:
     from PyQt6.QtWidgets import QApplication, QDialog, QTabWidget
     import gui.doi_fetch as doi_fetch
     from gui.editor import EditorWidget
+    import gui.mixins.edit_ops as edit_ops
     from gui.mixins.edit_ops import EditOpsMixin
     from gui.mixins.tab_ops import TabOpsMixin
     from core.bibtex import ekleme_metni
@@ -178,3 +179,139 @@ def test_BIBE_EKLE_ayni_yardimciyi_kullaniyor():
 def test_DOI_yolu_acik_sekmeyi_SORUYOR():
     import inspect
     assert "_editor_by_path" in inspect.getsource(EditOpsMixin._on_doi_fetched)
+
+
+# =====================================================================
+# DOI akisinda .bib, kullanici karar VERMEDEN yaratiliyordu (2026-09-07)
+#
+# Eski sira: `_doi_hedef_bib` (gerekirse dosyayi YARATIR) -> DOI sorulur.
+# OLCULDU: "refs.bib olusturulsun mu" -> Evet, sonra DOI kutusunda Iptal ->
+# diskte 0 baytlik refs.bib kaliyor. Kullanici istemedigi bir dosyayla
+# kaliyor ve bos bir `.bib` zararsiz da degil: `\bibliography{refs}` ile
+# biber/bibtex "dosya yok" demek yerine BOS kaynakca uretiyor, `\cite`
+# ciktida `[?]` basiyor ve sebebi gorunmuyor.
+#
+# Ayni kural `_export_file`ta zaten yaziliydi: kullanici karar vermeden yan
+# etki olmasin.
+# =====================================================================
+
+
+class _SiraStub(EditOpsMixin):
+    """`_add_by_doi`in dokundugu asgari yuzey."""
+
+    def __init__(self, editor):
+        self._ed = editor
+        self.mesajlar = []
+        self._status = SimpleNamespace(
+            showMessage=lambda m, t=0: self.mesajlar.append(m))
+        self.isci_baslatildi = []
+        self._doi_runner = SimpleNamespace(
+            done=SimpleNamespace(connect=lambda f: None),
+            start=lambda *a: self.isci_baslatildi.append(a))
+
+    def _current_editor(self):
+        return self._ed
+
+
+def _doi_projesi(tmp_path):
+    """`\bibliography{refs}` bildiren ama refs.bib'i OLMAYAN belge."""
+    tex = tmp_path / "ana.tex"
+    tex.write_text(
+        "\\documentclass{article}\n\\begin{document}\n"
+        "Metin \\cite{x}\n\\bibliography{refs}\n"
+        "\\bibliographystyle{plain}\n\\end{document}\n",
+        encoding="utf-8")
+    ed = EditorWidget()
+    assert ed.open_file(str(tex))
+    return ed, tmp_path / "refs.bib"
+
+
+def _dialoglari_kur(monkeypatch, bib_evet=True, doi=("", False)):
+    monkeypatch.setattr(
+        edit_ops.QMessageBox, "question",
+        staticmethod(lambda *a, **k: (
+            edit_ops.QMessageBox.StandardButton.Yes if bib_evet
+            else edit_ops.QMessageBox.StandardButton.No)))
+    monkeypatch.setattr(edit_ops.QMessageBox, "information",
+                        staticmethod(lambda *a, **k: None))
+    monkeypatch.setattr(edit_ops.QMessageBox, "warning",
+                        staticmethod(lambda *a, **k: None))
+    monkeypatch.setattr(edit_ops.QInputDialog, "getText",
+                        staticmethod(lambda *a, **k: doi))
+
+
+def test_DOI_IPTAL_edilince_bib_YARATILMIYOR(qapp, tmp_path, monkeypatch):
+    """Kirilirsa: vazgecen kullanici istemedigi 0 baytlik bir .bib ile
+    kaliyor ve derlemede kaynakca sessizce bos cikiyor."""
+    ed, bib = _doi_projesi(tmp_path)
+    try:
+        _dialoglari_kur(monkeypatch, bib_evet=True, doi=("", False))
+        stub = _SiraStub(ed)
+
+        stub._add_by_doi()
+
+        assert not bib.exists(), "iptal edildigi halde .bib yaratildi"
+        assert stub.isci_baslatildi == []
+    finally:
+        ed.deleteLater()
+        qapp.processEvents()
+
+
+def test_DOI_verilirse_bib_YARATILIYOR_ve_isci_basliyor(qapp, tmp_path,
+                                                        monkeypatch):
+    """Asiri duzeltme kapisi: olagan yol bozulmamali."""
+    ed, bib = _doi_projesi(tmp_path)
+    try:
+        _dialoglari_kur(monkeypatch, bib_evet=True, doi=("10.1000/xyz", True))
+        stub = _SiraStub(ed)
+
+        stub._add_by_doi()
+
+        assert bib.exists(), ".bib yaratilmadi"
+        assert stub.isci_baslatildi, "isci baslatilmadi"
+        assert stub._doi_bib_yolu.endswith("refs.bib")
+    finally:
+        ed.deleteLater()
+        qapp.processEvents()
+
+
+def test_bib_YARATMA_reddedilirse_isci_baslamiyor(qapp, tmp_path, monkeypatch):
+    """Kullanici .bib yaratmayi reddederse ag istegi de yapilmamali."""
+    ed, bib = _doi_projesi(tmp_path)
+    try:
+        _dialoglari_kur(monkeypatch, bib_evet=False, doi=("10.1000/xyz", True))
+        stub = _SiraStub(ed)
+
+        stub._add_by_doi()
+
+        assert not bib.exists()
+        assert stub.isci_baslatildi == []
+    finally:
+        ed.deleteLater()
+        qapp.processEvents()
+
+
+def test_DOI_kutusu_bib_cozumunden_ONCE_soruluyor(qapp, tmp_path, monkeypatch):
+    """Kural kapida: sira geri donmesin.
+
+    Cagri sirasi kaydediliyor; DOI kutusu `.bib` sorusundan once gelmeli.
+    """
+    ed, _bib = _doi_projesi(tmp_path)
+    try:
+        sira = []
+        monkeypatch.setattr(
+            edit_ops.QInputDialog, "getText",
+            staticmethod(lambda *a, **k: (sira.append("doi"), ("", False))[1]))
+        monkeypatch.setattr(
+            edit_ops.QMessageBox, "question",
+            staticmethod(lambda *a, **k: (
+                sira.append("bib-sorusu"),
+                edit_ops.QMessageBox.StandardButton.Yes)[1]))
+        stub = _SiraStub(ed)
+
+        stub._add_by_doi()
+
+        assert sira and sira[0] == "doi", "sira: %r" % (sira,)
+    finally:
+        ed.deleteLater()
+        qapp.processEvents()

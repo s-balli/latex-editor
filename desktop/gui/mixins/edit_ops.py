@@ -380,14 +380,26 @@ class EditOpsMixin:
         if not editor or not editor.file_path:
             self._status.showMessage(_("Önce bir .tex dosyası açın"))
             return
-        yol = self._doi_hedef_bib(editor)
-        if not yol:
-            return
-
+        # DOI ÖNCE sorulur, .bib SONRA çözülür. `_doi_hedef_bib` gerekirse
+        # dosyayı YARATIYOR, yani geri dönüşü olmayan bir yan etki; eski
+        # sırada DOI kutusunda vazgeçen kullanıcı istemediği bir dosyayla
+        # kalıyordu. ÖLÇÜLDÜ (2026-09-07): "refs.bib oluşturulsun mu" -> Evet,
+        # sonra DOI kutusunda İptal -> diskte 0 baytlık refs.bib.
+        #
+        # Boş bir `.bib` zararsız da değil: `\bibliography{refs}` ile birlikte
+        # biber/bibtex "dosya yok" demek yerine BOŞ kaynakça üretiyor, yani
+        # `\cite` çıktıda `[?]` basıyor ve sebebi görünmüyor.
+        #
+        # Aynı kural `_export_file`ta zaten yazılı: kullanıcı karar vermeden
+        # yan etki olmasın.
         doi, ok = QInputDialog.getText(
             self, _("DOI ile Kaynak Ekle"),
             _("DOI (tam URL de olur):"))
         if not ok or not doi.strip():
+            return
+
+        yol = self._doi_hedef_bib(editor)
+        if not yol:
             return
 
         if getattr(self, "_doi_runner", None) is None:
