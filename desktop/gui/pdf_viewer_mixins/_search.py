@@ -35,7 +35,7 @@ class PdfSearchMixin:
         self._search_id += 1          # uçuştaki arama da geçersizleşir
         self._search_atla = atla
         if not query or not self._pdf:
-            self._update_search_nav(0, 0)
+            self._update_search_nav(0, 0, arandi=False)
             return
         if hasattr(self, '_search_count_label'):
             self._search_count_label.setText(_("Aranıyor..."))
@@ -207,20 +207,51 @@ class PdfSearchMixin:
         self._clear_search_highlights()
         self._search_results = []
         self._search_index = 0
-        self._update_search_nav(0, 0)
+        self._update_search_nav(0, 0, arandi=False)
 
-    def _update_search_nav(self, current, total):
-        if hasattr(self, '_search_count_label'):
-            self._search_count_label.setText(f"{current} / {total}" if total > 0 else _("bulunamadı"))
+    def _update_search_nav(self, current, total, arandi: bool = True):
+        """Sayaç. ``arandi=False``: henüz arama koşmadı, etiket BOŞ kalmalı.
+
+        "bulunamadı" bir SONUÇ; sorgu yokken göstermek yanlış bilgi veriyor.
+        ÖLÇÜLDÜ (2026-09-07): çubuk kapatılıp yeniden açılınca kutuda
+        "teorem" yazılı, belgede iki geçişi var ve sayaç "bulunamadı"
+        diyordu.
+        """
+        if not hasattr(self, '_search_count_label'):
+            return
+        if total > 0:
+            self._search_count_label.setText(f"{current} / {total}")
+        else:
+            self._search_count_label.setText(_("bulunamadı") if arandi else "")
+
+    def _show_search_bar(self):
+        """Arama çubuğunu AÇ ve odağı ver; açıksa kapatma.
+
+        Ctrl+F iki tarafta da bunu yapmalı. ÖLÇÜLDÜ (2026-09-07): PDF
+        odaktayken Ctrl+F `_toggle_search_bar`a gidiyordu, yani çubuk açık ve
+        iki eşleşme bulunmuşken aynı tuş çubuğu KAPATIP sonuçları siliyordu
+        (2 eşleşme -> 0, sayaç "bulunamadı"). Editör tarafındaki
+        `find_replace.show_find` ise gösterip odaklıyor, seçiyor ve aramayı
+        yeniden koşuyor. Aynı kısayol, iki farklı davranış.
+
+        Kapatma düğmesi ve `_toggle_search_bar` hâlâ kapatıyor: düğmenin
+        açıp kapaması doğru, kısayolun kapatması değil.
+        """
+        self._search_bar_widget.show()
+        self._search_input.setFocus()
+        self._search_input.selectAll()
+        # Kutuda sorgu var ama sonuç yoksa (çubuk kapatılırken silinmişti)
+        # yeniden koş: kullanıcı boş sayaca bakıp Enter'a basmak zorunda
+        # kalmasın. Kardeş `show_find` de `_do_find()` çağırıyor.
+        sorgu = self._search_input.text().strip()
+        if sorgu and not self._search_results:
+            self._do_search(sorgu)
 
     def _toggle_search_bar(self):
-        visible = self._search_bar_widget.isVisible()
-        if visible:
+        if self._search_bar_widget.isVisible():
             self._close_search()
         else:
-            self._search_bar_widget.show()
-            self._search_input.setFocus()
-            self._search_input.selectAll()
+            self._show_search_bar()
 
     def _close_search(self):
         self._search_bar_widget.hide()

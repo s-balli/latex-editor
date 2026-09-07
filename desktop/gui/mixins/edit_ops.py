@@ -26,10 +26,12 @@ class EditOpsMixin:
             editor.redo()
 
     def _show_find(self):
-        # PDF viewer odaktaysa PDF aramasını aç
+        # PDF viewer odaktaysa PDF aramasını aç. TOGGLE DEĞİL: aynı
+        # kısayol editör tarafında `show_find` ile gösterip odaklıyor,
+        # PDF tarafında ise çubuğu kapatıp sonuçları siliyordu.
         focus = QApplication.focusWidget()
         if focus and self._pdf_viewer.isAncestorOf(focus):
-            self._pdf_viewer._toggle_search_bar()
+            self._pdf_viewer._show_search_bar()
             return
         editor = self._current_editor()
         if not editor:

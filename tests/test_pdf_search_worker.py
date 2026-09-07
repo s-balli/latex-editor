@@ -256,3 +256,230 @@ def test_ARAMA_hala_calisiyor_ve_belge_arama_boyunca_ACIK(qapp, tmp_path):
         w.stop()
         w.wait(6000)
     assert w._doc is None
+
+
+# =====================================================================
+# Ctrl+F, arama cubugu ACIKKEN aramayi kapatiyordu (2026-09-07)
+#
+# `edit_ops._show_find` PDF odaktayken `_toggle_search_bar` cagiriyordu.
+# OLCULDU: cubuk acik ve iki eslesme bulunmusken ayni tus cubugu KAPATIP
+# sonuclari siliyor (2 eslesme -> 0, sayac "bulunamadi"), sorgu ise kutuda
+# kaliyor. Editor tarafindaki ayni kisayol `find_replace.show_find`a gidiyor
+# ve gosterip odakliyor, seciyor, aramayi yeniden kosuyor.
+#
+# Ikinci bulgu: "bulunamadi" bir SONUC. `_clear_search` onu sorgu YOKKEN de
+# yaziyordu, yani cubuk yeniden acilinca kutuda "teorem" yazili, belgede iki
+# gecisi var ve sayac "bulunamadi" diyordu.
+# =====================================================================
+
+
+def _arama_gorucusu(qapp, tmp_path, metin="merhaba teorem ve teorem"):
+    from gui.pdf_viewer import PdfViewer
+    from gui.theme import THEMES
+    yol = _pdf_with_text([metin], str(tmp_path / "ah.pdf"))
+    v = PdfViewer(theme=THEMES["dark"])
+    # Pencere GOSTERILIYOR: Qt'de cocuk widget'in isVisible()'i butun ata
+    # zinciri gorunur olmadikca False doner ve bu testlerin olctugu sey tam
+    # olarak cubugun gorunurlugu.
+    v.resize(700, 600)
+    v.show()
+    assert v.load_pdf(yol)
+    return v
+
+
+def _ara(qapp, v, sorgu="teorem"):
+    v._search_input.setText(sorgu)
+    v._on_search_return()
+    assert _spin(qapp, lambda: bool(v._search_results)), "arama sonucu gelmedi"
+
+
+def test_CTRL_F_acik_cubugu_KAPATMIYOR(qapp, tmp_path):
+    """Kirilirsa: kullanici Ctrl+F'e basinca bulduklarini kaybediyor."""
+    v = _arama_gorucusu(qapp, tmp_path)
+    try:
+        v._show_search_bar()
+        _ara(qapp, v)
+        onceki = len(v._search_results)
+        assert onceki == 2, "kapi bos kosuyor: eslesme bulunmadi"
+
+        v._show_search_bar()               # ikinci Ctrl+F
+        qapp.processEvents()
+
+        assert v._search_bar_widget.isVisible(), "cubuk kapandi"
+        assert len(v._search_results) == onceki, "sonuclar silindi"
+        assert v._search_count_label.text() == "1 / 2"
+    finally:
+        v.shutdown()
+        v.deleteLater()
+        qapp.processEvents()
+
+
+def test_CTRL_F_kapali_cubugu_ACIYOR(qapp, tmp_path):
+    v = _arama_gorucusu(qapp, tmp_path)
+    try:
+        assert not v._search_bar_widget.isVisible()
+        v._show_search_bar()
+        assert v._search_bar_widget.isVisible()
+    finally:
+        v.shutdown()
+        v.deleteLater()
+        qapp.processEvents()
+
+
+def test_CTRL_F_sorgu_varken_aramayi_YENIDEN_kosuyor(qapp, tmp_path):
+    """Cubuk kapatilirken sonuclar silindi; yeniden acilinca sayac bos
+    kalmasin, kullanici Enter'a basmak zorunda olmasin. Kardes
+    `find_replace.show_find` de `_do_find()` cagiriyor."""
+    v = _arama_gorucusu(qapp, tmp_path)
+    try:
+        v._show_search_bar()
+        _ara(qapp, v)
+        v._close_search()
+        assert not v._search_results, "kapatma sonuclari silmedi"
+
+        v._show_search_bar()
+        assert _spin(qapp, lambda: bool(v._search_results)), \
+            "yeniden acilista arama kosmadi"
+        assert v._search_count_label.text() == "1 / 2"
+    finally:
+        v.shutdown()
+        v.deleteLater()
+        qapp.processEvents()
+
+
+def test_DUGME_hala_acip_kapatiyor(qapp, tmp_path):
+    """Asiri duzeltme kapisi: arac cubugu dugmesinin toggle olmasi DOGRU,
+    kapanan sey kisayoldu."""
+    v = _arama_gorucusu(qapp, tmp_path)
+    try:
+        v._toggle_search_bar()
+        assert v._search_bar_widget.isVisible()
+        v._toggle_search_bar()
+        assert not v._search_bar_widget.isVisible()
+    finally:
+        v.shutdown()
+        v.deleteLater()
+        qapp.processEvents()
+
+
+def test_CTRL_F_PDF_odaktayken_TOGGLE_degil_GOSTERME_cagiriyor(qapp,
+                                                               monkeypatch):
+    """Kural kapida: ileride `_show_find` yine toggle'a baglanmasin."""
+    from gui.mixins.edit_ops import EditOpsMixin
+
+    cagrilar = []
+
+    class _Gorucu:
+        def isAncestorOf(self, w):
+            return True
+
+        def _show_search_bar(self):
+            cagrilar.append("goster")
+
+        def _toggle_search_bar(self):
+            cagrilar.append("toggle")
+
+    class _Ana:
+        _show_find = EditOpsMixin._show_find
+        _pdf_viewer = _Gorucu()
+
+        def _current_editor(self):
+            return None
+
+    monkeypatch.setattr("gui.mixins.edit_ops.QApplication.focusWidget",
+                        staticmethod(lambda: object()))
+    _Ana()._show_find()
+    assert cagrilar == ["goster"]
+
+
+# --- Sayac: "bulunamadi" yalniz arama kostuysa ---
+
+
+def test_sayac_arama_YAPILMADAN_bulunamadi_demiyor(qapp, tmp_path):
+    v = _arama_gorucusu(qapp, tmp_path)
+    try:
+        v._clear_search()
+        assert v._search_count_label.text() == ""
+    finally:
+        v.shutdown()
+        v.deleteLater()
+        qapp.processEvents()
+
+
+def test_sayac_BOS_sorguda_bulunamadi_demiyor(qapp, tmp_path):
+    v = _arama_gorucusu(qapp, tmp_path)
+    try:
+        v._do_search("")
+        assert v._search_count_label.text() == ""
+    finally:
+        v.shutdown()
+        v.deleteLater()
+        qapp.processEvents()
+
+
+def test_sayac_GERCEKTEN_bulunamadiysa_soyluyor(qapp, tmp_path):
+    """Asiri duzeltme kapisi: mesaj biraz kalmali."""
+    v = _arama_gorucusu(qapp, tmp_path)
+    try:
+        v._do_search("boyle-bir-kelime-yok")
+        assert _spin(qapp, lambda: v._search_count_label.text() not in
+                     ("", "Aranıyor...")), "sayac hic guncellenmedi"
+        assert "bulunamad" in v._search_count_label.text()
+    finally:
+        v.shutdown()
+        v.deleteLater()
+        qapp.processEvents()
+
+
+# --- Kapsam disi kalmis yollar ---
+
+
+def test_ONCEKI_eslesme_dugmesi_geriye_sariyor(qapp, tmp_path):
+    """`_search_prev` hic kosmuyordu.
+
+    UC eslesme sart: ikiyle "onceki" ile "sonraki" ayni diziyi veriyor
+    (0 -> 1 -> 0) ve test hicbir sey olcmuyor. Mutasyon bunu yakaladi.
+    """
+    v = _arama_gorucusu(qapp, tmp_path, "teorem bir teorem iki teorem")
+    try:
+        v._show_search_bar()
+        _ara(qapp, v)
+        assert v._search_count_label.text() == "1 / 3"
+        v._search_prev()                   # 0'dan geriye: sona sarmali
+        assert v._search_count_label.text() == "3 / 3"
+        v._search_prev()
+        assert v._search_count_label.text() == "2 / 3"
+    finally:
+        v.shutdown()
+        v.deleteLater()
+        qapp.processEvents()
+
+
+def test_ENTER_ayni_sorguda_SONRAKINE_geciyor(qapp, tmp_path):
+    """`_on_search_return` hic kosmuyordu."""
+    v = _arama_gorucusu(qapp, tmp_path)
+    try:
+        v._show_search_bar()
+        _ara(qapp, v)
+        assert v._search_count_label.text() == "1 / 2"
+        v._on_search_return()              # ayni sorgu: yeniden aramamali
+        assert v._search_count_label.text() == "2 / 2"
+    finally:
+        v.shutdown()
+        v.deleteLater()
+        qapp.processEvents()
+
+
+def test_ENTER_bos_sorguda_hicbir_sey_yapmiyor(qapp, tmp_path):
+    v = _arama_gorucusu(qapp, tmp_path)
+    try:
+        v._show_search_bar()
+        v._search_input.setText("   ")
+        v._on_search_return()
+        qapp.processEvents()
+        assert v._search_results == []
+        assert v._search_count_label.text() == ""
+    finally:
+        v.shutdown()
+        v.deleteLater()
+        qapp.processEvents()
