@@ -1014,18 +1014,47 @@ class MainWindow(
         QMessageBox.about(self, _("LaTeX Editor"), html)
 
     def _goto_line(self, file_path: str, line: int):
+        """Verilen dosyanın verilen satırına git.
+
+        İmleç HEDEF editöre konuyor, `_current_editor()`e değil. Eskiden
+        alttaki blok her hâlde koşuyordu: dosya ne açıksa ne de diskteyse iki
+        dal da atlanıyor ve imleç CARİ belgede o satıra gidiyordu. ÖLÇÜLDÜ
+        (2026-09-07), A ve B açıkken kullanıcı A'da, silinmiş bir dosyanın
+        30. satırına gitme isteği: hiçbir şey açılmıyor, mesaj yok ve
+        `acik_a.tex`in imleci 30. satıra atlıyor.
+
+        Ulaşılabilir yol sıradan: derleme hatasına ya da yazım bulgusuna
+        tıklamak (`output_panel.error_clicked`), SyncTeX ters araması
+        (`synctex_ops`) ve tanıma git. Dosya derlemeden sonra silinmiş,
+        taşınmış ya da synctex kaydındaki yol çözülemiyor olabilir.
+
+        `file_path` BOŞ olabilir ve o bilinçli: "cari belgede şu satıra git"
+        (bkz. `_goto_line_dialog`, satır numarasıyla gezinme).
+        """
+        hedef = None
         if file_path:
-            editor = self._editor_by_path(file_path)
-            if editor is not None:
-                self._editor_tabs.setCurrentWidget(editor)
+            hedef = self._editor_by_path(file_path)
+            if hedef is not None:
+                self._editor_tabs.setCurrentWidget(hedef)
             elif os.path.isfile(file_path):
                 self._open_file_in_editor(file_path)
+                # Açma BAŞARISIZ da olabilir (ikili dosya, kodlama): yeniden
+                # sorulmadan imleç oynatmak yine yanlış belgeye giderdi.
+                hedef = self._editor_by_path(file_path)
+            if hedef is None:
+                _logger.info("Satıra gidilemedi, dosya açılamadı: %s",
+                             file_path)
+                self._status.showMessage(
+                    _("Dosya bulunamadı: {name}").format(
+                        name=os.path.basename(file_path)))
+                return
+        else:
+            hedef = self._current_editor()
 
-        editor = self._current_editor()
-        if editor and line > 0:
-            editor.setCursorPosition(line - 1, 0)
-            editor.ensureLineVisible(line - 1)
-            editor.setFocus()
+        if hedef and line > 0:
+            hedef.setCursorPosition(line - 1, 0)
+            hedef.ensureLineVisible(line - 1)
+            hedef.setFocus()
 
     def _goto_outline_line(self, line: int):
         editor = self._current_editor()

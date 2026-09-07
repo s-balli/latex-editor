@@ -403,3 +403,137 @@ def test_IKI_giris_de_TEK_metottan_geciyor():
 
     for metot in (MainWindow.__init__, MainWindow.open_from_other_instance):
         assert "_dis_yolu_ac" in inspect.getsource(metot), metot.__name__
+
+
+# =====================================================================
+# `_goto_line` YANLIS BELGEDE imleci oynatiyordu (olculdu 2026-09-07)
+#
+# Imlec `_current_editor()`e konuyordu. Dosya ne acik ne diskteyse iki dal
+# da atlaniyor ama alttaki blok yine kosuyor: OLCULDU, A ve B acikken
+# kullanici A'da ve silinmis bir dosyanin 30. satirina gitme istegi
+# `acik_a.tex`in imlecini 30. satira atliyor; hicbir sey acilmiyor, mesaj
+# da yok.
+#
+# Ulasilabilir yol siradan: derleme hatasina ya da yazim bulgusuna tiklamak
+# (`output_panel.error_clicked`), SyncTeX ters aramasi, tanima git. Dosya
+# derlemeden sonra silinmis/tasinmis ya da synctex kaydindaki yol
+# cozulemiyor olabilir.
+# =====================================================================
+
+
+class _SatirStub:
+    """`_goto_line`i kosturmak icin en az iskelet."""
+
+    def __init__(self, editorler):
+        from PyQt6.QtWidgets import QTabWidget
+        from gui.main_window import MainWindow
+        self._goto_line = types.MethodType(MainWindow._goto_line, self)
+        self._editor_tabs = QTabWidget()
+        for ed in editorler:
+            self._editor_tabs.addTab(ed, os.path.basename(ed.file_path))
+        self.acilanlar = []
+        self.mesajlar = []
+        self._status = types.SimpleNamespace(
+            showMessage=lambda m, t=0: self.mesajlar.append(m),
+            clearMessage=lambda: None)
+
+    def _editor_by_path(self, yol):
+        for i in range(self._editor_tabs.count()):
+            ed = self._editor_tabs.widget(i)
+            if ed.file_path and _norm(ed.file_path) == _norm(yol):
+                return ed
+        return None
+
+    def _current_editor(self):
+        return self._editor_tabs.currentWidget()
+
+    def _open_file_in_editor(self, yol, add_recent=True):
+        self.acilanlar.append(yol)
+
+
+def _iki_editor(tmp_path):
+    from gui.editor import EditorWidget
+    yollar = []
+    editorler = []
+    for ad in ("acik_a.tex", "acik_b.tex"):
+        p = tmp_path / ad
+        p.write_text("".join("%s satir %d\n" % (ad, i + 1)
+                             for i in range(40)), encoding="utf-8")
+        ed = EditorWidget()
+        assert ed.open_file(str(p))
+        yollar.append(str(p))
+        editorler.append(ed)
+    return editorler, yollar
+
+
+def test_satira_git_HEDEF_belgede_atliyor(qapp, tmp_path):
+    (eda, edb), (yol_a, yol_b) = _iki_editor(tmp_path)
+    stub = _SatirStub([eda, edb])
+    stub._editor_tabs.setCurrentIndex(0)          # kullanici A'da
+    eda.setCursorPosition(0, 0)
+    edb.setCursorPosition(0, 0)
+
+    stub._goto_line(yol_b, 12)
+
+    assert stub._current_editor() is edb, "hedef sekmeye gecilmedi"
+    assert edb.getCursorPosition() == (11, 0)
+    assert eda.getCursorPosition() == (0, 0), "yanlis belgenin imleci oynadi"
+
+
+def test_satira_git_ACILAMAYAN_dosyada_imlece_DOKUNMUYOR(qapp, tmp_path):
+    """Kirilirsa: silinmis bir dosyanin hatasina tiklayan kullanici, acik
+    baska bir belgede imlecin atladigini goruyor."""
+    (eda, edb), _yollar = _iki_editor(tmp_path)
+    stub = _SatirStub([eda, edb])
+    stub._editor_tabs.setCurrentIndex(0)
+    eda.setCursorPosition(0, 0)
+
+    stub._goto_line(str(tmp_path / "silinmis.tex"), 30)
+
+    assert eda.getCursorPosition() == (0, 0), "yanlis belgede atladi"
+    assert stub.acilanlar == [], "var olmayan dosya acilmaya calisildi"
+    assert stub.mesajlar, "kullaniciya sebep soylenmedi"
+    assert "silinmis.tex" in stub.mesajlar[-1]
+
+
+def test_satira_git_ACMA_BASARISIZ_olursa_da_dokunmuyor(qapp, tmp_path):
+    """Dosya DISKTE var ama acilamiyor (ikili, kodlama): acmayi denedikten
+    sonra yeniden sorulmadan imlec oynatmak yine yanlis belgeye giderdi."""
+    (eda, edb), _yollar = _iki_editor(tmp_path)
+    ikili = tmp_path / "ikili.tex"
+    ikili.write_bytes(b"metin\x00metin")
+    stub = _SatirStub([eda, edb])
+    stub._editor_tabs.setCurrentIndex(0)
+    eda.setCursorPosition(0, 0)
+
+    stub._goto_line(str(ikili), 30)
+
+    assert stub.acilanlar == [str(ikili)], "acma denenmedi"
+    assert eda.getCursorPosition() == (0, 0), "acma basarisizken atladi"
+    assert stub.mesajlar
+
+
+def test_satira_git_BOS_yolda_CARI_belgede_atliyor(qapp, tmp_path):
+    """Asiri duzeltme kapisi: bos yol bilincli, "cari belgede su satira git"
+    demek (Ctrl+G ve anahat gezinmesi)."""
+    (eda, edb), _yollar = _iki_editor(tmp_path)
+    stub = _SatirStub([eda, edb])
+    stub._editor_tabs.setCurrentIndex(0)
+    eda.setCursorPosition(0, 0)
+
+    stub._goto_line("", 7)
+
+    assert eda.getCursorPosition() == (6, 0)
+    assert stub.mesajlar == [], "bos yolda uyari cikti"
+
+
+def test_satira_git_SATIR_SIFIRSA_imlece_dokunmuyor(qapp, tmp_path):
+    """Panel bazi bulgular icin satir 0 tasiyor (konum bilinmiyor)."""
+    (eda, edb), (yol_a, _b) = _iki_editor(tmp_path)
+    stub = _SatirStub([eda, edb])
+    stub._editor_tabs.setCurrentIndex(0)
+    eda.setCursorPosition(3, 0)
+
+    stub._goto_line(yol_a, 0)
+
+    assert eda.getCursorPosition() == (3, 0)
