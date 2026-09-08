@@ -585,3 +585,125 @@ def test_gercek_belge_kalibi():
     for sizmamali in ("fontenc", "article", "sec", "giris",
                       "gmail", "com", "alpha", "gizli", "yorum"):
         assert sizmamali not in ks, sizmamali
+
+
+# =====================================================================
+# Kullanıcı sözlüğü ATOMİK yazılıyor
+#
+# Dosya `"w"` ile bütünüyle yeniden yazılıyordu; yazma yarıda kesilirse
+# (dolu disk, çökme, Ctrl+C) kullanıcının zamanla biriktirdiği kelimeler
+# kırpılmış bir dosyada kalıyordu. ÖLÇÜLDÜ (2026-09-08), altı kelimelik bir
+# sözlükle: yazma üçte birinde kesilince dosya 42 bayttan 17 bayta iniyor ve
+# dört kelime gidiyor.
+#
+# Bu veri kullanıcının KENDİSİ ve geri yüklenecek bir kaynağı YOK: `.xz`
+# sözlüğü depodan gelir, bu gelmez. Kayıp ancak eskiden eklenen kelimelerin
+# yeniden altı çizili görünmesiyle anlaşılıyor.
+# =====================================================================
+
+
+import os  # noqa: E402
+import pytest  # noqa: E402,F811
+
+
+class _YarimYazan:
+    """Yazmanın ortasında kesilen dosya nesnesi."""
+
+    def __init__(self, f, hata):
+        self._f = f
+        self._hata = hata
+
+    def write(self, veri):
+        self._f.write(veri[: max(1, len(veri) // 3)])
+        raise self._hata
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *a):
+        self._f.close()
+        return False
+
+
+def _yazmayi_kes(monkeypatch, yol, hata):
+    """`yol`a (ve onun `.tmp`sine) yapılan yazmayı ortasında kes."""
+    import core.yazim as yz
+
+    asil = yz.io.open
+    hedefler = {str(yol), str(yol) + ".tmp"}
+
+    def _sahte(y, *a, **k):
+        kip = a[0] if a else k.get("mode", "r")
+        if str(y) in hedefler and "w" in kip:
+            return _YarimYazan(asil(y, *a, **k), hata)
+        return asil(y, *a, **k)
+
+    # `.tmp` DE yakalanıyor: düzeltme geçici dosyaya yazıyor ve yalnız asıl
+    # yolu aramak testi boşaltırdı (ölçüm betiğinde birebir yaşandı).
+    monkeypatch.setattr(yz.io, "open", _sahte)
+
+
+_BIRIKMIS = ["akademik", "cizelge", "kaynakca", "olcum", "sekil", "tez"]
+
+
+def _birikmis_sozluk(tmp_path):
+    yol = tmp_path / "kullanici.txt"
+    yol.write_text("\n".join(_BIRIKMIS) + "\n", encoding="utf-8")
+    return yol
+
+
+def test_kesilen_yazma_BIRIKMIS_sozlugu_bozmuyor(tmp_path, monkeypatch):
+    """Kırılırsa kullanıcı zamanla eklediği kelimeleri geri dönüşsüz
+    kaybeder; geri yüklenecek bir kaynak da yok."""
+    yol = _birikmis_sozluk(tmp_path)
+    onceki = yol.read_text(encoding="utf-8")
+    d = _denetleyici([], kullanici_sozlugu=str(yol))
+    _yazmayi_kes(monkeypatch, yol, OSError("disk dolu"))
+
+    assert d.kullaniciya_ekle("yenikelime") is False
+
+    assert yol.read_text(encoding="utf-8") == onceki
+    kalinti = [a for a in os.listdir(tmp_path) if a.endswith(".tmp")]
+    assert not kalinti, "geçici dosya temizlenmedi: %s" % kalinti
+
+
+def test_yazma_duserse_BELLEKTEN_de_geri_aliniyor(tmp_path, monkeypatch):
+    """Eskiden küme çoktan güncellenmişti: kelime o oturumda 'eklenmiş'
+    görünüyor, sonraki açılışta geri geliyordu. Aynı kural
+    `editor.save_file_as`ta yazılı: yazma başarısızsa eski hâle dön."""
+    yol = _birikmis_sozluk(tmp_path)
+    d = _denetleyici([], kullanici_sozlugu=str(yol))
+    _yazmayi_kes(monkeypatch, yol, OSError("disk dolu"))
+
+    d.kullaniciya_ekle("yenikelime")
+
+    assert d.dogru_mu("yenikelime") is False, \
+        "yazma düştü ama kelime bellekte eklenmiş kaldı"
+
+
+def test_KeyboardInterrupt_yutulmuyor(tmp_path, monkeypatch):
+    """Ctrl+C kayıt hatası değil: yarım `.tmp` bırakmadan yukarı çıkmalı."""
+    yol = _birikmis_sozluk(tmp_path)
+    onceki = yol.read_text(encoding="utf-8")
+    d = _denetleyici([], kullanici_sozlugu=str(yol))
+    _yazmayi_kes(monkeypatch, yol, KeyboardInterrupt())
+
+    with pytest.raises(KeyboardInterrupt):
+        d.kullaniciya_ekle("yenikelime")
+
+    assert yol.read_text(encoding="utf-8") == onceki
+    assert not [a for a in os.listdir(tmp_path) if a.endswith(".tmp")]
+    assert d.dogru_mu("yenikelime") is False
+
+
+def test_OLAGAN_ekleme_hala_kaliciyor(tmp_path):
+    """Aşırı düzeltme kapısı: kesinti yokken kelime diske yazılmalı ve
+    öncekiler durmalı."""
+    yol = _birikmis_sozluk(tmp_path)
+    d = _denetleyici([], kullanici_sozlugu=str(yol))
+
+    assert d.kullaniciya_ekle("yenikelime") is True
+
+    satirlar = yol.read_text(encoding="utf-8").split()
+    assert satirlar == sorted(_BIRIKMIS + ["yenikelime"])
+    assert not [a for a in os.listdir(tmp_path) if a.endswith(".tmp")]

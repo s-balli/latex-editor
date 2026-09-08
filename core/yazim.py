@@ -679,7 +679,27 @@ class Denetleyici:
             pass
 
     def kullaniciya_ekle(self, kelime: str) -> bool:
-        """Kelimeyi kullanıcı sözlüğüne ekler ve diske yazar."""
+        """Kelimeyi kullanıcı sözlüğüne ekler ve diske yazar.
+
+        ATOMİK YAZMA. Dosya `"w"` ile BÜTÜNÜYLE yeniden yazılıyor; yazma
+        yarıda kesilirse (dolu disk, çökme, Ctrl+C) kullanıcının zamanla
+        biriktirdiği bütün kelimeler kırpılmış bir dosyada kalıyordu.
+        ÖLÇÜLDÜ (2026-09-08), altı kelimelik bir sözlükle: yazma üçte birinde
+        kesilince dosya 42 bayttan 17 bayta iniyor ve dört kelime gidiyor.
+
+        Bu veri kullanıcının KENDİSİ ve geri yüklenecek bir kaynağı YOK:
+        `.xz` sözlüğü depodan gelir, bu gelmez. Kullanıcı kaybı ancak eskiden
+        eklediği kelimelerin yeniden altı çizili görünmesiyle anlar. Depo aynı
+        sınıfı üç yerde atomik yazıyor (`editor._write_atomic`,
+        `sozluk_ac.ac`, `sozluk_ac.paketle`); burası o zincirin dışındaydı.
+
+        YAZMA DÜŞERSE BELLEKTEN DE GERİ ALINIYOR. Eskiden küme çoktan
+        güncellenmiş oluyordu: kelime o oturumda "eklenmiş" görünüyor, panel
+        tazelenince bulgudan düşüyor, sonraki açılışta geri geliyordu. Aynı
+        kural `editor.save_file_as`ta yazılı: yazma başarısızsa eski kimliğe
+        dön. Böylece başarısızlık HEMEN görünüyor (kelime altı çizili kalıyor)
+        ve uygulama başaramadığı şeyi başarmış gibi davranmıyor.
+        """
         self._kullanici_yukle()
         if not kelime or kelime in self._kullanici:
             return False
@@ -687,12 +707,23 @@ class Denetleyici:
         self._onbellek.clear()
         if not self.kullanici_sozlugu:
             return True
+        gecici = self.kullanici_sozlugu + ".tmp"
         try:
             os.makedirs(os.path.dirname(self.kullanici_sozlugu), exist_ok=True)
-            with io.open(self.kullanici_sozlugu, "w", encoding="utf-8",
-                         newline="\n") as f:
+            with io.open(gecici, "w", encoding="utf-8", newline="\n") as f:
                 f.write("\n".join(sorted(self._kullanici)) + "\n")
-        except OSError:                          # pragma: no cover
+            os.replace(gecici, self.kullanici_sozlugu)
+        except BaseException as e:
+            # BaseException: Ctrl+C de yarım `.tmp` bırakmasın ve bellek
+            # diskle uyuşsun.
+            self._kullanici.discard(kelime)
+            self._onbellek.clear()
+            try:
+                os.unlink(gecici)
+            except OSError:
+                pass
+            if not isinstance(e, OSError):
+                raise
             return False
         return True
 
