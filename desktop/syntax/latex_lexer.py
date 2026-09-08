@@ -185,6 +185,20 @@ class LatexLexer(QsciLexerCustom):
         line_start = source.rfind(b"\n", 0, start) + 1
         line_no = source.count(b"\n", 0, line_start)
 
+        # BİR SATIR GERİ. Paragraf sonu kuralı (bkz. _paragraf_sonu) bir
+        # satırlık İLERİ BAKIŞ taşıyor: bir satırın son baytının math olup
+        # olmadığı, SONRAKİ satırın boş olup olmadığına bağlı. Bir düzenleme
+        # bir satırı boşaltınca önceki satırın sonu değişiyor, ama QScintilla
+        # yeniden boyamayı yalnız düzenlenen satırdan itibaren istiyor ve
+        # eski stil yerinde kalıyordu. ÖLÇÜLDÜ: bu satır olmadan
+        # test_random_edit_sequence_matches_full_scan seed=7 adım 35'te
+        # ayrışıyor (silme sonrası boşalan satırın öncesindeki `\n` MATH
+        # kalıyor, tam tarama DEFAULT diyor). Bir satır yetiyor: ileri bakış
+        # tam olarak bir satır.
+        if line_start > 0:
+            line_start = source.rfind(b"\n", 0, line_start - 1) + 1
+            line_no = max(0, line_no - 1)
+
         states = self._line_states
 
         # Blok ortasindan devam edebilmek icin duruma EK olarak baglam
@@ -539,13 +553,40 @@ class LatexLexer(QsciLexerCustom):
         pos, closed = self._style_math_block(source, i, n, b"$")
         return pos, not closed
 
+    @staticmethod
+    def _paragraf_sonu(source, i, n):
+        """``i``'den sonraki ilk BOŞ SATIR'ı başlatan ``\\n``; yoksa ``n``.
+
+        Boş satır = yalnız boşluk/sekme taşıyan satır, TeX'in ``\\par``ı.
+        """
+        k = source.find(b"\n", i, n)
+        while k != -1:
+            j = k + 1
+            while j < n and source[j] in b" \t\r":
+                j += 1
+            if j < n and source[j] == _NL:
+                return k
+            k = source.find(b"\n", j, n)
+        return n
+
     def _style_math_block(self, source, i, n, delim, acilis_var=True):
         """``acilis_var=False``: blok ORTASINDAN devam (acilis ayraci yok).
 
         Ayri bir '_continue' kopyasi TUTULMUYOR: F1'de silinen iki tarayici
         tam olarak o kopyaydi ve hicbir zaman cagrilmiyordu. Dogru sekil,
         ayni tarayiciya 'acilisi atla' demek.
+
+        Blok PARAGRAF SONUNDA bitiyor. Sebep TeX'in kendisi: matematik
+        kipinde ``\\par`` hata. ÖLÇÜLDÜ (2026-09-08, pdflatex): boş satır
+        gören ``$...$``, ``\\[...\\]`` ve ``\\(...\\)`` üçü de "Missing $
+        inserted" ile düşüyor. Sınır yokken kapatılmamış TEK bir ``$``
+        belgenin GERİ KALANINI matematik boyuyordu; ölçüldü, düz paragraflar,
+        ``\\section`` ve ``\\end{document}`` dahil her şey math rengine
+        dönüyor ve kullanıcı sebebini sayfalarca yukarıda aramak zorunda
+        kalıyordu. Artık yanlış renk kusurun BULUNDUĞU paragrafta duruyor.
         """
+        gercek_n = n
+        n = self._paragraf_sonu(source, i, n)
         dlen = len(delim)
         if acilis_var:
             j = i + dlen
@@ -579,7 +620,10 @@ class LatexLexer(QsciLexerCustom):
 
         if j < n:
             self.setStyling(n - j, self.MATH)
-        return n, False
+        # Paragraf sonunda durduysak (n < gercek_n) matematik BİTMİŞ sayılıyor:
+        # kapanış ayracı gelmedi ama TeX de burada bitiriyor. Belge sonunda
+        # durduysak blok gerçekten açık kalmıştır.
+        return n, n < gercek_n
 
     # --- Verbatim (C.8) ---
 

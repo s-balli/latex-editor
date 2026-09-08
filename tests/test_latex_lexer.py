@@ -123,10 +123,15 @@ def test_incremental_style_does_not_rewind_to_line_zero(qapp):
         lexer.startStyling = orig_start_styling
 
     assert starts, "startStyling hiç çağrılmadı"
-    # Erken bölge kendi satırından devam etmeli — line 0'a (byte 0) geri dönmemeli
-    assert starts[0] >= early, (
+    # Erken bölge kendi civarından devam etmeli — line 0'a (byte 0) geri
+    # dönmemeli. Tolerans BİR SATIR: paragraf sonu kuralı bir satırlık ileri
+    # bakış taşıdığı için tarama bilerek bir satır geriden başlıyor
+    # (bkz. styleText'teki "BİR SATIR GERİ" notu). Testin koruduğu şey
+    # "tam reparse yok" ve o korunuyor.
+    onceki_satir = _byte_offset_of_line(buf, 9)
+    assert starts[0] >= onceki_satir, (
         f"lexer byte {starts[0]}'a geri döndü (tam reparse) — "
-        f"{early} (satır 10) civarından devam etmeliydi"
+        f"{onceki_satir} (satır 9) civarından devam etmeliydi"
     )
 
 
@@ -1124,3 +1129,90 @@ def test_verbatim_RENGI_yorumdan_ayri(qapp):
                 + abs(a.blue() - b.blue()))
         assert fark >= 40, "%s: yorum %s ~ verbatim %s (fark %d)" % (
             ad, a.name(), b.name(), fark)
+
+
+# =====================================================================
+# Matematik PARAGRAF SONUNDA bitiyor
+#
+# Sebep TeX'in kendisi: matematik kipinde `\par` hata. ÖLÇÜLDÜ (2026-09-08,
+# pdflatex ile): boş satır gören `$...$`, `\[...\]` ve `\(...\)` üçü de
+# "Missing $ inserted" ile düşüyor.
+#
+# Sınır yokken kapatılmamış TEK bir `$` belgenin GERİ KALANINI matematik
+# boyuyordu. ÖLÇÜLDÜ (aynı gün, gerçek QsciScintilla ile her baytın stili
+# okundu): "Fiyat 5$ idi." satırından sonraki düz paragraflar, `\section`
+# ve `\end{document}` dahil her şey MATH/MATH_CMD rengine dönüyordu.
+# Kullanıcı sebebini sayfalarca yukarıda aramak zorunda kalıyordu.
+# =====================================================================
+
+_KAPANMAMIS_ACILISLAR = ["$", "$$", "\\[", "\\("]
+
+
+@pytest.mark.parametrize("acilis", _KAPANMAMIS_ACILISLAR)
+def test_KAPANMAMIS_math_PARAGRAFI_asmiyor(qapp, acilis):
+    """Kırılırsa tek bir dizgi hatası belgenin geri kalanını boyuyor."""
+    belge = ("Fiyat 5" + acilis + " idi.\n"
+             "\n"
+             "Bu paragraf matematik degil.\n"
+             "\n"
+             "\\section{Sonuc}\n")
+
+    harita = _stil_haritasi(belge)
+
+    assert harita["Bu paragraf matematik degil."] == {"DEFAULT"}
+    assert "MATH" not in harita["\\section{Sonuc}"]
+    assert "MATH_CMD" not in harita["\\section{Sonuc}"]
+
+
+@pytest.mark.parametrize("acilis", _KAPANMAMIS_ACILISLAR)
+def test_KAPANMAMIS_math_KENDI_paragrafini_boyuyor(qapp, acilis):
+    """Aşırı düzeltme kapısı: sınır konuldu diye matematik hiç boyanmasın
+    olmaz; kusurun bulunduğu paragraf hâlâ math renginde ve kullanıcı
+    hatayı orada görüyor."""
+    belge = ("Fiyat 5" + acilis + " idi.\n"
+             "\n"
+             "Sonraki paragraf.\n")
+
+    harita = _stil_haritasi(belge)
+
+    assert "MATH" in harita["Fiyat 5" + acilis + " idi."]
+
+
+def test_COK_SATIRLI_math_bos_satir_YOKSA_devam_ediyor(qapp):
+    """Aşırı düzeltme kapısı: kural PARAGRAF sonu, satır sonu değil. Çok
+    satırlı display math bölünmemeli."""
+    belge = ("\\[\n"
+             "  a + b\n"
+             "  = c\n"
+             "\\]\n"
+             "Sonrasi duz.\n")
+
+    harita = _stil_haritasi(belge)
+
+    assert harita["  a + b"] == {"MATH"}
+    assert harita["  = c"] == {"MATH"}
+    assert harita["Sonrasi duz."] == {"DEFAULT"}
+
+
+def test_YALNIZ_BOSLUK_tasiyan_satir_da_paragraf_sonu(qapp):
+    """TeX için de öyle: boşluk/sekme taşıyan satır `\\par` üretiyor."""
+    belge = ("Fiyat 5$ idi.\n"
+             "   \t \n"
+             "Sonraki paragraf.\n")
+
+    harita = _stil_haritasi(belge)
+
+    assert harita["Sonraki paragraf."] == {"DEFAULT"}
+
+
+def test_KAPALI_math_etkilenmiyor(qapp):
+    """Aşırı düzeltme kapısı: düzgün kapanmış matematik olduğu gibi."""
+    belge = ("Once $x^2 + y^2$ sonra.\n"
+             "\n"
+             "Ikinci paragraf $z$ ile.\n")
+
+    harita = _stil_haritasi(belge)
+
+    assert "MATH" in harita["Once $x^2 + y^2$ sonra."]
+    assert "DEFAULT" in harita["Once $x^2 + y^2$ sonra."]
+    assert "MATH" in harita["Ikinci paragraf $z$ ile."]
