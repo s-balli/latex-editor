@@ -248,6 +248,119 @@ class TestWslKurulumOnerisi:
         c._on_error(QProcess.ProcessError.FailedToStart)
         assert results and results[0].suggestions == []
 
+
+# =====================================================================
+# İptal ettiğimiz derleme, log'a "hata" yazmıyor
+#
+# QProcess.kill() Qt'nin sözleşmesine göre errorOccurred(Crashed) yayıyor.
+# ÖLÇÜLDÜ (2026-09-08, gerçek wsl+lualatex ile yavaş bir derleme):
+#
+#   iptal        -> '[hata] Derleme hatası'
+#   zaman aşımı  -> '[hata] Derleme hatası'  (ASIL açıklamadan ÖNCE)
+#                   '[hata] Derleme zaman aşımına uğradı (2s), iptal edildi.'
+#   Qt olayları  -> errorOccurred(Crashed) + finished(62097, CrashExit)
+#
+# Yani kullanıcı derlemeyi kendi durdurduğunda durum çubuğu "Derleme
+# durduruldu" derken log'un son satırı "hata" diyordu. İptal, başarısız
+# derleme değildir (bkz. LatexCompiler.stop() docstring'i).
+#
+# Suitteki bütün stop()/_on_timeout testleri MagicMock process kullanıyor,
+# yani gerçek kill()'in ardından Qt'nin ne yaydığını hiç görmüyorlar; bu
+# yüzden aşağıdaki kapılar GERÇEK QProcess kullanıyor ve yalnızca
+# çalıştırılan komutu değiştiriyor.
+# =====================================================================
+
+
+class TestIptalLogaHataYazmiyor:
+
+    @staticmethod
+    def _yavas_baslat(c, tmp_path, **kw):
+        """compile()'ı üretimdeki gibi çalıştır, yalnız komutu değiştir.
+
+        QProcess'i ve errorOccurred bağlantısını compile() kendisi kuruyor;
+        ölçmek istediğimiz şey tam olarak o bağlantı, o yüzden burada mock
+        process kullanılamaz. Uzun süren komut taşınabilir olsun diye
+        LaTeX değil Python: her ortamda var.
+        """
+        tex = tmp_path / "yavas.tex"
+        tex.write_text("\\documentclass{article}\n", encoding="utf-8")
+
+        def _start(tex_path, engine):
+            c.process.start(sys.executable,
+                            ["-c", "import time; time.sleep(30)"])
+
+        with patch.object(c, "_start_windows", _start), \
+             patch.object(c, "_start_native", _start):
+            assert c.compile(str(tex), **kw) is True
+        assert c.process.waitForStarted(10000), "yavaş süreç başlamadı"
+        return str(tex)
+
+    def test_IPTALDE_hata_satiri_yazilmiyor(self, tmp_path):
+        """Kırılırsa kullanıcı derlemeyi kendi iptal etmesine rağmen log'un
+        son satırında "hata" görüyor."""
+        c = LatexCompiler()
+        satirlar = []
+        c.output_line.connect(satirlar.append)
+        self._yavas_baslat(c, tmp_path)
+
+        c.stop()
+        _app.processEvents()
+
+        assert [s for s in satirlar if "[hata]" in s] == []
+
+    def test_ZAMAN_ASIMINDA_yalniz_kendi_mesaji_yaziliyor(self, tmp_path):
+        """Kırılırsa asıl açıklamadan ÖNCE genel bir "Derleme hatası" satırı
+        düşüyor ve kullanıcı ilk olarak onu okuyor."""
+        c = LatexCompiler()
+        satirlar = []
+        c.output_line.connect(satirlar.append)
+        self._yavas_baslat(c, tmp_path, timeout_ms=60_000)
+
+        c._on_timeout()
+        _app.processEvents()
+
+        hatalar = [s for s in satirlar if "[hata]" in s]
+        assert len(hatalar) == 1, hatalar
+        assert "zaman aşımına" in hatalar[0].lower()
+
+    # --- Aşırı düzeltme kapıları ---
+
+    def test_BIZ_OLDURMEDIYSEK_cokme_hala_bildiriliyor(self, tmp_path):
+        """Bastırılan şey yalnız BİZİM kill'imiz: derleyici kendiliğinden
+        çöktüyse kullanıcı bunu hem log'da hem sonuçta görmeli."""
+        c = LatexCompiler()
+        satirlar, sonuclar = [], []
+        c.output_line.connect(satirlar.append)
+        c.compilation_finished.connect(sonuclar.append)
+        self._yavas_baslat(c, tmp_path)
+
+        c._on_error(QProcess.ProcessError.Crashed)
+
+        assert [s for s in satirlar if "[hata]" in s], satirlar
+        assert len(sonuclar) == 1 and sonuclar[0].success is False
+        c.stop()
+
+    def test_IPTALDEN_SONRAKI_derlemenin_gercek_hatasi_bildiriliyor(
+            self, tmp_path):
+        """Bayrak sonraki koşuya taşınırsa WSL'i olmayan kullanıcı "Başlat"a
+        basıyor ve hiçbir şey duymuyor: ne log satırı ne sonuç."""
+        c = LatexCompiler()
+        tex = self._yavas_baslat(c, tmp_path)
+        c.stop()
+        assert c._oldurduk is True
+
+        satirlar, sonuclar = [], []
+        c.output_line.connect(satirlar.append)
+        c.compilation_finished.connect(sonuclar.append)
+        with patch.object(c, "_start_windows"), \
+             patch.object(c, "_start_native"):
+            assert c.compile(tex) is True
+        c._on_error(QProcess.ProcessError.FailedToStart)
+
+        assert [s for s in satirlar if "[hata]" in s], satirlar
+        assert len(sonuclar) == 1 and sonuclar[0].success is False
+
+
 class TestChunkCarryOver:
     """readyRead chunk sınırları: yarım ANSI dizisi / çok baytlı UTF-8 bölünmesi.
 

@@ -61,6 +61,9 @@ class LatexCompiler(QObject):
         self._engine = "lualatex"
         self._shell_escape = None
         self._finished_emitted = False
+        # Süreci BİZ mi öldürdük (iptal/watchdog): Qt kill() sonrası
+        # errorOccurred(Crashed) yayıyor, bu ondan ayırt etmek için.
+        self._oldurduk = False
         self._timeout_ms = DEFAULT_TIMEOUT_MS
         self._timeout_timer = QTimer(self)
         self._timeout_timer.setSingleShot(True)
@@ -109,6 +112,9 @@ class LatexCompiler(QObject):
         self._pdf_damgasi_once = self._pdf_damgasi(
             os.path.join(self._tex_dir, f"{self._tex_name}.pdf"))
         self._finished_emitted = False
+        # Yeni derleme: önceki iptalin bayrağı taşınmasın, yoksa bu koşunun
+        # GERÇEK hatası (WSL yok, bash bulunamadı) sessizce yutulur.
+        self._oldurduk = False
 
         # Önceki derlemenin QProcess'ini bırak: her derleme yeni nesne yaratır,
         # eskisi QObject child olarak birikir (uzun oturumda sızıntı). Üstteki
@@ -262,6 +268,15 @@ class LatexCompiler(QObject):
             self.compilation_finished.emit(result)
 
     def _on_error(self, error: QProcess.ProcessError):
+        # Süreci biz öldürdüysek bu "hata" bizim işimiz: QProcess.kill()
+        # Qt'nin sözleşmesine göre errorOccurred(Crashed) yayıyor (ölçüldü:
+        # errorOccurred(Crashed) + finished(exit 62097, CrashExit)). Bayrağa
+        # bakmadan buraya girildiğinde kullanıcı derlemeyi kendi iptal etmiş
+        # olmasına rağmen log'un son satırı "[hata] Derleme hatası" oluyordu;
+        # zaman aşımında da bu genel satır asıl açıklamadan ÖNCE düşüyordu.
+        # İptal, başarısız derleme değildir (bkz. stop()).
+        if self._oldurduk:
+            return
         self._timeout_timer.stop()
         self._flush_output()
         msg = _("Derleme hatası")
@@ -295,6 +310,7 @@ class LatexCompiler(QObject):
         self._flush_output()
         # kill sonrası gelen _on_finished tekrar emit etmesin
         self._finished_emitted = True
+        self._oldurduk = True
         self.process.kill()
         self.process.waitForFinished(3000)
         sure = max(1, self._timeout_ms // 1000)
@@ -320,6 +336,7 @@ class LatexCompiler(QObject):
         """
         if self.process and self.process.state() != QProcess.ProcessState.NotRunning:
             self._finished_emitted = True
+            self._oldurduk = True
             self.process.kill()
             self.process.waitForFinished(3000)
             self._timeout_timer.stop()
