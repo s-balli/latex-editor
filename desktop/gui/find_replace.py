@@ -333,7 +333,25 @@ class FindReplaceBar(QWidget):
         )
 
     def set_editor(self, editor: QsciScintilla):
+        """Panelin baktığı belgeyi değiştir ve sayacı O belgeye göre yenile.
+
+        Sekme değişince `_on_tab_changed` burayı çağırıyor. Eskiden yalnız
+        işaretçi değişiyordu, sayaç önceki belgenin sayısını göstermeye
+        devam ediyordu (ölçüldü, gerçek pencerede): A.tex'te 6 eşleşme
+        bulduktan sonra B.tex'e geçilince etiket hâlâ "6 sonuç" diyor, oysa
+        B.tex'te hiç yok. Ters yön daha kötü: "Sonuç yok" yazan panelle
+        6 eşleşmeli belgeye geçen kullanıcı kelimenin orada olmadığını sanıyor.
+
+        Sayım imleci ve seçimi OYNATMIYOR (SCI_SEARCHINTARGET, bkz. _say), yani
+        sekme değiştirmek belgeyi kaydırmıyor; yalnız etiket doğruyu söylüyor.
+        Panel GİZLİYKEN hiç sayılmıyor: `_on_tab_changed` panel kapalıyken de
+        burayı çağırıyor ve o zaman yapılacak iş yok. Ölçüt `isVisible` DEĞİL
+        `isHidden`: `isVisible` gizli bir üst pencerenin çocuklarında da False
+        dönüyor, yani panel açık olsa bile sayım koşmazdı.
+        """
         self._editor = editor
+        if not self.isHidden():
+            self._count_matches(self._find_input.text())
 
     def show_find(self):
         self._replace_input.hide()

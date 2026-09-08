@@ -7,6 +7,8 @@ Deneyle üretilmişti: 12.000 eşleşmeli belgede 10.001 değiştirilip 1.999'u
 dokunulmadan kalıyor, etiket yine sayı yazıyor, hiçbir uyarı çıkmıyordu.
 """
 
+import os
+
 import pytest
 
 try:
@@ -873,3 +875,133 @@ class TestReddedilenDesendeDegistir:
         bar._find_input.setText(r"zzz(\d)")
         bar._replace_all()
         assert bar._lbl_count.text() == "0 değişiklik"
+
+
+# =====================================================================
+# Sekme değişince sayaç YENİ belgeyi sayıyor
+#
+# `_on_tab_changed` panele yalnız `set_editor` çağırıyordu, o da yalnız
+# işaretçiyi değiştiriyordu. Sayaç önceki belgenin sayısında kalıyordu.
+#
+# ÖLÇÜLDÜ (2026-09-08, hem widget düzeyinde hem GERÇEK pencerede):
+#
+#   A.tex'te 6 eşleşme -> B.tex'e geç (0 eşleşme)  etiket: "6 sonuç"
+#   A.tex'te 0 eşleşme -> B.tex'e geç (6 eşleşme)  etiket: "Sonuç yok"
+#
+# İkinci yön daha kötü: panel "Sonuç yok" derken kullanıcı kelimenin o
+# belgede olmadığını sanıyor.
+#
+# Sayım imleci ve seçimi oynatmıyor (SCI_SEARCHINTARGET), o yüzden düzeltme
+# sekme değiştirmeyi belge kaydıran bir eyleme çevirmiyor.
+#
+# Ölçüt `isVisible` DEĞİL `isHidden`: `isVisible` gizli bir üst pencerenin
+# çocuklarında da False dönüyor (ölçüldü), yani panel açıkken bile sayım
+# koşmazdı ve bu kapılar da vakumda geçerdi.
+# =====================================================================
+
+
+class TestSekmeDegisince:
+
+    def _iki_belge(self, ilk, ikinci, aranan="figure"):
+        bar, ed1 = _bar(ilk, aranan)
+        bar.show()                      # kullanıcı Ctrl+F'e basmış
+        bar._do_find()
+        bar._count_matches(aranan)
+        ed2 = QsciScintilla()
+        ed2.setText(ikinci)
+        return bar, ed1, ed2
+
+    def test_SAYAC_yeni_belgeye_gore_DUSUYOR(self, qapp):
+        """Kırılırsa panel eşleşme olmayan belgede "6 sonuç" diyor."""
+        bar, _ed1, ed2 = self._iki_belge("figure figure figure figure "
+                                         "figure figure\n", "table table\n")
+        assert bar._lbl_count.text() == "6 sonuç"
+
+        bar.set_editor(ed2)
+
+        assert bar._lbl_count.text() == "Sonuç yok"
+
+    def test_SAYAC_yeni_belgeye_gore_ARTIYOR(self, qapp):
+        """Kırılırsa panel "Sonuç yok" derken belgede altı eşleşme var ve
+        kullanıcı kelimenin orada olmadığını sanıyor."""
+        bar, _ed1, ed2 = self._iki_belge(
+            "table table\n", "figure figure figure figure figure figure\n")
+        assert bar._lbl_count.text() == "Sonuç yok"
+
+        bar.set_editor(ed2)
+
+        assert bar._lbl_count.text() == "6 sonuç"
+
+    # --- Aşırı düzeltme kapıları ---
+
+    def test_PANEL_KAPALIYKEN_sayilmiyor(self, qapp):
+        """`_on_tab_changed` panel kapalıyken de set_editor çağırıyor; orada
+        sayım hem gereksiz hem de her sekme değişimine bir belge taraması
+        ekler."""
+        bar, _ed1, ed2 = self._iki_belge("figure figure\n", "figure\n")
+        bar.hide()
+        bar._lbl_count.setText("DOKUNULMADI")
+
+        bar.set_editor(ed2)
+
+        assert bar._lbl_count.text() == "DOKUNULMADI"
+
+    def test_SEKME_degisimi_IMLECI_oynatmiyor(self, qapp):
+        """Sekme değiştirmek belgeyi kaydıran bir eyleme dönüşmemeli:
+        kullanıcı B.tex'e bakmak için geçmiş olabilir."""
+        bar, _ed1, ed2 = self._iki_belge("figure figure\n", "a\nb\nfigure\n")
+        ed2.setCursorPosition(0, 0)
+
+        bar.set_editor(ed2)
+
+        assert ed2.selectedText() == ""
+        assert ed2.getCursorPosition() == (0, 0)
+
+    def test_GECERSIZ_DESEN_mesaji_KORUNUYOR(self, qapp):
+        """Desen hatası belgeye değil DESENE ait: sekme değişince sayıya
+        dönüşüp "Sonuç yok" olmamalı."""
+        bar, _ed1, ed2 = self._iki_belge("aaa\n", "aaa\n")
+        bar._cb_regex.setChecked(True)
+        bar._find_input.setText("(a+)+")
+        bar._do_find()
+        assert bar._lbl_count.text() == "Geçersiz desen"
+
+        bar.set_editor(ed2)
+
+        assert bar._lbl_count.text() == "Geçersiz desen"
+
+
+def test_GERCEK_PENCEREDE_sekme_degisimi_sayaci_yeniliyor(ana_pencere,
+                                                          tmp_path):
+    """Zinciri bütün olarak kapatıyor: `_on_tab_changed` -> `set_editor`.
+
+    Widget kapıları paneli doğrudan çağırıyor; bu kapı sekmeyi GERÇEKTEN
+    değiştiriyor, yani bağlantı koparsa da yakalıyor.
+    """
+    a = tmp_path / "A.tex"
+    a.write_text("figure figure figure\nfigure figure figure\n",
+                 encoding="utf-8")
+    b = tmp_path / "B.tex"
+    b.write_text("table table\n", encoding="utf-8")
+
+    p = ana_pencere()
+    p._dis_yolu_ac(str(a), "kapi")
+    p._dis_yolu_ac(str(b), "kapi")
+    yollar = {}
+    for i in range(p._editor_tabs.count()):
+        yol = getattr(p._editor_tabs.widget(i), "file_path", "")
+        if yol:
+            yollar[os.path.basename(yol)] = i
+
+    p._editor_tabs.setCurrentIndex(yollar["A.tex"])
+    p._show_find()
+    bar = p._find_bar
+    bar._find_input.setText("figure")
+    bar._do_find()
+    bar._count_matches("figure")
+    assert bar._lbl_count.text() == "6 sonuç"
+
+    p._editor_tabs.setCurrentIndex(yollar["B.tex"])
+
+    assert bar._editor is p._current_editor()
+    assert bar._lbl_count.text() == "Sonuç yok"
