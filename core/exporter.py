@@ -173,6 +173,36 @@ def _extract_refs_div(html: str) -> str:
     return html[start:i]
 
 
+_REFS_BASLIK = {"tr_TR": "Kaynakça", "en_US": "References"}
+
+
+def _refs_basligi(tex_path: str) -> str:
+    """Markdown'a eklenen kaynakça başlığı, BELGENİN dilinde.
+
+    Bu başlık pandoc'tan GELMİYOR, kodun kendisi ekliyor: markdown writer'ı
+    citeproc'u atladığı için referans listesini `_resolve_md_citations`
+    kuruyor ve başlıksız bir liste okunmaz olurdu. Öteki biçimlerde
+    (HTML/DOCX/TXT) citeproc listeyi kendisi üretiyor ve başlık EKLEMİYOR;
+    yani bu, çıktıdaki tek "bizim yazdığımız" metin.
+
+    Sabit `## References` yazılıydı. ÖLÇÜLDÜ (2026-09-08, gerçek pandoc ile),
+    `\\usepackage[turkish]{babel}` bildiren bir belgeyi .md'ye aktarınca:
+    baştan sona Türkçe metnin ortasına İngilizce `## References` düşüyor.
+
+    Dil belgeden okunuyor (`core.yazim.belgeden_dil`: `% !TEX spellcheck`,
+    ana dil bildirimi, babel; babel'de SON seçenek ana dil). Belge dilini
+    bildirmiyorsa `References` kalıyor: bugünkü davranış korunuyor ve
+    uydurma bir dil seçilmiyor.
+    """
+    try:
+        with open(tex_path, "r", encoding="utf-8", errors="replace") as f:
+            kaynak = f.read()
+    except OSError:
+        return "References"
+    from core.yazim import belgeden_dil
+    return _REFS_BASLIK.get(belgeden_dil(kaynak) or "", "References")
+
+
 def _resolve_md_citations(md_path: str, tex_path: str, bibs=()):
     r"""Markdown'daki [@key] citation'larını çöz ve referans listesi ekle.
 
@@ -254,7 +284,8 @@ def _resolve_md_citations(md_path: str, tex_path: str, bibs=()):
             refs_plain = _pandoc_run(["-f", "html", "-t", "plain"], input_text=refs_div).strip()
 
     if refs_plain:
-        content += "\n\n## References\n\n" + refs_plain + "\n"
+        content += ("\n\n## " + _refs_basligi(tex_path) + "\n\n"
+                    + refs_plain + "\n")
 
     try:
         with open(md_path, "w", encoding="utf-8") as f:

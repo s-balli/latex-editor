@@ -37,6 +37,7 @@ from core.exporter import (
     _preprocess_tex,
     _find_bibliography,
     _resolve_md_citations,
+    _refs_basligi,
     _pandoc_csljson,
     _fix_docx_compat,
     _rewrite_docx_member,
@@ -1195,3 +1196,94 @@ class TestBibListesiNormalizasyonu:
     def test_csljson_da_dizgeyi_bolmuyor(self, mock_run):
         _pandoc_csljson("/x/kaynaklar.bib")
         assert mock_run.call_args[0][0] == ["/x/kaynaklar.bib", "-t", "csljson"]
+
+
+# =====================================================================
+# Markdown'a eklenen kaynakca basligi BELGENIN dilinde
+#
+# Bu baslik pandoc'tan gelmiyor, kodun kendisi ekliyor: markdown writer'i
+# citeproc'u atladigi icin referans listesini `_resolve_md_citations`
+# kuruyor. Oteki bicimlerde (HTML/DOCX/TXT) citeproc listeyi kendisi
+# uretiyor ve BASLIK EKLEMIYOR, yani bu ciktidaki tek "bizim yazdigimiz"
+# metin.
+#
+# Sabit `## References` yaziliydi. OLCULDU (2026-09-08, gercek pandoc ile):
+# `\usepackage[turkish]{babel}` bildiren bir belge .md'ye aktarilinca bastan
+# sona Turkce metnin ortasina Ingilizce `## References` dusuyor; ayni
+# belgenin .html ve .txt ciktisinda hic baslik yok.
+# =====================================================================
+
+
+class TestRefsBasligiBelgeDilinde:
+
+    def _proje(self, tmp_path, preamble):
+        bib = tmp_path / "refs.bib"
+        bib.write_text("@article{k,\nauthor={Yilmaz, A.},\ntitle={T},\n"
+                       "journal={Dergi},\nyear={2020}}\n", encoding="utf-8")
+        tex = tmp_path / "d.tex"
+        tex.write_text(
+            "\\documentclass{article}\n" + preamble +
+            "\\begin{document}\n"
+            "Metin \\cite{k}.\n\\bibliography{refs}\n\\end{document}\n",
+            encoding="utf-8")
+        return tex
+
+    @pytest.mark.skipif(not _PANDOC, reason="pandoc gerekli")
+    def test_TURKCE_belgede_Kaynakca(self, tmp_path):
+        """Kırılırsa baştan sona Türkçe bir belgenin ortasına İngilizce bir
+        başlık düşüyor."""
+        tex = self._proje(tmp_path, "\\usepackage[turkish]{babel}\n")
+        md = tmp_path / "d.md"
+
+        ok, err = export(str(tex), str(md))
+
+        assert ok, err
+        icerik = md.read_text(encoding="utf-8")
+        assert "## Kaynakça" in icerik, icerik
+        assert "## References" not in icerik
+
+    @pytest.mark.skipif(not _PANDOC, reason="pandoc gerekli")
+    def test_INGILIZCE_belgede_References(self, tmp_path):
+        tex = self._proje(tmp_path, "\\usepackage[english]{babel}\n")
+        md = tmp_path / "d.md"
+
+        ok, err = export(str(tex), str(md))
+
+        assert ok, err
+        icerik = md.read_text(encoding="utf-8")
+        assert "## References" in icerik, icerik
+
+    @pytest.mark.skipif(not _PANDOC, reason="pandoc gerekli")
+    def test_DIL_BILDIRILMEMISSE_bugunku_davranis(self, tmp_path):
+        """Aşırı düzeltme kapısı: belge dilini söylemiyorsa uydurma bir dil
+        seçilmiyor, bugünkü başlık kalıyor."""
+        tex = self._proje(tmp_path, "")
+        md = tmp_path / "d.md"
+
+        ok, err = export(str(tex), str(md))
+
+        assert ok, err
+        assert "## References" in md.read_text(encoding="utf-8")
+
+    # --- pandoc GEREKMEYEN kapılar: başlık seçiminin kendisi ---
+
+    def test_TEX_MAGIC_yorumu_babeli_yener(self, tmp_path):
+        """`% !TEX spellcheck` kullanıcının AÇIK niyeti; babel dizgi dili."""
+        tex = tmp_path / "d.tex"
+        tex.write_text("% !TEX spellcheck = tr_TR\n"
+                       "\\documentclass{article}\n"
+                       "\\usepackage[english]{babel}\n", encoding="utf-8")
+
+        assert _refs_basligi(str(tex)) == "Kaynakça"
+
+    def test_BABELDE_son_secenek_ana_dil(self, tmp_path):
+        tex = tmp_path / "d.tex"
+        tex.write_text("\\usepackage[english,turkish]{babel}\n",
+                       encoding="utf-8")
+
+        assert _refs_basligi(str(tex)) == "Kaynakça"
+
+    def test_OKUNAMAYAN_kaynak_bugunku_basligi_veriyor(self, tmp_path):
+        """Kaynak okunamıyorsa (silinmiş, izin yok) dışa aktarma bu yüzden
+        düşmemeli."""
+        assert _refs_basligi(str(tmp_path / "yok.tex")) == "References"
