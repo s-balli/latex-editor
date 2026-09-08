@@ -645,3 +645,70 @@ def test_sunum_DISINDA_fare_sunum_yoluna_girmiyor(viewer, qapp):
                        _fare(Qt.MouseButton.LeftButton))
     qapp.processEvents()
     assert viewer._current_page == 0
+
+
+# =====================================================================
+# "Farklı Kaydet" düşerse kullanıcı bunu öğreniyor
+#
+# _save_as kopyalama hatasını yalnız log'a yazıyordu. ÖLÇÜLDÜ (2026-09-08):
+#
+#   olmayan klasöre kaydet   -> kopya yok, mesaj YOK   (FileNotFoundError)
+#   kaynağın kendi üstüne    -> kopya yok, mesaj YOK   (WinError 32)
+#   başarılı kopyalama       -> kopya var, mesaj yok   (doğru)
+#   kullanıcı iptal etti     -> mesaj yok              (doğru)
+#
+# Yani kullanıcı hedefi seçiyor, ekranda hiçbir şey değişmiyor ve PDF'in
+# kaydedildiğini sanıyor. Aynı görüntüleyici izinsiz şemalı bağlantıda
+# sessizliği zaten kusur sayıyor (_events.py::_guvensiz_baglanti).
+# =====================================================================
+
+
+def _kaydet_akisi(monkeypatch, viewer, kaynak, hedef):
+    """_save_as'i dosya diyaloğu ve uyarı kutusu vekilleriyle koştur."""
+    from PyQt6.QtWidgets import QFileDialog, QMessageBox
+    kutular = []
+    monkeypatch.setattr(QFileDialog, "getSaveFileName",
+                        staticmethod(lambda *a, **k: (hedef, "PDF")))
+    monkeypatch.setattr(QMessageBox, "warning",
+                        staticmethod(lambda *a, **k: kutular.append(a[1:3])))
+    monkeypatch.setattr(viewer, "_pdf_path", str(kaynak), raising=False)
+    viewer._save_as()
+    return kutular
+
+
+@gui
+def test_KAYDEDILEMEDIYSE_kullaniciya_soyluyor(viewer, monkeypatch, tmp_path):
+    """Kırılırsa kullanıcı hedefi seçiyor, hiçbir şey görmüyor ve PDF'in
+    kaydedildiğini sanıyor."""
+    kaynak = tmp_path / "belge.pdf"
+    kaynak.write_bytes(b"%PDF-1.4\n")
+    hedef = tmp_path / "olmayan_klasor" / "kopya.pdf"
+
+    kutular = _kaydet_akisi(monkeypatch, viewer, kaynak, str(hedef))
+
+    assert not hedef.exists()
+    assert len(kutular) == 1, kutular
+    assert str(hedef) in kutular[0][1], kutular[0][1]
+
+
+@gui
+def test_BASARILI_kaydetmede_kutu_YOK(viewer, monkeypatch, tmp_path):
+    """Aşırı düzeltme kapısı: her kaydetmede uyarı çıkarsa kutu anlamsızlaşır
+    ve kullanıcı onu okumayı bırakır."""
+    kaynak = tmp_path / "belge.pdf"
+    kaynak.write_bytes(b"%PDF-1.4\n")
+    hedef = tmp_path / "kopya.pdf"
+
+    kutular = _kaydet_akisi(monkeypatch, viewer, kaynak, str(hedef))
+
+    assert hedef.exists()
+    assert kutular == []
+
+
+@gui
+def test_IPTAL_edilmisse_kutu_YOK(viewer, monkeypatch, tmp_path):
+    """Aşırı düzeltme kapısı: diyaloğu kapatmak hata değil."""
+    kaynak = tmp_path / "belge.pdf"
+    kaynak.write_bytes(b"%PDF-1.4\n")
+
+    assert _kaydet_akisi(monkeypatch, viewer, kaynak, "") == []

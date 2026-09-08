@@ -7,7 +7,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
-    QScrollArea, QFileDialog, QLineEdit,
+    QScrollArea, QFileDialog, QLineEdit, QMessageBox,
 )
 
 from PyQt6.QtCore import QCoreApplication
@@ -454,3 +454,13 @@ class PdfUISetupMixin:
             except Exception as e:
                 from core.log import get_logger
                 get_logger("pdf_viewer").error("PDF kopyalama hatası: %s", e, exc_info=True)
+                # Sessizlik kusur gibi görünüyordu: kullanıcı hedefi seçtikten
+                # sonra ekranda hiçbir şey değişmiyor, dosya da yok. Ölçüldü
+                # (2026-09-08): olmayan klasöre kaydetmede ve kaynağın kendi
+                # üstüne kaydetmede ikisinde de ne dosya ne mesaj vardı. Aynı
+                # görüntüleyici izinsiz şemalı bağlantıda sessizliği zaten
+                # kusur sayıyor (bkz. _events.py::_guvensiz_baglanti).
+                QMessageBox.warning(
+                    self, _("PDF Kaydedilemedi"),
+                    _("PDF şu konuma kopyalanamadı:\n\n{d}\n\n{e}")
+                    .format(d=dest, e=e))
