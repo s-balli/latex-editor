@@ -1063,7 +1063,7 @@ Reloading from disk will discard your changes.</translation>
         <translation>Replace</translation>
     </message>
     <message>
-        <location filename="../gui/find_replace.py" line="666" />
+        <location filename="../gui/find_replace.py" line="684" />
         <location filename="../gui/find_replace.py" line="281" />
         <source>Tümünü Değiştir</source>
         <translation>Replace All</translation>
@@ -1099,32 +1099,32 @@ Reloading from disk will discard your changes.</translation>
         <translation>Pattern search: \d digit, [A-Z] character class, a|b alternation, (...) group. In the replacement, \1 refers to a captured group.</translation>
     </message>
     <message>
-        <location filename="../gui/find_replace.py" line="574" />
+        <location filename="../gui/find_replace.py" line="592" />
         <source>Geçersiz desen</source>
         <translation>Invalid pattern</translation>
     </message>
     <message>
-        <location filename="../gui/find_replace.py" line="576" />
+        <location filename="../gui/find_replace.py" line="594" />
         <source>Sonuç yok</source>
         <translation>No results</translation>
     </message>
     <message>
-        <location filename="../gui/find_replace.py" line="578" />
+        <location filename="../gui/find_replace.py" line="596" />
         <source>{n}+ sonuç</source>
         <translation>{n}+ results</translation>
     </message>
     <message>
-        <location filename="../gui/find_replace.py" line="580" />
+        <location filename="../gui/find_replace.py" line="598" />
         <source>{n} sonuç</source>
         <translation>{n} results</translation>
     </message>
     <message>
-        <location filename="../gui/find_replace.py" line="659" />
+        <location filename="../gui/find_replace.py" line="677" />
         <source>{n} değişiklik</source>
         <translation>{n} changes</translation>
     </message>
     <message>
-        <location filename="../gui/find_replace.py" line="667" />
+        <location filename="../gui/find_replace.py" line="685" />
         <source>{n} değişiklik yapıldı ve güvenlik sınırına ulaşıldı.
 
 Belgede değiştirilmemiş eşleşmeler kalmış olabilir; işlemi tekrarlayarak kaldığı yerden sürdürebilirsiniz.</source>
@@ -2375,14 +2375,24 @@ Dictionary folder: {dizin}</translation>
         <translation>The document this finding came from is not open: {name}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="367" />
+        <location filename="../gui/mixins/yazim_ops.py" line="368" />
+        <source>'{e}' belgede bulunamadı, değiştirilmedi</source>
+        <translation>'{e}' was not found in the document, nothing was replaced</translation>
+    </message>
+    <message>
+        <location filename="../gui/mixins/yazim_ops.py" line="374" />
         <source>'{e}' -&gt; '{y}' değiştirildi</source>
         <translation>'{e}' replaced with '{y}'</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="375" />
+        <location filename="../gui/mixins/yazim_ops.py" line="382" />
         <source>'{k}' sözlüğe eklendi</source>
         <translation>'{k}' added to dictionary</translation>
+    </message>
+    <message>
+        <location filename="../gui/mixins/yazim_ops.py" line="388" />
+        <source>'{k}' sözlüğe eklenemedi, kullanıcı sözlüğü yazılamıyor</source>
+        <translation>'{k}' could not be added: the user dictionary is not writable</translation>
     </message>
 </context><context>
     <name>OutlinePanel</name>
@@ -3051,22 +3061,22 @@ Restore them? (Restored content opens in a tab; the file on disk is NOT touched 
         <translation>Copy File Path</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/tab_ops.py" line="283" />
-        <source>Sütun</source>
-        <translation>Column</translation>
-    </message>
-    <message>
-        <location filename="../gui/mixins/tab_ops.py" line="283" />
+        <location filename="../gui/mixins/tab_ops.py" line="298" />
         <source>Satır</source>
         <translation>Line</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/tab_ops.py" line="293" />
+        <location filename="../gui/mixins/tab_ops.py" line="299" />
+        <source>Sütun</source>
+        <translation>Column</translation>
+    </message>
+    <message>
+        <location filename="../gui/mixins/tab_ops.py" line="323" />
         <source>karakter</source>
         <translation>characters</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/tab_ops.py" line="293" />
+        <location filename="../gui/mixins/tab_ops.py" line="323" />
         <source>kelime</source>
         <translation>words</translation>
     </message>

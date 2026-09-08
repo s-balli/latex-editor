@@ -795,3 +795,52 @@ def test_panel_sag_tik_DOSYAYI_da_yayiyor(qapp):
         QMenu.exec = asil
 
     assert yayilan == [("kelme", "C:/x/A.tex")], "yayılan: %r" % (yayilan,)
+
+
+# =====================================================================
+# İki sessiz kol: sözlüğe ekleme düşerse, öneri hedefi bulunamazsa
+#
+# ÖLÇÜLDÜ (2026-09-08, aynı stub ile):
+#   kullaniciya_ekle False dönünce   -> durum çubuğu DEĞİŞMİYOR
+#   kelime belgede bulunamayınca     -> durum çubuğu DEĞİŞMİYOR
+#
+# Birincisinde kullanıcı kelimeyi sözlüğe ekliyor, kelime bulgularda
+# KALIYOR ve sebebini öğrenemiyor. `kullaniciya_ekle` yazamadığında False
+# dönüyor (salt okunur profil, dolu disk) ama çağıran bunu yok sayıyordu.
+# =====================================================================
+
+
+def test_SOZLUGE_EKLENEMEZSE_kullaniciya_soyleniyor(qapp, monkeypatch):
+    """Kırılırsa kelime listede kalıyor ve hiçbir açıklama yok."""
+    s = _hazir_stub("bu yanlis kelime var\n", dogrular={"bu", "var"})
+    monkeypatch.setattr(type(s._yazim_denetleyici), "kullaniciya_ekle",
+                        lambda self, k: False)
+    s._status.msg = "ONCEKI"
+
+    s._on_yazim_sozluge_ekle("yanlis")
+
+    assert "eklenemedi" in s._status.msg
+    assert "yanlis" in s._status.msg
+
+
+def test_SOZLUGE_EKLENDIYSE_hata_mesaji_YOK(qapp, monkeypatch):
+    """Aşırı düzeltme kapısı: başarılı ekleme hata gibi görünmemeli."""
+    s = _hazir_stub("bu yanlis kelime var\n", dogrular={"bu", "var"})
+    monkeypatch.setattr(type(s._yazim_denetleyici), "kullaniciya_ekle",
+                        lambda self, k: True)
+
+    s._on_yazim_sozluge_ekle("yanlis")
+
+    assert "eklendi" in s._status.msg
+    assert "eklenemedi" not in s._status.msg
+
+
+def test_ONERI_hedefi_belgede_YOKSA_soyleniyor(qapp):
+    """Bulgu bayat olabilir: kullanıcı arada kelimeyi kendisi düzeltmiştir.
+    Kırılırsa "öneriyi seçtim, hiçbir şey olmadı" görünüyor."""
+    s = _hazir_stub("bambaska bir metin\n", dogrular={"bir"})
+    s._status.msg = "ONCEKI"
+
+    s._yazim_degistir("yanlis", "dogru")
+
+    assert "bulunamadı" in s._status.msg

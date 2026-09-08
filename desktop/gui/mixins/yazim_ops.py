@@ -360,6 +360,13 @@ class YazimOpsMixin:
                   if k.kelime == eski
                   and metin[k.ofset:k.ofset + len(eski)] == eski]
         if not yerler:
+            # Bulgu bayat olabilir (kullanıcı arada kelimeyi kendisi
+            # düzeltmiş/silmiş). Sessizce dönmek "öneriyi seçtim, hiçbir şey
+            # olmadı"ya benziyordu; ölçüldü, durum çubuğuna tek satır bile
+            # düşmüyordu.
+            self._status.showMessage(
+                _("'{e}' belgede bulunamadı, değiştirilmedi").format(e=eski),
+                4000)
             return
         self._replace_in_editor(ed, [(o, o + len(eski)) for o in yerler],
                                 yeni, imleci_koru=True)
@@ -373,6 +380,13 @@ class YazimOpsMixin:
         if self._yazim_denetleyici.kullaniciya_ekle(kelime):
             self._status.showMessage(
                 _("'{k}' sözlüğe eklendi").format(k=kelime), 4000)
+        else:
+            # `kullaniciya_ekle` yazamadığında False dönüyor (salt okunur
+            # profil, dolu disk); bu kol sessizdi. Kullanıcı kelimeyi
+            # ekliyor, kelime bulgularda KALIYOR ve sebebini öğrenemiyordu.
+            self._status.showMessage(
+                _("'{k}' sözlüğe eklenemedi, kullanıcı sözlüğü yazılamıyor")
+                .format(k=kelime), 6000)
         self._yazim_calistir()
 
     def _cleanup_yazim(self):
