@@ -441,8 +441,27 @@ def find_bibitem_location(content: str, base_path: str, key: str) -> tuple[str, 
 
 
 # .bib girdisinden makalede \cite edildiği yere (ters yön) git
+# Atıf komutları. Aile GENİŞ tutulmak zorunda: tanınmayan bir komut İKİ kez
+# zarar veriyor. (1) Denetim kaynakça girdisini "kullanılmıyor" sanıp sahte
+# uyarı basıyor, (2) F2 o kullanımı GÜNCELLEMİYOR ve belgede sarkan atıf
+# kalıyor (derleme "[?]" basar). ÖLÇÜLDÜ (2026-09-08): sekiz komut
+# kaçıyordu ve aralarında biblatex'in ÖNERDİĞİ `\autocite` de vardı, yani
+# biblatex kullanan bir belgede HER atıf iki kusuru birden yaşıyordu.
+_CITE_KOMUTLARI = (
+    # LaTeX çekirdeği
+    "cite", "nocite",
+    # natbib
+    "citep", "Citep", "citet", "Citet", "citealp", "Citealp",
+    "citealt", "Citealt", "citeauthor", "Citeauthor", "citeyear",
+    "citeyearpar", "citenum",
+    # biblatex
+    "parencite", "Parencite", "textcite", "Textcite", "autocite", "Autocite",
+    "footcite", "Footcite", "smartcite", "Smartcite", "supercite",
+    "citetitle", "citedate", "citeurl", "fullcite",
+)
+# `\*?`: natbib yıldızlı biçimleri (`\citep*`) tüm yazar listesini basıyor.
 _RE_CITEUSE = re.compile(
-    r'\\(?:cite|citep|citet|citeauthor|citeyear|citealp|parencite|textcite|nocite)'
+    r'\\(?:' + '|'.join(_CITE_KOMUTLARI) + r')\*?'
     r'\s*(?:\[[^\]]*\]\s*)*\{([^}]*)\}'
 )
 
@@ -495,9 +514,63 @@ def find_cite_usage(bib_path: str, key: str) -> tuple[str, int] | None:
 
 # --- Referans denetimi: tanımsız \ref / \cite, kullanılmayan .bib girdileri ---
 
-_RE_REFUSE = re.compile(
-    r'\\(?:ref|eqref|pageref|autoref|nameref|vref|cref|Cref)\s*\{([^}]*)\}'
+# Etikete başvuran komutlar. Gerekçe _CITE_KOMUTLARI ile aynı; ÖLÇÜLDÜ
+# (2026-09-08): on bir komut kaçıyordu, `\ref*` ve `\cref*` dahil.
+#
+# `\*?`: hyperref ve cleveref bağlantısız biçimi yıldızla yazıyor
+# (`\ref*{...}`, `\autoref*{...}`, `\cref*{...}`).
+_REF_ARALIK_KOMUTLARI = ("crefrange", "Crefrange", "vrefrange", "Vrefrange")
+_REF_TEKIL_KOMUTLARI = (
+    "ref", "eqref", "pageref", "autoref", "autopageref", "nameref",
+    # cleveref
+    "cref", "Cref", "cpageref", "Cpageref", "labelcref", "labelcpageref",
+    # varioref
+    "vref", "Vref", "vpageref", "Vpageref", "fullref",
 )
+# İki kollu: aralık komutları İKİ etiket alıyor (`\crefrange{ilk}{son}`) ve
+# ikisi de anahtar. İkinci `{...}` yalnız o kolda aranıyor; tekil komutlarda
+# da aransaydı `\cref{fig:a} {\itshape ve}` yazımında "ve" bir anahtar
+# sanılıp "Tanımsız \ref" diye sahte bulgu üretirdi. Aralık kolu ÖNCE
+# geliyor, yani `\crefrange` iki kez eşleşmiyor; iki kez eşleşseydi F2 aynı
+# aralığı iki kez değiştirip metni bozardı.
+_RE_REFUSE = re.compile(
+    r'\\(?:' + '|'.join(_REF_ARALIK_KOMUTLARI) + r')\*?\s*'
+    r'(?:\[[^\]]*\]\s*)?\{([^}]*)\}\s*\{([^}]*)\}'
+    r'|\\(?:' + '|'.join(_REF_TEKIL_KOMUTLARI) + r')\*?\s*\{([^}]*)\}'
+)
+
+
+def _kullanim_anahtarlari(m) -> list[str]:
+    """Bir referans/atıf eşleşmesindeki BÜTÜN anahtarlar.
+
+    İki şey birleşiyor: virgüllü liste (`\\cref{a,b}`) ve iki argümanlı
+    aralık biçimi (`\\crefrange{ilk}{son}`). Eşleşmeyen kollar None geliyor.
+    """
+    out: list[str] = []
+    for arg in m.groups():
+        if arg:
+            out.extend(k.strip() for k in arg.split(',') if k.strip())
+    return out
+
+
+def _segment_araliklari(m, old: str) -> list[tuple[int, int]]:
+    """Eşleşmedeki anahtar segmentlerinden ``old``'a EŞİT olanların aralıkları.
+
+    Segment birebir karşılaştırılıyor: `old` öneki taşıyan `oldx` eşleşmez.
+    """
+    out: list[tuple[int, int]] = []
+    for grup in range(1, m.re.groups + 1):
+        arg = m.group(grup)
+        if arg is None:
+            continue
+        arg_a = m.span(grup)[0]
+        off = 0
+        for part in arg.split(','):
+            if part.strip() == old:
+                s = arg_a + off + (len(part) - len(part.lstrip()))
+                out.append((s, s + len(old)))
+            off += len(part) + 1  # virgülü atla
+    return out
 _RE_BIBITEM = re.compile(r'\\bibitem\s*(?:\[[^\]]*\])?\s*\{([^}]+)\}')
 _RE_NOCITE_ALL = re.compile(r'\\nocite\s*\{\*\}')
 
@@ -553,15 +626,14 @@ def audit_references(content: str, base_path: str) -> RefAudit:
     nocite_all = False
     for t in texts:
         for m in _RE_REFUSE.finditer(t):
-            used_refs.update(k.strip() for k in m.group(1).split(',') if k.strip())
+            used_refs.update(_kullanim_anahtarlari(m))
         for m in _RE_CITEUSE.finditer(t):
             # '*' bir anahtar DEĞİL: \nocite{*} "hepsini kaynakçaya al" demek.
             # _RE_CITEUSE \nocite'ı da kapsadığı için '*' used_cites'a giriyor,
             # hiçbir .bib girdisiyle eşleşmiyor ve "Tanımsız \cite: *" diye
             # kalıcı sahte uyarı üretiyordu (nocite_all bayrağı yalnız
             # unused_bib_keys'i etkiliyor, bu kolu değil).
-            used_cites.update(k.strip() for k in m.group(1).split(',')
-                              if k.strip() and k.strip() != '*')
+            used_cites.update(k for k in _kullanim_anahtarlari(m) if k != '*')
         if _RE_NOCITE_ALL.search(t):
             nocite_all = True
 
@@ -634,10 +706,8 @@ def key_usage_locations(content: str, base_path: str,
     for path, t in entries:
         for i, ln in enumerate(t.split('\n'), start=1):
             for m in pat.finditer(ln):
-                for k in m.group(1).split(','):
-                    k = k.strip()
-                    if k:
-                        out.setdefault(k, (path, i))
+                for k in _kullanim_anahtarlari(m):
+                    out.setdefault(k, (path, i))
     return out
 
 
@@ -655,8 +725,7 @@ def find_key_usage(content: str, base_path: str, key: str, family: str) -> tuple
     for path, t in entries:
         for i, ln in enumerate(t.split('\n'), start=1):
             for m in pat.finditer(ln):
-                keys = [k.strip() for k in m.group(1).split(',')]
-                if key in keys:
+                if key in _kullanim_anahtarlari(m):
                     return (path, i)
     return None
 
@@ -682,14 +751,7 @@ def label_rename_spans(text: str, old: str) -> list[tuple[int, int]]:
         if text[a:b].strip() == old:
             spans.append((a, b))
     for m in _RE_REFUSE.finditer(text):
-        arg_a, _ = m.span(1)
-        arg = m.group(1)
-        off = 0
-        for part in arg.split(','):
-            if part.strip() == old:
-                s = arg_a + off + (len(part) - len(part.lstrip()))
-                spans.append((s, s + len(old)))
-            off += len(part) + 1  # virgülü atla
+        spans.extend(_segment_araliklari(m, old))
     return spans
 
 
@@ -716,14 +778,7 @@ def cite_rename_spans(text: str, old: str) -> list[tuple[int, int]]:
     """
     spans: list[tuple[int, int]] = []
     for m in _RE_CITEUSE.finditer(text):
-        arg_a, _ = m.span(1)
-        arg = m.group(1)
-        off = 0
-        for part in arg.split(','):
-            if part.strip() == old:
-                s = arg_a + off + (len(part) - len(part.lstrip()))
-                spans.append((s, s + len(old)))
-            off += len(part) + 1  # virgülü atla
+        spans.extend(_segment_araliklari(m, old))
     return spans
 
 

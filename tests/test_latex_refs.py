@@ -3,6 +3,8 @@
 import os
 import time
 
+import pytest
+
 from core import latex_refs
 
 
@@ -958,3 +960,154 @@ def test_find_cite_usage_cop_dizinlere_inmiyor(tmp_path):
     assert sonuc is not None
     assert sonuc[0].endswith("makale.tex")
     assert sonuc[1] == 1
+
+
+# =====================================================================
+# Referans ve atıf AİLESİ: tanınmayan komut iki kez zarar veriyor
+#
+# `_RE_REFUSE` ve `_RE_CITEUSE` hem referans denetimini hem F2 yeniden
+# adlandırmayı besliyor. Tanınmayan bir komutta:
+#
+#   1) denetim etiketi/girdiyi "kullanılmıyor" sanıp sahte uyarı basar,
+#   2) F2 o kullanımı GÜNCELLEMEZ ve belgede sarkan referans bırakır
+#      (derleme "??" ya da "[?]" basar).
+#
+# İkincisi belgeyi bozuyor ve kullanıcı bunu ancak derlemede görüyor.
+#
+# ÖLÇÜLDÜ (2026-09-08): on bir referans, sekiz atıf komutu kaçıyordu.
+# Aralarında hyperref'in `\ref*` biçimi ve biblatex'in ÖNERDİĞİ `\autocite`
+# vardı; biblatex kullanan bir belgede HER atıf iki kusuru birden yaşıyordu.
+# =====================================================================
+
+_REF_AILESI = [
+    r"\ref{fig:a}", r"\eqref{fig:a}", r"\pageref{fig:a}",
+    r"\autoref{fig:a}", r"\nameref{fig:a}",
+    # hyperref/cleveref: bağlantısız yıldızlı biçimler
+    r"\ref*{fig:a}", r"\pageref*{fig:a}", r"\autoref*{fig:a}",
+    r"\cref*{fig:a}", r"\Cref*{fig:a}",
+    # cleveref
+    r"\cref{fig:a}", r"\Cref{fig:a}", r"\cpageref{fig:a}",
+    r"\Cpageref{fig:a}", r"\labelcref{fig:a}",
+    # varioref
+    r"\vref{fig:a}", r"\vpageref{fig:a}", r"\fullref{fig:a}",
+    # çok anahtarlı ve aralık biçimleri
+    r"\cref{fig:a,fig:b}", r"\crefrange{fig:a}{fig:z}",
+]
+
+_CITE_AILESI = [
+    r"\cite{k1}", r"\citep{k1}", r"\citet{k1}", r"\citealt{k1}",
+    r"\citeyearpar{k1}", r"\citenum{k1}", r"\citep*{k1}",
+    # biblatex (`\autocite` paketin önerdiği varsayılan)
+    r"\parencite{k1}", r"\textcite{k1}", r"\autocite{k1}", r"\Autocite{k1}",
+    r"\footcite{k1}", r"\smartcite{k1}", r"\supercite{k1}",
+    r"\fullcite{k1}",
+]
+
+
+def _aile_ref_projesi(tmp_path, kullanim):
+    tex = tmp_path / "d.tex"
+    tex.write_text("\\documentclass{article}\n\\begin{document}\n"
+                   "\\section{B}\\label{fig:a}\\label{fig:b}\\label{fig:z}\n"
+                   + kullanim + "\n\\end{document}\n", encoding="utf-8")
+    return tex
+
+
+def _aile_cite_projesi(tmp_path, kullanim):
+    (tmp_path / "refs.bib").write_text(
+        "@article{k1, author={A}, title={T}, journal={J}, year={2020}}\n",
+        encoding="utf-8")
+    tex = tmp_path / "d.tex"
+    tex.write_text("\\documentclass{article}\n\\bibliography{refs}\n"
+                   "\\begin{document}\n" + kullanim +
+                   "\n\\end{document}\n", encoding="utf-8")
+    return tex
+
+
+@pytest.mark.parametrize("kullanim", _REF_AILESI)
+def test_DENETIM_referans_ailesini_goruyor(tmp_path, kullanim):
+    """Kırılırsa panel var olan bir kullanım için "kullanılmayan etiket"
+    diye sahte uyarı basıyor."""
+    tex = _aile_ref_projesi(tmp_path, kullanim)
+
+    d = latex_refs.audit_references(tex.read_text(encoding="utf-8"), str(tex))
+
+    assert "fig:a" not in d.unused_labels, d.unused_labels
+    assert d.undefined_refs == [], d.undefined_refs
+
+
+@pytest.mark.parametrize("kullanim", _REF_AILESI)
+def test_F2_referans_ailesini_guncelliyor(kullanim):
+    """Kırılırsa yeniden adlandırma etiketi değiştirip kullanımı bırakıyor:
+    belgede sarkan referans kalıyor ve derleme "??" basıyor."""
+    metin = "\\label{fig:a}\n" + kullanim + "\n"
+
+    yeni = latex_refs.rename_label_in_text(metin, "fig:a", "fig:YENI")
+
+    assert "fig:a" not in yeni, yeni
+    assert yeni.count("fig:YENI") == 2, yeni
+
+
+@pytest.mark.parametrize("kullanim", _CITE_AILESI)
+def test_DENETIM_atif_ailesini_goruyor(tmp_path, kullanim):
+    """Kırılırsa denetim kullanılan her kaynak için "kullanılmayan girdi"
+    diye sahte uyarı basıyor."""
+    tex = _aile_cite_projesi(tmp_path, kullanim)
+
+    d = latex_refs.audit_references(tex.read_text(encoding="utf-8"), str(tex))
+
+    assert d.unused_bib_keys == [], d.unused_bib_keys
+    assert d.undefined_cites == [], d.undefined_cites
+
+
+@pytest.mark.parametrize("kullanim", _CITE_AILESI)
+def test_F2_atif_ailesini_guncelliyor(kullanim):
+    assert latex_refs.cite_rename_spans(kullanim, "k1"), kullanim
+
+
+# --- Aşırı düzeltme kapıları ---
+
+def test_TEKIL_komuttan_sonraki_suslu_parantez_anahtar_DEGIL():
+    r"""Aralık kolu yalnız aralık komutlarında: `\cref{a} {\itshape ve}`
+    yazımında "ve" bir etiket sanılıp "Tanımsız \ref" uyarısı çıkmamalı."""
+    metin = r"\cref{fig:a} {\itshape ve} \cref{fig:b}"
+
+    anahtarlar = []
+    for m in latex_refs._RE_REFUSE.finditer(metin):
+        anahtarlar.extend(latex_refs._kullanim_anahtarlari(m))
+
+    assert anahtarlar == ["fig:a", "fig:b"]
+
+
+@pytest.mark.parametrize("metin", [
+    r"\refstepcounter{sayac}", r"\reflectbox{x}", r"\citation{k1}",
+    r"\mycite{k1}", r"\citecolor{blue}",
+])
+def test_BASKA_komutlar_eslesmiyor(metin):
+    r"""Aile genişledi diye `\ref`/`\cite` ile BAŞLAYAN her komut referans
+    sayılmamalı."""
+    for pat in (latex_refs._RE_REFUSE, latex_refs._RE_CITEUSE):
+        for m in pat.finditer(metin):
+            assert latex_refs._kullanim_anahtarlari(m) == [], metin
+
+
+def test_ARALIK_komutu_iki_kez_degistirilmiyor():
+    r"""`\crefrange` hem aralık hem tekil kolda eşleşseydi F2 aynı yeri iki
+    kez değiştirip metni bozardı."""
+    metin = "\\label{fig:a}\n\\crefrange{fig:a}{fig:z}\n"
+
+    araliklar = latex_refs.label_rename_spans(metin, "fig:a")
+    yeni = latex_refs.rename_label_in_text(metin, "fig:a", "fig:YENI")
+
+    assert len(araliklar) == 2, araliklar
+    assert yeni == "\\label{fig:YENI}\n\\crefrange{fig:YENI}{fig:z}\n"
+
+
+def test_NOCITE_yildizi_hala_anahtar_sayilmiyor(tmp_path):
+    r"""Aile genişledi ama `\nocite{*}` hâlâ "hepsi" demek, bir anahtar
+    değil: eskiden kalıcı sahte "Tanımsız \cite: *" bulgusu üretiyordu."""
+    tex = _aile_cite_projesi(tmp_path, "\\nocite{*}")
+
+    d = latex_refs.audit_references(tex.read_text(encoding="utf-8"), str(tex))
+
+    assert d.undefined_cites == []
+    assert d.unused_bib_keys == []
