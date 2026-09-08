@@ -41,6 +41,10 @@ from gui.mixins.image_ops import ImageOpsMixin
 from gui.mixins.table_ops import TableOpsMixin
 from gui.mixins.version_ops import VersionOpsMixin
 from gui.mixins.synctex_ops import SyncTexMixin
+from gui.mixins.autosave_ops import (
+    AUTOSAVE_MAX_DK, AUTOSAVE_MIN_DK, AUTOSAVE_VARSAYILAN_DK,
+    AutosaveOpsMixin,
+)
 from gui.mixins.recovery_ops import RecoveryOpsMixin
 from gui.mixins.project_search_ops import ProjectSearchMixin
 from gui.mixins.yazim_ops import YazimOpsMixin
@@ -157,6 +161,7 @@ class MainWindow(
     VersionOpsMixin,
     SyncTexMixin,
     RecoveryOpsMixin,
+    AutosaveOpsMixin,
     ProjectSearchMixin,
     YazimOpsMixin,
     QMainWindow,
@@ -187,6 +192,7 @@ class MainWindow(
         self._init_project_search()
         self._file_watch_init()
         self._recovery_init()
+        self._autosave_init()
         self._setup_ui()
         self._setup_menus()
         self._setup_toolbar()
@@ -680,7 +686,13 @@ class MainWindow(
 
     # --- Editör ayarları (tab genişliği, font boyutu, satır kaydırma) ---
 
-    _EDITOR_SETTING_DEFAULTS = {"editor/tab_width": 4, "editor/font_size": 11, "editor/wrap": True}
+    _EDITOR_SETTING_DEFAULTS = {
+        "editor/tab_width": 4, "editor/font_size": 11, "editor/wrap": True,
+        # Otomatik kaydetme AÇIK geliyor: bu uygulamanın kaybedilen işi tez
+        # ölçeğinde ve otomatik derleme de açık geliyor. Yalnız daha önce
+        # kaydedilmiş dosyalar yazılıyor (bkz. autosave_ops).
+        "editor/autosave": True, "editor/autosave_dk": AUTOSAVE_VARSAYILAN_DK,
+    }
 
     @staticmethod
     def _ayar_sayi(deger, varsayilan, en_az: int, en_cok: int) -> int:
@@ -712,6 +724,12 @@ class MainWindow(
                 self._settings.value("editor/font_size", d["editor/font_size"]),
                 d["editor/font_size"], 6, 72),
             "wrap": self._settings.value("editor/wrap", d["editor/wrap"]) in (True, "true", "True"),
+            "autosave": self._settings.value(
+                "editor/autosave", d["editor/autosave"]) in (True, "true", "True"),
+            "autosave_dk": self._ayar_sayi(
+                self._settings.value("editor/autosave_dk",
+                                     d["editor/autosave_dk"]),
+                d["editor/autosave_dk"], AUTOSAVE_MIN_DK, AUTOSAVE_MAX_DK),
         }
 
     def _apply_editor_settings(self, editor):
@@ -729,10 +747,16 @@ class MainWindow(
         self._settings.setValue("editor/tab_width", vals["tab_width"])
         self._settings.setValue("editor/font_size", vals["font_size"])
         self._settings.setValue("editor/wrap", vals["wrap"])
+        self._settings.setValue("editor/autosave", vals["autosave"])
+        self._settings.setValue("editor/autosave_dk", vals["autosave_dk"])
         for i in range(self._editor_tabs.count()):
             ed = self._editor_tabs.widget(i)
             if isinstance(ed, EditorWidget):
                 self._apply_editor_settings(ed)
+        # Zamanlayıcı yeni ayarı HEMEN almalı: almazsa kullanıcı kutuyu
+        # kapatıp "kapattım" sandığı otomatik kaydetmeyi uygulamayı yeniden
+        # başlatana kadar yaşamaya devam ederdi.
+        self._autosave_uygula()
         self._status.showMessage(_("Editör ayarları kaydedildi"))
 
     # --- Yardımcılar ---

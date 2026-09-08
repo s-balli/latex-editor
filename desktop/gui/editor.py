@@ -938,7 +938,15 @@ class EditorWidget(QsciScintilla):
                 pass
             raise
 
-    def save_file(self) -> bool:
+    def save_file(self, sessiz: bool = False) -> bool:
+        """Arabelleği dosyaya yaz.
+
+        ``sessiz=True``: başarısızlıkta MODAL kutu açma, yalnız logla. Otomatik
+        kaydetme için şart: zamanlayıcıdan gelen bir yazma düşerse kullanıcı
+        hiçbir şey yapmadığı hâlde önüne kutu çıkar ve salt okunur bir hedefte
+        bu her turda tekrarlanır. Çağıran (bkz. autosave_ops) kullanıcıya
+        durum çubuğundan bir kez söylüyor.
+        """
         if not self._file_path:
             return False
         try:
@@ -957,7 +965,8 @@ class EditorWidget(QsciScintilla):
             return True
         except Exception as e:
             _logger.error("Dosya kaydedilemedi: %s", self._file_path, exc_info=True)
-            QMessageBox.critical(self, _("Kaydetme Hatası"), _("Dosya kaydedilemedi:\n{path}\n\n{e}").format(path=self._file_path, e=e))
+            if not sessiz:
+                QMessageBox.critical(self, _("Kaydetme Hatası"), _("Dosya kaydedilemedi:\n{path}\n\n{e}").format(path=self._file_path, e=e))
             return False
 
     def save_file_as(self, path: str) -> bool:

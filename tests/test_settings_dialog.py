@@ -27,17 +27,23 @@ def qapp():
 
 
 def test_dialog_roundtrip(qapp):
-    dlg = EditorSettingsDialog({"tab_width": 6, "font_size": 14, "wrap": False})
-    assert dlg.values() == {"tab_width": 6, "font_size": 14, "wrap": False}
+    dlg = EditorSettingsDialog({"tab_width": 6, "font_size": 14, "wrap": False,
+                                "autosave": False, "autosave_dk": 9})
+    assert dlg.values() == {"tab_width": 6, "font_size": 14, "wrap": False,
+                            "autosave": False, "autosave_dk": 9}
     dlg._tab.setValue(4)
     dlg._font.setValue(11)
     dlg._wrap.setChecked(True)
-    assert dlg.values() == {"tab_width": 4, "font_size": 11, "wrap": True}
+    dlg._autosave.setChecked(True)
+    dlg._autosave_dk.setValue(5)
+    assert dlg.values() == {"tab_width": 4, "font_size": 11, "wrap": True,
+                            "autosave": True, "autosave_dk": 5}
 
 
 def test_dialog_defaults(qapp):
     dlg = EditorSettingsDialog({})
-    assert dlg.values() == {"tab_width": 4, "font_size": 11, "wrap": True}
+    assert dlg.values() == {"tab_width": 4, "font_size": 11, "wrap": True,
+                            "autosave": True, "autosave_dk": 3}
 
 
 # --- EditorWidget.apply_editor_settings ---
@@ -71,6 +77,12 @@ class _StubMain(StubMain):
     _read_editor_settings = MainWindow._read_editor_settings
     _apply_editor_settings = MainWindow._apply_editor_settings
 
+    def _autosave_uygula(self):
+        # Gerçeği zamanlayıcıyı tazeliyor; burada yalnız çağrıldığı kayda
+        # geçiyor, çünkü "ayar hemen uygulanıyor" kapısı bunu sayıyor.
+        self.autosave_tazelendi = getattr(
+            self, "autosave_tazelendi", 0) + 1
+
 
 def test_settings_flow_applies_and_persists(qapp):
     ed = EditorWidget()
@@ -78,11 +90,16 @@ def test_settings_flow_applies_and_persists(qapp):
 
     dlg = MagicMock()
     dlg.exec.return_value = QDialog.DialogCode.Accepted
-    dlg.values.return_value = {"tab_width": 6, "font_size": 14, "wrap": False}
+    dlg.values.return_value = {"tab_width": 6, "font_size": 14,
+                               "wrap": False, "autosave": False,
+                               "autosave_dk": 9}
     with patch("gui.settings_dialog.EditorSettingsDialog", return_value=dlg):
         MainWindow._open_settings_dialog(stub)
 
-    assert stub._settings.d == {"editor/tab_width": 6, "editor/font_size": 14, "editor/wrap": False}
+    assert stub._settings.d == {"editor/tab_width": 6, "editor/font_size": 14,
+                                "editor/wrap": False,
+                                "editor/autosave": False,
+                                "editor/autosave_dk": 9}
     assert ed.tabWidth() == 6
     assert ed.wrapMode() == QsciScintilla.WrapMode.WrapNone
     assert "kaydedildi" in stub._status.msg
@@ -105,10 +122,16 @@ def test_settings_cancel_keeps_everything(qapp):
 def test_read_editor_settings_defaults_and_roundtrip(qapp):
     stub = _StubMain()
     # varsayılanlar
-    assert MainWindow._read_editor_settings(stub) == {"tab_width": 4, "font_size": 11, "wrap": True}
+    assert MainWindow._read_editor_settings(stub) == {
+        "tab_width": 4, "font_size": 11, "wrap": True,
+        "autosave": True, "autosave_dk": 3}
     # QSettings'ten string gelen wrap ("true") de doğru çözülmeli
-    stub._settings.d = {"editor/tab_width": 8, "editor/font_size": 12, "editor/wrap": "true"}
-    assert MainWindow._read_editor_settings(stub) == {"tab_width": 8, "font_size": 12, "wrap": True}
+    stub._settings.d = {"editor/tab_width": 8, "editor/font_size": 12,
+                        "editor/wrap": "true", "editor/autosave": "false",
+                        "editor/autosave_dk": "12"}
+    assert MainWindow._read_editor_settings(stub) == {
+        "tab_width": 8, "font_size": 12, "wrap": True,
+        "autosave": False, "autosave_dk": 12}
 
 
 # --- Bozuk ayar dosyasi acilisi engellemesin ---
@@ -152,3 +175,20 @@ def test_gecerli_ayar_dokunulmadan_geciyor(qapp):
     stub._settings.d = {"editor/tab_width": 8, "editor/font_size": 14}
     assert MainWindow._read_editor_settings(stub)["tab_width"] == 8
     assert MainWindow._read_editor_settings(stub)["font_size"] == 14
+
+
+def test_ayar_kutusu_otomatik_kaydetmeyi_TAZELIYOR(qapp):
+    """Kutuyu kapatan kullanici yeni ayarin hemen gecerli olmasini
+    bekliyor; tazelenmezse kapattigi otomatik kaydetme uygulamayi
+    yeniden baslatana kadar yasamaya devam ederdi."""
+    stub = _StubMain(editors=[EditorWidget()])
+    dlg = MagicMock()
+    dlg.exec.return_value = QDialog.DialogCode.Accepted
+    dlg.values.return_value = {"tab_width": 4, "font_size": 11,
+                               "wrap": True, "autosave": False,
+                               "autosave_dk": 3}
+    with patch("gui.settings_dialog.EditorSettingsDialog",
+               return_value=dlg):
+        MainWindow._open_settings_dialog(stub)
+
+    assert getattr(stub, "autosave_tazelendi", 0) == 1
