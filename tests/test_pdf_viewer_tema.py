@@ -207,3 +207,84 @@ def test_zemin_kurali_sayfa_etiketlerine_SIZMIYOR(qapp):
     finally:
         v.shutdown()
         v.deleteLater()
+
+
+# =====================================================================
+# F3. Arama çubuğunun ikonları tema değişiminde tazelenmiyordu
+#
+# Ok ve kapat ikonları `_setup_ui` içindeki yerel bir kapanışta bir kez
+# çiziliyordu; komşuları (yer imleri, çift sayfa, sığdır) apply_theme'de
+# yeniden çizildiği için tazeydi, bu üçü ESKİ temanın fg_muted'ıyla
+# kalıyordu.
+#
+# ÖLÇÜLDÜ (2026-09-08, ikonun opak pikselinden okundu):
+#   yedi temanın 42 sıralı çiftinin 42'sinde de ikon bayat kalıyor
+#   23 çiftte karşıtlık 3:1 eşiğinin altına düşüyor
+#   en kötü: light -> nord, 1.67:1 (doğru renkle 3.34:1)
+#   light -> dark: 2.31:1 (4.57:1 olmalıydı)
+#
+# Kapılar ikonun PİKSELİNDEN okuyor: kusur "çizim bir daha yapılmıyor"
+# olduğu için stylesheet metnine bakmak hiçbir şey yakalamazdı (stiller
+# zaten tazeleniyordu, ikon değil).
+# =====================================================================
+
+ARAMA_DUGMELERI = ("_search_prev_btn", "_search_next_btn", "_search_close_btn")
+
+
+def _ikon_rengi(btn):
+    """İkonun en opak pikselinin rengi (kenar yumuşatması hariç)."""
+    img = btn.icon().pixmap(20, 20).toImage()
+    en_iyi, en_alfa = None, 0
+    for y in range(img.height()):
+        for x in range(img.width()):
+            c = img.pixelColor(x, y)
+            if c.alpha() > en_alfa:
+                en_alfa, en_iyi = c.alpha(), c
+    if en_iyi is None or en_alfa < 200:
+        return None
+    return en_iyi.name()
+
+
+@pytest.mark.parametrize("hedef", ["dark", "nord", "monokai",
+                                   "solarized_light"])
+def test_arama_ikonlari_tema_degisiminde_TAZELENIYOR(qapp, hedef):
+    """Kırılırsa Ctrl+F çubuğundaki ok ve kapat ikonları önceki temanın
+    renginde kalıyor ve karşıtlık eşiğin altına düşüyor."""
+    v = PdfViewer(theme=dict(THEMES["light"]))
+    try:
+        v.apply_theme(dict(THEMES[hedef]))
+        bekleyen = THEMES[hedef]["fg_muted"].lower()
+        for attr in ARAMA_DUGMELERI:
+            assert _ikon_rengi(getattr(v, attr)) == bekleyen, attr
+    finally:
+        v.shutdown()
+        v.deleteLater()
+
+
+def test_arama_ikonlari_KURULUSTA_ciziliyor(qapp):
+    """İlk çizim de tazeleme yolundan geliyor (_setup_ui sonunda
+    apply_theme çağırıyor); düşerse düğmeler hiç ikonsuz kalır."""
+    v = PdfViewer(theme=dict(THEMES["dark"]))
+    try:
+        for attr in ARAMA_DUGMELERI:
+            btn = getattr(v, attr)
+            assert not btn.icon().isNull(), attr
+            assert _ikon_rengi(btn) == THEMES["dark"]["fg_muted"].lower(), attr
+    finally:
+        v.shutdown()
+        v.deleteLater()
+
+
+def test_UC_IKON_birbirinden_FARKLI(qapp):
+    """Aşırı düzeltme kapısı: üçüne aynı ikonu vermek renk kapılarını
+    geçer ama yukarı ok, aşağı ok ve kapat çarpısı ayırt edilemez olur."""
+    v = PdfViewer(theme=dict(THEMES["dark"]))
+    try:
+        gorseller = [getattr(v, a).icon().pixmap(16, 16).toImage()
+                     for a in ARAMA_DUGMELERI]
+        assert gorseller[0] != gorseller[1], "önceki/sonraki okları aynı"
+        assert gorseller[0] != gorseller[2], "önceki oku ile kapat aynı"
+        assert gorseller[1] != gorseller[2], "sonraki oku ile kapat aynı"
+    finally:
+        v.shutdown()
+        v.deleteLater()

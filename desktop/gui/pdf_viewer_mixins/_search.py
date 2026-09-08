@@ -267,9 +267,47 @@ class PdfSearchMixin:
             self._last_search_query = query
             self._do_search(query)
 
+    # Arama çubuğu ikonlarının çizgileri: (x1, y1, x2, y2)
+    _ARAMA_IKON_CIZGILERI = {
+        "onceki": ((4, 11, 8, 5), (8, 5, 12, 11)),
+        "sonraki": ((4, 5, 8, 11), (8, 11, 12, 5)),
+        "kapat": ((4, 4, 12, 12), (12, 4, 4, 12)),
+    }
+
+    def _arama_ikonlarini_ciz(self, t):
+        """Ok ve kapat ikonlarını temanın rengiyle çiz.
+
+        TEK KAYNAK: _setup_ui de buradan geçiyor (sonunda apply_theme
+        çağırıyor). Eskiden bu üç ikon _setup_ui içindeki yerel bir
+        kapanışta bir kez çiziliyordu ve tema değişince ESKİ temanın
+        fg_muted'ıyla kalıyordu — komşuları (yer imleri, çift sayfa,
+        sığdır) apply_theme'de yeniden çizildiği için tazeydi.
+        """
+        from PyQt6.QtCore import QLineF
+        from PyQt6.QtGui import QColor, QIcon, QPainter, QPen, QPixmap
+
+        renk = QColor(t['fg_muted'])
+
+        def _ikon(cizgiler):
+            px = QPixmap(16, 16)
+            px.fill(QColor(0, 0, 0, 0))
+            p = QPainter(px)
+            p.setRenderHint(QPainter.RenderHint.Antialiasing)
+            p.setPen(QPen(renk, 2))
+            for x1, y1, x2, y2 in cizgiler:
+                p.drawLine(QLineF(x1, y1, x2, y2))
+            p.end()
+            return QIcon(px)
+
+        c = self._ARAMA_IKON_CIZGILERI
+        self._search_prev_btn.setIcon(_ikon(c["onceki"]))
+        self._search_next_btn.setIcon(_ikon(c["sonraki"]))
+        self._search_close_btn.setIcon(_ikon(c["kapat"]))
+
     def _apply_search_theme(self, t):
         if not hasattr(self, '_search_input'):
             return
+        self._arama_ikonlarini_ciz(t)
         self._search_input.setStyleSheet(
             f"QLineEdit {{ background: {t['bg_secondary']}; color: {t['fg_primary']}; border: 1px solid {t['border_input']}; border-radius: 3px; padding: 2px 6px; font-size: 11px; }}"
         )

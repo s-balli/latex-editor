@@ -211,27 +211,10 @@ class PdfUISetupMixin:
             f"QLineEdit {{ background: {_t['bg_secondary']}; color: {_t['fg_primary']}; border: 1px solid {_t['border_input']}; border-radius: 3px; padding: 2px 6px; font-size: 11px; }}"
         )
 
-        from PyQt6.QtGui import QIcon, QPainter, QPen, QColor, QPixmap, QBrush
-        from PyQt6.QtCore import QRectF, QLineF
-
-        def _make_arrow(down=False):
-            px = QPixmap(16, 16)
-            px.fill(QColor(0, 0, 0, 0))
-            p = QPainter(px)
-            p.setRenderHint(QPainter.RenderHint.Antialiasing)
-            c = QColor(_t['fg_muted'])
-            p.setPen(QPen(c, 2))
-            p.setBrush(QBrush(c))
-            if down:
-                p.drawLine(QLineF(4, 5, 8, 11))
-                p.drawLine(QLineF(8, 11, 12, 5))
-            else:
-                p.drawLine(QLineF(4, 11, 8, 5))
-                p.drawLine(QLineF(8, 5, 12, 11))
-            p.end()
-            return QIcon(px)
-
-        self._search_prev_btn = QPushButton(_make_arrow(down=False), "")
+        # Bu üç ikonun (ok, ok, kapat) çizimi _apply_search_theme'de:
+        # burada bir kez çizilirse tema değişince eski renkte kalıyorlar.
+        # _setup_ui sonunda apply_theme çağırıyor, ilk çizim oradan geliyor.
+        self._search_prev_btn = QPushButton()
         self._search_prev_btn.setFixedSize(26, 26)
         self._search_prev_btn.setToolTip(_("Önceki"))
         self._search_prev_btn.setStyleSheet(
@@ -240,7 +223,7 @@ class PdfUISetupMixin:
         )
         self._search_prev_btn.clicked.connect(self._search_prev)
 
-        self._search_next_btn = QPushButton(_make_arrow(down=True), "")
+        self._search_next_btn = QPushButton()
         self._search_next_btn.setFixedSize(26, 26)
         self._search_next_btn.setToolTip(_("Sonraki"))
         self._search_next_btn.setStyleSheet(
@@ -254,16 +237,7 @@ class PdfUISetupMixin:
         self._search_count_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self._search_count_label.setStyleSheet(f"color: {_t['fg_muted']}; font-size: 11px;")
 
-        close_px = QPixmap(16, 16)
-        close_px.fill(QColor(0, 0, 0, 0))
-        cp = QPainter(close_px)
-        cp.setRenderHint(QPainter.RenderHint.Antialiasing)
-        cc = QColor(_t['fg_muted'])
-        cp.setPen(QPen(cc, 2))
-        cp.drawLine(QLineF(4, 4, 12, 12))
-        cp.drawLine(QLineF(12, 4, 4, 12))
-        cp.end()
-        self._search_close_btn = QPushButton(QIcon(close_px), "")
+        self._search_close_btn = QPushButton()
         self._search_close_btn.setFixedSize(26, 26)
         self._search_close_btn.setStyleSheet(
             f"QPushButton {{ background: transparent; color: {_t['fg_muted']}; border: none; border-radius: 3px; }}"
