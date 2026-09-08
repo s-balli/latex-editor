@@ -342,18 +342,20 @@ class EditOpsMixin:
                 QMessageBox.StandardButton.Yes)
             if cevap != QMessageBox.StandardButton.Yes:
                 return ""
-            try:
-                # "x" kipi: denetimle yaratma arasında dosya belirirse
-                # içeriğini silmeyelim (aynı gerekçe core/fs_ops.yeni_dosya'da).
-                with open(hedef, "x", encoding="utf-8"):
-                    pass
-            except FileExistsError:
-                pass            # bu arada oluşmuş; kullanmaya devam
-            except OSError as e:
-                _logger.error("Kaynakça yaratılamadı: %s", hedef, exc_info=True)
-                QMessageBox.warning(self, _("DOI ile Kaynak Ekle"),
-                                    _("Oluşturulamadı: {e}").format(e=e))
-                return ""
+            # DOSYA BURADA YARATILMIYOR, yalnız YOLU kararlaştırılıyor.
+            # Yaratma `bibe_ekle`ye bırakılıyor (dosya yoksa kendisi
+            # yaratıyor), yani kayıt gerçekten yazılırken oluyor.
+            #
+            # ÖLÇÜLDÜ (2026-09-08): burada yaratılınca, ağdan gelen kaydı
+            # gösteren ONAY kutusunda vazgeçen kullanıcı diskte 0 baytlık bir
+            # refs.bib ile kalıyordu. `\bibliography{refs}` ile birlikte boş
+            # bir `.bib` zararsız değil: biber "dosya yok" demek yerine BOŞ
+            # kaynakça üretiyor, `\cite` çıktıda `[?]` basıyor ve sebebi
+            # görünmüyor.
+            #
+            # Zincirin bir önceki halkası (DOI kutusunda vazgeçmek) bir turda
+            # kapatılmıştı; bu, ondan sonraki vazgeçme noktası. Kural aynı:
+            # geri dönüşü olmayan yan etki bütün sorulardan SONRA.
             return hedef
 
         if has_manual_bibliography(editor.text(), editor.file_path):

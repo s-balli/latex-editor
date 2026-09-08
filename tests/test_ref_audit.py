@@ -763,14 +763,27 @@ def test_var_olan_bib_kullaniliyor(qapp, tmp_path):
     assert stub._doi_hedef_bib(ed) == str(tmp_path / "refs.bib")
 
 
-def test_bildirim_var_dosya_yoksa_ONAYLA_yaratiliyor(qapp, tmp_path, monkeypatch):
-    """`\\bibliography{refs}` yazıp dosyayı yaratmamış olmak olağan."""
+def test_bildirim_var_dosya_yoksa_ONAYLA_yol_donuyor(qapp, tmp_path,
+                                                     monkeypatch):
+    """`\\bibliography{refs}` yazıp dosyayı yaratmamış olmak olağan.
+
+    SÖZLEŞME DEĞİŞTİ (2026-09-08): bu test eskiden `os.path.isfile(yol)`
+    bekliyordu, yani dosyanın TAM BURADA yaratılmasını sabitliyordu. Ölçüldü:
+    öyle olunca ağdan gelen kaydı gösteren ONAY kutusunda vazgeçen kullanıcı
+    diskte 0 baytlık bir refs.bib ile kalıyor ve `\\bibliography{refs}` ile
+    birlikte boş bir `.bib` derlemede sessizce boş kaynakça üretiyor.
+    Yaratma artık `bibe_ekle`de, yani kayıt gerçekten yazılırken.
+
+    Tek çağıran `_add_by_doi` ve dosyanın önceden var olmasına ihtiyacı yok:
+    `bibe_ekle` yoksa yaratıyor, `_editor_by_path` var olmayan yol için None
+    dönüyor.
+    """
     stub, ed = _doi_stub(tmp_path, "\\bibliography{refs}\n")
     monkeypatch.setattr(QMessageBox, "question",
                         staticmethod(lambda *a, **k: QMessageBox.StandardButton.Yes))
     yol = stub._doi_hedef_bib(ed)
     assert yol == str(tmp_path / "refs.bib")
-    assert os.path.isfile(yol)
+    assert not os.path.isfile(yol), "dosya kayıttan ÖNCE yaratıldı"
 
 
 def test_yaratma_reddedilirse_bos(qapp, tmp_path, monkeypatch):

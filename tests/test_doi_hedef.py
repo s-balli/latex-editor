@@ -222,9 +222,21 @@ class _SiraStub(EditOpsMixin):
         self._doi_runner = SimpleNamespace(
             done=SimpleNamespace(connect=lambda f: None),
             start=lambda *a: self.isci_baslatildi.append(a))
+        # Kaynakca sekmesi bos: `_on_doi_fetched` sonunda tazeleme istiyor
+        self._output_panel = SimpleNamespace(
+            _bib_table=SimpleNamespace(rowCount=lambda: 0))
 
     def _current_editor(self):
         return self._ed
+
+    def _editor_by_path(self, yol):
+        """Hedef `.bib` bir sekmede acik DEGIL: yazma diske gitsin.
+
+        `_on_doi_fetched` bunu soruyor (acik sekme varsa arabellege yaziyor);
+        bu testlerin konusu dosyanin NE ZAMAN yaratildigi, o yuzden diske
+        yazan kol kuruluyor.
+        """
+        return None
 
 
 def _doi_projesi(tmp_path):
@@ -271,9 +283,16 @@ def test_DOI_IPTAL_edilince_bib_YARATILMIYOR(qapp, tmp_path, monkeypatch):
         qapp.processEvents()
 
 
-def test_DOI_verilirse_bib_YARATILIYOR_ve_isci_basliyor(qapp, tmp_path,
-                                                        monkeypatch):
-    """Asiri duzeltme kapisi: olagan yol bozulmamali."""
+def test_DOI_verilirse_yol_KARARLASIYOR_ama_dosya_yaratilmiyor(
+        qapp, tmp_path, monkeypatch):
+    """Asiri duzeltme kapisi + guncellenmis sozlesme.
+
+    Bu test eskiden `bib.exists()` bekliyordu, yani dosyanin TAM BURADA
+    yaratilmasini sabitliyordu. Olculdu (2026-09-08): oyle olunca agdan gelen
+    kaydi gosteren ONAY kutusunda vazgecen kullanici diskte 0 baytlik bir
+    refs.bib ile kaliyor. Artik yalniz YOL kararlasiyor; dosyayi `bibe_ekle`
+    kayit gercekten yazilirken yaratiyor.
+    """
     ed, bib = _doi_projesi(tmp_path)
     try:
         _dialoglari_kur(monkeypatch, bib_evet=True, doi=("10.1000/xyz", True))
@@ -281,7 +300,7 @@ def test_DOI_verilirse_bib_YARATILIYOR_ve_isci_basliyor(qapp, tmp_path,
 
         stub._add_by_doi()
 
-        assert bib.exists(), ".bib yaratilmadi"
+        assert not bib.exists(), "dosya kayittan ONCE yaratildi"
         assert stub.isci_baslatildi, "isci baslatilmadi"
         assert stub._doi_bib_yolu.endswith("refs.bib")
     finally:
@@ -326,6 +345,100 @@ def test_DOI_kutusu_bib_cozumunden_ONCE_soruluyor(qapp, tmp_path, monkeypatch):
         stub._add_by_doi()
 
         assert sira and sira[0] == "doi", "sira: %r" % (sira,)
+    finally:
+        ed.deleteLater()
+        qapp.processEvents()
+
+
+# =====================================================================
+# Zincirin SON vazgecme noktasi: agdan gelen kaydi gosteren ONAY kutusu
+#
+# Sira: DOI sorulur -> hedef `.bib` kararlasir -> ag istegi -> "bu kaydi
+# ekle?" onayi. `_doi_hedef_bib` dosyayi HEMEN yaratiyordu, yani son kutuda
+# vazgecen kullanici diskte 0 baytlik bir refs.bib ile kaliyordu.
+#
+# OLCULDU (2026-09-08): onay kutusunda Iptal -> refs.bib var, 0 bayt.
+# `\bibliography{refs}` ile birlikte bos bir `.bib` zararsiz degil: biber
+# "dosya yok" demek yerine BOS kaynakca uretiyor, `\cite` ciktida `[?]`
+# basiyor ve sebebi gorunmuyor.
+#
+# Zincirin onceki halkasi (DOI kutusunda vazgecmek) bir turda kapatilmisti.
+# =====================================================================
+
+
+class _OnayDialog:
+    """`DoiOnayDialog` yerine: kabul/iptal ve girdi metni sabit."""
+
+    kabul = True
+    metin = "@article{yeni2024,\n  title = {Bir},\n}\n"
+
+    def __init__(self, *a, **k):
+        pass
+
+    def exec(self):
+        from PyQt6.QtWidgets import QDialog
+        return (QDialog.DialogCode.Accepted if _OnayDialog.kabul
+                else QDialog.DialogCode.Rejected)
+
+    def girdi(self):
+        return _OnayDialog.metin
+
+
+def _onay_akisi(tmp_path, monkeypatch, kabul):
+    """DOI akisini onay kutusuna kadar yurut; (stub, bib) doner."""
+    import gui.doi_fetch as df
+
+    ed, bib = _doi_projesi(tmp_path)
+    _dialoglari_kur(monkeypatch, bib_evet=True, doi=("10.1000/xyz", True))
+    _OnayDialog.kabul = kabul
+    monkeypatch.setattr(df, "DoiOnayDialog", _OnayDialog)
+    stub = _SiraStub(ed)
+    stub._add_by_doi()
+    stub._on_doi_fetched(True, _OnayDialog.metin, "yeni2024", "")
+    return stub, bib, ed
+
+
+def test_ONAY_iptal_edilince_bib_YARATILMIYOR(qapp, tmp_path, monkeypatch):
+    """Kirilirsa: vazgecen kullanici 0 baytlik bir .bib ile kaliyor ve
+    derlemede kaynakca sessizce bos cikiyor."""
+    stub, bib, ed = _onay_akisi(tmp_path, monkeypatch, kabul=False)
+    try:
+        assert not bib.exists(), "iptal edildigi halde .bib yaratildi"
+    finally:
+        ed.deleteLater()
+        qapp.processEvents()
+
+
+def test_ONAY_kabul_edilince_bib_yaratilip_YAZILIYOR(qapp, tmp_path,
+                                                     monkeypatch):
+    """Asiri duzeltme kapisi: olagan yol bozulmamali, dosya kayitla
+    birlikte olusmali."""
+    stub, bib, ed = _onay_akisi(tmp_path, monkeypatch, kabul=True)
+    try:
+        assert bib.exists(), ".bib yaratilmadi"
+        assert "yeni2024" in bib.read_text(encoding="utf-8")
+    finally:
+        ed.deleteLater()
+        qapp.processEvents()
+
+
+def test_VAR_OLAN_bib_iptalde_bozulmuyor(qapp, tmp_path, monkeypatch):
+    """Asiri duzeltme kapisi: dosya zaten varsa iptal ona dokunmamali."""
+    import gui.doi_fetch as df
+
+    ed, bib = _doi_projesi(tmp_path)
+    try:
+        bib.write_text("@book{eski,\n  title = {Eski},\n}\n", encoding="utf-8")
+        onceki = bib.read_text(encoding="utf-8")
+        _dialoglari_kur(monkeypatch, bib_evet=True, doi=("10.1000/xyz", True))
+        _OnayDialog.kabul = False
+        monkeypatch.setattr(df, "DoiOnayDialog", _OnayDialog)
+        stub = _SiraStub(ed)
+
+        stub._add_by_doi()
+        stub._on_doi_fetched(True, _OnayDialog.metin, "yeni2024", "")
+
+        assert bib.read_text(encoding="utf-8") == onceki
     finally:
         ed.deleteLater()
         qapp.processEvents()
