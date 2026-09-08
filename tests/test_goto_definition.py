@@ -228,3 +228,164 @@ def test_handler_cite_usage_bib_to_tex(tmp_path, qapp):
     stub = _StubMain(ed)
     MainWindow._on_goto_definition(stub, "k", "cite-usage")
     assert stub.goto_calls == [(str(tex), 2)]
+
+
+# =====================================================================
+# JESTİN KENDİSİ: Ctrl+tık ve Alt+tık dağıtımı
+#
+# Anahtar çözme (`_ref_cite_key_at`, `_bib_key_at`, `_bibitem_key_at`) ve
+# hedefe zıplama (`_on_goto_definition`) yukarıda test ediliyor; ARADAKİ
+# katman, yani `mousePressEvent`in tıklanan noktayı satır/sütuna çevirip
+# doğru sinyali yayması, HİÇ koşmuyordu (kapsam ölçümü: 40 satır). Bir
+# yeniden düzenleme Ctrl+tık'ı sessizce kırsa hiçbir test yanmazdı.
+#
+# Offscreen platformda nokta<->konum dönüşümü çalışıyor (ölçüldü: konum 56
+# -> (252, 28) -> 56), o yüzden jest GERÇEK QMouseEvent ile sınanıyor.
+# =====================================================================
+
+import os  # noqa: E402
+
+from PyQt6.QtCore import QPointF, Qt  # noqa: E402
+from PyQt6.QtGui import QMouseEvent  # noqa: E402
+
+
+@pytest.fixture
+def tiklanabilir(qapp, tmp_path):
+    """Açık bir editör ve "şu metne şu değiştiriciyle tıkla" yardımcısı."""
+    acilanlar = []
+
+    def _kur(icerik, ad="ana.tex"):
+        yol = tmp_path / ad
+        yol.write_text(icerik, encoding="utf-8")
+        ed = EditorWidget()
+        assert ed.open_file(str(yol))
+        ed.resize(900, 400)
+        ed.show()
+        qapp.processEvents()
+        acilanlar.append(ed)
+
+        ileri, tanim = [], []
+        ed.forward_search_requested.connect(lambda *a: ileri.append(a))
+        ed.goto_definition_requested.connect(lambda *a: tanim.append(a))
+
+        def _tikla(satir, parca, mods=Qt.KeyboardModifier.NoModifier,
+                   kaydir=1):
+            """`parca`nin `kaydir`. karakterine tikla."""
+            metin = ed.text(satir)
+            sutun = metin.index(parca) + kaydir
+            pos = ed.positionFromLineIndex(satir, sutun)
+            x = ed.SendScintilla(ed.SCI_POINTXFROMPOSITION, 0, pos)
+            y = ed.SendScintilla(ed.SCI_POINTYFROMPOSITION, 0, pos)
+            assert ed.SendScintilla(ed.SCI_POSITIONFROMPOINT, int(x),
+                                    int(y)) == pos, \
+                "nokta<->konum donusumu tutmadi, test bir sey olcmuyor"
+            ileri.clear()
+            tanim.clear()
+            ed.mousePressEvent(QMouseEvent(
+                QMouseEvent.Type.MouseButtonPress, QPointF(x, y),
+                Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton, mods))
+            return ileri, tanim
+
+        return ed, _tikla, str(yol)
+
+    yield _kur
+
+    for ed in acilanlar:
+        ed.deleteLater()
+    from PyQt6.QtCore import QCoreApplication, QEvent
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    qapp.processEvents()
+
+
+_BELGE = ("\\documentclass{article}\n"
+          "\\begin{document}\n"
+          "Sekil \\ref{fig:bir} ve \\cite{kaynak2020}\n"
+          "\\end{document}\n")
+
+
+def test_CTRL_tik_ileri_arama_yayiyor(tiklanabilir):
+    """Kırılırsa Ctrl+tık ile PDF'e gitme sessizce ölür."""
+    _ed, tikla, yol = tiklanabilir(_BELGE)
+
+    ileri, tanim = tikla(2, "fig:bir", Qt.KeyboardModifier.ControlModifier)
+
+    assert len(ileri) == 1, ileri
+    gelen_yol, satir, sutun = ileri[0]
+    assert os.path.normpath(gelen_yol) == os.path.normpath(yol)
+    # SyncTeX 1 TABANLI: satır/sütun bir artırılmış gelmeli
+    assert satir == 3, satir
+    assert sutun == _BELGE.splitlines()[2].index("fig:bir") + 2
+    assert tanim == []
+
+
+def test_ALT_tik_ref_uzerinde_tanima_gidiyor(tiklanabilir):
+    _ed, tikla, _yol = tiklanabilir(_BELGE)
+
+    _ileri, tanim = tikla(2, "fig:bir", Qt.KeyboardModifier.AltModifier)
+
+    assert tanim == [("fig:bir", "label")], tanim
+
+
+def test_ALT_tik_cite_uzerinde_tanima_gidiyor(tiklanabilir):
+    _ed, tikla, _yol = tiklanabilir(_BELGE)
+
+    _ileri, tanim = tikla(2, "kaynak2020", Qt.KeyboardModifier.AltModifier)
+
+    assert tanim == [("kaynak2020", "cite")], tanim
+
+
+def test_ALT_tik_BIB_dosyasinda_TERS_yon(tiklanabilir):
+    """`.bib` içinde Alt+tık, girdinin makalede `\\cite` edildiği yere gider."""
+    _ed, tikla, _yol = tiklanabilir(
+        "@article{karaca2024,\n  title = {Bir},\n}\n", ad="kaynaklar.bib")
+
+    _ileri, tanim = tikla(0, "karaca2024", Qt.KeyboardModifier.AltModifier)
+
+    assert tanim == [("karaca2024", "cite-usage")], tanim
+
+
+def test_DUZ_tik_hicbir_sinyal_yaymiyor(tiklanabilir):
+    """Aşırı düzeltme kapısı: değiştiricisiz tıklama sıradan imleç
+    hareketidir, jest değil."""
+    _ed, tikla, _yol = tiklanabilir(_BELGE)
+
+    ileri, tanim = tikla(2, "fig:bir")
+
+    assert ileri == [] and tanim == []
+
+
+def test_ALT_tik_ANAHTAR_DISINDA_sinyal_yaymiyor(tiklanabilir):
+    """Aşırı düzeltme kapısı: sıradan metne Alt+tık bir şey yapmamalı."""
+    _ed, tikla, _yol = tiklanabilir(_BELGE)
+
+    _ileri, tanim = tikla(2, "Sekil", Qt.KeyboardModifier.AltModifier)
+
+    assert tanim == []
+
+
+def test_YOLSUZ_tamponda_jest_calismiyor(qapp):
+    """Kaydedilmemiş tamponun SyncTeX'te karşılığı yok; jest sessiz kalmalı
+    (`self._file_path` denetimi)."""
+    ed = EditorWidget()
+    try:
+        ed.setText("Sekil \\ref{fig:bir}\n")
+        ed.resize(900, 200)
+        ed.show()
+        qapp.processEvents()
+        ileri, tanim = [], []
+        ed.forward_search_requested.connect(lambda *a: ileri.append(a))
+        ed.goto_definition_requested.connect(lambda *a: tanim.append(a))
+        pos = ed.positionFromLineIndex(0, 13)
+        x = ed.SendScintilla(ed.SCI_POINTXFROMPOSITION, 0, pos)
+        y = ed.SendScintilla(ed.SCI_POINTYFROMPOSITION, 0, pos)
+
+        for mods in (Qt.KeyboardModifier.ControlModifier,
+                     Qt.KeyboardModifier.AltModifier):
+            ed.mousePressEvent(QMouseEvent(
+                QMouseEvent.Type.MouseButtonPress, QPointF(x, y),
+                Qt.MouseButton.LeftButton, Qt.MouseButton.LeftButton, mods))
+
+        assert ileri == [] and tanim == []
+    finally:
+        ed.deleteLater()
+        qapp.processEvents()
