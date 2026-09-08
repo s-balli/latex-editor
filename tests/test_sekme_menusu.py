@@ -78,6 +78,31 @@ def menu_sec(monkeypatch):
     return _sec
 
 
+@pytest.fixture
+def menu_ogesi(monkeypatch):
+    """Menüyü kur, istenen öğenin durumunu oku, HİÇBİR ŞEY SEÇME.
+
+    `exec` None dönünce `_tab_context_menu` bütün dalları atlıyor, yani bu
+    yardımcının yan etkisi yok: yalnız öğenin etkin olup olmadığına bakar.
+    """
+    def _al(stub, index, metin):
+        yakalanan = {}
+
+        def _sahte(self, *a, **k):
+            adlar = [a.text() for a in self.actions()]
+            for act in self.actions():
+                if act.text() == metin:
+                    yakalanan["enabled"] = act.isEnabled()
+                    return None
+            raise AssertionError("menüde yok: %s (%s)" % (metin, adlar))
+
+        monkeypatch.setattr(QMenu, "exec", _sahte)
+        nokta = stub._editor_tabs.tabBar().tabRect(index).center()
+        stub._tab_context_menu(nokta)
+        return yakalanan["enabled"]
+    return _al
+
+
 def _yollar(stub):
     return [stub._editor_tabs.widget(i).file_path or "(kaydedilmemiş)"
             for i in range(stub._editor_tabs.count())]
@@ -174,6 +199,47 @@ def test_YOLU_KOPYALA_panoya_yaziyor(qapp, menu_sec, tmp_path):
         QApplication.clipboard().setText("")
         menu_sec(stub, 0, "Dosya Yolunu Kopyala")
         assert QApplication.clipboard().text() == yol
+    finally:
+        stub.deleteLater()
+        qapp.processEvents()
+
+
+# =====================================================================
+# "Dosya Yolunu Kopyala" kaydedilmemiş sekmede SESSİZ bir hiçlikti
+#
+# Kaydedilmemiş sekmenin yolu yok, ama öğe etkin duruyordu. ÖLÇÜLDÜ
+# (2026-09-08): enabled=True, tıklandığında pano OLDUĞU GİBİ kalıyor.
+# Kullanıcı yolu kopyaladığını sanıp başka bir yere yapıştırıyor.
+# =====================================================================
+
+def test_YOLU_KOPYALA_kaydedilmemis_sekmede_KISILI(qapp, menu_ogesi):
+    """Kırılırsa öğe tıklanabilir görünüyor ve hiçbir şey yapmıyor."""
+    stub = _Stub([_editor()])
+    try:
+        assert menu_ogesi(stub, 0, "Dosya Yolunu Kopyala") is False
+    finally:
+        stub.deleteLater()
+        qapp.processEvents()
+
+
+def test_YOLU_KOPYALA_kayitli_sekmede_ETKIN(qapp, menu_ogesi, tmp_path):
+    """Aşırı düzeltme kapısı: kısıtlama yalnız yolu OLMAYAN sekmede."""
+    stub = _Stub([_editor(str(tmp_path / "a.tex"))])
+    try:
+        assert menu_ogesi(stub, 0, "Dosya Yolunu Kopyala") is True
+    finally:
+        stub.deleteLater()
+        qapp.processEvents()
+
+
+@pytest.mark.parametrize("oge", ["Kapat", "Diğer Sekmeleri Kapat",
+                                 "Tümünü Kapat"])
+def test_OTEKI_ogeler_kaydedilmemis_sekmede_de_ETKIN(qapp, menu_ogesi, oge):
+    """Aşırı düzeltme kapısı: kaydedilmemiş sekmenin menüsü tümden
+    kısılmamalı; kapatma yolları orada da çalışıyor."""
+    stub = _Stub([_editor(), _editor()])
+    try:
+        assert menu_ogesi(stub, 0, oge) is True
     finally:
         stub.deleteLater()
         qapp.processEvents()

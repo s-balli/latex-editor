@@ -214,6 +214,13 @@ class TabOpsMixin:
         close_all = menu.addAction(_("Tümünü Kapat"))
         menu.addSeparator()
         copy_path = menu.addAction(_("Dosya Yolunu Kopyala"))
+        # Kaydedilmemiş sekmenin yolu yok. Öğe etkin bırakılınca tıklamak
+        # SESSİZCE hiçbir şey yapmıyordu: pano olduğu gibi kalıyor, kullanıcı
+        # kopyalandığını sanıyor (ölçüldü, 2026-09-08: enabled=True, pano
+        # değişmedi). Kısılmış öğe sebebini kendisi anlatıyor.
+        hedef_editor = self._editor_tabs.widget(index)
+        copy_path.setEnabled(bool(isinstance(hedef_editor, EditorWidget)
+                                  and hedef_editor.file_path))
 
         action = menu.exec(self._editor_tabs.tabBar().mapToGlobal(pos))
 
