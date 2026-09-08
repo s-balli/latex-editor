@@ -79,20 +79,36 @@ class FileOpsMixin:
         # Kayıt kararlarını HİÇBİR sekme kapanmadan önce sor: döngü içinde iptal
         # edilirse bazı sekmeler çoktan kapanmış ama klasör değişmemiş yarım
         # durum kalıyordu. Kayıt başarısızsa da hiçbir şey kapanmaz.
+        #
+        # KARARLAR ÖNCE TOPLANIYOR, sonra uygulanıyor. Eskiden cevap alınır
+        # alınmaz uygulanıyordu ve "Kaydetme" HEMEN `setModified(False)`
+        # çağırıyordu. ÖLÇÜLDÜ (2026-09-08), iki kirli sekmeyle: 1. sekmeye
+        # "Kaydetme", 2. sekmeye "İptal" -> klasör değişmedi, hiçbir sekme
+        # kapanmadı (doğru), ama 1. sekmenin kirli işareti düşmüştü.
+        # Kaydedilmemiş metin editörde duruyor, uygulama onu kaydedilmiş
+        # sanıyor: o sekme kapatılırken artık soru ÇIKMIYOR ve emek uyarısız
+        # gidiyor. "Kaydetme" cevabı "kapatırken kaydetme" demek; hiçbir şey
+        # kapanmadıysa hükmü de yok.
+        kararlar = []
         for i in range(self._editor_tabs.count()):
             editor = self._editor_tabs.widget(i)
             if isinstance(editor, EditorWidget) and editor.isModified():
                 self._editor_tabs.setCurrentIndex(i)
                 reply = self._save_dialog(editor.display_name)
                 if reply == "cancel":
+                    return                      # hiçbir yan etki olmadı
+                kararlar.append((editor, reply))
+
+        # ÖNCE kayıtlar: biri düşerse hiçbir kirli işaret düşürülmemiş olur.
+        for editor, reply in kararlar:
+            if reply == "save":
+                if not editor.save_file():
                     return
-                if reply == "save":
-                    if not editor.save_file():
-                        return
-                    if hasattr(self, "_file_watch_record_save"):
-                        self._file_watch_record_save(editor.file_path)
-                else:  # discard
-                    editor.setModified(False)
+                if hasattr(self, "_file_watch_record_save"):
+                    self._file_watch_record_save(editor.file_path)
+        for editor, reply in kararlar:
+            if reply != "save":                 # discard
+                editor.setModified(False)
         _logger.info("Klasör açıldı: %s", path)
         for i in range(self._editor_tabs.count() - 1, -1, -1):
             self._close_tab_safe(i)  # dirty kalmadı; iptal edilemez

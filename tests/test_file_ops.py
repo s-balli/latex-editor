@@ -40,6 +40,10 @@ class _Stub(FileOpsMixin, TabOpsMixin, StubMain):
         self.watch_added = []
         self.watch_removed = []
         self.save_reply = "cancel"
+        # Sekme BASINA farkli cevap: `_open_folder` her kirli sekmeye
+        # ayri soruyor ve iptalin ONCEKI cevaplari uygulamamis olmasi
+        # sinaniyor. Bosken `save_reply` gecerli (eski testler).
+        self.save_replies = []
         # TabOpsMixin._close_tab_safe'in dokunduğu durumlar
         self._wordcount_editor = None
         self._outline_editor = None
@@ -50,6 +54,8 @@ class _Stub(FileOpsMixin, TabOpsMixin, StubMain):
 
     # --- test no-op/recorder katmanı ---
     def _save_dialog(self, name):
+        if self.save_replies:
+            return self.save_replies.pop(0)
         return self.save_reply
 
     def _add_recent(self, path):
@@ -671,3 +677,118 @@ def test_recent_menu_olu_girdiyi_LISTEDEN_silmiyor(qapp, tmp_path):
     stub._refresh_recent_menu()
 
     assert stub._settings.value("recent_files") == olu
+
+
+# =====================================================================
+# "Klasör Aç" iptali, ÖNCEKİ cevapları da uygulamamış olmalı
+#
+# `_open_folder` her kirli sekmeye ayrı soruyor. Cevap alınır alınmaz
+# uygulanıyordu ve "Kaydetme" HEMEN `setModified(False)` çağırıyordu.
+# ÖLÇÜLDÜ (2026-09-08), iki kirli sekmeyle: 1. sekmeye "Kaydetme",
+# 2. sekmeye "İptal" -> klasör değişmedi, hiçbir sekme kapanmadı (doğru), ama
+# 1. sekmenin kirli işareti düşmüştü. Kaydedilmemiş metin editörde duruyor,
+# uygulama onu kaydedilmiş sanıyor: o sekme kapatılırken artık soru ÇIKMIYOR
+# ve emek uyarısız gidiyor.
+#
+# "Kaydetme" cevabı "kapatırken kaydetme" demek; hiçbir şey kapanmadıysa
+# hükmü de yok. Dosyanın kendi yorumu bu dersi kapanma tarafında zaten
+# yazmıştı ("yarım durum kalıyordu"), kirli işaret tarafında almamıştı.
+# =====================================================================
+
+
+def _iki_kirli(tmp_path):
+    ed1 = _editor(_tex(tmp_path, "a.tex"))
+    ed2 = _editor(_tex(tmp_path, "b.tex"))
+    ed1.insert("BIRINCIDE KAYDEDILMEMIS EMEK")
+    ed2.insert("IKINCIDE KAYDEDILMEMIS EMEK")
+    assert ed1.isModified() and ed2.isModified()
+    return ed1, ed2
+
+
+def _hedef(tmp_path, monkeypatch):
+    other = tmp_path / "diger"
+    other.mkdir()
+    monkeypatch.setattr(
+        "gui.mixins.file_ops.QFileDialog.getExistingDirectory",
+        staticmethod(lambda *a, **k: str(other)))
+    return other
+
+
+def test_iptal_ONCEKI_kaydetme_cevabini_uygulamiyor(qapp, tmp_path,
+                                                    monkeypatch):
+    """Kırılırsa: iptal edilen bir işlem, bir belgeyi sessizce 'kaydedilmiş'
+    gösterir ve o sekme kapanırken soru çıkmaz."""
+    ed1, ed2 = _iki_kirli(tmp_path)
+    stub = _Stub([ed1, ed2])
+    stub.save_replies = ["discard", "cancel"]
+    _hedef(tmp_path, monkeypatch)
+
+    stub._open_folder()
+
+    assert stub._file_tree.roots == []           # klasör değişmedi
+    assert stub._editor_tabs.count() == 2        # hiçbir sekme kapanmadı
+    assert ed1.isModified(), "iptal edildi ama kirli işaret düşürüldü"
+    assert ed2.isModified()
+
+
+def test_iptal_ONCEKI_kaydet_cevabini_da_uygulamiyor(qapp, tmp_path,
+                                                     monkeypatch):
+    """Kayıt da bir yan etki: sorular bitmeden diske yazılmamalı."""
+    ed1, ed2 = _iki_kirli(tmp_path)
+    stub = _Stub([ed1, ed2])
+    stub.save_replies = ["save", "cancel"]
+    _hedef(tmp_path, monkeypatch)
+    yazilan = []
+    # Sahte kayit GERCEGI taklit etmeli: `save_file` basarili olunca
+    # kirli isareti dusuruyor. Dusurmeyen bir sahte, `_close_tab_safe`i
+    # ikinci kez sordurup testi yaniltiyordu (birebir yasandi).
+    monkeypatch.setattr(
+        EditorWidget, "save_file",
+        lambda self: (yazilan.append(self.file_path),
+                      self.setModified(False), True)[2])
+
+    stub._open_folder()
+
+    assert yazilan == [], "iptalden önce diske yazıldı: %r" % (yazilan,)
+    assert stub._file_tree.roots == []
+
+
+def test_HEPSI_cevaplaninca_kararlar_uygulaniyor(qapp, tmp_path, monkeypatch):
+    """Aşırı düzeltme kapısı: olağan yol bozulmamalı."""
+    ed1, ed2 = _iki_kirli(tmp_path)
+    stub = _Stub([ed1, ed2])
+    stub.save_replies = ["save", "discard"]
+    _hedef(tmp_path, monkeypatch)
+    yazilan = []
+    # Sahte kayit GERCEGI taklit etmeli: `save_file` basarili olunca
+    # kirli isareti dusuruyor. Dusurmeyen bir sahte, `_close_tab_safe`i
+    # ikinci kez sordurup testi yaniltiyordu (birebir yasandi).
+    monkeypatch.setattr(
+        EditorWidget, "save_file",
+        lambda self: (yazilan.append(self.file_path),
+                      self.setModified(False), True)[2])
+
+    stub._open_folder()
+
+    assert len(yazilan) == 1, yazilan
+    assert not ed2.isModified(), "discard uygulanmadı"
+    assert stub._editor_tabs.count() == 0        # hepsi kapandı
+    assert len(stub._file_tree.roots) == 1       # klasör değişti
+
+
+def test_KAYIT_DUSERSE_kirli_isaretler_dusurulmuyor(qapp, tmp_path,
+                                                    monkeypatch):
+    """Kayıt hatası da yarım durum bırakmamalı: 'Kaydetme' denen sekme,
+    başka bir sekmenin kaydı düştüğü için hâlâ açık kalıyor."""
+    ed1, ed2 = _iki_kirli(tmp_path)
+    stub = _Stub([ed1, ed2])
+    # 1. sekme "Kaydetme", 2. sekme "Kaydet" ve kayıt DÜŞÜYOR
+    stub.save_replies = ["discard", "save"]
+    _hedef(tmp_path, monkeypatch)
+    monkeypatch.setattr(EditorWidget, "save_file", lambda self: False)
+
+    stub._open_folder()
+
+    assert stub._file_tree.roots == []
+    assert stub._editor_tabs.count() == 2
+    assert ed1.isModified(), "kayıt düştü ama başka sekmenin işareti düşürüldü"
