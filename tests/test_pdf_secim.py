@@ -844,3 +844,102 @@ def test_KOPYALA_bosluksuz_metni_veriyor(cift_tik):
     _QA.clipboard().setText("")
     cift_tik.viewer._copy_selection()
     assert _QA.clipboard().text() == "Beta", repr(_QA.clipboard().text())
+
+
+# =====================================================================
+# OT1 belgelerden kopyalanan Türkçe metin
+#
+# `fontenc` kullanmayan (OT1, LaTeX'in varsayılanı) belgelerde aksanlı
+# harfler İKİ glif basılıyor. ÖLÇÜLDÜ (2026-09-08, gerçek pdflatex çıktısı
+# pypdfium2 ile çıkarılarak): 16 kelimeden 13'ü yanlış kopyalanıyordu ve
+# metinde `¨` ile `˙` artık olarak kalıyordu. `\usepackage[T1]{fontenc}`
+# varsa çıkarma tertemiz (aynı ölçüm, 16/16 doğru).
+#
+# Aşağıdaki HAM dizgeler uydurma DEĞİL: pdfium'un o PDF'ten çıkardığı
+# metnin birebir kendisi. LaTeX gerekmiyor, ölçüm dondurulmuş.
+# =====================================================================
+
+
+class TestOT1AksanlariBirlesiyor:
+
+    # (kaynaktaki kelime, pdfium'un OT1 PDF'ten çıkardığı ham metin)
+    DUZELEN = [
+        ("çalışma", "¸calı¸sma"),
+        ("öğrenci", "¨o˘grenci"),
+        ("üniversite", "¨universite"),
+        ("şekil", "¸sekil"),
+        ("ölçüm", "¨ol¸c¨um"),
+        ("güç", "g¨u¸c"),
+        ("Iğdır", "I˘gdır"),
+        ("İstanbul", "˙Istanbul"),
+        ("hâlâ", "hˆalˆa"),
+        ("resmî", "resmˆı"),
+        ("ŞEKİL", "S¸EK˙IL"),
+    ]
+
+    @pytest.mark.parametrize("beklenen,ham", DUZELEN)
+    def test_olculen_kelimeler_dogru_kopyalaniyor(self, beklenen, ham):
+        """Kırılırsa kullanıcı PDF'ten aldığı metni Word'e `¨o˘grenci` diye
+        yapıştırıyor."""
+        from gui.pdf_viewer_mixins._selection import PdfSelectionMixin
+        assert PdfSelectionMixin._normalize_pdf_text(ham) == beklenen
+
+    def test_noktasiz_i_aksan_TABANI(self):
+        """`\\^{\\i}` ile yazılan harf î'dir; PDF'e noktasız glif + şapka
+        olarak düşüyor ve o ikilinin birleşiği Unicode'da yok."""
+        from gui.pdf_viewer_mixins._selection import PdfSelectionMixin
+        assert PdfSelectionMixin._normalize_pdf_text("resmˆı") == "resmî"
+
+    def test_OLMAYAN_harf_uydurulmuyor(self):
+        """Aksan hangi harfe ait, sıradan anlaşılmıyor: küçük harfte önce,
+        büyükte sonra geliyor. Sıraya bakan bir kural `S¸EK˙IL`de sedili
+        E'ye bağlayıp `Ȩ` uyduruyordu (o harf Unicode'da VAR) ve `Ş`
+        kayboluyordu. Ölçüt "sonuç gerçek bir harf mi".
+        """
+        from gui.pdf_viewer_mixins._selection import PdfSelectionMixin
+        n = PdfSelectionMixin._normalize_pdf_text
+        assert n("S¸EK˙IL") == "ŞEKİL"
+        assert "Ȩ" not in n("S¸EK˙IL")
+        # `S˙I` dizisindeki nokta İ'ye ait; S'ye bağlanınca `Ṡ` uyduruluyordu
+        assert "Ṡ" not in n("UN¨ ˙IVERS˙ITE")
+        # `UN¨`: N ile iki noktanın birleşiği yok, N̈ uydurulmamalı
+        assert "̈" not in n("UN¨ ˙IVERS˙ITE")
+
+    def test_esi_bulunmayan_aksan_metinde_KALMIYOR(self):
+        """Eskiden yalnız `¸` ile `˘` siliniyordu; `¨` ve `˙` metinde artık
+        olarak kalıyor ve panoya öyle gidiyordu."""
+        from gui.pdf_viewer_mixins._selection import PdfSelectionMixin
+        import unicodedata
+        sonuc = PdfSelectionMixin._normalize_pdf_text("OLC¸ ¨ UM¨")
+        artik = [c for c in sonuc if unicodedata.category(c) == "Sk"]
+        assert artik == [], "artakalan aksan: %r" % artik
+
+    def test_T1_metni_DEGISMEDEN_geciyor(self):
+        """Aşırı düzeltme kapısı: `fontenc` kullanan belgelerde çıkarma
+        tertemiz geliyor (ölçüldü) ve bu fonksiyon ona dokunmamalı."""
+        from gui.pdf_viewer_mixins._selection import PdfSelectionMixin
+        t1 = ("çalışma öğrenci üniversite şekil ölçüm güç "
+              "ÇALIŞMA ÖĞRENCİ ÜNİVERSİTE ŞEKİL ÖLÇÜM GÜÇ "
+              "Iğdır İstanbul hâlâ resmî")
+        assert PdfSelectionMixin._normalize_pdf_text(t1) == t1
+
+    def test_aksansiz_metne_hic_dokunulmuyor(self):
+        """Aşırı düzeltme kapısı: hızlı yol (aksan yoksa yalnız NFC)."""
+        from gui.pdf_viewer_mixins._selection import PdfSelectionMixin
+        duz = "The quick brown fox; \\section{Bir} $x^2$ 42%"
+        assert PdfSelectionMixin._normalize_pdf_text(duz) == duz
+
+    def test_BUYUK_HARF_kelimeleri_hala_eksik_ama_COPSUZ(self):
+        """Dürüst sınır: büyük harflerde aksan harfinden birkaç karakter
+        uzağa düşüyor ve araya boşluk giriyor (`O¨GRENC ˘ ˙I`). Boşluk
+        silmek gerçek sözcük sınırlarını da birleştirirdi, o yüzden
+        BURADA çözülmüyor. Kapı, çözülmediğini değil ÇÖP ÜRETİLMEDİĞİNİ
+        pinliyor: gelecekte iyileşirse bu test kırmızı yanmaz.
+        """
+        from gui.pdf_viewer_mixins._selection import PdfSelectionMixin
+        import unicodedata
+        for ham in ("C¸ ALIS¸MA", "O¨GRENC ˘ ˙I", "GUC¸ ¨"):
+            sonuc = PdfSelectionMixin._normalize_pdf_text(ham)
+            assert [c for c in sonuc
+                    if unicodedata.category(c) == "Sk"] == [], sonuc
+            assert "̈" not in sonuc and "̧" not in sonuc, sonuc

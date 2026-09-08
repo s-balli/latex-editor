@@ -11,6 +11,55 @@ from gui.pdf_donusum import geometri, kullaniciya, kutu_gorsele
 from PyQt6.QtCore import QCoreApplication
 _ = lambda s: QCoreApplication.translate("PdfViewer", s)
 
+# OT1 belgelerde ayrı glif olarak basılan aksanların BİRLEŞTİRİCİ karşılığı.
+# Anahtarlar ARALIKLI (spacing) karakterler; NFC onları kendiliğinden
+# birleştirmiyor, birleştirici (combining) biçime çevrilmeleri gerekiyor.
+# Küme ÖLÇÜMDEN çıktı: gerçek pdflatex çıktısında görülenler (bkz.
+# `_normalize_pdf_text`). Ters vurgu (`) ve düz tırnak BİLEREK yok: kod
+# listelemelerinde sıradan karakterler ve harfle birleştirilmeleri metni
+# bozardı.
+_AKSAN_BIRLESIK = {
+    "¸": "̧",   # ¸  sedil        -> ç, ş
+    "˘": "̆",   # ˘  breve        -> ğ
+    "¨": "̈",   # ¨  iki nokta    -> ö, ü
+    "˙": "̇",   # ˙  üstte nokta  -> İ
+    "ˆ": "̂",   # ˆ  şapka        -> â, î
+    "˜": "̃",   # ˜  tilde        -> ñ
+}
+
+
+# Büyük harfte BİLE aksanın harften ÖNCE geldiği ölçülen aksanlar. Sedil,
+# breve ve iki nokta büyük harfte harften SONRA geliyor (`S¸`, `O¨`), üstte
+# nokta ise ÖNCE (`˙I` -> İ). Ayrım harf sırasından değil AKSANDAN çıkıyor ve
+# ölçümden geldi: bu liste olmadan `S˙I` dizisindeki nokta S'ye bağlanıp
+# `Ṡ` uyduruluyordu (U+1E60 Unicode'da var), oysa İ'ye ait.
+_ONE_BAGLANAN = {"˙", "ˆ", "˜"}
+
+
+def _aksan_uygula(taban: str, birlesik: str) -> str:
+    """``taban`` + aksan GERÇEK bir harfse onu döndür, değilse "".
+
+    Birleştirmenin ölçütü "sonuç TEK karakter mi": olmayan harf uydurmayı
+    engelliyor ve aksanın hangi harfe ait olduğu ikilemini kendiliğinden
+    çözüyor. `l¸c` dizisinde `l`+sedil diye bir harf YOK, `c`+sedil VAR.
+
+    Noktasız `ı` LaTeX'in aksan TABANI: `\\^{\\i}` ile yazılan harf î'dir ve
+    PDF'e noktasız glif + şapka olarak düşüyor (ölçüldü: "resmî" ->
+    "resmˆı"). Noktasız ı ile şapkanın birleşiği Unicode'da yok, o yüzden
+    taban noktalı `i`ye çevrilip yeniden deneniyor. Büyük `I` için böyle bir
+    kural YOK: `I`+nokta ve `I`+şapka zaten birleşiyor, uydurma bir nokta
+    eklemek kaynakta olmayan bir harf üretirdi.
+    """
+    if not taban:
+        return ""
+    for t in (taban, "i" if taban == "ı" else ""):
+        if not t:
+            continue
+        aday = unicodedata.normalize("NFC", t + birlesik)
+        if len(aday) == 1:
+            return aday
+    return ""
+
 
 class PdfSelectionMixin:
 
@@ -320,21 +369,77 @@ class PdfSelectionMixin:
 
     @staticmethod
     def _normalize_pdf_text(text):
-        """PDF metnindeki ayrık aksanları birlestir (Turkce: ş, ğ, Ş, Ğ)."""
-        # Once 2-karakter pattern'lerini degistir
-        for old, new in [
-            ("¸s", "ş"), ("¸S", "Ş"),
-            ("s¸", "ş"), ("S¸", "Ş"),
-            ("˘g", "ğ"), ("˘G", "Ğ"),
-            ("g˘", "ğ"), ("G˘", "Ğ"),
-            ("¸c", "ç"), ("¸C", "Ç"),
-            ("c¸", "ç"), ("C¸", "Ç"),
-        ]:
-            text = text.replace(old, new)
-        # Tek kalan aksanlari temizle
-        text = text.replace("¸", "").replace("˘", "")
-        # Unicode NFC normalizasyonu
-        return unicodedata.normalize("NFC", text)
+        """PDF metnindeki ayrık aksanları harfleriyle birleştir.
+
+        NEDEN GEREKLİ. `fontenc` kullanmayan (yani OT1, LaTeX'in varsayılanı)
+        belgelerde aksanlı harfler İKİ glif basılıyor ve pdfium onları iki
+        ayrı karakter olarak çıkarıyor. ÖLÇÜLDÜ (2026-09-08, gerçek pdflatex
+        çıktısından pypdfium2 ile):
+
+            kaynak "öğrenci"    -> çıkarılan "¨o˘grenci"
+            kaynak "ÇALIŞMA"    -> çıkarılan "C¸ ALIS¸MA"
+
+        `\\usepackage[T1]{fontenc}` VARSA çıkarma tertemiz (aynı ölçüm, 16
+        kelimenin 16'sı doğru); bu yol yalnız OT1 belgeleri ilgilendiriyor.
+
+        ESKİ HÂLİ elle yazılmış on iki çiftti ve yalnız ş/ğ/ç ailesini
+        tanıyordu. İki nokta (ö, ü) ve üstte nokta (İ) listede YOKTU, artakalan
+        temizliği de yalnız `¸` ile `˘` siliyordu; ölçülen 16 kelimenin 13'ü
+        yanlış kopyalanıyor ve metinde `¨` ile `˙` artık olarak kalıyordu.
+
+        KURAL, ÖLÇÜMDEN ÇIKTI. Aksanın hangi harfe ait olduğu tek yönlü
+        değil: küçük harflerde aksan harften ÖNCE geliyor (`¸s`), büyük
+        harflerde SONRA (`S¸`). Sıraya bakarak karar vermek `¨` yüzünden
+        yanlış harf üretiyordu (`UN¨` -> N + iki nokta). Onun yerine
+        BİRLEŞTİRİLEBİLİRLİK soruluyor: önce sonraki, sonra önceki harfe
+        eklenip NFC ile birleştirmesi deneniyor ve sonuç TEK karakter değilse
+        o bağ kurulmuyor. Böylece `l¸c` ikilemi kendiliğinden çözülüyor
+        (`l`+sedil diye bir harf yok, `c`+sedil var) ve olmayan harf
+        uydurulmuyor. Eşi bulunamayan aksan metinde artık bırakılmıyor.
+
+        Büyük harflerin arasına giren boşluklar (`C¸ ALIS¸MA` -> `Ç ALIŞMA`)
+        BURADA ÇÖZÜLMÜYOR: aksan bazen harfinden birkaç karakter uzağa
+        düşüyor (`O¨GRENC ˘ ˙I`) ve boşluk silmek gerçek sözcük sınırlarını
+        da birleştirirdi. Ölçülen kazanç aşağıdaki testlerde yazılı.
+        """
+        if not any(a in text for a in _AKSAN_BIRLESIK):
+            return unicodedata.normalize("NFC", text)
+
+        out = []
+        i, n = 0, len(text)
+        while i < n:
+            birlesik = _AKSAN_BIRLESIK.get(text[i])
+            if birlesik is None:
+                out.append(text[i])
+                i += 1
+                continue
+            sonraki = text[i + 1] if i + 1 < n else ""
+            onceki = out[-1] if out else ""
+            # a) SONRAKİ harf KÜÇÜKSE ona bağla: küçük harflerde ölçülen sıra
+            #    bu. Büyük harfte önceliği tersine çevirmek ŞART, yoksa
+            #    `S¸EK˙IL`de sedil E'ye gidiyor (`Ȩ` Unicode'da VAR) ve `Ş`
+            #    kaybediliyor. Ölçüldü: sıra denenirken bu gerileme çıktı.
+            one = sonraki.islower() or text[i] in _ONE_BAGLANAN
+            aday = _aksan_uygula(sonraki, birlesik) if one else ""
+            if aday:
+                out.append(aday)
+                i += 2
+                continue
+            # b) ÖNCEKİ harfe bağla: büyük harflerde ölçülen sıra
+            aday = _aksan_uygula(onceki, birlesik)
+            if aday:
+                out[-1] = aday
+                i += 1
+                continue
+            # c) Son deneme: sonraki harf büyük olabilir (`˙Istanbul`)
+            aday = _aksan_uygula(sonraki, birlesik)
+            if aday:
+                out.append(aday)
+                i += 2
+                continue
+            # d) Eşi yok: artık bırakma
+            i += 1
+        return unicodedata.normalize("NFC", "".join(out))
 
     def _copy_selection(self):
         if self._selected_text:
