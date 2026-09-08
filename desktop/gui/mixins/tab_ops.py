@@ -270,17 +270,40 @@ class TabOpsMixin:
 
         if isinstance(editor, EditorWidget):
             self._update_wordcount(editor)
+        else:
+            # Sekme kalmadı: sayaç KAPANMIŞ belgenin sayısını göstermeye
+            # devam ediyordu (bkz. _update_cursor_pos'taki aynı kusur).
+            # Bekleyen debounce da durduruluyor, yoksa 400 ms sonra
+            # _do_wordcount aynı işi bir daha yapar.
+            self._wordcount_editor = None
+            self._wordcount_timer.stop()
+            self._status_wordcount.setText("")
 
         if isinstance(editor, EditorWidget):
             self._file_tree.update_input_tree(editor.file_path, editor.text())
             self._outline.update_outline(editor.text())
             self._refresh_error_markers()
 
+    @staticmethod
+    def _konum_metni(line: int, col: int) -> str:
+        """İmleç konumu etiketinin metni. TEK KAYNAK: iki dal da buradan
+        geçiyor, yoksa boş durumun biçimi zamanla ayrışır."""
+        return (_("Satır") + " " + str(line + 1) + ", "
+                + _("Sütun") + " " + str(col + 1))
+
     def _update_cursor_pos(self):
         editor = self._current_editor()
         if editor:
             line, col = editor.getCursorPosition()
-            self._status_pos.setText(_("Satır") + " " + str(line + 1) + ", " + _("Sütun") + " " + str(col + 1))
+        else:
+            # Sekme kalmadı. Eskiden etiket olduğu gibi bırakılıyordu:
+            # kullanıcı son sekmeyi kapatıyor, durum çubuğu artık AÇIK
+            # OLMAYAN belgenin konumunu göstermeye devam ediyordu (ölçüldü:
+            # "Satır 3, Sütun 8" kalıyor). Açılıştaki hâle dönülüyor;
+            # uygulamanın kendi boş durumu o (bkz. main_window'daki
+            # _status_pos ilk değeri).
+            line, col = 0, 0
+        self._status_pos.setText(self._konum_metni(line, col))
 
     def _update_wordcount(self, editor):
         self._wordcount_editor = editor
