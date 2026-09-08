@@ -120,6 +120,14 @@ class TableOpsMixin:
         """İmlecin içindeki tabular bloğunun hücrelerini hizala."""
         editor = self._current_editor()
         if not editor:
+            # SESSİZ DÖNMÜYOR. Menü öğeleri sekme sayısına göre kapatılmıyor
+            # (main_window'da hiçbir eylemde `setEnabled` yok), yani hiç sekme
+            # yokken "Tabloyu Hizala" tıklanabiliyor. ÖLÇÜLDÜ (2026-09-08):
+            # tıklama hiçbir şey yapmıyor ve hiçbir mesaj çıkmıyor; kardeşi
+            # `_table_wizard` aynı durumda "Önce bir dosya açın" diyor.
+            # Bu fonksiyonun geri kalanı zaten her çıkışta sebebini söylüyor
+            # ("İmleç bir tablo içinde değil", "hizalanacak satır yok").
+            self._status.showMessage(_("Önce bir dosya açın"))
             return
         text = editor.text()
         pos = self._cursor_char_offset(editor)

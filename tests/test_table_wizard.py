@@ -744,3 +744,28 @@ def test_suzgec_YALNIZ_tekerlegi_yutuyor(qapp):
     finally:
         dlg.deleteLater()
         qapp.processEvents()
+
+
+def test_align_table_SEKME_YOKKEN_sebebini_soyluyor(qapp):
+    """Menü öğeleri sekme sayısına göre kapatılmıyor (main_window'da hiçbir
+    eylemde `setEnabled` yok), yani hiç sekme yokken "Tabloyu Hizala"
+    tıklanabiliyor. ÖLÇÜLDÜ (2026-09-08): tıklama hiçbir şey yapmıyor ve
+    hiçbir mesaj çıkmıyordu; kardeşi `_table_wizard` aynı durumda sebebini
+    söylüyor. Bu fonksiyonun geri kalanı zaten her çıkışta söylüyor.
+    """
+    stub = _Stub([])
+    stub._status.showMessage("")
+
+    stub._align_table()
+
+    assert "dosya açın" in stub._status.msg, stub._status.msg
+
+
+def test_align_table_KARDESIYLE_ayni_cumleyi_kuruyor(qapp):
+    """İki yol aynı durumu aynı cümleyle anlatmalı; ayrışırsa biri
+    güncellenip öbürü unutulur."""
+    a = _Stub([])
+    a._align_table()
+    b = _Stub([])
+    b._table_wizard()
+    assert a._status.msg == b._status.msg != "", (a._status.msg, b._status.msg)
