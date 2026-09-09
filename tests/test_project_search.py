@@ -896,3 +896,69 @@ class TestOrtusenEslesme:
         _yaz(str(tmp_path), "m.tex", "aaa\n")
         bulgular, _k = search_project(str(tmp_path), "a")
         assert [(b.line, b.col) for b in bulgular] == [(1, 0), (1, 1), (1, 2)]
+
+
+class TestKokDegisinceGecmis:
+    r"""Sürüm geçmişi listesi de köke bağlı ve bedeli EN AĞIR olan bu.
+
+    Satırların sağ tık menüsündeki "Bu sürümü sil" ve "Tüm geçmişi sil"
+    satırın deposuna değil O ANKİ klasörün deposuna uygulanıyor.
+    ÖLÇÜLDÜ (2026-09-09, gerçek pencerede): A klasörünün sürümleri ekranda
+    dururken B klasörüne geçildiğinde liste değişmiyordu; o satırdan "Tüm
+    geçmişi sil" demek B'nin `.git`ini çöp kutusuna yolluyor, ekranda görünen
+    A'nın geçmişi ise yerinde kalıyordu. Onay metni klasör adını da yazmıyor,
+    yani kullanıcı hangi projeyi sildiğini göremiyor.
+    """
+
+    def test_KOK_degisince_gecmis_listesi_BOSALIYOR(self, panel, proje):
+        from gui.mixins.project_search_ops import ProjectSearchMixin
+
+        class S(ProjectSearchMixin, _AramaStub):
+            pass
+
+        panel.show_history([SimpleNamespace(
+            timestamp=0, message="A ilk sürüm", nfiles=2, sha="a" * 40,
+            short="aaaaaaa")])
+        assert panel._history_list.count() == 1
+
+        S(panel, proje)._on_project_root_changed("/baska/kok")
+        assert panel._history_list.count() == 0
+
+    def test_BOS_listede_sag_tik_HICBIR_eylem_uretmiyor(self, panel,
+                                                        monkeypatch):
+        """Yıkıcı yol kapalı kalmalı: eylem yalnız bir SATIRDAN çıkıyor.
+
+        `QMenu.exec` taklit ediliyor ve "Tüm geçmişi sil"i SEÇİYOR: kapı
+        gerçek modalın açılmamasına DAYANMAMALI. Taklit olmadan, satır
+        denetimi kaldırılınca test 15 dakika asılı kaldı (mutasyonda
+        ölçüldü) ve düşmüş sayılmadı.
+        """
+        from PyQt6.QtCore import QPoint
+        from PyQt6.QtWidgets import QMenu
+
+        def _sec(self, *a, **k):
+            for act in self.actions():
+                if "Tüm geçmişi sil" in act.text():
+                    return act
+            return None
+
+        monkeypatch.setattr(QMenu, "exec", _sec)
+        eylemler = []
+        panel.version_action.connect(lambda a, s: eylemler.append((a, s)))
+        panel.clear_history()
+        panel._on_history_menu(QPoint(5, 5))
+        assert eylemler == []
+
+    def test_YENI_KOKUN_gecmisi_HALA_gosterilebiliyor(self, panel, proje):
+        """Aşırı düzeltme kapısı: boşaltmak özelliği kapatmamalı."""
+        from gui.mixins.project_search_ops import ProjectSearchMixin
+
+        class S(ProjectSearchMixin, _AramaStub):
+            pass
+
+        S(panel, proje)._on_project_root_changed("/baska/kok")
+        panel.show_history([SimpleNamespace(
+            timestamp=0, message="B ilk sürüm", nfiles=1, sha="b" * 40,
+            short="bbbbbbb")])
+        assert panel._history_list.count() == 1
+        assert "B ilk sürüm" in panel._history_list.item(0).text()

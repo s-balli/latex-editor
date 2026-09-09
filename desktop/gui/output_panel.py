@@ -699,6 +699,20 @@ class OutputPanel(QWidget):
             item.setToolTip(f"{e.short} · {e.message}")
             self._history_list.addItem(item)
 
+    def clear_history(self):
+        """Sürüm geçmişi listesini boşalt (klasör değişince bayat olur).
+
+        Boş liste burada GÜVENLİK: satırların sağ tık menüsündeki "Bu sürümü
+        sil" ve "Tüm geçmişi sil" satırın deposuna değil, O ANKİ klasörün
+        deposuna uygulanıyor. ÖLÇÜLDÜ (2026-09-09, gerçek pencerede): A
+        klasörünün sürümleri ekranda dururken B klasörüne geçildiğinde liste
+        değişmiyor ve o satırdan "Tüm geçmişi sil" demek B'nin geçmişini
+        siliyordu; ekranda görünen A'nın geçmişi ise yerinde kalıyordu. Onay
+        metni klasör adını yazmıyor, yani kullanıcı hangi projeyi sildiğini
+        göremiyor.
+        """
+        self._history_list.clear()
+
     def _on_history_menu(self, pos):
         item = self._history_list.itemAt(pos)
         if item is None:

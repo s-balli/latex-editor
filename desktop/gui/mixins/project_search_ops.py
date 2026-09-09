@@ -69,6 +69,11 @@ class ProjectSearchMixin:
         # tıklama kullanıcıyı yine proje dışına götürür. Boşalınca sekmeye
         # geçildiğinde kendini yeniden dolduruyor.
         self._output_panel.clear_bibliography()
+        # Sürüm geçmişi de köke bağlı ve burada bedeli AĞIR: satırların sağ
+        # tık menüsündeki silme eylemleri satırın deposuna değil o anki
+        # klasörün deposuna uygulanıyor (bkz. output_panel.clear_history).
+        # "Klasör değişince ne bayatlar" kararı tek yerde duruyor.
+        self._output_panel.clear_history()
 
     def _kok_disinda_mi(self, kok: str) -> str:
         """Açık dosya kökün DIŞINDAysa açıklama metni, değilse boş dize.
