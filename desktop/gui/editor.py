@@ -11,6 +11,7 @@ from PyQt6.QtGui import QColor, QPalette
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from core.bibtex import RE_GIRDI_ANAHTARI
+from core.fs_ops import coz_adiyla
 from core.log import get_logger
 from core.latex_refs import (
     CITE_KOMUTLARI, REF_ARALIK_KOMUTLARI, REF_KOMUTLARI, collect_cite_keys,
@@ -65,29 +66,11 @@ _RE_BIBITEMARG = re.compile(r'\\bibitem\s*(?:\[[^\]]*\])?\s*\{([^}]+)\}')
 _RE_LABELARG = re.compile(r'\\label\s*\{([^}]*)\}')
 
 
-def _decode_bytes(raw: bytes) -> tuple[str, str]:
-    """Baytları decode et -> (metin, encoding).
-
-    UTF-8 (katı) önce denenir; başarısız olursa eski Türkçe kodlamalar (cp1254 /
-    iso-8859-9). Böylece eski Türkçe LaTeX dosyaları errors='replace' ile sessizce
-    bozulmaz (her bayt tanımlı bir karaktere eşlenir). Dönen encoding ile kayıt
-    edilirse baytlar birebir korunur (round-trip güvenli).
-
-    Not: charset_normalizer Türkçe tek-baytlı kodlamaları yanlışca cp1252
-    tespit ettiği için kullanılmaz; cp1254 doğrudan Türkçe harfleri doğru verir
-    ve yaygın Batı Avrupa metniyle de büyük oranda uyuşur.
-    """
-    try:
-        return raw.decode("utf-8"), "utf-8"
-    except UnicodeDecodeError:
-        pass
-    for enc in ("cp1254", "iso-8859-9"):
-        try:
-            return raw.decode(enc), enc
-        except (UnicodeDecodeError, LookupError):
-            continue
-    # Son çare (normalde ulaşılmaz — cp1254 tüm baytları karşılar).
-    return raw.decode("utf-8", errors="replace"), "utf-8"
+# Baytları (metin, kodlama) yapan çözücü. Zincirin TEK KAYNAĞI core.fs_ops
+# (gerekçe ve ölçüm orada); burada kendi gövdesi vardı ve `core.bibtex`teki
+# kardeşiyle birebir aynıydı. Ad korunuyor: `edit_ops` ve testler
+# `gui.editor._decode_bytes` diye alıyor.
+_decode_bytes = coz_adiyla
 
 
 class EditorWidget(QsciScintilla):

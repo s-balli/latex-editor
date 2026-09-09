@@ -78,20 +78,10 @@ def kucult(s: str) -> str:
     return s.lower().replace("̇", "")
 
 
-def coz(ham: bytes) -> str:
-    """Baytları metne çevir — UTF-8, olmazsa Türkçe eski kodlamalar.
-
-    gui/editor.py'deki `_decode_bytes` ile AYNI sıra: cp1254/iso-8859-9 ile
-    yazılmış eski Türkçe .tex dosyaları aramada da doğru okunmalı, yoksa
-    'Ş' arayan kullanıcı kendi dosyasında sonuç alamaz. Burada kodlama ADI
-    döndürülmüyor: arama dosyayı yazmıyor, round-trip derdi yok.
-    """
-    for enc in ("utf-8", "cp1254", "iso-8859-9"):
-        try:
-            return ham.decode(enc)
-        except (UnicodeDecodeError, LookupError):
-            continue
-    return ham.decode("utf-8", errors="replace")
+# Çözücü zincir TEK KAYNAK core.fs_ops; buradaki ad korunuyor çünkü modülün
+# dışa açık yüzeyi (dışa aktarma, .bib denetimi ve testler `coz`u buradan
+# alıyor). Kendi gövdesi vardı; üç kopyanın biriydi (bkz. oradaki not).
+from core.fs_ops import coz  # noqa: E402,F401
 
 
 def duz_dosya_mi(yol: str) -> bool:

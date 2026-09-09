@@ -55,6 +55,44 @@ DERLEME_ARTIKLARI = (
 )
 
 
+# Kaynak dosyaları BAYTTAN metne çeviren zincir. TEK KAYNAK: .tex açma,
+# .bib okuma/yazma, projede arama ve dışa aktarma hepsi buradan geçiyor.
+#
+# ÜÇ kopya vardı (`core/bibtex._coz_adiyla`, `gui/editor._decode_bytes`,
+# `core/project_search.coz`) ve `core/exporter` yorumunda "bu depodaki TEK
+# çözücü zinciri" yazıyordu, yani iddia zaten tutmuyordu. ÖLÇÜLDÜ
+# (2026-09-09): üç gövde 232 gerçek dosyada ve 9 düşmanca bayt dizisinde AYNI
+# cevabı veriyordu, yani canlı hata yoktu; kırılma dördüncü kodlama
+# eklendiğinde gelecekti ve o zaman .bib okuyan yol onu almazdı.
+#
+# SIRA ölçümden: UTF-8 KATI denenir, olmazsa eski Türkçe kodlamalar. Böylece
+# eski Türkçe .tex dosyaları `errors="replace"` ile sessizce bozulmuyor.
+# charset_normalizer KULLANILMIYOR: Türkçe tek baytlı kodlamaları cp1252
+# sanıyor. cp1254 baytların çoğunu karşıladığı için son çare neredeyse hiç
+# çalışmıyor; tanımsız yuvalar (0x81 gibi) iso-8859-9'a düşüyor.
+KODLAMA_ZINCIRI = ("utf-8", "cp1254", "iso-8859-9")
+
+
+def coz_adiyla(ham: bytes) -> tuple[str, str]:
+    """Baytları çöz: (metin, kodlama adı).
+
+    Ad DÖNMEK zorunda: dosyayı aynı kodlamayla geri yazan yollar (editörün
+    kaydetmesi, .bib'e girdi ekleme) baytları birebir korumak için onu
+    kullanıyor.
+    """
+    for enc in KODLAMA_ZINCIRI:
+        try:
+            return ham.decode(enc), enc
+        except (UnicodeDecodeError, LookupError):
+            continue
+    return ham.decode("utf-8", errors="replace"), "utf-8"
+
+
+def coz(ham: bytes) -> str:
+    """Yalnız metin. Dosyayı YAZMAYAN yollar için (arama, dışa aktarma)."""
+    return coz_adiyla(ham)[0]
+
+
 def derleme_artigi_mi(ad: str) -> bool:
     """Dosya adı bir LaTeX derleme artığı mı (`.pdf` HARİÇ, bkz. yukarısı)."""
     dusuk = ad.lower()

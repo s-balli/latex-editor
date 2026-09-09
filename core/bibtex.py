@@ -450,20 +450,10 @@ def normallestir(ham: str, *, mevcut_anahtarlar=()) -> tuple[str, str]:
     return "\n".join(satirlar), anahtar
 
 
-# Dosyanın kendi kodlaması. `core.project_search.coz` ve
-# `gui.editor._decode_bytes` ile AYNI sıra; buradaki fark, yazabilmek için
-# kodlamanın ADININ da gerekmesi.
-_KODLAMALAR = ("utf-8", "cp1254", "iso-8859-9")
-
-
-def _coz_adiyla(ham: bytes) -> tuple[str, str]:
-    """(metin, kodlama adı). Hiçbiri tutmazsa utf-8 + replace."""
-    for enc in _KODLAMALAR:
-        try:
-            return ham.decode(enc), enc
-        except (UnicodeDecodeError, LookupError):
-            continue
-    return ham.decode("utf-8", errors="replace"), "utf-8"
+# Dosyanın kendi kodlaması: yazabilmek için kodlamanın ADI da gerekiyor.
+# Çözücü zincir TEK KAYNAK core.fs_ops (bkz. oradaki not); burada kendi
+# gövdesi vardı ve `gui/editor._decode_bytes` ile birebir aynıydı.
+from core.fs_ops import coz_adiyla as _coz_adiyla  # noqa: E402
 
 
 def ekleme_metni(var_olan: str, girdi_metni: str) -> str:
@@ -568,7 +558,7 @@ def dosyayi_denetle(yol: str) -> BibDenetim:
             ham = f.read()
     except OSError:
         return BibDenetim()
-    from core.project_search import coz
+    from core.fs_ops import coz
     sonuc = denetle(coz(ham))
     if len(_cache) >= _CACHE_SINIR:
         _cache.clear()

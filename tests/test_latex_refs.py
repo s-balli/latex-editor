@@ -1422,3 +1422,54 @@ class TestCokluBibDosyasi:
         icerik, yol = self._proje(tmp_path, "\\bibliography{a,olmayan}")
         assert latex_refs.find_bib_paths(icerik, yol) == \
             [str(tmp_path / "a.bib")]
+
+
+class TestBosluklkuAnahtar:
+    r"""`\label{ }` / `\bibitem{ }` BOŞ anahtar üretmemeli.
+
+    Süzgeç ham argümana bakıyordu: `\label{ }` geçiyor, sonra `.strip()` ile
+    "" oluyor ve boş anahtar etiket evrenine giriyordu. ÖLÇÜLDÜ
+    (2026-09-09): denetim onu "kullanılmayan etiket" diye BOŞ bir satır
+    olarak gösteriyor, `\ref{` tamamlaması boş öneri sunuyordu. Atıf kolu
+    (`_kullanim_anahtarlari`) strip'ten SONRA süzüyor; asimetri buradaydı.
+    """
+
+    def _yaz(self, tmp_path, icerik):
+        yol = tmp_path / "m.tex"
+        yol.write_text(icerik, encoding="utf-8")
+        return icerik, str(yol)
+
+    def test_BOSLUKLU_label_anahtar_uretmiyor(self, tmp_path):
+        icerik, yol = self._yaz(
+            tmp_path, "\\label{ }\n\\label{gercek}\nBkz \\ref{gercek}\n")
+        assert latex_refs.collect_labels(icerik, yol) == ["gercek"]
+        d = latex_refs.audit_references(icerik, yol)
+        assert "" not in d.unused_labels
+        assert d.unused_labels == []
+
+    def test_BOSLUKLU_bibitem_anahtar_uretmiyor(self, tmp_path):
+        icerik, yol = self._yaz(
+            tmp_path,
+            "\\bibitem{ } X.\n\\bibitem{k1} Y.\n\\cite{k1}\n")
+        d = latex_refs.audit_references(icerik, yol)
+        assert d.undefined_cites == []
+
+    def test_GERCEK_anahtar_hala_toplaniyor(self, tmp_path):
+        """Aşırı düzeltme kapısı: boşluklu ad kırpılıp KULLANILIYOR."""
+        icerik, yol = self._yaz(
+            tmp_path, "\\label{ sec:giris }\nBkz \\ref{sec:giris}\n")
+        assert latex_refs.collect_labels(icerik, yol) == ["sec:giris"]
+        assert latex_refs.audit_references(icerik, yol).undefined_refs == []
+
+    def test_ALT_TIK_haritasinda_da_bos_anahtar_yok(self, tmp_path):
+        icerik, yol = self._yaz(
+            tmp_path, "\\label{ }\n\\label{gercek}\n")
+        yerler = latex_refs.label_locations(icerik, yol)
+        assert "" not in yerler
+        assert "gercek" in yerler
+
+    def test_SABLON_YER_TUTUCUSU_bos_label_yok_sayiliyor(self, tmp_path):
+        r"""Gerçek şablonlar `\label{}` diye yer tutucu bırakıyor (6 dosyada
+        9 tane, ölçüldü); tanım deseni onları görmüyor ve bu AYRIM bilerek."""
+        icerik, yol = self._yaz(tmp_path, "\\label{}\n\\label{gercek}\n")
+        assert latex_refs.collect_labels(icerik, yol) == ["gercek"]

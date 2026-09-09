@@ -156,3 +156,56 @@ def test_save_file_as_resets_to_utf8(qapp, tmp_path, monkeypatch):
     with open(newp, "rb") as f:
         assert f.read() == "İş".encode("utf-8")
     assert ed._encoding == "utf-8"
+
+
+class TestCozucuTekKaynak:
+    """Bayt çözücü zincirinin TEK kaynağı core.fs_ops.
+
+    ÜÇ gövde vardı (core/bibtex, gui/editor, core/project_search) ve
+    core/exporter'daki yorum "bu depodaki TEK çözücü zinciri" diyordu, yani
+    iddia tutmuyordu. Ölçüldü (2026-09-09): üçü 232 gerçek dosyada ve 9
+    düşmanca bayt dizisinde aynı cevabı veriyordu, kırılma dördüncü kodlama
+    eklendiğinde gelecekti.
+
+    Kapı DAVRANIŞA bakıyor, nesne kimliğine değil: kopya geri gelse bile
+    zincire eklenen kodlamayı görmeyen yol burada düşer.
+    """
+
+    ORNEKLER = [
+        ("utf8", "Türkçe İçindekiler".encode("utf-8"), "utf-8"),
+        ("cp1254", "Türkçe İçindekiler".encode("cp1254"), "cp1254"),
+        ("tanimsiz-yuva", b"\x80\x81\x82\x83", "iso-8859-9"),
+        ("bos", b"", "utf-8"),
+    ]
+
+    def test_UC_YUZEY_ayni_cevabi_veriyor(self):
+        from core.fs_ops import coz_adiyla
+        from core.project_search import coz as arama_coz
+        from core.bibtex import _coz_adiyla as bib_coz
+        from gui.editor import _decode_bytes as editor_coz
+
+        for ad, ham, beklenen in self.ORNEKLER:
+            metin, kodlama = coz_adiyla(ham)
+            assert kodlama == beklenen, ad
+            assert bib_coz(ham) == (metin, kodlama), ad
+            assert editor_coz(ham) == (metin, kodlama), ad
+            assert arama_coz(ham) == metin, ad
+
+    def test_ZINCIRE_EKLENEN_kodlamayi_hepsi_goruyor(self, monkeypatch):
+        """Kırılmanın geleceği yer: zincire yeni kodlama eklenmesi.
+
+        Zincir tek kaynaktan okunuyorsa `.bib` okuyan yol da, editör de,
+        arama da yeni kodlamayı kendiliğinden görür.
+        """
+        from core import fs_ops
+        from core.bibtex import _coz_adiyla as bib_coz
+        from core.project_search import coz as arama_coz
+        from gui.editor import _decode_bytes as editor_coz
+
+        ham = "Ω".encode("cp437")            # cp1254'te de çözülür, ama
+        monkeypatch.setattr(fs_ops, "KODLAMA_ZINCIRI", ("cp437",))
+        metin, kodlama = fs_ops.coz_adiyla(ham)
+        assert kodlama == "cp437" and metin == "Ω"
+        assert bib_coz(ham) == (metin, kodlama)
+        assert editor_coz(ham) == (metin, kodlama)
+        assert arama_coz(ham) == metin

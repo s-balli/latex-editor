@@ -16,6 +16,13 @@ from core.latex_utils import sozel_soy, strip_comments
 
 _logger = logging.getLogger("latex_editor.latex_refs")
 
+# TANIM deseni. `gui/editor._RE_LABELARG` aynı komutu `*` ile arıyor; orası
+# "imleç altındaki anahtar" istiyor, burası TANIM topluyor. Desendeki `+`
+# yer tutucuları eliyor (gerçek şablonlar `\label{}` diye doldurulmayı
+# bekleyen 9 tane bırakıyor, 6 dosyada, ölçüldü 2026-09-09) ama ASIL GÜVENCE
+# DESEN DEĞİL: `\label{ }` bu desenden de geçiyor ve `.strip()` sonrası boş
+# anahtar oluyor. O yüzden HER tüketici strip'lenmiş anahtarı süzüyor
+# (`_extract_labels`, `label_locations`). Desen değişirse kural bozulmuyor.
 _RE_LABEL = re.compile(r'\\label\s*\{([^}]+)\}')
 
 # Bir anahtarda BULUNAMAYACAK karakterler: hepsi LaTeX'in kendi sözdizimi.
@@ -70,9 +77,17 @@ def _extract_labels(text: str) -> list[str]:
     Sözel soyma ŞART: kod örneğindeki `\\label{x}` gerçek bir tanım değil.
     Tanım sayılırsa gerçek bir `\\ref{x}` "tanımlı" görünür ve KIRIK referans
     gizlenir; ayrıca örnek anahtar tamamlama listesine de düşerdi.
+
+    Süzgeç STRIP'lenmiş anahtara bakıyor. Eskiden ham argümana bakıyordu ve
+    `\\label{ }` süzgeçten geçip `.strip()` ile BOŞ anahtara dönüşüyordu.
+    ÖLÇÜLDÜ (2026-09-09): boş anahtar etiket evrenine giriyor, denetim onu
+    "kullanılmayan etiket" diye BOŞ bir satır olarak gösteriyor ve `\\ref{`
+    tamamlaması boş bir öneri sunuyordu. Atıf tarafı (`_kullanim_anahtarlari`)
+    strip'ten SONRA süzüyor, yani `\\ref{ }` zaten yok sayılıyordu; asimetri
+    yalnız bu koldaydı.
     """
-    return [m.group(1).strip() for m in _RE_LABEL.finditer(
-        sozel_soy(strip_comments(text))) if _anahtar_olabilir(m.group(1))]
+    return [k for k in (m.group(1).strip() for m in _RE_LABEL.finditer(
+        sozel_soy(strip_comments(text)))) if _anahtar_olabilir(k)]
 
 
 def _flatten_input_paths(content: str, base_dir: str) -> list[str]:
@@ -769,8 +784,12 @@ def audit_references(content: str, base_path: str) -> RefAudit:
             nocite_all = True
 
     defined_labels = set(collect_labels(content, base_path))
+    # Boş anahtar süzülüyor: `\bibitem{ }` "" üretip her atfı "tanımlı"
+    # göstermezdi ama boş anahtar kümeye girip karşılaştırmaları kirletirdi
+    # (etiket kolundaki aynı ders için `_extract_labels`e bakın).
     bibitem_keys = {
-        m.group(1).strip() for t in texts for m in _RE_BIBITEM.finditer(t)
+        k for t in texts for m in _RE_BIBITEM.finditer(t)
+        if (k := m.group(1).strip())
     }
     bib_keys = set(collect_cite_keys(content, base_path))
 
@@ -807,7 +826,10 @@ def label_locations(content: str, base_path: str) -> dict[str, tuple[str, int]]:
     for path, text in entries:
         for i, ln in enumerate(text.split('\n'), start=1):
             for m in _RE_LABEL.finditer(ln):
-                out.setdefault(m.group(1).strip(), (path, i))
+                # Boş anahtar süzülüyor, `_extract_labels` ile aynı kural:
+                # `\label{ }` deseni geçiyor ve strip sonrası "" oluyor.
+                if (k := m.group(1).strip()):
+                    out.setdefault(k, (path, i))
     return out
 
 
