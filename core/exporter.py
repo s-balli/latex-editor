@@ -8,7 +8,7 @@ import subprocess
 import sys
 
 from core.log import get_logger
-from core.paths import clean_child_env
+from core.paths import clean_child_env, windows_to_wsl
 # Bu depodaki TEK çözücü zinciri (utf-8 -> cp1254 -> iso-8859-9). Modül
 # düzeyinde alınıyor: üç ayrı yerde gerekiyor ve project_search yalnız
 # stdlib'e dayanıyor, döngü ya da açılış maliyeti yok.
@@ -103,7 +103,48 @@ def export(tex_path: str, dest_path: str) -> tuple[bool, str]:
             except OSError:
                 pass
 
-    return ok, err
+    return ok, _hata_mesaji_duzelt(err, tex_path, tmp_tex)
+
+
+def _hata_mesaji_duzelt(mesaj: str, tex_path: str, tmp_tex: str) -> str:
+    r"""pandoc hatasını kullanıcının GERÇEKTEN okuyabileceği tek satıra indir.
+
+    Mesaj durum çubuğuna basılıyor (file_ops._on_export_done) ve çubuk tek
+    satırlık. ÖLÇÜLDÜ (2026-09-09, 39 gerçek şablonun 7'si pandoc'un LaTeX
+    ayrıştırıcısını aşıyor): mesajların 6'sı hem `main.tex.export_tmp.tex`
+    diye bir dosya adı hem `/mnt/c/...` WSL yolu taşıyor ve 2-4 satır uzun.
+
+      Error at "/mnt/c/Users/.../main.tex.export_tmp.tex" (line 7, column 17):
+      unexpected ()
+      \begin{document}\sloppy
+                      ^
+
+    O dosya bizim ara ürünümüz, `export`un `finally` bloğunda siliniyor:
+    kullanıcı adını arayıp bulamıyor. Çubuğa da yalnız baştaki yol sığıyor,
+    yani işe yarayan kısım (satır/sütun ve hatalı yapı) hiç görünmüyordu.
+
+    Sonrası: `Error at "main.tex" (line 7, column 17): unexpected ()
+    \begin{document}\sloppy`
+
+    Tam metin log'da duruyor (`_export_wsl`/`_export_native` uyarısı).
+    """
+    if not mesaj:
+        return mesaj
+    ad = os.path.basename(tex_path)
+    adaylar = {tex_path, os.path.abspath(tex_path)}
+    if tmp_tex and tmp_tex != tex_path:
+        adaylar |= {tmp_tex, os.path.abspath(tmp_tex)}
+    for yol in list(adaylar):
+        adaylar.add(yol.replace("\\", "/"))
+        adaylar.add(windows_to_wsl(yol))
+    # UZUN olan ÖNCE: `.../main.tex` önce değiştirilirse geriye
+    # `main.tex.export_tmp.tex` kalır, yani asıl kafa karıştıran ad durur.
+    for yol in sorted(adaylar, key=len, reverse=True):
+        if yol:
+            mesaj = mesaj.replace(yol, ad)
+    # Yalnız `^` işaretinden oluşan satır tek satıra indirilince anlamsız.
+    satirlar = [s for s in mesaj.splitlines() if s.strip().strip("^").strip()]
+    return " ".join(" ".join(satirlar).split())
 
 
 def _pandoc_run(args, input_text=None, timeout=40):
@@ -147,7 +188,6 @@ def _pandoc_csljson(bibs) -> str:
     if not bibs:
         return ""
     if PLATFORM == "win32":
-        from core.paths import windows_to_wsl
         yollar = [windows_to_wsl(b) for b in bibs]
     else:
         yollar = list(bibs)
@@ -271,7 +311,6 @@ def _resolve_md_citations(md_path: str, tex_path: str, bibs=()):
 
     # --- 2) referans listesi: citeproc HTML -> refs div -> plain ---
     if PLATFORM == "win32":
-        from core.paths import windows_to_wsl
         tex_arg = windows_to_wsl(tex_path)
         bib_args = [windows_to_wsl(b) for b in bibs]
     else:
@@ -585,8 +624,6 @@ def _export_native(tex_path: str, dest_path: str, bibs=()) -> tuple[bool, str]:
 
 
 def _export_wsl(tex_path: str, dest_path: str, bibs=()) -> tuple[bool, str]:
-    from core.paths import windows_to_wsl
-
     wsl_tex = windows_to_wsl(tex_path)
     wsl_dir = os.path.dirname(wsl_tex)
     # pid eki: aynı hedef adına art arda/çakışan çağrılar WSL'de birbirinin

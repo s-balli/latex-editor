@@ -26,6 +26,7 @@ except ImportError:
     sys.modules["PyQt6.QtCore"] = _mock_qt.QtCore
 
 from core.exporter import (
+    _hata_mesaji_duzelt,
     FORMATS,
     export,
     pandoc_available,
@@ -1340,3 +1341,98 @@ class TestDisaAktarmaKaynakcayiAYNI_YERDEN_buluyor:
         tex = self._kur(tmp_path,
                         "%\\bibliography{eski}\n\\bibliography{refs}\n", [])
         assert _find_bibliography(tex) == [str(tmp_path / "refs.bib")]
+
+
+class TestDisaAktarmaHataMesaji:
+    r"""Hata mesajı durum çubuğuna basılıyor ve çubuk TEK satırlık.
+
+    ÖLÇÜLDÜ (2026-09-09, 39 gerçek şablonun 7'si pandoc'un LaTeX
+    ayrıştırıcısını aşıyor): mesajların 6'sında hem `main.tex.export_tmp.tex`
+    (bizim ara ürünümüz, `export` onu siliyor) hem `/mnt/c/...` WSL yolu
+    vardı ve mesaj 2-4 satırdı. Çubuğa yalnız baştaki yol sığıyor, yani
+    kullanıcı olmayan bir dosyanın adını okuyor, hatanın kendisini
+    göremiyordu.
+    """
+
+    def _kur(self, tmp_path):
+        """(ham mesaj, kaynak yolu, geçici yol).
+
+        Yollar YERLİ biçimde kuruluyor: `os.path.basename` platforma göre
+        ayırıcı tanıyor ve elle yazılmış `C:\\...` yolu Linux'ta tek parça
+        sayılıyordu (WSL'deki tam koşuda düştü, Windows'ta geçiyordu).
+        """
+        from core import exporter
+
+        tex = str(tmp_path / "main.tex")
+        tmp_ad = tex + ".export_tmp.tex"
+        ham = ('Error at "%s" (line 7, column 17):\nunexpected ()\n'
+               '\\begin{document}\\sloppy\n                ^\n'
+               % exporter.windows_to_wsl(tmp_ad))
+        return ham, tex, tmp_ad
+
+    def test_KULLANICININ_dosyasini_gosteriyor(self, tmp_path):
+        from core import exporter
+
+        ham, tex, tmp_ad = self._kur(tmp_path)
+        m = _hata_mesaji_duzelt(ham, tex, tmp_ad)
+        assert "export_tmp" not in m
+        assert tmp_ad not in m and exporter.windows_to_wsl(tmp_ad) not in m
+        assert '"main.tex"' in m
+        assert len(m.splitlines()) == 1
+
+    def test_ISE_YARAYAN_kismi_KORUYOR(self, tmp_path):
+        """Kısaltma bilgi kaybı olmamalı: satır, sütun ve hatalı yapı kalsın."""
+        ham, tex, tmp_ad = self._kur(tmp_path)
+        m = _hata_mesaji_duzelt(ham, tex, tmp_ad)
+        assert "line 7, column 17" in m
+        assert "unexpected ()" in m
+        assert "\\begin{document}\\sloppy" in m
+
+    def test_YOL_GECMEYEN_mesaj_bozulmuyor(self):
+        """Aşırı düzeltme kapısı: yol içermeyen mesaj olduğu gibi kalmalı."""
+        assert _hata_mesaji_duzelt("pandoc bulunamadı", "/x/m.tex",
+                                   "/x/m.tex") == "pandoc bulunamadı"
+        assert _hata_mesaji_duzelt("", "/x/m.tex", "/x/m.tex") == ""
+
+    def test_ONISLEME_OLMADAN_da_kisaltiyor(self, tmp_path):
+        """Önişleme tetiklenmediğinde tmp yolu = kaynak yolu."""
+        from core import exporter
+
+        tex = str(tmp_path / "main.tex")
+        ham = ('Error at "%s" (line 2, column 20):\nunexpected {\n'
+               % exporter.windows_to_wsl(tex))
+        assert _hata_mesaji_duzelt(ham, tex, tex) == \
+            'Error at "main.tex" (line 2, column 20): unexpected {'
+
+
+    def test_EXPORT_bu_duzeltmeyi_GERCEKTEN_cagiriyor(self, tmp_path,
+                                                      monkeypatch):
+        """Kablolama kapısı: işlevi ayrı ayrı sınamak yetmiyor.
+
+        Mutasyon yakaladı: `export`un dönüşünden çağrıyı kaldırmak hiçbir
+        kapıyı düşürmüyordu, yani kullanıcıya giden yol sınanmamış kalıyordu.
+        """
+        from core import exporter
+
+        tex = tmp_path / "main.tex"
+        tex.write_text("\\title{X}\n\\begin{document}\nA\n\\end{document}\n",
+                       encoding="utf-8")
+        tmp_ad = str(tex) + ".export_tmp.tex"
+
+        def sahte(tex_arg, dest, bibs=()):
+            # pandoc'un gerçek biçimi: WSL yolu + geçici ad + çok satır
+            return False, ('Error at "%s" (line 7, column 17):\n'
+                           'unexpected ()\n'
+                           '\\begin{document}\\sloppy\n'
+                           '                ^\n'
+                           % exporter.windows_to_wsl(tmp_ad))
+
+        monkeypatch.setattr(exporter, "_export_wsl", sahte)
+        monkeypatch.setattr(exporter, "_export_native", sahte)
+
+        ok, mesaj = exporter.export(str(tex), str(tmp_path / "c.html"))
+        assert ok is False
+        assert "export_tmp" not in mesaj
+        assert "/mnt/" not in mesaj
+        assert len(mesaj.splitlines()) == 1
+        assert "line 7, column 17" in mesaj
