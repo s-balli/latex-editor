@@ -288,3 +288,79 @@ def test_UC_IKON_birbirinden_FARKLI(qapp):
     finally:
         v.shutdown()
         v.deleteLater()
+
+
+class TestKaydetDugmesiGenisligi:
+    r""""Farklı Kaydet" düğmesi ETİKETİNİ kırpmamalı.
+
+    ÖLÇÜLDÜ (2026-09-09, gerçek pencere + Segoe UI; offscreen'de yazı tipi
+    olmadığı için bu ölçüm ancak gerçek platformda yapılabiliyor): sabit
+    110 px Türkçe etikete yetmiyor, düğme "💾 Farklı Kayd" görünüyordu.
+    1280/1366/1600/1920'nin dördünde de aynı, yani pencere boyutuyla ilgisi
+    yok; İngilizce "Save As" sığdığı için kusur uygulamanın KENDİ dilinde
+    görünüyordu.
+
+    Kapı yazı tipinden BAĞIMSIZ: piksel sayısına değil, "sabit genişlik
+    etiketin istediğinden küçük değil" bağıntısına bakıyor. Böylece
+    offscreen CI'da da anlamlı kalıyor.
+    """
+
+    def _viewer(self, qapp, tema="dark"):
+        v = PdfViewer(theme=THEMES[tema])
+        v.apply_theme(THEMES[tema])
+        qapp.processEvents()
+        return v
+
+    def test_SABIT_genislik_etiketten_kucuk_degil(self, qapp):
+        v = self._viewer(qapp)
+        try:
+            b = v._btn_save
+            assert b.maximumWidth() >= b.sizeHint().width(), (
+                "düğme %d px sabit, etiket %d px istiyor: '%s' kırpılır"
+                % (b.maximumWidth(), b.sizeHint().width(), b.text()))
+        finally:
+            v.shutdown()
+            v.deleteLater()
+            qapp.processEvents()
+
+    def test_TABAN_genislik_korunuyor(self, qapp):
+        """Aşırı düzeltme kapısı: kısa etikette düğme daralmamalı, çubuğun
+        hizası dile göre oynamasın.
+
+        Ölçüt KISA bir etiketle kuruluyor: yazı tipi ne olursa olsun tek
+        harfin istediği genişlik tabanın altında kalır, yani kapı ortamdan
+        bağımsız.
+        """
+        v = self._viewer(qapp)
+        try:
+            v._btn_save.setText("X")
+            v.apply_theme(THEMES["dark"])
+            qapp.processEvents()
+            assert v._btn_save.minimumWidth() >= 110
+        finally:
+            v.shutdown()
+            v.deleteLater()
+            qapp.processEvents()
+
+    def test_ETIKET_UZAYINCA_genislik_yeniden_olculuyor(self, qapp):
+        """Genişlik stil uygulandıktan SONRA hesaplanıyor.
+
+        Kurulum anındaki `sizeHint` stil (dolgu) uygulanmadan önceki değer;
+        gerçek kusur da buydu. Kapı UZUN bir etiketle ölçüyor: hesaplama
+        `apply_theme`ten kalkarsa sabit genişlik eski değerinde kalır ve
+        etiket kırpılır. Uzun metin her yazı tipinde uzun olduğu için kapı
+        offscreen'de de anlamlı.
+        """
+        v = self._viewer(qapp, "dark")
+        try:
+            b = v._btn_save
+            eski = b.maximumWidth()
+            b.setText("Farklı Kaydet ve epeyce uzun bir etiket daha")
+            v.apply_theme(THEMES["dark"])
+            qapp.processEvents()
+            assert b.maximumWidth() > eski, "genişlik yeniden ölçülmemiş"
+            assert b.maximumWidth() >= b.sizeHint().width()
+        finally:
+            v.shutdown()
+            v.deleteLater()
+            qapp.processEvents()

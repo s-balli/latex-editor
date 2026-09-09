@@ -96,7 +96,19 @@ class PdfUISetupMixin:
         )
 
         self._btn_save = QPushButton(_("💾 Farklı Kaydet"))
-        self._btn_save.setFixedWidth(110)
+        # Sabit 110 px değil ASGARİ: 110 Türkçe etikete YETMİYOR ve düğme
+        # ekranda "💾 Farklı Kayd" görünüyordu. ÖLÇÜLDÜ (2026-09-09, gerçek
+        # pencere ve Segoe UI ile; offscreen'de yazı tipi olmadığı için bu
+        # ölçüm yapılamıyor): düğme 110 px, metnin istediği 112 px, ve bu
+        # 1280/1366/1600/1920'nin dördünde de böyle, yani pencere boyutuyla
+        # ilgisi yok. İngilizce "Save As" 110'a sığdığı için kusur yalnız
+        # uygulamanın KENDİ dilinde görünüyordu.
+        #
+        # Ölçüt sabit sayı değil metnin kendisi: 110 hizayı korumak için
+        # taban, `sizeHint` ise etiketin gerçekten istediği genişlik. Böyle
+        # yazılınca yazı tipi, ölçekleme (DPI) ya da yeni bir çeviri
+        # etiketi uzattığında da kırpılmıyor.
+        self._kaydet_genisligini_ayarla()
         self._btn_save.clicked.connect(self._save_as)
         self._btn_save.setEnabled(False)
 
@@ -107,7 +119,12 @@ class PdfUISetupMixin:
             icon_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'linux', 'invert.svg')
         self._btn_invert = QPushButton(QIcon(icon_path), "")
         self._btn_invert.setCheckable(True)
-        self._btn_invert.setFixedWidth(60)
+        # Genişlik SABİTLENMİYOR: ikondan başka içeriği yok, kendi ölçüsü
+        # 46 px ve sabit 60 px ona 14 px fazladan yer veriyordu. Çubuk 1366
+        # ve 1280 px'de o 14 px kadar taşıyor, Qt de açığı KISALABİLEN
+        # ögelerden alıyordu; bedeli "💾 Farklı Kaydet" etiketinin
+        # kırpılmasıydı (ölçüldü 2026-09-09). Kardeş ikon düğmeleri de
+        # (yer imi, çift sayfa) kendi ölçüsünde duruyor.
         self._btn_invert.setToolTip(_("PDF renklerini ters çevir"))
         self._btn_invert.toggled.connect(self._toggle_invert)
 
@@ -313,6 +330,29 @@ class PdfUISetupMixin:
         self._pages_widget.setStyleSheet(
             f"QWidget#pdfPagesWidget {{ background: {bg}; }}")
 
+    def _kaydet_genisligini_ayarla(self):
+        """"Farklı Kaydet" düğmesini ETİKETİNE göre genişlet.
+
+        Sabit 110 px Türkçe etikete YETMİYORDU: ekranda "💾 Farklı Kayd"
+        görünüyordu (ölçüldü 2026-09-09, gerçek pencere + Segoe UI, dört
+        pencere genişliğinde de; offscreen'de yazı tipi olmadığı için bu
+        ölçüm yapılamıyor). İngilizce "Save As" sığdığından kusur yalnız
+        uygulamanın KENDİ dilinde görünüyordu.
+
+        İki ayrıntı ölçümle çıktı:
+
+        - SABİT genişlik şart, asgari yetmiyor: çubuktaki `addStretch()`
+          boşluğun tamamını yiyor, asgari genişlikli düğme hiç büyümüyor.
+        - Genişlik BURADA hesaplanıyor, kurulumda değil: kurulum anında
+          `sizeHint` 110, stil (dolgu) uygulandıktan sonra 112. Kurulumda
+          hesaplanan sayı bu yüzden hep eski kalıyordu.
+
+        110 taban olarak duruyor: İngilizce etiket daha kısa ve düğmenin
+        dile göre küçülmesi çubuğun hizasını oynatırdı.
+        """
+        self._btn_save.setFixedWidth(
+            max(110, self._btn_save.sizeHint().width()))
+
     def apply_theme(self, t: dict):
         self._theme = t
         self._kaydirma_zemini(t)
@@ -388,6 +428,7 @@ class PdfUISetupMixin:
             f"QPushButton {{ background: transparent; border: none; border-radius: 3px; padding: 2px; }}"
             f"QPushButton:hover {{ background: {t['bg_hover']}; }}"
         )
+        self._kaydet_genisligini_ayarla()
         for label in self._page_labels:
             if label.property(self._MESAJ_OZELLIGI):
                 label.setStyleSheet(self._mesaj_stili(t))
