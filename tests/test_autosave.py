@@ -290,3 +290,147 @@ def test_KODLAMAYA_SIGMAYAN_karakterde_dosya_BOZULMUYOR(ana_pencere,
     assert ed.isModified() is True, "iş kayboldu"
     assert kutular == [], "zamanlayıcıdan modal açıldı"
     assert "kaydedilemedi" in p._status.currentMessage()
+
+
+# =====================================================================
+# "Kendiminkini Koru" + otomatik kaydetme: dış değişiklik ezilmemeli
+#
+# ÖLÇÜLDÜ (2026-09-09, gerçek pencerede):
+#
+#   kullanıcı arabelleği değiştirir (kaydetmez)
+#   dışarıdan biri dosyayı değiştirir  -> disk: "DISARIDAN..."
+#   uyarıda "Kendiminkini Koru"        -> disk hâlâ "DISARIDAN..."
+#   otomatik kaydetme turu             -> disk "BENIM..."   <- dış değişiklik GİTTİ
+#
+# "Koru" kararı "arabelleğim kalsın" demek, "diski ez" demek DEĞİL.
+# Otomatik kaydetmeden önce kullanıcı seçimi elinde tutuyordu (farkı
+# inceleyip Ctrl+S ya da yeniden yükleme); üç dakikalık zamanlayıcı o
+# seçimi elinden alıyor ve BAŞKASININ işini yok ediyor.
+# =====================================================================
+
+
+def _dis_degisiklik(p, yol, ed, yeni_icerik="DISARIDAN gelen\n"):
+    """Diski dışarıdan değiştir ve yeni hash'i döndür."""
+    yol.write_text(yeni_icerik, encoding="utf-8")
+    return p._file_hash(str(yol))
+
+
+def test_KORU_dedikten_sonra_otomatik_kayit_DISKI_EZMIYOR(
+        ana_pencere, tmp_path, monkeypatch):
+    """Kırılırsa kullanıcının yüklemeyi REDDETTİĞİ dış değişiklik üç dakika
+    içinde sessizce yok oluyor."""
+    yol = _proje(tmp_path, "ortak.tex")
+    p = ana_pencere()
+    p._dis_yolu_ac(str(yol), "kapi")
+    ed = p._current_editor()
+    ed.setText("BENIM degisiklikim\n")
+    yeni_hash = _dis_degisiklik(p, yol, ed)
+    monkeypatch.setattr(QMessageBox, "exec", lambda self: None)  # "Koru"
+    p._prompt_reload(ed, str(yol), yeni_hash)
+    assert yol.read_text(encoding="utf-8") == "DISARIDAN gelen\n"
+
+    p._autosave_tick()
+
+    assert yol.read_text(encoding="utf-8") == "DISARIDAN gelen\n"
+    assert ed.isModified() is True          # iş arabellekte duruyor
+
+
+def test_ACIK_KAYIT_ayrisma_isaretini_DUSURUYOR(ana_pencere, tmp_path,
+                                                monkeypatch):
+    """Ctrl+S kullanıcının AÇIK kararı: ondan sonra otomatik kaydetme yine
+    çalışmalı, yoksa dosya kalıcı olarak otomatik kaydetme dışında kalır."""
+    yol = _proje(tmp_path, "ortak.tex")
+    p = ana_pencere()
+    p._dis_yolu_ac(str(yol), "kapi")
+    ed = p._current_editor()
+    ed.setText("BENIM\n")
+    yeni_hash = _dis_degisiklik(p, yol, ed)
+    monkeypatch.setattr(QMessageBox, "exec", lambda self: None)
+    p._prompt_reload(ed, str(yol), yeni_hash)
+    assert str(yol) in p._disk_ayristi or os.path.normpath(str(yol)) \
+        in p._disk_ayristi
+
+    ed.save_file()                          # kullanıcı açıkça kaydediyor
+    p._file_watch_record_save(ed.file_path)
+
+    assert os.path.normpath(str(yol)) not in p._disk_ayristi
+    ed.setText("SONRAKI degisiklik\n")
+    p._autosave_tick()
+    assert yol.read_text(encoding="utf-8") == "SONRAKI degisiklik\n"
+
+
+def test_DISKTEN_YUKLE_ayrisma_isaretini_DUSURUYOR(ana_pencere, tmp_path,
+                                                   monkeypatch):
+    """Aşırı düzeltme kapısı: diskten yükledikten sonra arabellek diskle
+    aynı, otomatik kaydetme yeniden serbest."""
+    yol = _proje(tmp_path, "ortak.tex")
+    p = ana_pencere()
+    p._dis_yolu_ac(str(yol), "kapi")
+    ed = p._current_editor()
+    ed.setText("BENIM\n")
+    yeni_hash = _dis_degisiklik(p, yol, ed)
+
+    # İşareti ÖNCE gerçekten koy. Koymadan yapılan ölçüm boşa dönüyordu:
+    # işaret yalnız "Koru" dalında konuyor, dolayısıyla `discard` satırını
+    # silmek hiçbir kapıyı düşürmüyordu (mutasyon yakaladı).
+    monkeypatch.setattr(QMessageBox, "exec", lambda self: None)   # "Koru"
+    p._prompt_reload(ed, str(yol), yeni_hash)
+    assert os.path.normpath(str(yol)) in p._disk_ayristi
+
+    # "Diskten Yükle" kolunu seç: AcceptRole düğmesine tıklanmış gibi
+    def _exec_yukle(self):
+        for b in self.buttons():
+            if self.buttonRole(b) == QMessageBox.ButtonRole.AcceptRole:
+                self.setDefaultButton(b)
+                b.click()
+                return 0
+        return 0
+
+    monkeypatch.setattr(QMessageBox, "exec", _exec_yukle)
+    p._prompt_reload(ed, str(yol), yeni_hash)
+
+    assert os.path.normpath(str(yol)) not in p._disk_ayristi
+    # QScintilla Windows'ta arabellekte CRLF tutuyor; `save_file` yazarken
+    # dosyanın kendi satır sonu stiline geri çeviriyor. Karşılaştırma bu
+    # yüzden satır sonundan bağımsız.
+    assert ed.text().replace("\r\n", "\n") == "DISARIDAN gelen\n"
+
+    # İşaretin düştüğü yalnız kümeye bakarak değil, DAVRANIŞLA görünsün:
+    # otomatik kaydetme yeniden yazıyor.
+    ed.setText("SONRAKI\n")
+    p._autosave_tick()
+    assert yol.read_text(encoding="utf-8") == "SONRAKI\n"
+
+
+def test_AYRISMAMIS_dosya_hala_otomatik_kaydediliyor(ana_pencere, tmp_path):
+    """Aşırı düzeltme kapısı: kısıtlama YALNIZ ayrışmış dosyalara."""
+    yol = _proje(tmp_path)
+    p = ana_pencere()
+    p._dis_yolu_ac(str(yol), "kapi")
+    p._current_editor().setText("degisti\n")
+    assert p._disk_ayristi == set()
+
+    p._autosave_tick()
+
+    assert yol.read_text(encoding="utf-8") == "degisti\n"
+
+
+def test_TEMIZ_arabellekte_YOKSAY_dosyayi_kalici_disi_BIRAKMIYOR(
+        ana_pencere, tmp_path, monkeypatch):
+    """Aşırı düzeltme kapısı: arabellek TEMİZKEN gelen uyarıda "Yoksay"
+    demek ayrışma değil. İşaret orada da konursa dosya bir daha hiç
+    otomatik kaydedilmez ve kullanıcı bunu fark etmez."""
+    yol = _proje(tmp_path, "ortak.tex")
+    p = ana_pencere()
+    p._dis_yolu_ac(str(yol), "kapi")
+    ed = p._current_editor()
+    assert ed.isModified() is False
+    yeni_hash = _dis_degisiklik(p, yol, ed)
+    monkeypatch.setattr(QMessageBox, "exec", lambda self: None)  # "Yoksay"
+    p._prompt_reload(ed, str(yol), yeni_hash)
+
+    assert os.path.normpath(str(yol)) not in p._disk_ayristi
+
+    ed.setText("BENIM yeni yazim\n")
+    p._autosave_tick()
+    assert yol.read_text(encoding="utf-8") == "BENIM yeni yazim\n"

@@ -29,6 +29,13 @@ class FileWatchMixin:
         # Diskten silinmiş ama kullanıcı "Sekmede Tut" dediği için sekmesi
         # açık duran yollar.
         self._silinen_tutulanlar: set[str] = set()
+        # Diskteki içerik DIŞARIDAN değişti ve kullanıcı "Kendiminkini Koru"
+        # dedi: arabellek diskten AYRIŞTI. Otomatik kaydetme bu yolları
+        # atlıyor, yoksa kullanıcının yüklemeyi REDDETTİĞİ dış değişikliği
+        # (git checkout, ortak yazar, senkron istemcisi) sessizce eziyordu
+        # (ölçüldü 2026-09-09). İşaret açık bir kayıtla ya da diskten
+        # yeniden yüklemeyle düşüyor: ikisi de kullanıcının kararı.
+        self._disk_ayristi: set[str] = set()
         # Modal "dosya değişti" dialog'u açıkken yeniden tur koşmasın:
         # dialog exec() event loop'u döndürür, debounce timer tekrar tetiklenip
         # farklı dosyalar için ikinci/üçüncü promptu üst üste yığardı
@@ -64,6 +71,7 @@ class FileWatchMixin:
         self._pending_reloads.discard(path)
         # Sekme kapandıysa geri gelmesini beklemenin de anlamı kalmadı.
         self._silinen_tutulanlar.discard(path)
+        self._disk_ayristi.discard(path)
         self._silinen_izlemesini_toparla()
         _logger.debug("Watch kaldırıldı: %s", path)
 
@@ -72,6 +80,9 @@ class FileWatchMixin:
         if not path:
             return
         path = os.path.normpath(path)
+        # Açık bir kayıt (Ctrl+S, derleme öncesi kayıt) kullanıcının "benim
+        # sürümüm geçerli" kararıdır: ayrışma işareti düşer.
+        self._disk_ayristi.discard(path)
         if os.path.isfile(path):
             self._save_hashes[path] = self._file_hash(path)
             # Bazı platformlarda kaydetme watcher'ı kaldırır, yeniden ekle
@@ -338,9 +349,14 @@ class FileWatchMixin:
             editor.setCursorPosition(line, min(col, len(line_text)))
             editor.ensureLineVisible(line)
             self._save_hashes[path] = new_hash
+            self._disk_ayristi.discard(path)   # arabellek artık diskle aynı
             self._detect_engine(path)
             _logger.info("Dosya diskten yeniden yüklendi: %s", path)
         else:
             # Kullanıcı kendi sürümünü korumak istiyor — hash'i editor içeriğine güncelle
             # Böylece sonraki dış değişiklikte tekrar uyarı verilir
             self._save_hashes[path] = current_hash if (current_hash := self._file_hash(path)) else self._save_hashes.get(path, "")
+            # "Koru" = arabelleğim kalsın; DISKI EZ demek DEĞİL. Otomatik
+            # kaydetme bu yolu atlıyor (bkz. yukarıdaki not).
+            if editor.isModified():
+                self._disk_ayristi.add(path)

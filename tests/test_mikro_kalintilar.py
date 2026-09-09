@@ -548,6 +548,7 @@ class _WatchStub:
     def __init__(self):
         self._save_hashes = {}
         self._reload_prompt_active = False
+        self._disk_ayristi = set()
         self.engine_cagrildi = 0
 
     def _detect_engine(self, path):

@@ -84,6 +84,14 @@ class AutosaveOpsMixin:
             # geri yazmak istiyorsa Ctrl+S bunu açıkça yapıyor.
             if yol in getattr(self, "_silinen_tutulanlar", ()):
                 continue
+            # Disk DIŞARIDAN değişti ve kullanıcı "Kendiminkini Koru" dedi.
+            # O karar "arabelleğim kalsın" demek, "diski ez" demek DEĞİL.
+            # ÖLÇÜLDÜ (2026-09-09): dıştan gelen değişiklik (git checkout,
+            # ortak yazar, senkron istemcisi) üç dakika içinde sessizce
+            # kayboluyordu. Kullanıcı ezmek isterse Ctrl+S bunu açıkça
+            # yapıyor ve işareti de düşürüyor.
+            if yol in getattr(self, "_disk_ayristi", ()):
+                continue
             if editor.save_file(sessiz=True):
                 kaydedilen += 1
                 self._autosave_bildirilen.discard(yol)
