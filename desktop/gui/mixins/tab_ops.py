@@ -9,6 +9,9 @@ from PyQt6.QtWidgets import (
     QTabBar as _QTabBar, QToolButton, QMenu, QApplication, QStyle,
 )
 
+from core.latex_refs import (
+    CITE_KOMUTLARI, REF_ARALIK_KOMUTLARI, REF_KOMUTLARI, komut_alternatifi,
+)
 from gui.editor import EditorWidget
 from PyQt6.QtCore import QCoreApplication
 
@@ -66,13 +69,30 @@ _RE_BRACES = re.compile(r'[{}\[\]]')
 # Argümanı GÖRÜNÜR METİN OLMAYAN komutlar — argümanıyla birlikte atılır.
 # (\section{Başlık} bu listede DEĞİL: başlık okunan metindir, sayılmalı.)
 # İç içe küme desteği \graphicspath{{sekiller/}} için gerekli.
+# Referans/atıf ailesi core/latex_refs'ten geliyor, burada KOPYA
+# tutulmuyor. Kopya vardı ve geride kalmıştı: ÖLÇÜLDÜ (2026-09-09) dokuz
+# komutun ANAHTARI görünür kelime sayılıyordu (`\autocite{yilmaz2020}`
+# sayacı bir artırıyordu). Tez sınırını kelime sayısıyla denetleyen biri
+# için 300 atıflı bir belgede 300 kelimelik sahte fark demek.
+_ARGUMANI_GORUNMEZ = tuple(sorted(set(
+    ("label",) + tuple(REF_KOMUTLARI) + tuple(CITE_KOMUTLARI) + (
+        "bibliography", "bibliographystyle", "addbibresource", "bibitem",
+        "includegraphics", "usepackage", "RequirePackage", "documentclass",
+        "graphicspath", "input", "include", "setlength", "definecolor",
+        "hypersetup", "geometry", "pagestyle", "thispagestyle", "url",
+        "href")),
+    key=lambda s: (-len(s), s)))
 _RE_LABELS = re.compile(
-    r'\\(?:label|ref|eqref|pageref|autoref|[cC]ref|nocite|cite[a-zA-Z]*'
-    r'|bibliography|bibliographystyle|addbibresource|bibitem'
-    r'|includegraphics|usepackage|RequirePackage|documentclass|graphicspath'
-    r'|input|include|setlength|definecolor|hypersetup|geometry'
-    r'|pagestyle|thispagestyle|url|href)'
+    r'\\(?:' + '|'.join(_ARGUMANI_GORUNMEZ) + r')\*?'
     r'\s*(?:\[[^\]]*\])?\s*\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\}'
+)
+# Aralık biçimi İKİ anahtar alıyor (`\crefrange{ilk}{son}`); tek kümelik
+# desen ikincisini metinde bırakıyordu. AYRI desen, çünkü `\href{url}{metin}`
+# gibi İKİNCİ argümanı GÖRÜNÜR olan komutlar da bu listede ve orada ikinci
+# kümeyi atmak gerçek metni yutardı.
+_RE_REF_ARALIK = re.compile(
+    komut_alternatifi(REF_ARALIK_KOMUTLARI)
+    + r'\s*(?:\[[^\]]*\])?\s*\{[^{}]*\}\s*\{[^{}]*\}'
 )
 _RE_BEGIN_END = re.compile(r'\\(?:begin|end)\{[^}]*\}(?:\[[^\]]*\])?(?:\{[^}]*\})*')
 # Hizalama ayracı: tablo satırı başına 2-3 sahte kelime üretiyordu.
@@ -108,6 +128,7 @@ def _latex_wordcount(text: str) -> tuple[int, int]:
     t = _RE_COMMENT.sub('', t)
     t = _RE_MATH_ENV_BLOCK.sub(' ', t)   # \begin{equation}...\end{equation} (tag'ler ayrılmadan önce)
     t = _RE_MATH_DELIM.sub(' ', t)       # $...$, $$...$$, \(...\), \[...\]
+    t = _RE_REF_ARALIK.sub(' ', t)       # iki anahtarlı biçim, tekilden ÖNCE
     t = _RE_LABELS.sub(' ', t)
     t = _RE_BEGIN_END.sub(' ', t)
     t = _RE_COMMANDS.sub(' ', t)

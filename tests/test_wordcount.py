@@ -259,3 +259,79 @@ def test_govdesiz_parca_dosyada_da_kod_blogu_atiliyor():
              "\\end{lstlisting}\n"
              "Dort bes alti.\n")
     assert words(parca) == 6
+
+
+# =====================================================================
+# Referans/atıf ANAHTARI görünür kelime değil
+#
+# `_RE_LABELS` argümanıyla birlikte atılacak komutların listesini KENDİ
+# tutuyordu ve `core/latex_refs`teki aile genişletildiğinde geride kaldı.
+# Tanınmayan komutun kendisi `_RE_COMMANDS` ile atılıyor ama ARGÜMANI
+# metinde kalıyor ve kelime sayılıyor.
+#
+# ÖLÇÜLDÜ (2026-09-09), görünür metin sabit tutulup komut eklenerek:
+#
+#   \ref \cite \citep                       fark 0   (doğru)
+#   \autocite \footcite \parencite          fark +1
+#   \textcite \nameref \cpageref            fark +1
+#   \labelcref \vpageref \crefrange         fark +1
+#
+# Tez sınırını kelime sayısıyla denetleyen biri için 300 atıflı bir belgede
+# 300 kelimelik sahte fark demek.
+# =====================================================================
+
+from core.latex_refs import CITE_KOMUTLARI, REF_KOMUTLARI
+
+_GOVDE = ("\\documentclass{article}\n\\begin{document}\n"
+          "Bu cumlede tam olarak sekiz gorunur kelime var %s\n"
+          "\\end{document}\n")
+_TABAN = 8
+
+
+@pytest.mark.parametrize("komut", sorted(REF_KOMUTLARI))
+def test_REFERANS_anahtari_kelime_SAYILMIYOR(komut):
+    """Kırılırsa her referans sayacı bir artırıyor."""
+    n, _c = _latex_wordcount(_GOVDE % ("\\%s{fig:sonuc}" % komut))
+
+    assert n == _TABAN, komut
+
+
+@pytest.mark.parametrize("komut", sorted(CITE_KOMUTLARI))
+def test_ATIF_anahtari_kelime_SAYILMIYOR(komut):
+    n, _c = _latex_wordcount(_GOVDE % ("\\%s{yilmaz2020}" % komut))
+
+    assert n == _TABAN, komut
+
+
+def test_ARALIK_biciminin_IKI_anahtari_da_atiliyor():
+    r"""`\crefrange{ilk}{son}` iki anahtar alıyor; tek kümelik desen
+    ikincisini metinde bırakıyordu."""
+    n, _c = _latex_wordcount(_GOVDE % "\\crefrange{fig:a}{fig:z}")
+
+    assert n == _TABAN
+
+
+# --- Aşırı düzeltme kapıları ---
+
+def test_HREF_in_GORUNUR_metni_hala_sayiliyor():
+    r"""`\href{url}{metin}` ikinci argümanı GÖRÜNÜR. Aralık kolu bütün
+    listeye uygulansaydı burada gerçek metin yutulurdu."""
+    n, _c = _latex_wordcount(
+        _GOVDE % "\\href{http://ornek.com}{tikla buraya}")
+
+    assert n == _TABAN + 2, "href'in görünür metni sayılmıyor"
+
+
+def test_SECTION_BASLIGI_hala_sayiliyor():
+    r"""Aşırı düzeltme kapısı: `\section{Başlık}` okunan metindir ve bu
+    listeye GİRMEMELİ."""
+    n, _c = _latex_wordcount(_GOVDE % "\\section{Yeni Bolum}")
+
+    assert n == _TABAN + 2
+
+
+def test_LABEL_hala_atiliyor():
+    """Liste yeniden kurulurken `label` düşmemeli."""
+    n, _c = _latex_wordcount(_GOVDE % "\\label{fig:sonuc}")
+
+    assert n == _TABAN
