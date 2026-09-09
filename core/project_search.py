@@ -188,7 +188,21 @@ def search_project(root: str, query: str, *, case_sensitive: bool = False,
                 # eşleşme bulunur.
                 if len(bulgular) > limit:
                     return bulgular[:limit], True
-                bas = karsilastirilan.find(aranan, bas + 1)
+                # Eşleşmenin SONUNDAN devam: kendisiyle örtüşen eşleşmeler
+                # ayrı sonuç değil. Bir karakter ilerlemek uygulamayı
+                # KENDİSİYLE çelişkiye düşürüyordu; aynı metin, aynı sorgu
+                # (ölçüldü 2026-09-09, Ctrl+F / Projede Ara):
+                #
+                #   `a \\\\ b`  sorgu `\\`  ->  2 / 3
+                #   `a      b`  sorgu iki boşluk  ->  3 / 5
+                #
+                # İkisi de gerçek LaTeX sorgusu (satır kırma, fazla boşluk
+                # temizliği). Panelde fazlalıklar AYNI satırın aynı metniyle
+                # görünüyor, kullanıcı ayırt edemiyordu. 39 gerçek şablonda
+                # `\\` sorgusu 2725 satır gösteriyordu, doğrusu 2629.
+                # Ctrl+F'in motoru (SCI_SEARCHINTARGET) da eşleşmenin
+                # sonundan devam ediyor; grep -o da öyle.
+                bas = karsilastirilan.find(aranan, bas + len(aranan))
     return bulgular, False
 
 

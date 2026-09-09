@@ -859,3 +859,40 @@ class TestKokDisiHarfYazimi:
         _yaz(kok, "a.tex", "x\n")
         s = self._stub(panel, kok, os.path.join(kok, "a.tex"))
         assert s._kok_disinda_mi(kok) == ""
+
+
+class TestOrtusenEslesme:
+    r"""Kendisiyle örtüşen eşleşmeler AYRI sonuç değil.
+
+    ÖLÇÜLDÜ (2026-09-09): tarama bir karakter ilerliyordu ve aynı metin
+    hakkında Ctrl+F ile Projede Ara farklı sayı veriyordu:
+    `a \\\\ b` içinde `\\` sorgusu 2 / 3, altı boşluk içinde iki boşluk
+    3 / 5. İkisi de gerçek LaTeX sorgusu; fazlalık satırlar panelde AYNI
+    satırın aynı metniyle görünüyor, kullanıcı ayırt edemiyor.
+    """
+
+    def test_TERS_BOLU_ciftinde_ortusme_yok(self, tmp_path):
+        _yaz(str(tmp_path), "m.tex", "a \\\\\\\\ b\n")
+        bulgular, _k = search_project(str(tmp_path), "\\\\")
+        assert [(b.line, b.col) for b in bulgular] == [(1, 2), (1, 4)]
+
+    def test_BOSLUK_dizisinde_ortusme_yok(self, tmp_path):
+        _yaz(str(tmp_path), "m.tex", "a      b\n")   # altı boşluk
+        bulgular, _k = search_project(str(tmp_path), "  ")
+        assert [(b.line, b.col) for b in bulgular] == [(1, 1), (1, 3), (1, 5)]
+
+    def test_KOMSU_eslesmeler_hala_ayri_sonuc(self, tmp_path):
+        """Aşırı düzeltme kapısı: örtüşmeyen ardışık eşleşmeler kaybolmasın.
+
+        `len(aranan)` kadar ilerlemek fazla ilerlerse `abab` içindeki ikinci
+        `ab` düşerdi.
+        """
+        _yaz(str(tmp_path), "m.tex", "abab ab\n")
+        bulgular, _k = search_project(str(tmp_path), "ab")
+        assert [(b.line, b.col) for b in bulgular] == [(1, 0), (1, 2), (1, 5)]
+
+    def test_TEK_karakterli_sorgu_degismedi(self, tmp_path):
+        """Tek karakterde örtüşme kavramı yok: sayı aynı kalmalı."""
+        _yaz(str(tmp_path), "m.tex", "aaa\n")
+        bulgular, _k = search_project(str(tmp_path), "a")
+        assert [(b.line, b.col) for b in bulgular] == [(1, 0), (1, 1), (1, 2)]

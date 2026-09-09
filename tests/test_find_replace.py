@@ -1005,3 +1005,35 @@ def test_GERCEK_PENCEREDE_sekme_degisimi_sayaci_yeniliyor(ana_pencere,
 
     assert bar._editor is p._current_editor()
     assert bar._lbl_count.text() == "Sonuç yok"
+
+
+class TestIkiAramaAyniSayiyi:
+    r"""Ctrl+F ile Projede Ara AYNI metinde aynı sayıyı vermeli.
+
+    İki ayrı motor: burada QScintilla hedef araması, orada saf Python. İkisi
+    de kullanıcıya "N sonuç" diye aynı dili konuşuyor, o yüzden ölçüt
+    birbirlerine EŞİTLİKLERİ. ÖLÇÜLDÜ (2026-09-09): kendisiyle örtüşen
+    sorgularda ayrışıyorlardı (`\\` -> 2 / 3, iki boşluk -> 3 / 5).
+    """
+
+    ORNEKLER = [
+        ("a \\\\\\\\ b\n", "\\\\"),
+        ("a      b\n", "  "),
+        ("aaaa\n", "aa"),
+        ("abab ab\n", "ab"),
+        ("bir iki bir\n", "bir"),
+    ]
+
+    def test_ayni_sayi(self, qapp, tmp_path):
+        from core.project_search import search_project
+
+        for icerik, sorgu in self.ORNEKLER:
+            yol = tmp_path / "m.tex"
+            yol.write_text(icerik, encoding="utf-8", newline="")
+            bar, _ed = _bar(icerik, sorgu)
+            bar._cb_case.setChecked(True)           # iki taraf da harf duyarlı
+            bar._count_matches(sorgu)
+            bulgular, kesildi = search_project(str(tmp_path), sorgu,
+                                               case_sensitive=True)
+            assert not kesildi
+            assert bar._match_count == len(bulgular), (icerik, sorgu)
