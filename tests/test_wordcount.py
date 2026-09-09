@@ -335,3 +335,130 @@ def test_LABEL_hala_atiliyor():
     n, _c = _latex_wordcount(_GOVDE % "\\label{fig:sonuc}")
 
     assert n == _TABAN
+
+
+# =====================================================================
+# Sayaca LaTeX SÖZDİZİMİ sızmıyor
+#
+# "Sayı doğru mu" sorusu sayıya bakarak cevaplanamaz; ama görünür metnin
+# parçası ters bölü, süslü parantez, `^` ya da `~` TAŞIMAZ. Taşıyorsa komut
+# ya da argümanı sızmış demektir. 39 şablonun 133 .tex dosyası bu ölçütle
+# tarandı (2026-09-09):
+#
+#   sızıntı taşıyan parça (tekil) : 211 -> 0
+#   sızıntı taşıyan dosya         :  47 -> 0
+#   toplam sızıntı geçişi         : 589 -> 0
+#
+# Üç kök:
+#   `~` bağlayıcı boşluk       98 parça  ('Tablo~', tek başına '~')
+#   `\ ` denetim boşluğu       93 parça  ('bir\', 'in.\')
+#   sözel ortam listesi kopya  `comment`, `listing`, `BVerbatim`,
+#                              `LVerbatim` eksikti; içerikleri TAMAMEN
+#                              sayılıyordu (üç kelimelik belge altı çıkıyor)
+# =====================================================================
+
+from core.latex_utils import VERB_ENVS
+from gui.mixins.tab_ops import _gorunur_parcalar
+
+_SOZEL_TABAN = sorted({e.rstrip("*") for e in VERB_ENVS})
+
+
+@pytest.mark.parametrize("ortam", _SOZEL_TABAN)
+def test_SOZEL_ORTAM_icerigi_sayilmiyor(ortam):
+    """`comment` paketi büyük bir bloğu geçici kapatmanın standart yolu;
+    kapatılan bölüm sayıya girmemeli. Liste TEK KAYNAK olmalı, kopya
+    ayrışıyor."""
+    belge = ("\\documentclass{article}\n\\begin{document}\n"
+             "bir iki\n\\begin{%s}\nbu sayilmamali hic\n\\end{%s}\nuc\n"
+             "\\end{document}\n" % (ortam, ortam))
+
+    assert words(belge) == 3, ortam
+
+
+def test_YILDIZLI_sozel_ortam_da_atiliyor():
+    belge = ("\\documentclass{article}\n\\begin{document}\n"
+             "bir iki\n\\begin{verbatim*}\nbu sayilmamali hic\n"
+             "\\end{verbatim*}\nuc\n\\end{document}\n")
+
+    assert words(belge) == 3
+
+
+def test_BAGLAYICI_BOSLUK_kelime_ve_karakter_DEGIL():
+    r"""`~` LaTeX'te görünür BOŞLUK. `Tablo~\ref{t}` bir kelime ve beş
+    karakter; eskiden 'Tablo~' altı karakter sayılıyordu."""
+    belge = ("\\documentclass{article}\n\\begin{document}\n"
+             "Tablo~\\ref{t}\n\\end{document}\n")
+
+    from gui.mixins.tab_ops import _latex_wordcount
+
+    assert _latex_wordcount(belge) == (1, 5)
+
+
+def test_TEK_BASINA_baglayici_bosluk_kelime_sayilmiyor():
+    r"""`\ref{a}~\ref{b}`: referanslar görünmez sayıldığı için ortada
+    yalnız `~` kalıyordu ve o bir KELİME sayılıyordu."""
+    belge = ("\\documentclass{article}\n\\begin{document}\n"
+             "Bkz. \\ref{a}~\\ref{b} arasinda\n\\end{document}\n")
+
+    assert words(belge) == 2
+
+
+def test_BAGLAYICI_BOSLUK_iki_kelimeyi_BIRLESTIRMIYOR():
+    r"""`~` bir BOŞLUK, yok sayılacak bir işaret değil: silinirse `T.~Wiegand`
+    tek kelime olur. Şablonlarda bu yazım bol (yazar adları, `Prof.~Dr.`)."""
+    belge = ("\\documentclass{article}\n\\begin{document}\n"
+             "T.~Wiegand ve G.~J.~Sullivan\n\\end{document}\n")
+
+    assert _gorunur_parcalar(belge) == ["T.", "Wiegand", "ve", "G.", "J.",
+                                        "Sullivan"]
+
+
+def test_DENETIM_BOSLUGU_kelimeye_yapismiyor():
+    r"""`bir\ iki` LaTeX'te iki kelime; ters bölü kelimeye yapışıyordu."""
+    belge = ("\\documentclass{article}\n\\begin{document}\n"
+             "bir\\ iki\n\\end{document}\n")
+
+    assert _gorunur_parcalar(belge) == ["bir", "iki"]
+
+
+def test_SIZINTI_YOK_karisik_belgede():
+    r"""Genel kapı: görünür metnin hiçbir parçası LaTeX sözdizimi
+    taşımamalı. 39 şablonda kullanılan ölçütün aynısı."""
+    belge = (
+        "\\documentclass{article}\n"
+        "\\begin{document}\n"
+        "Tablo~\\ref{t} ve Sekil~\\ref{s} ile \\autocite{k1}.\n"
+        "Kacisli: \\%20 \\$5 \\&co \\_alt \\#1.\n"
+        "bir\\ iki\\\\ uc\n"
+        "Matematik $x^2 + y_1$ ve \\[ E = mc^2 \\]\n"
+        "\\begin{comment}\ngizli metin\n\\end{comment}\n"
+        "\\begin{verbatim}\n\\ref{kod}\n\\end{verbatim}\n"
+        "\\href{http://ornek.com}{tikla}\n"
+        "\\end{document}\n")
+
+    yasak = set("\\{}^~")
+    kotu = [p for p in _gorunur_parcalar(belge) if yasak & set(p)]
+
+    assert kotu == [], kotu
+
+
+# --- Aşırı düzeltme kapıları ---
+
+def test_KACISLI_NOKTALAMA_hala_gorunur():
+    r"""`\%`, `\$`, `\&`, `\_`, `\#` basılı karakterler; sızıntı süzgeci
+    onları atmamalı (`bob\_private.pem` gerçek görünür metin)."""
+    belge = ("\\documentclass{article}\n\\begin{document}\n"
+             "bob\\_private.pem \\%20 \\$5 \\&co\n\\end{document}\n")
+
+    parcalar = _gorunur_parcalar(belge)
+
+    assert parcalar == ["bob_private.pem", "%20", "$5", "&co"], parcalar
+
+
+def test_SOZEL_BLOKTAN_SONRAKI_metin_hala_sayiliyor():
+    """Blok atılırken sonrası yutulmamalı."""
+    belge = ("\\documentclass{article}\n\\begin{document}\n"
+             "\\begin{comment}\ngizli\n\\end{comment}\n"
+             "gorunur metin burada\n\\end{document}\n")
+
+    assert words(belge) == 3

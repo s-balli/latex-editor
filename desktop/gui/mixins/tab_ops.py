@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import (
 from core.latex_refs import (
     CITE_KOMUTLARI, REF_ARALIK_KOMUTLARI, REF_KOMUTLARI, komut_alternatifi,
 )
+from core.latex_utils import VERB_ENVS
 from gui.editor import EditorWidget
 from PyQt6.QtCore import QCoreApplication
 
@@ -37,8 +38,17 @@ _RE_TITLE_META = re.compile(
 
 # Kod ortamları: içeriği düzyazı değil. Matematik ortamları gibi blok olarak
 # atılır ve EN ÖNCE atılır — içindeki % bir yorum değil, düz karakterdir.
+#
+# Liste core/latex_utils'tan (VERB_ENVS): burada KOPYA tutuluyordu ve
+# ayrışmıştı. ÖLÇÜLDÜ (2026-09-09): `comment`, `listing`, `BVerbatim` ve
+# `LVerbatim` eksikti, o ortamların içi TAMAMEN sayılıyordu (üç kelimelik
+# belge altı kelime çıkıyor). `comment` paketi büyük bir bloğu geçici
+# kapatmanın standart yolu; kapatılan bölüm sayıya girmemeli.
+_VERB_TABAN = tuple(sorted({e.rstrip("*") for e in VERB_ENVS},
+                           key=lambda s: (-len(s), s)))
 _RE_VERBATIM_BLOCK = re.compile(
-    r'\\begin\{(verbatim\*?|lstlisting|minted|Verbatim|alltt)\}.*?\\end\{\1\}',
+    r'\\begin\{(' + '|'.join(re.escape(e) for e in _VERB_TABAN) + r')\*?\}'
+    r'.*?\\end\{\1\*?\}',
     re.DOTALL,
 )
 # Satır sonu (\\ ve \\[2mm]) kelime değildir; \\[a-zA-Z]+ bunu eşlemediği için
@@ -53,8 +63,16 @@ _RE_SENTINEL = re.compile('[\x01-\x05]')
 _RE_COMMENT = re.compile(r'%.*$', re.MULTILINE)
 # \command, yıldızlı biçimi ve köşeli argümanı: \section*[kısa]{...}
 _RE_COMMANDS = re.compile(r'\\[a-zA-Z]+\*?(?:\[[^\]]*\])?')
-# \, \; \! gibi sembol komutları (kaçışlar zaten sentinel'de)
-_RE_SYMCMD = re.compile(r'\\[^a-zA-Z\s]')
+# \, \; \! gibi sembol komutları (kaçışlar zaten sentinel'de). Boşluk da
+# DAHIL: `\ ` LaTeX'in denetim boşluğu ve satır sonundaki tek `\` de bir
+# komut. Dışarıda kaldıklarında ters bölü kelimeye yapışıyordu (ölçüldü,
+# 39 şablonda 93 parça: 'bir\', 'in.\'). Yerine BOŞLUK konuyor, silinmiyor:
+# silmek satır sonundaki `\` ile iki satırın kelimelerini birleştirirdi.
+_RE_SYMCMD = re.compile(r'\\[^a-zA-Z]')
+# `~` bağlayıcı boşluk: LaTeX'te GÖRÜNÜR BOŞLUK, kelime ya da karakter
+# değil. ÖLÇÜLDÜ (39 şablonda 98 parça): `Tablo~\ref{t}` → 'Tablo~' (karakter
+# sayısı +1) ve `\ref{a}~\ref{b}` → tek başına '~' bir KELIME sayılıyordu.
+_RE_NBSP = re.compile(r'~')
 # Matematik bölgeleri: $$...$$ ÖNCE denenmeli (yoksa $$ boş satır içi math gibi yanlış eşlenir)
 _RE_MATH_DELIM = re.compile(
     r'\$\$.+?\$\$|\$[^$\n]*\$|\\\(.+?\\\)|\\\[.+?\\\]',
@@ -99,12 +117,17 @@ _RE_BEGIN_END = re.compile(r'\\(?:begin|end)\{[^}]*\}(?:\[[^\]]*\])?(?:\{[^}]*\}
 _RE_ALIGN = re.compile(r'&')
 
 
-def _latex_wordcount(text: str) -> tuple[int, int]:
-    """LaTeX kaynağından görünür metnin kelime ve karakter sayısı.
+def _gorunur_parcalar(text: str) -> list:
+    """LaTeX kaynağından GÖRÜNÜR metnin parçaları (kelime listesi).
 
     Önsözü, yorumları, matematik/kod ortamlarını, komutları ve tablo
     ayraçlarını eler; kaçışlı noktalamayı (\\%, \\$, \\&) görünür karakter
     olarak korur.
+
+    Sayı yerine LİSTE döndürüyor, çünkü "sayı doğru mu" sorusunu sayıya
+    bakarak denetlemek mümkün değil: 39 gerçek şablon üzerinde ölçüm,
+    parçaların İÇİNDE LaTeX sözdizimi kalıp kalmadığına bakıyor
+    (bkz. tests/test_wordcount.py'deki sızıntı kapısı).
     """
     # Kod ortamları GERÇEKTEN en önce, GÖVDE ÇIKARIMINDAN DA önce. Eskiden
     # gövdeden sonra atılıyordu ve `_RE_BODY` non-greedy olduğu için ilk
@@ -133,12 +156,18 @@ def _latex_wordcount(text: str) -> tuple[int, int]:
     t = _RE_BEGIN_END.sub(' ', t)
     t = _RE_COMMANDS.sub(' ', t)
     t = _RE_SYMCMD.sub(' ', t)
+    t = _RE_NBSP.sub(' ', t)
     t = _RE_ALIGN.sub(' ', t)
     t = _RE_BRACES.sub('', t)
 
     t = _RE_SENTINEL.sub(lambda m: _ESC_CHARS[ord(m.group(0)) - 1], t)
 
-    parcalar = t.split()
+    return t.split()
+
+
+def _latex_wordcount(text: str) -> tuple[int, int]:
+    """Görünür metnin kelime ve karakter sayısı (bkz. _gorunur_parcalar)."""
+    parcalar = _gorunur_parcalar(text)
     return len(parcalar), len(' '.join(parcalar))
 
 
