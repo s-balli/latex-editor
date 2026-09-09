@@ -540,6 +540,20 @@ _RE_REFUSE = re.compile(
 )
 
 
+# Aileyi DIŞARIYA açan tek kaynak. editor.py'nin üç ayrı kopyası vardı ve
+# aile 36a00c0'da genişletildiğinde hiçbiri güncellenmemişti. ÖLÇÜLDÜ
+# (2026-09-09): `\autocite{`, `\ref*{`, `\cpageref{` gibi komutlarda
+# tamamlama açılmıyor, Alt+tık tanıma gitmiyor, F2 anahtarı görmüyordu.
+REF_KOMUTLARI = _REF_ARALIK_KOMUTLARI + _REF_TEKIL_KOMUTLARI
+REF_ARALIK_KOMUTLARI = _REF_ARALIK_KOMUTLARI
+CITE_KOMUTLARI = _CITE_KOMUTLARI
+
+
+def komut_alternatifi(komutlar) -> str:
+    """``\\(?:a|b|c)\\*?`` biçiminde regex parçası (yıldızlı biçim dahil)."""
+    return r'\\(?:' + '|'.join(komutlar) + r')\*?'
+
+
 def _kullanim_anahtarlari(m) -> list[str]:
     """Bir referans/atıf eşleşmesindeki BÜTÜN anahtarlar.
 

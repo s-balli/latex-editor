@@ -11,7 +11,11 @@ from PyQt6.QtGui import QColor, QPalette
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from core.log import get_logger
-from core.latex_refs import collect_cite_keys, collect_image_paths, collect_input_paths, collect_labels
+from core.latex_refs import (
+    CITE_KOMUTLARI, REF_ARALIK_KOMUTLARI, REF_KOMUTLARI, collect_cite_keys,
+    collect_image_paths, collect_input_paths, collect_labels,
+    komut_alternatifi,
+)
 from PyQt6.QtCore import QCoreApplication
 
 _ = lambda s: QCoreApplication.translate("EditorWidget", s)
@@ -33,11 +37,23 @@ _BEGINEND_RE = re.compile(r'\\(begin|end)\s*\{([A-Za-z]+\*?)\}')
 
 # Alt+tık ile \ref/\cite tanıma git: tıklanan konumdaki argümanı yakala.
 # (cite ailesi opsiyonel [...] argümanları olabilir: \citep[see][]{key})
-_RE_REFARG = re.compile(r'\\(?:ref|eqref|pageref|autoref|nameref|vref|cref|Cref)\s*\{([^}]*)\}')
+#
+# Komut AİLESİ core/latex_refs'ten geliyor, burada KOPYA TUTULMUYOR. Üç kopya
+# vardı (bu ikisi + tamamlama tetikleyicisi) ve aile genişletildiğinde
+# hiçbiri güncellenmedi; ölçüldü (2026-09-09): `\autocite{k}` üzerinde Alt+tık
+# ve F2 çalışmıyor, `\autocite{` yazınca tamamlama açılmıyordu.
+_RE_REFARG = re.compile(
+    komut_alternatifi(REF_KOMUTLARI) + r'\s*\{([^}]*)\}')
 _RE_CITEARG = re.compile(
-    r'\\(?:cite|citep|citet|citeauthor|citeyear|citealp|parencite|textcite|nocite)'
-    r'\s*(?:\[[^\]]*\]\s*)*\{([^}]*)\}'
-)
+    komut_alternatifi(CITE_KOMUTLARI) + r'\s*(?:\[[^\]]*\]\s*)*\{([^}]*)\}')
+# Tamamlama tetikleyicileri: imleç açılış kümesinden hemen sonra.
+_RE_REF_TETIK = re.compile(
+    komut_alternatifi(REF_KOMUTLARI) + r'\{([A-Za-z0-9_:.\-]*)$')
+_RE_REF_ARALIK_TETIK = re.compile(
+    komut_alternatifi(REF_ARALIK_KOMUTLARI)
+    + r'\{[^{}]*\}\{([A-Za-z0-9_:.\-]*)$')
+_RE_CITE_TETIK = re.compile(
+    komut_alternatifi(CITE_KOMUTLARI) + r'\{([A-Za-z0-9_:.,\-]*)$')
 # .bib girdi anahtarı: @article{key, — Alt+tık ile makaledeki \cite yerine git
 _RE_BIBENTRY = re.compile(r'@\w+\s*\{\s*([^,\s}]+)\s*,')
 # \bibitem{key} (thebibliography) — Alt+tık ile ters yön: makaledeki \cite yerine
@@ -564,14 +580,16 @@ class EditorWidget(QsciScintilla):
             self._show_env_completion(env.group(1), manual)
             return
 
-        # \ref{ / \cite{ sonrası doküman-farkında tamamlama
-        ref = re.search(r'\\(?:ref|eqref|pageref|autoref|nameref|vref|cref|Cref)\{([A-Za-z0-9_:.\-]*)$',
-                        text_before)
+        # \ref{ / \cite{ sonrası doküman-farkında tamamlama. Aralık biçimi
+        # (`\crefrange{ilk}{son}`) İKİ anahtar alıyor, ikincisinde de liste
+        # açılmalı; o kol yalnız aralık komutlarına özel, yoksa `\ref{a}{`
+        # gibi bir yazımda da açılırdı.
+        ref = (_RE_REF_TETIK.search(text_before)
+               or _RE_REF_ARALIK_TETIK.search(text_before))
         if ref:
             self._show_ref_completion(ref.group(1))
             return
-        cite = re.search(r'\\(?:cite|citep|citet|citeauthor|citeyear|citealp|parencite|textcite|nocite)\{([A-Za-z0-9_:.,\-]*)$',
-                         text_before)
+        cite = _RE_CITE_TETIK.search(text_before)
         if cite:
             self._show_cite_completion(cite.group(1))
             return
