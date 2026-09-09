@@ -118,19 +118,35 @@ def collect_labels(content: str, base_path: str) -> list[str]:
     return sorted(labels)
 
 
-def _bib_path_in(text: str, bdir: str) -> str:
-    """Tek bir metinde .bib bildirimi ara, çözülebilen yolu döndür."""
+def _bib_paths_in(text: str, bdir: str) -> list[str]:
+    """Bir metindeki BÜTÜN .bib bildirimlerinin çözülen yolları (sıralı, tekil).
+
+    Üç biçim birden okunuyor ve üçü de gerçek LaTeX:
+
+      \\bibliography{kaynaklar,ek}          virgüllü liste
+      \\addbibresource{a.bib}
+      \\addbibresource{b.bib}               birden çok bildirim satırı
+      \\addbibresource{...} + \\bibliography{...}
+
+    Virgüllü liste eskiden `kaynaklar,ek.bib` diye TEK ad sayılıyordu,
+    diskte bulunamıyordu ve fonksiyon boş dönüyordu; yani belgenin
+    kaynakçası olduğu hâlde uygulama "kaynakça yok" diyordu. Dışa aktarma
+    tarafında aynı ders 2026-09-06'da gerçek pandoc ile ölçülmüştü, ama
+    düzeltme yalnız oraya yazılmıştı (bkz. exporter._find_bibliography).
+    """
+    bulunan: list[str] = []
     for pat in (_RE_ADDBIB, _RE_BIBLIO):
-        m = pat.search(text)
-        if not m:
-            continue
-        name = m.group(1).strip()
-        if not name.endswith('.bib'):
-            name += '.bib'
-        cand = os.path.join(bdir, name)
-        if os.path.isfile(cand):
-            return cand
-    return ""
+        for m in pat.finditer(text):
+            for name in m.group(1).split(','):
+                name = name.strip()
+                if not name:
+                    continue
+                if not name.endswith('.bib'):
+                    name += '.bib'
+                cand = os.path.join(bdir, name)
+                if os.path.isfile(cand) and cand not in bulunan:
+                    bulunan.append(cand)
+    return bulunan
 
 
 # Zincir taramasının sonucu. Otomatik tamamlama bu fonksiyonu her tuş
@@ -244,7 +260,7 @@ def has_manual_bibliography(content: str, base_path: str) -> bool:
     return False
 
 
-def _bib_path_in_sinif(bdir: str) -> str:
+def _bib_paths_in_sinif(bdir: str) -> list[str]:
     """Belgenin yanındaki `.cls`/`.sty` içinde .bib bildirimi ara.
 
     biblatex şablonlarının bir kısmı `\\addbibresource`i SINIF dosyasına
@@ -270,7 +286,7 @@ def _bib_path_in_sinif(bdir: str) -> str:
                     and ad not in SKIP_DIRS):
                 dizinler.append(alt)
     except OSError:
-        return ""
+        return []
     for dizin in dizinler:
         try:
             adlar = sorted(os.listdir(dizin))
@@ -285,14 +301,14 @@ def _bib_path_in_sinif(bdir: str) -> str:
                     metin = f.read()
             except OSError:
                 continue
-            yol = _bib_path_in(strip_comments(metin), bdir)
-            if yol:
-                return yol
-    return ""
+            yollar = _bib_paths_in(strip_comments(metin), bdir)
+            if yollar:
+                return yollar
+    return []
 
 
-def find_bib_path(content: str, base_path: str) -> str:
-    """\\addbibresource{X.bib} / \\bibliography{X} ile referans verilen .bib yolu.
+def find_bib_paths(content: str, base_path: str) -> list[str]:
+    """\\addbibresource{X.bib} / \\bibliography{X} ile verilen BÜTÜN .bib yolları.
 
     ÖNCE açık belgede, bulunamazsa \\input/\\include ZİNCİRİNDE aranıyor.
     Zincir taraması 2026-09-02'de eklendi: çok dosyalı tezlerde bildirim
@@ -306,27 +322,45 @@ def find_bib_path(content: str, base_path: str) -> str:
 
     22 şablonun 19'unda bildirim ana dosyada; zincir gerektiren 1 tanesi
     template33-tez (`0main.tex` -> `\\include{17kaynaklar}` -> orada).
+
+    BU DEPODA .bib'i BULAN TEK YER. `core/exporter.py`nin kendi kopyası
+    vardı ve iki uygulama birbirinin düzeltmesini taşımıyordu; ÖLÇÜLDÜ
+    (2026-09-09, 39 gerçek şablon): iki tez şablonunda (template33-tez
+    zincirde, template4 sınıf dosyasında) dışa aktarma kaynakçayı HİÇ
+    bulamıyordu, yani DOCX/HTML çıktısı kaynakçasız çıkıyordu. Ters yönde
+    de eksik vardı: virgüllü listeyi yalnız dışa aktarma biliyordu.
     """
     bdir = _base_dir(base_path)
-    dogrudan = _bib_path_in(strip_comments(content), bdir)
+    dogrudan = _bib_paths_in(strip_comments(content), bdir)
     if dogrudan:
         return dogrudan
 
     onbellek = _bib_chain_cache.get(base_path)
     if onbellek and (time.time() - onbellek[0]) < _BIB_CHAIN_TTL:
-        return onbellek[1]
+        return list(onbellek[1])
 
-    sonuc = ""
+    sonuc: list[str] = []
     for _p, metin in _chain_texts(content, base_path):
-        sonuc = _bib_path_in(metin, bdir)
+        sonuc = _bib_paths_in(metin, bdir)
         if sonuc:
             break
     if not sonuc:
-        sonuc = _bib_path_in_sinif(bdir)
+        sonuc = _bib_paths_in_sinif(bdir)
     if len(_bib_chain_cache) > 8:
         _bib_chain_cache.clear()
     _bib_chain_cache[base_path] = (time.time(), sonuc)
-    return sonuc
+    return list(sonuc)
+
+
+def find_bib_path(content: str, base_path: str) -> str:
+    """İLK .bib yolu ("" yoksa). Birden çok dosya için `find_bib_paths`.
+
+    Tek hedef isteyen çağıranlar için: Kaynakça sekmesi bir dosya
+    gösteriyor, DOI ekleme bir dosyaya yazıyor, F2 bir dosyada yeniden
+    adlandırıyor. Bunlar "hangi dosya" kararı, bilgi kopyası değil.
+    """
+    yollar = find_bib_paths(content, base_path)
+    return yollar[0] if yollar else ""
 
 
 # --- \input / \include tamamlama: projedeki .tex dosyaları ---
@@ -392,14 +426,8 @@ def collect_image_paths(base_path: str) -> list[str]:
     return sorted(rels)
 
 
-def collect_cite_keys(content: str, base_path: str) -> list[str]:
-    """Referans verilen .bib dosyasındaki tüm giriş anahtarları (mtime önbellekli).
-
-    .bib bulunamazsa boş liste.
-    """
-    bib_path = find_bib_path(content, base_path)
-    if not bib_path:
-        return []
+def _bib_dosya_anahtarlari(bib_path: str) -> list[str]:
+    """Tek bir .bib dosyasının anahtarları (mtime önbellekli)."""
     try:
         mtime = os.path.getmtime(bib_path)
     except OSError:
@@ -414,6 +442,19 @@ def collect_cite_keys(content: str, base_path: str) -> list[str]:
         return []
     _cache_put(_bib_cache, bib_path, (mtime, keys))
     return keys
+
+
+def collect_cite_keys(content: str, base_path: str) -> list[str]:
+    """Referans verilen BÜTÜN .bib dosyalarındaki giriş anahtarları.
+
+    .bib bulunamazsa boş liste. Birden çok dosya bildirilmişse hepsi
+    okunuyor: yalnız ilkini okumak ikinci dosyanın her atfını "tanımsız"
+    göstermek olurdu (denetim), tamamlamada da o anahtarlar hiç önerilmezdi.
+    """
+    keys: set[str] = set()
+    for bib_path in find_bib_paths(content, base_path):
+        keys.update(_bib_dosya_anahtarlari(bib_path))
+    return sorted(keys)
 
 
 # --- Alt+tık ile tanıma git: anahtarın (dosya, satır) konumu ---
@@ -458,19 +499,19 @@ def find_cite_location(content: str, base_path: str, key: str) -> tuple[str, int
     """\\cite{key} için .bib girişinin (dosya yolu, 1-bazlı satır) konumu.
 
     .bib bulunamaz veya anahtar yoksa None. Alt+tık ile \\cite tanıma git için.
+    Birden çok .bib bildirilmişse hepsine bakılıyor, yoksa ikinci dosyadaki
+    girdiye tıklamak hiçbir şey yapmazdı.
     """
-    bib_path = find_bib_path(content, base_path)
-    if not bib_path:
-        return None
-    pat = re.compile(r'@\w+\s*\{\s*' + re.escape(key) + r'\s*,')
-    try:
-        with open(bib_path, 'r', encoding='utf-8', errors='replace') as f:
-            text = f.read()
-    except OSError:
-        return None
-    for i, ln in enumerate(text.split('\n'), start=1):
-        if pat.search(ln):
-            return (bib_path, i)
+    pat = re.compile(r'@\w+\s*[{(]\s*' + re.escape(key) + r'\s*,')
+    for bib_path in find_bib_paths(content, base_path):
+        try:
+            with open(bib_path, 'r', encoding='utf-8', errors='replace') as f:
+                text = f.read()
+        except OSError:
+            continue
+        for i, ln in enumerate(text.split('\n'), start=1):
+            if pat.search(ln):
+                return (bib_path, i)
     return None
 
 
@@ -771,19 +812,20 @@ def label_locations(content: str, base_path: str) -> dict[str, tuple[str, int]]:
 
 
 def bib_key_locations(content: str, base_path: str) -> dict[str, tuple[str, int]]:
-    """.bib girdi anahtarları → (bib yolu, 1-bazlı satır). .bib tek okuma."""
-    bib_path = find_bib_path(content, base_path)
-    if not bib_path:
-        return {}
-    try:
-        with open(bib_path, 'r', encoding='utf-8', errors='replace') as f:
-            text = f.read()
-    except OSError:
-        return {}
+    """.bib girdi anahtarları → (bib yolu, 1-bazlı satır). Dosya başına tek okuma.
+
+    Mükerrer anahtarda İLK bildirilen dosya kazanıyor, BibTeX de öyle yapıyor.
+    """
     out: dict[str, tuple[str, int]] = {}
-    for i, ln in enumerate(text.split('\n'), start=1):
-        for m in RE_GIRDI_ANAHTARI.finditer(ln):
-            out.setdefault(m.group(1).strip(), (bib_path, i))
+    for bib_path in find_bib_paths(content, base_path):
+        try:
+            with open(bib_path, 'r', encoding='utf-8', errors='replace') as f:
+                text = f.read()
+        except OSError:
+            continue
+        for i, ln in enumerate(text.split('\n'), start=1):
+            for m in RE_GIRDI_ANAHTARI.finditer(ln):
+                out.setdefault(m.group(1).strip(), (bib_path, i))
     return out
 
 

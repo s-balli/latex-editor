@@ -1287,3 +1287,56 @@ class TestRefsBasligiBelgeDilinde:
         """Kaynak okunamıyorsa (silinmiş, izin yok) dışa aktarma bu yüzden
         düşmemeli."""
         assert _refs_basligi(str(tmp_path / "yok.tex")) == "References"
+
+
+class TestDisaAktarmaKaynakcayiAYNI_YERDEN_buluyor:
+    r"""Dışa aktarma .bib'i uygulamanın geri kalanıyla AYNI yerden buluyor.
+
+    Burada kendi uygulaması vardı ve `\input` zincirini de sınıf dosyasını da
+    taramıyordu. ÖLÇÜLDÜ (2026-09-09, gerçek pandoc 3.1.3, template4):
+
+      eski: 123863 bayt, `<div id="refs">` YOK, kaynakça girdisi 0
+            atıf `<span class="citation" data-cites="PFGPlots"></span>`
+            yani okuyucu atıf yerinde HİÇBİR ŞEY görmüyor
+      yeni: 125225 bayt, refs var, 3 girdi
+            atıf `...>(PFGPlots, n.d.)</span>`
+    """
+
+    def _kur(self, tmp_path, ana_icerik, ekler):
+        (tmp_path / "refs.bib").write_text("@article{x,title={T},}\n",
+                                           encoding="utf-8")
+        for ad, ic in ekler:
+            (tmp_path / ad).write_text(ic, encoding="utf-8")
+        tex = tmp_path / "ana.tex"
+        tex.write_text(ana_icerik, encoding="utf-8")
+        return str(tex)
+
+    def test_ZINCIRDEKI_bildirimi_goruyor(self, tmp_path):
+        """template33-tez'in durumu: bildirim \\include edilen dosyada."""
+        tex = self._kur(tmp_path, "\\input{bolum}\n",
+                        [("bolum.tex", "\\addbibresource{refs.bib}\n")])
+        assert _find_bibliography(tex) == [str(tmp_path / "refs.bib")]
+
+    def test_SINIF_dosyasindaki_bildirimi_goruyor(self, tmp_path):
+        """template4'ün durumu: bildirim .cls içinde."""
+        tex = self._kur(tmp_path, "\\documentclass{rho}\n",
+                        [("rho.cls", "\\addbibresource{refs.bib}\n")])
+        assert _find_bibliography(tex) == [str(tmp_path / "refs.bib")]
+
+    def test_IKI_addbibresource_satiri(self, tmp_path):
+        """biblatex'te yaygın: her kaynak ayrı satırda."""
+        (tmp_path / "ek.bib").write_text("@book{y,title={T},}\n",
+                                         encoding="utf-8")
+        tex = self._kur(tmp_path,
+                        "\\addbibresource{refs.bib}\n\\addbibresource{ek.bib}\n",
+                        [])
+        assert _find_bibliography(tex) == [str(tmp_path / "refs.bib"),
+                                           str(tmp_path / "ek.bib")]
+
+    def test_YORUMDAKI_bildirim_hala_yok_sayiliyor(self, tmp_path):
+        """Aşırı düzeltme kapısı: yorumdaki bildirim kaynakça değil."""
+        (tmp_path / "eski.bib").write_text("@book{y,title={T},}\n",
+                                           encoding="utf-8")
+        tex = self._kur(tmp_path,
+                        "%\\bibliography{eski}\n\\bibliography{refs}\n", [])
+        assert _find_bibliography(tex) == [str(tmp_path / "refs.bib")]

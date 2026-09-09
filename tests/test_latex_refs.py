@@ -1373,3 +1373,52 @@ class TestParantezliBibGirdisi:
         assert latex_refs.collect_cite_keys(icerik, str(tex)) == ["yeni2020"]
         assert latex_refs.audit_references(
             icerik, str(tex)).unused_bib_keys == []
+
+
+class TestCokluBibDosyasi:
+    r"""`\bibliography{a,b}` LaTeX'te geçerli: iki dosya da okunmalı.
+
+    Virgüllü liste eskiden TEK ad sayılıyordu (`a,b.bib`), diskte
+    bulunamıyordu ve arama boş dönüyordu. Boş dönmenin bedeli ağır:
+    tamamlama hiçbir anahtar önermiyor, denetim HER atfı "tanımsız" sayıyor,
+    Kaynakça sekmesi boş kalıyor. Düzeltme yalnız dışa aktarma tarafına
+    yazılmıştı (bkz. tests/test_exporter.py).
+    """
+
+    def _proje(self, tmp_path, bildirim):
+        (tmp_path / "a.bib").write_text(
+            "@article{birinci,\n author={A}, title={T1},\n"
+            " journal={J}, year={2020},\n}\n", encoding="utf-8")
+        (tmp_path / "b.bib").write_text(
+            "@book{ikinci,\n author={B}, title={T2},\n"
+            " publisher={P}, year={2021},\n}\n", encoding="utf-8")
+        tex = tmp_path / "m.tex"
+        tex.write_text(bildirim + "\n\\cite{birinci} \\cite{ikinci}\n",
+                       encoding="utf-8")
+        return tex.read_text(encoding="utf-8"), str(tex)
+
+    def test_VIRGULLU_liste_iki_dosyayi_da_veriyor(self, tmp_path):
+        icerik, yol = self._proje(tmp_path, "\\bibliography{a,b}")
+        assert latex_refs.find_bib_paths(icerik, yol) == \
+            [str(tmp_path / "a.bib"), str(tmp_path / "b.bib")]
+        assert latex_refs.find_bib_path(icerik, yol) == str(tmp_path / "a.bib")
+
+    def test_IKINCI_dosyanin_atfi_TANIMSIZ_sayilmiyor(self, tmp_path):
+        icerik, yol = self._proje(tmp_path, "\\bibliography{a,b}")
+        assert latex_refs.collect_cite_keys(icerik, yol) == ["birinci",
+                                                             "ikinci"]
+        assert latex_refs.audit_references(icerik, yol).undefined_cites == []
+
+    def test_ALT_TIK_dogru_dosyaya_gidiyor(self, tmp_path):
+        icerik, yol = self._proje(tmp_path, "\\bibliography{a,b}")
+        yerler = latex_refs.bib_key_locations(icerik, yol)
+        assert yerler["birinci"][0] == str(tmp_path / "a.bib")
+        assert yerler["ikinci"][0] == str(tmp_path / "b.bib")
+        assert latex_refs.find_cite_location(icerik, yol, "ikinci") == \
+            (str(tmp_path / "b.bib"), 1)
+
+    def test_OLMAYAN_dosya_uydurulmuyor(self, tmp_path):
+        """Aşırı düzeltme kapısı: diskte olmayan ad listeye girmemeli."""
+        icerik, yol = self._proje(tmp_path, "\\bibliography{a,olmayan}")
+        assert latex_refs.find_bib_paths(icerik, yol) == \
+            [str(tmp_path / "a.bib")]

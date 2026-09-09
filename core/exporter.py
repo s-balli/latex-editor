@@ -12,6 +12,7 @@ from core.paths import clean_child_env
 # Bu depodaki TEK çözücü zinciri (utf-8 -> cp1254 -> iso-8859-9). Modül
 # düzeyinde alınıyor: üç ayrı yerde gerekiyor ve project_search yalnız
 # stdlib'e dayanıyor, döngü ya da açılış maliyeti yok.
+from core.latex_refs import find_bib_paths
 from core.latex_utils import strip_comments
 from core.project_search import coz
 
@@ -421,42 +422,25 @@ def _find_bibliography(tex_path: str) -> list[str]:
     diye aranıyor, diskte bulunamıyor ve "" dönüyordu. ÖLÇÜLDÜ (2026-09-06,
     gerçek pandoc 3.1.3 ile uçtan uca): dışa aktarma BAŞARILI dönüyor ama
     çıktıda kaynakça HİÇ YOK; `<div id="refs">` de üretilmiyor.
+
+    ARAMANIN KENDİSİ core.latex_refs'te, burada KOPYASI YOK. Burada kendi
+    uygulaması vardı ve iki taraf birbirinin dersini taşımıyordu; ÖLÇÜLDÜ
+    (2026-09-09, 39 gerçek şablon): buradaki uygulama `\input` zincirini ve
+    sınıf dosyasını taramadığı için iki tez şablonunda (template33-tez,
+    template4) kaynakça HİÇ bulunamıyor, DOCX/HTML kaynakçasız çıkıyordu.
+    Ters yönde de eksik vardı: virgüllü listeyi yalnız burası biliyordu.
     """
-    tex_dir = os.path.dirname(os.path.abspath(tex_path))
     # Çözücü zinciri: cp1254 bir .tex'te Türkçe adlı bir .bib
     # (`\bibliography{kaynakça}`) `replace` okumasıyla bozuluyor, dosya
     # diskte bulunamıyor ve "" dönüyordu. Sonuç: kaynakça HİÇ çözülmüyor,
-    # referans listesi üretilmiyor (ölçüldü).
+    # referans listesi üretilmiyor (ölçüldü). Yorumların ayıklanması ve
+    # zincir/sınıf taraması `find_bib_paths` içinde.
     try:
         with open(tex_path, "rb") as f:
             content = coz(f.read())
     except OSError:
         return []
-    # YORUMLAR AYIKLANIYOR. `.tex` dosyaları alternatif kaynakçayı yoruma
-    # alınmış taşıyor ve `re.search` İLK eşleşmeyi alıyordu, yani yorumdakini.
-    # ÖLÇÜLDÜ (2026-09-06): üstünde `%\bibliography{eski}` olan bir belgede
-    # eski.bib dönüyordu (yanlış kaynakça); o dosya diskte yoksa hiçbir şey
-    # dönmüyordu, yani gerçek `\bibliography{kaynaklar}` satırına HİÇ
-    # bakılmıyordu ve çıktıda kaynakça olmuyordu. `core.engine_detector`
-    # aynı dosyayı okurken `strip_comments`i zaten çağırıyordu.
-    content = strip_comments(content)
-    for pat in (r'\\addbibresource\s*\{([^}]+\.bib)\}', r'\\bibliography\s*\{([^}]+)\}'):
-        m = re.search(pat, content)
-        if not m:
-            continue
-        bulunan = []
-        for ad in m.group(1).split(","):
-            ad = ad.strip()
-            if not ad:
-                continue
-            if not ad.endswith(".bib"):
-                ad += ".bib"
-            cand = os.path.join(tex_dir, ad)
-            if os.path.isfile(cand):
-                bulunan.append(cand)
-        if bulunan:
-            return bulunan
-    return []
+    return find_bib_paths(content, tex_path)
 
 
 def _fix_md_image_paths(tex_path: str, md_path: str):
