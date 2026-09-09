@@ -59,12 +59,17 @@ class EditOpsMixin:
         if not editor:
             return
 
-        line, _ = editor.getCursorPosition()
+        # `_` ADI KULLANILMIYOR: bu modülde `_` çeviri işlevi ve Python'da
+        # gövde içinde bir kez atanan ad TÜM gövde boyunca yerel oluyor.
+        # Bugün burada `_()` çağrısı yok, yani zarar da yok; ama aynı tuzak
+        # `_goto_line_dialog`ta Ctrl+G'yi TAMAMEN kırmıştı (bkz. aşağıdaki
+        # not). Sonraki bir çeviri satırı eklenince sessizce geri gelirdi.
+        line, _sutun = editor.getCursorPosition()
 
         if editor.hasSelectedText():
             pos_start = editor.SendScintilla(editor.SCI_GETSELECTIONSTART)
             pos_end = editor.SendScintilla(editor.SCI_GETSELECTIONEND)
-            line_from, _ = editor.lineIndexFromPosition(pos_start)
+            line_from, _bas_sutun = editor.lineIndexFromPosition(pos_start)
             line_to, son_sutun = editor.lineIndexFromPosition(pos_end)
             # Seçim SONRAKİ satırın başında bitiyorsa o satır kapsam dışı:
             # aşağı doğru sürüklerken oluşan olağan durum ve o satırdan

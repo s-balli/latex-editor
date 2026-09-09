@@ -533,7 +533,7 @@ class EditorWidget(QsciScintilla):
         içerik varsa veya başka bir satırsa dokunmaz. autoIndent zaten önceki
         satırın girintisini kopyaladığı için burada sadece ek bir seviye eklenir.
         """
-        line, _ = self.getCursorPosition()
+        line, _sutun = self.getCursorPosition()
         if line == 0:
             return
         prev = self.text(line - 1).rstrip("\n")

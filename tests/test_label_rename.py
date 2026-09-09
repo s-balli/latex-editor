@@ -511,3 +511,165 @@ def test_rename_IMLECI_ilk_gecise_tasiyor(qapp, tmp_path):
     satir, sutun = ed.getCursorPosition()
     assert satir == 1
     assert ed.text().split("\n")[1][:sutun].endswith("fig:yeni")
+
+
+# =====================================================================
+# Sözel blok içindeki anahtarlar KOD ÖRNEĞİ, çalışan LaTeX değil
+#
+# ÖLÇÜLDÜ (2026-09-09, 39 gerçek şablon, 8 dosya etkileniyor): gerçek
+# etiketi yeniden adlandırmak belgenin BASTIĞI örneği de değiştiriyordu
+# (16 anahtar), ya da anahtar yalnız örnekte geçiyorsa F2 doğrudan örneği
+# düzenliyordu (17 anahtar). İkisi de sessiz.
+# =====================================================================
+
+_ORNEK_BLOK = (
+    "\\begin{verbatim}\n"
+    "\\begin{figure}\n"
+    "  \\label{fig:a}\n"
+    "  Bkz \\ref{fig:a}\n"
+    "\\end{figure}\n"
+    "\\end{verbatim}\n"
+)
+
+
+def test_ORNEK_blogundaki_etiket_yeniden_adlandirmada_DEGISMIYOR(qapp, tmp_path):
+    """Kırılırsa kullanıcı gerçek etiketini değiştirdiğinde belgenin BASILI
+    çıktısı da sessizce başkalaşıyor."""
+    ch = tmp_path / "ch.tex"
+    ch.write_text(
+        "gerçek \\ref{fig:a}\n"
+        "\\begin{lstlisting}\n"
+        "\\ref{fig:a}\n"
+        "\\end{lstlisting}\n", encoding="utf-8")
+    main = tmp_path / "m.tex"
+    main.write_text("\\label{fig:a}\n\\input{ch}\n" + _ORNEK_BLOK,
+                    encoding="utf-8")
+    ed = EditorWidget()
+    ed._file_path = str(main)
+    ed.setText(main.read_text(encoding="utf-8"))
+
+    stub = _StubMain(editors=[ed])
+    with patch("gui.mixins.edit_ops.QInputDialog.getText",
+               return_value=("fig:yeni", True)):
+        MainWindow._on_rename_label(stub, "fig:a")
+
+    buf = ed.text().replace("\r\n", "\n")
+    assert buf.count("fig:yeni") == 1            # yalnız gerçek \label
+    assert _ORNEK_BLOK in buf                    # örnek BİREBİR duruyor
+    disk = ch.read_text(encoding="utf-8")
+    assert disk.startswith("gerçek \\ref{fig:yeni}\n")
+    assert "\\begin{lstlisting}\n\\ref{fig:a}\n\\end{lstlisting}" in disk
+
+
+def test_YALNIZ_ORNEKTE_gecen_anahtar_DEGISTIRILMIYOR(qapp, tmp_path):
+    """Anahtar sadece kod örneğinde geçiyorsa F2 hiçbir şeye dokunmuyor."""
+    main = tmp_path / "m.tex"
+    icerik = "Gerçek metin \\ref{fig:b}\n" + _ORNEK_BLOK
+    main.write_text(icerik, encoding="utf-8")
+    ed = EditorWidget()
+    ed._file_path = str(main)
+    ed.setText(icerik)
+
+    stub = _StubMain(editors=[ed])
+    with patch("gui.mixins.edit_ops.QInputDialog.getText",
+               return_value=("fig:yeni", True)):
+        MainWindow._on_rename_label(stub, "fig:a")
+
+    assert ed.text().replace("\r\n", "\n") == icerik
+    assert "Değişiklik yok" in stub._status.msg
+
+
+def test_SATIR_ICI_verb_AYNI_SATIRDAKI_gercek_kullanimi_engellemiyor(
+        qapp, tmp_path):
+    """Aşırı düzeltme kapısı: maske yalnız \\verb argümanını kaplıyor.
+
+    Satırın tamamı sözel sayılsa aynı satırdaki gerçek referans yeniden
+    adlandırılmadan kalır ve belge tutarsız olur.
+    """
+    main = tmp_path / "m.tex"
+    icerik = ("\\label{fig:a}\n"
+              "\\verb|\\ref{fig:a}| yazımı gerçek \\ref{fig:a} demektir\n")
+    main.write_text(icerik, encoding="utf-8")
+    ed = EditorWidget()
+    ed._file_path = str(main)
+    ed.setText(icerik)
+
+    stub = _StubMain(editors=[ed])
+    with patch("gui.mixins.edit_ops.QInputDialog.getText",
+               return_value=("fig:yeni", True)):
+        MainWindow._on_rename_label(stub, "fig:a")
+
+    buf = ed.text().replace("\r\n", "\n")
+    assert buf == ("\\label{fig:yeni}\n"
+                   "\\verb|\\ref{fig:a}| yazımı gerçek \\ref{fig:yeni} "
+                   "demektir\n")
+
+
+def test_ORNEK_blogundaki_cite_ve_bibitem_de_DEGISMIYOR(qapp, tmp_path):
+    r"""Aynı kural atıf tarafında da geçerli: `\verb'\citet{key}'` gibi bir
+    örnek satırı belgenin BASTIĞI metin (gerçek şablonlarda ölçüldü).
+
+    Tek kapı iki işlevi birden tutuyor: `_on_rename_bibitem` hem
+    `cite_rename_spans` hem `bibitem_rename_spans` çağırıyor.
+    """
+    main = tmp_path / "m.tex"
+    icerik = (
+        "\\bibitem{karaca2024} K.\n"
+        "gerçek \\citep{karaca2024} atfı\n"
+        "\\verb'\\citet{karaca2024}' yazımı\n"
+        "\\begin{verbatim}\n"
+        "\\bibitem{karaca2024} ornek\n"
+        "\\cite{karaca2024}\n"
+        "\\end{verbatim}\n")
+    main.write_text(icerik, encoding="utf-8")
+    ed = EditorWidget()
+    ed._file_path = str(main)
+    ed.setText(icerik)
+
+    stub = _StubMain(editors=[ed])
+    with patch("gui.mixins.edit_ops.QInputDialog.getText",
+               return_value=("yeni2024", True)):
+        MainWindow._on_rename_bibitem(stub, "karaca2024")
+
+    buf = ed.text().replace("\r\n", "\n")
+    assert buf.count("yeni2024") == 2        # \bibitem + gerçek \citep
+    assert "\\verb'\\citet{karaca2024}' yazımı" in buf
+    assert ("\\begin{verbatim}\n"
+            "\\bibitem{karaca2024} ornek\n"
+            "\\cite{karaca2024}\n"
+            "\\end{verbatim}\n") in buf
+
+
+def test_ORNEK_blogundaki_bib_GIRDISI_de_DEGISMIYOR(qapp, tmp_path):
+    r"""`.bib` girdi deseni .tex dosyalarında da aranıyor: `_on_rename_cite`
+    aynı span_fn'i zincirdeki HER yola uyguluyor.
+
+    Kaynakça anlatan bir belge `@article{...}` satırını `verbatim` içinde
+    gösteriyor. Gerçek şablonlarda bu duruma denk gelinmedi (0 örnek), ama
+    aynı sınıftan: kural kardeş işlevlerde uygulanıp burada atlanırsa
+    sessizce ayrışır.
+    """
+    bib = tmp_path / "refs.bib"
+    bib.write_text("@article{smith2020,\n title={X},\n}\n", encoding="utf-8")
+    main = tmp_path / "m.tex"
+    icerik = ("\\addbibresource{refs.bib}\n"
+              "gerçek \\cite{smith2020}\n"
+              "\\begin{verbatim}\n"
+              "@article{smith2020,\n"
+              "  title = {Ornek},\n"
+              "}\n"
+              "\\end{verbatim}\n")
+    main.write_text(icerik, encoding="utf-8")
+    ed = EditorWidget()
+    ed._file_path = str(main)
+    ed.setText(icerik)
+
+    stub = _StubMain(editors=[ed])
+    with patch("gui.mixins.edit_ops.QInputDialog.getText",
+               return_value=("smith2021", True)):
+        MainWindow._on_rename_cite(stub, "smith2020")
+
+    buf = ed.text().replace("\r\n", "\n")
+    assert buf.count("smith2021") == 1               # yalnız gerçek \cite
+    assert "\\begin{verbatim}\n@article{smith2020,\n" in buf
+    assert bib.read_text(encoding="utf-8").startswith("@article{smith2021,")

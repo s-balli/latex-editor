@@ -827,6 +827,32 @@ def input_chain_paths(content: str, base_path: str) -> list[str]:
     return _flatten_input_paths(content, _base_dir(base_path))
 
 
+def _yeniden_adlandirma_taramasi(text: str) -> str:
+    r"""Yeniden adlandırma aralıklarının arandığı metin: sözel içerik boşaltılmış.
+
+    ``\begin{verbatim}`` / ``lstlisting`` bloğunun ve satır içi ``\verb``in
+    içindeki ``\label{...}``, ``\ref{...}``, ``\cite{...}`` çalışan LaTeX
+    değil, belgenin BASTIĞI kod örneğidir. F2 onları da değiştirince iki
+    ayrı zarar veriyordu (ÖLÇÜLDÜ 2026-09-09, 39 gerçek şablonda 8 dosya):
+
+      - Anahtar hem gerçek metinde hem örnekte geçiyorsa (16 anahtar)
+        gerçeğini yeniden adlandırmak örneği de değiştiriyor: belgenin
+        basılan metni sessizce başkalaşıyor.
+      - Anahtar YALNIZ örnekte geçiyorsa (17 anahtar) F2 doğrudan örneği
+        düzenliyor.
+
+    ``sozel_soy`` uzunluğu koruduğu için burada bulunan aralıklar ÖZGÜN
+    metinde de geçerli; hem GUI'nin seç-değiştir yolu hem diskteki dosyayı
+    yeniden yazan yol aralıkları özgün metne uyguluyor.
+
+    Yorumlara DOKUNULMUYOR, bilerek: ``% \ref{eski}`` kullanıcının kendi
+    taslağı ve yeniden adlandırmayı izlemesi gerekiyor, yoksa yorum
+    açıldığında sarkan bir referans çıkıyor. Aynı ayrımı denetim tarafı da
+    yapıyor (bkz. ``_audit_texts``).
+    """
+    return sozel_soy(text)
+
+
 def label_rename_spans(text: str, old: str) -> list[tuple[int, int]]:
     """``text`` içinde ``old``'a eşit \\label argümanı / \\ref segmentinin karakter
     aralıkları.
@@ -835,12 +861,13 @@ def label_rename_spans(text: str, old: str) -> list[tuple[int, int]]:
     aralıkları seçip değiştirerek undo geçmişini korur. \\label{oldx},
     ``old='old'`` ile eşleşmez (segment birebir karşılaştırılır).
     """
+    tarama = _yeniden_adlandirma_taramasi(text)
     spans: list[tuple[int, int]] = []
-    for m in re.finditer(r'\\label\s*\{([^}]*)\}', text):
+    for m in re.finditer(r'\\label\s*\{([^}]*)\}', tarama):
         a, b = m.span(1)
-        if text[a:b].strip() == old:
+        if tarama[a:b].strip() == old:
             spans.append((a, b))
-    for m in _RE_REFUSE.finditer(text):
+    for m in _RE_REFUSE.finditer(tarama):
         spans.extend(_segment_araliklari(m, old))
     return spans
 
@@ -866,16 +893,18 @@ def cite_rename_spans(text: str, old: str) -> list[tuple[int, int]]:
     Çok anahtarlı kullanımda (\\cite{a, old, b}) yalnız eşleşen segment;
     'old' önekli anahtarlar ('oldx') eşleşmez. \nocite dahil tüm aile.
     """
+    tarama = _yeniden_adlandirma_taramasi(text)
     spans: list[tuple[int, int]] = []
-    for m in _RE_CITEUSE.finditer(text):
+    for m in _RE_CITEUSE.finditer(tarama):
         spans.extend(_segment_araliklari(m, old))
     return spans
 
 
 def bib_key_rename_spans(text: str, old: str) -> list[tuple[int, int]]:
     """.bib içeriğinde ``old`` anahtarlı @type{old, girdisinin anahtar aralığı."""
+    tarama = _yeniden_adlandirma_taramasi(text)
     spans: list[tuple[int, int]] = []
-    for m in _RE_BIBENTRY.finditer(text):
+    for m in _RE_BIBENTRY.finditer(tarama):
         if m.group(1) == old:
             spans.append(m.span(1))
     return spans
@@ -887,8 +916,9 @@ def bibitem_rename_spans(text: str, old: str) -> list[tuple[int, int]]:
     El ile kaynakça (thebibliography) kullanan belgelerde F2 cite rename
     için; segment birebir karşılaştırılır.
     """
+    tarama = _yeniden_adlandirma_taramasi(text)
     spans: list[tuple[int, int]] = []
-    for m in _RE_BIBITEM.finditer(text):
+    for m in _RE_BIBITEM.finditer(tarama):
         if m.group(1).strip() == old:
             spans.append(m.span(1))
     return spans
