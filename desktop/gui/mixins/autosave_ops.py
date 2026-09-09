@@ -75,6 +75,15 @@ class AutosaveOpsMixin:
             if not editor.isModified() or not editor.file_path:
                 continue
             yol = editor.file_path
+            # Kullanıcı dosyayı diskten silmiş ve "Sekmede Tut" demişse
+            # DİSKE GERİ YAZMA. ÖLÇÜLDÜ (2026-09-09): dosya silindikten
+            # sonra otomatik kaydetme onu sessizce yeniden yaratıyordu;
+            # kullanıcı sildiğini sandığı dosyayı dosya ağacında, git
+            # durumunda ve derleme çıktısında yeniden buluyordu. İçerik
+            # sekmede duruyor ve çökme kurtarması onu zaten koruyor;
+            # geri yazmak istiyorsa Ctrl+S bunu açıkça yapıyor.
+            if yol in getattr(self, "_silinen_tutulanlar", ()):
+                continue
             if editor.save_file(sessiz=True):
                 kaydedilen += 1
                 self._autosave_bildirilen.discard(yol)

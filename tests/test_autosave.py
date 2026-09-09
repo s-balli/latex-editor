@@ -182,3 +182,111 @@ def test_BOZUK_ayar_uygulamayi_kilitlemiyor(ana_pencere, deger, beklenen):
     p._settings.setValue("editor/autosave_dk", deger)
 
     assert p._read_editor_settings()["autosave_dk"] == beklenen
+
+
+# =====================================================================
+# Öteki özelliklerle etkileşim (hepsi ölçüldü, 2026-09-09)
+#
+#   file_watch : otomatik kayıttan sonra "dışarıdan değişti" sorusu 0
+#   recovery   : anlık görüntü 1 -> 0 (kayıt sonrası artık kalmıyor)
+#   cp1254     : sığmayan karakterde yazma DÜŞÜYOR, dosya bozulmuyor,
+#                editör kirli kalıyor (iş kaybolmuyor)
+#   CRLF       : satır sonu stili korunuyor
+#   silinen    : "Sekmede Tut" denen dosya diske GERİ YAZILIYORDU (kusur)
+# =====================================================================
+
+
+def test_SILINEN_ve_sekmede_tutulan_dosya_GERI_YAZILMIYOR(ana_pencere,
+                                                          tmp_path):
+    """Kırılırsa kullanıcı sildiği dosyayı dosya ağacında, git durumunda ve
+    derleme çıktısında yeniden buluyor. İçerik sekmede duruyor; geri yazmak
+    isterse Ctrl+S bunu açıkça yapıyor."""
+    yol = _proje(tmp_path, "silinecek.tex")
+    p = ana_pencere()
+    p._dis_yolu_ac(str(yol), "kapi")
+    ed = p._current_editor()
+    ed.setText("kullanici degistirdi\n")
+    os.unlink(str(yol))
+    p._silinen_tutulanlar.add(os.path.normpath(str(yol)))
+
+    p._autosave_tick()
+
+    assert yol.exists() is False
+    assert ed.isModified() is True          # içerik sekmede duruyor
+
+
+def test_SILINMEMIS_dosya_hala_kaydediliyor(ana_pencere, tmp_path):
+    """Aşırı düzeltme kapısı: kısıtlama YALNIZ "Sekmede Tut" denenlere."""
+    yol = _proje(tmp_path)
+    p = ana_pencere()
+    p._dis_yolu_ac(str(yol), "kapi")
+    p._current_editor().setText("degisti\n")
+    assert p._silinen_tutulanlar == set()
+
+    p._autosave_tick()
+
+    assert yol.read_text(encoding="utf-8") == "degisti\n"
+
+
+def test_KAYITTAN_SONRA_kurtarma_artigi_dusuyor(ana_pencere, tmp_path):
+    """Otomatik kaydetme sekmeyi temizliyor, `_recovery_tick` de artığı
+    siliyor. Kalsaydı bir sonraki açılışta "kaydedilmemiş değişiklik var"
+    diye sorulurdu, oysa değişiklik dosyaya yazılmıştı."""
+    from core import recovery
+
+    yol = _proje(tmp_path)
+    p = ana_pencere()
+    p._dis_yolu_ac(str(yol), "kapi")
+    p._current_editor().setText("kirli\n")
+    p._recovery_tick()
+    assert len(recovery.oku(p._recovery_dir)) == 1
+
+    p._autosave_tick()
+    p._recovery_tick()
+
+    assert recovery.oku(p._recovery_dir) == []
+
+
+def test_CRLF_dosyanin_satir_sonu_KORUNUYOR(ana_pencere, tmp_path):
+    """Otomatik kaydetme her N dakikada bir yazıyor; satır sonunu bozsaydı
+    kullanıcının fark etmediği bir fark her dosyada birikirdi."""
+    yol = tmp_path / "crlf.tex"
+    yol.write_bytes(b"bir\r\niki\r\n")
+    p = ana_pencere()
+    p._dis_yolu_ac(str(yol), "kapi")
+    p._current_editor().setText("bir\niki\nuc\n")
+
+    p._autosave_tick()
+
+    assert yol.read_bytes() == b"bir\r\niki\r\nuc\r\n"
+
+
+def test_KODLAMAYA_SIGMAYAN_karakterde_dosya_BOZULMUYOR(ana_pencere,
+                                                        tmp_path,
+                                                        monkeypatch):
+    """cp1254 bir dosyaya o kodlamada olmayan bir karakter yazılırsa yazma
+    düşüyor. Önemli olan: diskteki içerik BOZULMUYOR ve editör kirli kalıyor,
+    yani kullanıcının işi kaybolmuyor."""
+    from PyQt6.QtWidgets import QMessageBox
+
+    yol = tmp_path / "cp.tex"
+    ham = "Bölüm başlığı\n".encode("cp1254")
+    yol.write_bytes(ham)
+    # Açılıştaki kodlama uyarısı MODAL; testte tıklayacak kimse yok.
+    monkeypatch.setattr(QMessageBox, "warning", staticmethod(lambda *a, **k: 0))
+    kutular = []
+    monkeypatch.setattr(QMessageBox, "critical",
+                        staticmethod(lambda *a, **k: kutular.append(a)))
+
+    p = ana_pencere()
+    p._dis_yolu_ac(str(yol), "kapi")
+    ed = p._current_editor()
+    assert ed._encoding == "cp1254"
+    ed.setText("Yunanca sigma σ\n")
+
+    p._autosave_tick()
+
+    assert yol.read_bytes() == ham, "dosya bozuldu"
+    assert ed.isModified() is True, "iş kayboldu"
+    assert kutular == [], "zamanlayıcıdan modal açıldı"
+    assert "kaydedilemedi" in p._status.currentMessage()
