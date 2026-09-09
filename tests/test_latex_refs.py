@@ -1111,3 +1111,191 @@ def test_NOCITE_yildizi_hala_anahtar_sayilmiyor(tmp_path):
 
     assert d.undefined_cites == []
     assert d.unused_bib_keys == []
+
+
+# =====================================================================
+# Kod ÖRNEĞİ gerçek referans değil
+#
+# 39 GERÇEK şablon üzerinde ölçüldü (2026-09-09). Bu şablonlar derlenen,
+# yayımlanmış belgeler; denetim orada "Tanımsız \ref/\cite" diyorsa bulgu
+# büyük olasılıkla bizim kusurumuz.
+#
+#   tanımsız \ref bulgusu olan dosya : 10 -> 4
+#   tanımsız \cite bulgusu olan dosya:  9 -> 4
+#
+# Kaynaklar, hepsi gerçek satırlardan:
+#   \verb'\citet{key}'                 (template12/mnras_guide)
+#   \verb+\ref{tiger}+                 (template16/cas-dc-sample)
+#   \verb|\eqref{Eq}|                  (template19,20/access)
+#   \verb+\cite{<label>}+              (template16, template29)
+#   \verb|\citep{ReferansAdı}|         (template32/1_introduction)
+#   \begin{verbatim} ... \ref{thm2}    (template16, iki dosya)
+#   \newcommand{\pref}[1]{(\ref{#1})}  (template5)
+#   \pretocmd\citep{\citestyle{semicolon}}  (template32/packages)
+#
+# Kalan dördü gerçek şablon tutarsızlığı: anahtar .bib'te yok, ya da
+# `TotPages` gibi paketin tanımladığı bir etiket.
+# =====================================================================
+
+
+class TestSozelIcerikReferansDegil:
+
+    def _tex(self, tmp_path, govde):
+        yol = tmp_path / "d.tex"
+        yol.write_text("\\documentclass{article}\n\\begin{document}\n"
+                       "\\section{B}\\label{gercek}\n"
+                       + govde + "\n\\end{document}\n", encoding="utf-8")
+        return yol
+
+    @pytest.mark.parametrize("ayrac", ["|", "+", "'", "!"])
+    def test_VERB_icindeki_ref_bulgu_URETMIYOR(self, tmp_path, ayrac):
+        r"""Kırılırsa şablonun anlattığı örnek "Tanımsız \ref" oluyor ve
+        kullanıcı düzeltemiyor (düzeltilecek bir şey yok)."""
+        tex = self._tex(tmp_path,
+                        "Ornek: \\verb%s\\ref{ornek}%s biciminde." % (ayrac, ayrac))
+
+        d = latex_refs.audit_references(tex.read_text(encoding="utf-8"),
+                                        str(tex))
+
+        assert d.undefined_refs == [], d.undefined_refs
+
+    def test_VERB_icindeki_cite_bulgu_URETMIYOR(self, tmp_path):
+        tex = self._tex(tmp_path, "Ornek: \\verb'\\citet{key}' biciminde.")
+
+        d = latex_refs.audit_references(tex.read_text(encoding="utf-8"),
+                                        str(tex))
+
+        assert d.undefined_cites == [], d.undefined_cites
+
+    def test_VERBATIM_ORTAMI_icindeki_ref_bulgu_URETMIYOR(self, tmp_path):
+        tex = self._tex(tmp_path,
+                        "\\begin{verbatim}\n\\ref{thm2}\n\\end{verbatim}")
+
+        d = latex_refs.audit_references(tex.read_text(encoding="utf-8"),
+                                        str(tex))
+
+        assert d.undefined_refs == [], d.undefined_refs
+
+    @pytest.mark.parametrize("govde,beklenen_bos", [
+        (r"\newcommand{\pref}[1]{(\ref{#1})}", "ref"),
+        (r"\pretocmd\citep{\citestyle{semicolon}}\relax\relax", "cite"),
+    ])
+    def test_ANAHTAR_OLAMAYACAK_dizgeler_bulgu_URETMIYOR(
+            self, tmp_path, govde, beklenen_bos):
+        """LaTeX sözdizimi karakteri taşıyan bir dize anahtar değildir;
+        yakalanan şey yanlış eşleşmedir."""
+        tex = self._tex(tmp_path, govde)
+
+        d = latex_refs.audit_references(tex.read_text(encoding="utf-8"),
+                                        str(tex))
+
+        alan = d.undefined_refs if beklenen_bos == "ref" else d.undefined_cites
+        assert alan == [], alan
+
+    # --- Aşırı düzeltme kapıları ---
+
+    def test_AYNI_SATIRDAKI_gercek_ref_hala_bulunuyor(self, tmp_path):
+        r"""Soyma satırın tamamını yutmamalı: `\verb`in yanındaki gerçek
+        referans hâlâ görülmeli."""
+        tex = self._tex(
+            tmp_path,
+            "Ornek \\verb|\\ref{ornek}| ve gercek \\ref{yokboyle} birlikte.")
+
+        d = latex_refs.audit_references(tex.read_text(encoding="utf-8"),
+                                        str(tex))
+
+        assert d.undefined_refs == ["yokboyle"], d.undefined_refs
+
+    def test_VERBATIM_icindeki_LABEL_tanim_SAYILMIYOR(self, tmp_path):
+        r"""Ters yön: örnekteki `\label{x}` tanım sayılırsa gerçek bir
+        `\ref{x}` "tanımlı" görünür ve KIRIK referans gizlenir."""
+        tex = self._tex(
+            tmp_path,
+            "\\begin{verbatim}\n\\label{sahte}\n\\end{verbatim}\n"
+            "Bkz. \\ref{sahte}.")
+
+        d = latex_refs.audit_references(tex.read_text(encoding="utf-8"),
+                                        str(tex))
+
+        assert d.undefined_refs == ["sahte"], d.undefined_refs
+
+    @pytest.mark.parametrize("anahtar", [
+        "fig:sonuc", "tab_1", "eq.2", "sec-giris", "Şekil3", "a+b",
+    ])
+    def test_GECERLI_anahtarlar_ATILMIYOR(self, anahtar):
+        """Süzgeç kara liste: gerçek bir anahtarı atmak kırık bir referansı
+        gizlemek olurdu."""
+        assert latex_refs._anahtar_olabilir(anahtar) is True
+
+    def test_SOZEL_SOY_uzunlugu_ve_satirlari_KORUYOR(self):
+        """Satır numarası hesaplayan çağıranlar var (key_usage_locations);
+        kısaltmak o numaraları kaydırırdı."""
+        from core.latex_utils import sozel_soy
+
+        metin = ("bir \\verb|\\ref{x}| iki\n"
+                 "\\begin{verbatim}\nucuncu satir\n\\end{verbatim}\n"
+                 "son\n")
+
+        cikti = sozel_soy(metin)
+
+        assert len(cikti) == len(metin)
+        assert cikti.count("\n") == metin.count("\n")
+
+
+class TestSinifDosyasindaKaynakcaBildirimi:
+
+    def test_CLS_icindeki_addbibresource_bulunuyor(self, tmp_path):
+        """biblatex şablonlarının bir kısmı bildirimi SINIF dosyasına
+        koyuyor; ölçüldü (template4): .tex zincirinde hiç bildirim yok ve
+        belgedeki üç atıf da "tanımsız" sayılıyordu."""
+        (tmp_path / "rho.bib").write_text(
+            "@article{k1,author={A},title={T},journal={J},year={2020}}\n",
+            encoding="utf-8")
+        alt = tmp_path / "rho-class"
+        alt.mkdir()
+        (alt / "rho.cls").write_text("\\addbibresource{rho.bib}\n",
+                                     encoding="utf-8")
+        tex = tmp_path / "main.tex"
+        tex.write_text("\\documentclass{rho}\n\\begin{document}\n"
+                       "Metin \\autocite{k1}.\n\\end{document}\n",
+                       encoding="utf-8")
+
+        icerik = tex.read_text(encoding="utf-8")
+
+        assert latex_refs.find_bib_path(icerik, str(tex)) == \
+            str(tmp_path / "rho.bib")
+        assert latex_refs.audit_references(icerik, str(tex)).undefined_cites \
+            == []
+
+    def test_CLS_YOKSA_uydurma_yol_donmuyor(self, tmp_path):
+        """Aşırı düzeltme kapısı: sınıf dosyası olmayan bir bildirimden yol
+        uydurulmamalı."""
+        alt = tmp_path / "sinif"
+        alt.mkdir()
+        (alt / "x.cls").write_text("\\addbibresource{olmayan.bib}\n",
+                                   encoding="utf-8")
+        tex = tmp_path / "main.tex"
+        tex.write_text("\\documentclass{x}\n\\begin{document}\n"
+                       "\\end{document}\n", encoding="utf-8")
+
+        assert latex_refs.find_bib_path(tex.read_text(encoding="utf-8"),
+                                        str(tex)) == ""
+
+    def test_TEX_teki_bildirim_HALA_once_geliyor(self, tmp_path):
+        """Sınıf taraması yalnız SON çare: belgedeki bildirim kazanmalı."""
+        (tmp_path / "dogru.bib").write_text(
+            "@article{k1,author={A},title={T},journal={J},year={2020}}\n",
+            encoding="utf-8")
+        (tmp_path / "yanlis.bib").write_text(
+            "@article{k2,author={B},title={T},journal={J},year={2021}}\n",
+            encoding="utf-8")
+        (tmp_path / "z.cls").write_text("\\addbibresource{yanlis.bib}\n",
+                                        encoding="utf-8")
+        tex = tmp_path / "main.tex"
+        tex.write_text("\\documentclass{z}\n\\addbibresource{dogru.bib}\n"
+                       "\\begin{document}\n\\end{document}\n",
+                       encoding="utf-8")
+
+        assert latex_refs.find_bib_path(tex.read_text(encoding="utf-8"),
+                                        str(tex)) == \
+            str(tmp_path / "dogru.bib")

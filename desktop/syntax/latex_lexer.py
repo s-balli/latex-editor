@@ -19,8 +19,10 @@ _DLR = 0x24   # $
 # `\section` editörde sözel renklenirken ANAHATTA listeleniyordu (ölçüldü
 # 2026-09-06, dördü de sızıyor). `comment` paketi büyük blokları geçici
 # kapatmanın standart yolu.
-VERB_ENVS = ("verbatim", "verbatim*", "lstlisting", "minted", "alltt",
-             "comment", "Verbatim", "BVerbatim", "LVerbatim", "listing")
+# Liste core/latex_utils'ta: referans denetimi de aynı listeye bakıyor ve
+# kopya bir kez ayrışmıştı. Ad BURADA korunuyor, anahat (gui/outline.py)
+# bu modülden alıyor.
+from core.latex_utils import VERB_ENVS  # noqa: E402
 
 
 def _is_alpha(c: int) -> bool:

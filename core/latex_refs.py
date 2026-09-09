@@ -11,11 +11,26 @@ import time
 from dataclasses import dataclass, field
 
 from core.input_parser import parse_inputs
-from core.latex_utils import strip_comments
+from core.latex_utils import sozel_soy, strip_comments
 
 _logger = logging.getLogger("latex_editor.latex_refs")
 
 _RE_LABEL = re.compile(r'\\label\s*\{([^}]+)\}')
+
+# Bir anahtarda BULUNAMAYACAK karakterler: hepsi LaTeX'in kendi sözdizimi.
+# Bunlardan biri varsa yakalanan şey anahtar değil, yanlış eşleşmedir.
+# ÖLÇÜLDÜ (2026-09-09, 39 gerçek şablonda) iki üretim:
+#   `\newcommand{\pref}[1]{(\ref{#1})}`        -> "Tanımsız \ref: #1"
+#   `\pretocmd\citep{\citestyle{semicolon}}`   -> "Tanımsız \cite:
+#                                                 \citestyle{semicolon"
+# İkisi de kullanıcının düzeltemeyeceği bulgular. Süzgeç KARA LİSTE
+# (beyaz liste değil) bilerek: gerçek bir anahtarı yanlışlıkla atmak KIRIK
+# bir referansı gizlemek olurdu, o daha kötü.
+_ANAHTAR_YASAK = set("\\{}#%$&~^|")
+
+
+def _anahtar_olabilir(k: str) -> bool:
+    return bool(k) and not (_ANAHTAR_YASAK & set(k))
 _RE_BIBENTRY = re.compile(r'@\w+\s*\{\s*([^,\s}]+)\s*,')
 _RE_ADDBIB = re.compile(r'\\addbibresource\s*\{([^}]+\.bib)\}')
 _RE_BIBLIO = re.compile(r'\\bibliography\s*\{([^}]+)\}')
@@ -50,8 +65,14 @@ def _base_dir(base_path: str) -> str:
 
 
 def _extract_labels(text: str) -> list[str]:
-    """Metinden (yorumları strip ederek) \\label anahtarlarını döndür."""
-    return [m.group(1).strip() for m in _RE_LABEL.finditer(strip_comments(text))]
+    """Metinden (yorum ve sözel içerik soyularak) \\label anahtarlarını döndür.
+
+    Sözel soyma ŞART: kod örneğindeki `\\label{x}` gerçek bir tanım değil.
+    Tanım sayılırsa gerçek bir `\\ref{x}` "tanımlı" görünür ve KIRIK referans
+    gizlenir; ayrıca örnek anahtar tamamlama listesine de düşerdi.
+    """
+    return [m.group(1).strip() for m in _RE_LABEL.finditer(
+        sozel_soy(strip_comments(text))) if _anahtar_olabilir(m.group(1))]
 
 
 def _flatten_input_paths(content: str, base_dir: str) -> list[str]:
@@ -223,6 +244,53 @@ def has_manual_bibliography(content: str, base_path: str) -> bool:
     return False
 
 
+def _bib_path_in_sinif(bdir: str) -> str:
+    """Belgenin yanındaki `.cls`/`.sty` içinde .bib bildirimi ara.
+
+    biblatex şablonlarının bir kısmı `\\addbibresource`i SINIF dosyasına
+    koyuyor ve `.tex` zincirinde hiç bildirim olmuyor. ÖLÇÜLDÜ (2026-09-09,
+    template4): `rho.bib` klasörde duruyor, bildirim `rho.cls` içinde ve
+    denetim belgedeki üç atıfı da "tanımsız" sayıyordu.
+
+    Belgenin dizini VE bir alt düzeyi taranıyor: template4 sınıf dosyasını
+    `rho-class/` alt klasörüne koyuyor, yani "yalnız kendi dizini" yetmiyor
+    (ölçüldü). Daha derine inilmiyor ve sistemdeki TeX kurulumu hiç
+    taranmıyor: oradaki sınıf dosyaları projenin .bib'ini zaten bildirmez.
+
+    Bulunan yol BELGENİN dizinine göre çözülüyor, sınıf dosyasının dizinine
+    göre değil: LaTeX de `\\addbibresource`i ana belgeye göre çözüyor.
+    """
+    from core.project_search import SKIP_DIRS
+
+    dizinler = [bdir]
+    try:
+        for ad in sorted(os.listdir(bdir)):
+            alt = os.path.join(bdir, ad)
+            if (os.path.isdir(alt) and not ad.startswith(".")
+                    and ad not in SKIP_DIRS):
+                dizinler.append(alt)
+    except OSError:
+        return ""
+    for dizin in dizinler:
+        try:
+            adlar = sorted(os.listdir(dizin))
+        except OSError:
+            continue
+        for ad in adlar:
+            if not ad.lower().endswith((".cls", ".sty")):
+                continue
+            try:
+                with open(os.path.join(dizin, ad), encoding="utf-8",
+                          errors="replace") as f:
+                    metin = f.read()
+            except OSError:
+                continue
+            yol = _bib_path_in(strip_comments(metin), bdir)
+            if yol:
+                return yol
+    return ""
+
+
 def find_bib_path(content: str, base_path: str) -> str:
     """\\addbibresource{X.bib} / \\bibliography{X} ile referans verilen .bib yolu.
 
@@ -253,6 +321,8 @@ def find_bib_path(content: str, base_path: str) -> str:
         sonuc = _bib_path_in(metin, bdir)
         if sonuc:
             break
+    if not sonuc:
+        sonuc = _bib_path_in_sinif(bdir)
     if len(_bib_chain_cache) > 8:
         _bib_chain_cache.clear()
     _bib_chain_cache[base_path] = (time.time(), sonuc)
@@ -563,7 +633,8 @@ def _kullanim_anahtarlari(m) -> list[str]:
     out: list[str] = []
     for arg in m.groups():
         if arg:
-            out.extend(k.strip() for k in arg.split(',') if k.strip())
+            out.extend(k.strip() for k in arg.split(',')
+                       if _anahtar_olabilir(k.strip()))
     return out
 
 
@@ -623,8 +694,13 @@ def _chain_texts(content: str, base_path: str) -> list[tuple[str, str]]:
 
 
 def _audit_texts(content: str, base_path: str) -> list[str]:
-    """Denetim metinleri: mevcut içerik + \\input zinciri (yorumlar soyulmuş)."""
-    return [strip_comments(content)] + [t for _p, t in _chain_texts(content, base_path)]
+    """Denetim metinleri: mevcut içerik + \\input zinciri.
+
+    Yorumlar VE sözel içerik soyulmuş: kod örneğindeki `\\cite{key}` gerçek
+    atıf değil (bkz. latex_utils.sozel_soy'daki ölçüm).
+    """
+    return [sozel_soy(strip_comments(content))] + [
+        sozel_soy(t) for _p, t in _chain_texts(content, base_path)]
 
 
 def audit_references(content: str, base_path: str) -> RefAudit:
