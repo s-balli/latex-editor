@@ -13,12 +13,12 @@ Açık pencereyi kullanın ya da uygulamayı kapatıp yeniden başlatın.</trans
 </context><context>
     <name>AutosaveOpsMixin</name>
     <message>
-        <location filename="../gui/mixins/autosave_ops.py" line="87" />
+        <location filename="../gui/mixins/autosave_ops.py" line="96" />
         <source>Otomatik kaydedilemedi: {ad}</source>
         <translation>Otomatik kaydedilemedi: {ad}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/autosave_ops.py" line="91" />
+        <location filename="../gui/mixins/autosave_ops.py" line="100" />
         <source>Otomatik kaydedildi ({n} dosya)</source>
         <translation>Otomatik kaydedildi ({n} dosya)</translation>
     </message>
@@ -513,62 +513,62 @@ Referanslar tutarsız kaldı. Bu dosyalara yazma izni verip işlemi tekrarlayın
 </context><context>
     <name>EditorWidget</name>
     <message>
-        <location filename="../gui/editor.py" line="356" />
+        <location filename="../gui/editor.py" line="372" />
         <source>Geri Al</source>
         <translation>Geri Al</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="358" />
+        <location filename="../gui/editor.py" line="374" />
         <source>Yinele</source>
         <translation>Yinele</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="361" />
+        <location filename="../gui/editor.py" line="377" />
         <source>Kes</source>
         <translation>Kes</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="362" />
+        <location filename="../gui/editor.py" line="378" />
         <source>Kopyala</source>
         <translation>Kopyala</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="363" />
+        <location filename="../gui/editor.py" line="379" />
         <source>Yapıştır</source>
         <translation>Yapıştır</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="365" />
+        <location filename="../gui/editor.py" line="381" />
         <source>Sil</source>
         <translation>Sil</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="367" />
+        <location filename="../gui/editor.py" line="383" />
         <source>Tümünü Seç</source>
         <translation>Tümünü Seç</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="848" />
+        <location filename="../gui/editor.py" line="866" />
         <source>İkili (binary) dosya; metin editöründe açılamaz.</source>
         <translation>İkili (binary) dosya; metin editöründe açılamaz.</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="871" />
+        <location filename="../gui/editor.py" line="889" />
         <source>Kodlama Uyarısı</source>
         <translation>Kodlama Uyarısı</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="872" />
+        <location filename="../gui/editor.py" line="890" />
         <source>Bu dosya UTF-8 değil ({enc}). {enc} olarak açıldı ve aynı kodlamayla kaydedilecek. Sorunsuz derleme için UTF-8'e dönüştürmeniz önerilir.</source>
         <translation>Bu dosya UTF-8 değil ({enc}). {enc} olarak açıldı ve aynı kodlamayla kaydedilecek. Sorunsuz derleme için UTF-8'e dönüştürmeniz önerilir.</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="879" />
+        <location filename="../gui/editor.py" line="897" />
         <source>Dosya Açma Hatası</source>
         <translation>Dosya Açma Hatası</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="879" />
+        <location filename="../gui/editor.py" line="897" />
         <source>Dosya açılamadı:
 {path}
 
@@ -579,12 +579,12 @@ Referanslar tutarsız kaldı. Bu dosyalara yazma izni verip işlemi tekrarlayın
 {e}</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="969" />
+        <location filename="../gui/editor.py" line="987" />
         <source>Kaydetme Hatası</source>
         <translation>Kaydetme Hatası</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="969" />
+        <location filename="../gui/editor.py" line="987" />
         <source>Dosya kaydedilemedi:
 {path}
 
@@ -595,7 +595,7 @@ Referanslar tutarsız kaldı. Bu dosyalara yazma izni verip işlemi tekrarlayın
 {e}</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="994" />
+        <location filename="../gui/editor.py" line="1012" />
         <source>Yeni Dosya</source>
         <translation>Yeni Dosya</translation>
     </message>
@@ -2429,19 +2429,24 @@ Sözlük dizini: {dizin}</translation>
 </context><context>
     <name>OutlinePanel</name>
     <message>
-        <location filename="../gui/outline.py" line="141" />
+        <location filename="../gui/outline.py" line="207" />
         <source>ANAHAT</source>
         <translation>ANAHAT</translation>
     </message>
     <message>
-        <location filename="../gui/outline.py" line="149" />
+        <location filename="../gui/outline.py" line="215" />
         <source>Tümünü Daralt</source>
         <translation>Tümünü Daralt</translation>
     </message>
     <message>
-        <location filename="../gui/outline.py" line="161" />
+        <location filename="../gui/outline.py" line="227" />
         <source>Tümünü Genişlet</source>
         <translation>Tümünü Genişlet</translation>
+    </message>
+    <message>
+        <location filename="../gui/outline.py" line="302" />
+        <source>(başlıksız)</source>
+        <translation>(başlıksız)</translation>
     </message>
 </context><context>
     <name>OutputPanel</name>
@@ -3072,43 +3077,43 @@ Geri yüklensin mi? (Geri yüklenen içerik sekmede açılır; siz kaydedene kad
 </context><context>
     <name>TabOpsMixin</name>
     <message>
-        <location filename="../gui/mixins/tab_ops.py" line="212" />
-        <location filename="../gui/mixins/tab_ops.py" line="145" />
+        <location filename="../gui/mixins/tab_ops.py" line="262" />
+        <location filename="../gui/mixins/tab_ops.py" line="195" />
         <source>Kapat</source>
         <translation>Kapat</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/tab_ops.py" line="213" />
+        <location filename="../gui/mixins/tab_ops.py" line="263" />
         <source>Diğer Sekmeleri Kapat</source>
         <translation>Diğer Sekmeleri Kapat</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/tab_ops.py" line="214" />
+        <location filename="../gui/mixins/tab_ops.py" line="264" />
         <source>Tümünü Kapat</source>
         <translation>Tümünü Kapat</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/tab_ops.py" line="216" />
+        <location filename="../gui/mixins/tab_ops.py" line="266" />
         <source>Dosya Yolunu Kopyala</source>
         <translation>Dosya Yolunu Kopyala</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/tab_ops.py" line="298" />
+        <location filename="../gui/mixins/tab_ops.py" line="348" />
         <source>Satır</source>
         <translation>Satır</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/tab_ops.py" line="299" />
+        <location filename="../gui/mixins/tab_ops.py" line="349" />
         <source>Sütun</source>
         <translation>Sütun</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/tab_ops.py" line="323" />
+        <location filename="../gui/mixins/tab_ops.py" line="373" />
         <source>karakter</source>
         <translation>karakter</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/tab_ops.py" line="323" />
+        <location filename="../gui/mixins/tab_ops.py" line="373" />
         <source>kelime</source>
         <translation>kelime</translation>
     </message>

@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import (
 
 from PyQt6.QtCore import QCoreApplication
 
-from syntax.latex_lexer import VERB_ENVS as _VERB_ENVS
+from core.latex_utils import sozel_soy
 
 _ = lambda s: QCoreApplication.translate("OutlinePanel", s)
 
@@ -19,10 +19,85 @@ _ = lambda s: QCoreApplication.translate("OutlinePanel", s)
 #                       başlık argümanı. Desende yokken bu satırlar hiç
 #                       eşleşmiyordu, yani uzun başlıklı tez bölümleri
 #                       anahatta HİÇ görünmüyordu (standart kullanım).
+#   (?P<kisa>...)      — KISA başlık yakalanıyor: zorunlu argüman BOŞ olan
+#                        biçimlerde (`\section[\appendixname~\thesection]{}`)
+#                        görünen metin odur. Yakalanmazken anahatta BOŞ satır
+#                        çıkıyordu (ölçüldü 2026-09-09, template27'de üç kez).
 _RE_SECTION_BAS = re.compile(
     r'\\(part|chapter|section|subsection|subsubsection|paragraph|subparagraph)'
-    r'\*?\s*(?:\[[^\]]*\])?\s*\{'
+    r'\*?\s*(?:\[(?P<kisa>[^\]]*)\])?\s*\{'
 )
+
+# Yerleşim/aralık komutları: başlıkta GÖRÜNEN metin üretmiyorlar, argümanıyla
+# birlikte atılıyor. ÖLÇÜLDÜ (2026-09-09): `\section{\break Footnotes}` beş
+# ayrı başlıkta anahatta `\break Footnotes` diye görünüyordu.
+# Liste DAR ve iki gruptan: yerleşim komutları ve SEMBOL komutları. Sembol
+# grubu ölçümden geldi: `ScholarOne\textregistered\ Manuscripts` başlığında
+# adı bırakmak "ScholarOnetextregistered" üretiyordu.
+_RE_BASLIK_YERLESIM = re.compile(
+    r'\\(?:break|newline|linebreak|nobreak|clearpage|newpage|hfill|protect'
+    r'|thanks|footnote|hspace\*?|vspace\*?'
+    r'|textregistered|texttrademark|textcopyright|copyright|textdegree'
+    r'|textbullet|ldots|dots|textendash|textemdash'
+    # Font/hizalama BİLDİRİMLERİ: argüman almıyorlar ve metin üretmiyorlar,
+    # yani adlarını bırakmak "bfseries kod" gibi bir başlık üretir (ölçüldü).
+    r'|bfseries|mdseries|itshape|slshape|scshape|upshape|normalfont'
+    r'|rmfamily|sffamily|ttfamily|centering|raggedright|raggedleft'
+    r'|noindent|em|bf|it|sl|sc|tt|rm|sf'
+    r'|tiny|scriptsize|footnotesize|small|normalsize|large|Large|LARGE'
+    r'|huge|Huge)(?![a-zA-Z])\s*(?:\{[^{}]*\})?'
+)
+# `\komut{arg}` -> `arg`: sarmalayıcı komutun GÖRÜNEN kısmı argümanıdır
+# (`\centerline{KISALTMALAR}`, `\code{main.tex}`, `\textbf{X}`). Şablona özgü
+# makroları da karşılıyor; ad listesi tutmak onları kaçırırdı.
+#
+# Argüman BOŞ OLAMAZ (`[^{}]+`): `\LaTeX{}` biçimindeki `{}` bir argüman
+# değil, komutu bitiren ayraç. Boş argümana izin verilince `Learning
+# \LaTeX{}` başlığı "Learning" oluyordu (ölçüldü); şimdi komut aşağıdaki
+# ad indirgemesine düşüyor ve "Learning LaTeX" çıkıyor.
+_RE_BASLIK_SARMAL = re.compile(r'\\[a-zA-Z]+\*?\s*\{([^{}]+)\}')
+# Argümansız kalan komut: ADI bırakılıyor, silinmiyor. `\LaTeX{}` -> `LaTeX`
+# doğru sonucu veriyor ve `\alpha` gibi anlam taşıyan komutlarda bilgi
+# kaybetmiyor. Tersi (silmek) `\LaTeX` başlıklarını kırpardı.
+_RE_BASLIK_KOMUT = re.compile(r'\\([a-zA-Z]+)\*?')
+_RE_BASLIK_SEMBOL = re.compile(r'\\[^a-zA-Z]')
+_RE_BASLIK_BOSLUK = re.compile(r'\s+')
+# Kaçışlı noktalama LaTeX'te BASILI karakter, işaretçi değil: `\section{Kar
+# \%20}` başlığında yüzde işareti GÖRÜNÜR. Sembol kuralından korunmak için
+# önce sentinel'e alınıyor (kelime sayacındaki aynı kalıp, bkz. tab_ops).
+_BASLIK_ESC = "%$&#_{}"
+_RE_BASLIK_ESC = re.compile(r'\\([' + re.escape(_BASLIK_ESC) + r'])')
+_RE_BASLIK_SENTINEL = re.compile('[\x01-\x07]')
+
+
+def _baslik_goster(ham: str) -> str:
+    """Başlığı ANAHATTA gösterilecek hâle getir.
+
+    Panelde ham LaTeX görünüyordu: `\\centerline{KISALTMALAR}`,
+    `\\LaTeX-Specific Advice`, `\\break Footnotes`, `\\code{main.tex}`.
+    ÖLÇÜLDÜ (2026-09-09, 39 şablonun 133 dosyası): 12 dosyada 37 ayrı
+    başlıkta LaTeX kalıntısı vardı.
+
+    Sıra önemli: yerleşim komutları önce atılıyor, sonra sarmalayıcılar
+    argümanına indiriliyor (iç içe olabilir), en sonda argümansız kalanlar
+    adına indiriliyor.
+    """
+    t = _RE_BASLIK_YERLESIM.sub(' ', ham)
+    t = _RE_BASLIK_ESC.sub(
+        lambda m: chr(1 + _BASLIK_ESC.index(m.group(1))), t)
+    for _ in range(4):                  # iç içe sarmalayıcı; sınır bilinçli
+        yeni = _RE_BASLIK_SARMAL.sub(r'\1', t)
+        if yeni == t:
+            break
+        t = yeni
+    t = _RE_BASLIK_KOMUT.sub(r'\1', t)
+    t = _RE_BASLIK_SEMBOL.sub(' ', t)
+    # `~` bağlayıcı boşluk, görünür bir BOŞLUK (kelime sayacında da öyle).
+    t = t.replace('~', ' ')
+    t = t.replace('{', ' ').replace('}', ' ').replace('$', ' ')
+    t = _RE_BASLIK_SENTINEL.sub(
+        lambda m: _BASLIK_ESC[ord(m.group(0)) - 1], t)
+    return _RE_BASLIK_BOSLUK.sub(' ', t).strip()
 
 
 def _baslik_oku(text: str, i: int) -> str | None:
@@ -67,21 +142,12 @@ def _baslik_oku(text: str, i: int) -> str | None:
 # Kapanmamış ortam metnin sonuna kadar sözel sayılıyor (`\Z`): LaTeX de
 # oradan sonrasını yutuyor, yarım blok yüzünden sahte başlık üretmek daha
 # kötü olurdu.
-# Liste TEK KAYNAK, lexer'dan geliyor (yukarıdaki import). Burada ayrı bir
-# liste tutuluyordu ve ayrışmıştı: `comment`, `BVerbatim`, `LVerbatim` ve
-# `listing` eksikti, yani o ortamların içine alınmış bir `\section` editörde
-# sözel renklenirken anahatta LİSTELENİYORDU (ölçüldü 2026-09-06, dördü de
-# sızıyor). Yıldızlı biçimler aşağıdaki `\*?` ile karşılanıyor, o yüzden taban
-# adlar alınıp tekilleştiriliyor.
-_SOZEL_ORTAMLAR = tuple(sorted({e.rstrip("*") for e in _VERB_ENVS}))
-_RE_SOZEL = re.compile(
-    r"\\begin\{(" + "|".join(re.escape(e) for e in _SOZEL_ORTAMLAR) + r")\*?\}"
-    r"(.*?)(?:\\end\{\1\*?\}|\Z)", re.S)
-
-
-def _sozel_araliklar(text: str) -> list:
-    """Sözel ortam içeriklerinin (başlangıç, bitiş) offsetleri."""
-    return [(m.start(2), m.end(2)) for m in _RE_SOZEL.finditer(text)]
+# Sözel bölgeleri ayıklamak core/latex_utils.sozel_soy'un işi: burada ayrı
+# bir liste VE ayrı bir desen tutuluyordu. `sozel_soy` ortamların yanında
+# SATIR İÇİ `\verb`i de kapsıyor; o kapsanmıyordu ve ölçüldü (2026-09-09,
+# template29-tez/Chapter1.tex:308): `\verb|\section{}|` anlatan bir satır
+# anahatta iki BOŞ başlık üretiyordu. Soyma uzunluğu koruduğu için başlık
+# okuma ve satır numarası aynı offsetlerle çalışmaya devam ediyor.
 
 
 def _yorum_var_mi(parca: str) -> bool:
@@ -199,32 +265,41 @@ class OutlinePanel(QWidget):
         self._tree.clear()
         self._items = []
 
-        sozel = _sozel_araliklar(text)
+        # Sözel bölgeler BOŞLUĞA çevrilmiş metin üzerinde taranıyor: uzunluk
+        # korunduğu için satır numaraları ve başlık okuma aynı offsetlerle
+        # çalışıyor (bkz. yukarıdaki not).
+        tarama = sozel_soy(text)
         stack = []
         # Satır numaraları artımlı sayılır: her eşleşme için metnin başından
         # yeniden saymak (text[:m.start()].count) bölüm sayısıyla çarpılan
         # kare maliyet üretiyordu; burada imleç konumundan devam edilir.
         line = 0
         line_pos = 0  # `line` numaralı satırın başlangıç offseti
-        for match in _RE_SECTION_BAS.finditer(text):
+        for match in _RE_SECTION_BAS.finditer(tarama):
             # Yorum içinde mi kontrol et
-            line_start = text.rfind('\n', 0, match.start()) + 1
-            line_text = text[line_start:match.start()]
+            line_start = tarama.rfind('\n', 0, match.start()) + 1
+            line_text = tarama[line_start:match.start()]
             if _yorum_var_mi(line_text):
                 continue
 
-            if any(a <= match.start() < b for a, b in sozel):
-                continue                # verbatim/lstlisting örneği
-
-            ham_baslik = _baslik_oku(text, match.end())
+            ham_baslik = _baslik_oku(tarama, match.end())
             if ham_baslik is None:
                 continue                # küme kapanmamış
 
-            line += text.count('\n', line_pos, match.start())
+            line += tarama.count('\n', line_pos, match.start())
             line_pos = match.start()
 
             cmd = match.group(1)
-            title = ham_baslik.strip()
+            title = _baslik_goster(ham_baslik)
+            if not title:
+                # Zorunlu argüman boş: görünen metin KISA başlıktır
+                # (`\section[\appendixname~\thesection]{}`).
+                title = _baslik_goster(match.group('kisa') or '')
+            if not title:
+                # Gerçekten başlıksız bölüm (`\section{}`): şablonlarda
+                # yazarın dolduracağı yer. Boş satır tıklanabilir ama
+                # GÖRÜNMEZ; ölçüldü, altı satır böyleydi.
+                title = _("(başlıksız)")
             level = _LEVEL[cmd]
 
             prefix = _PREFIX.get(cmd, '')

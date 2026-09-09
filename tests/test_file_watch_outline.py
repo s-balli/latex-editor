@@ -157,6 +157,11 @@ def test_ilk_kurulum_varsayilan_ust_seviye_acik(qapp):
 # İki biçim eskiden yanlış işleniyordu (2026-08-31, G3):
 #   \chapter[Giriş]{Giriş ve Kapsam}  → hiç eşleşmiyordu, bölüm anahatta YOKTU
 #   \section{A \emph{B} C}            → başlık ilk iç kümede kırpılıyordu
+#
+# GÖSTERİM 2026-09-09'da değişti: panelde ham LaTeX görünüyordu
+# (`\centerline{KISALTMALAR}`, `\LaTeX-Specific Advice`, `\break
+# Footnotes`). 39 şablonun 133 dosyasında 12 dosyada 37 ayrı başlıkta
+# kalıntı ölçüldü. Beklentiler ona göre; kapıların AMACI aynı.
 # İlki standart bir kullanım (uzun başlığın içindekiler/üstbilgi karşılığı),
 # yani uzun başlıklı tezlerde anahat sessizce eksikti.
 
@@ -164,10 +169,12 @@ def test_ilk_kurulum_varsayilan_ust_seviye_acik(qapp):
     ("\\section{Giris}", "Giris"),
     ("\\chapter[Kisa]{Uzun Bolum Basligi}", "Ch: Uzun Bolum Basligi"),
     ("\\subsection[K]{Uzun}", "Uzun"),
-    ("\\section{Yontem ve \\emph{Materyal}}", "Yontem ve \\emph{Materyal}"),
-    ("\\subsection{A \\texttt{kod} B}", "A \\texttt{kod} B"),
+    # Sarmalayıcı komut argümanına indiriliyor: görünen metin o
+    ("\\section{Yontem ve \\emph{Materyal}}", "Yontem ve Materyal"),
+    ("\\subsection{A \\texttt{kod} B}", "A kod B"),
     ("\\section*{Yildizli}", "Yildizli"),
-    ("\\chapter{$E=mc^2$ uzerine}", "Ch: $E=mc^2$ uzerine"),
+    # Matematik ayracı etikette bilgi taşımıyor, içeriği kalıyor
+    ("\\chapter{$E=mc^2$ uzerine}", "Ch: E=mc^2 uzerine"),
     ("\\section {Bosluklu}", "Bosluklu"),
 ])
 def test_bolum_basligi_deseni(qapp, kaynak, baslik):
@@ -267,7 +274,8 @@ def test_sozel_tarama_SABLONLARDA_gercekten_is_goruyor(qapp):
     """
     import pathlib
     import re
-    from gui.outline import _sozel_araliklar
+
+    from core.latex_utils import sozel_soy
 
     kok = pathlib.Path(__file__).resolve().parents[1] / "template"
     if not kok.is_dir():
@@ -276,14 +284,16 @@ def test_sozel_tarama_SABLONLARDA_gercekten_is_goruyor(qapp):
     re_bas = re.compile(
         r'\\(part|chapter|section|subsection|subsubsection'
         r'|paragraph|subparagraph)\*?\s*(?:\[[^\]]*\])?\s*\{')
+    # Soyma uzunluğu KORUDUĞU için "soyulmuş metinde artık eşleşmiyor" ile
+    # "sözel içindeydi" aynı şey; ayrı bir aralık listesine gerek yok.
     icerideki = 0
     for yol in kok.rglob("*.tex"):
         metin = yol.read_text(encoding="utf-8", errors="replace")
-        araliklar = _sozel_araliklar(metin)
-        if not araliklar:
+        soyulmus = sozel_soy(metin)
+        if soyulmus == metin:
             continue
         icerideki += sum(1 for m in re_bas.finditer(metin)
-                         if any(a <= m.start() < b for a, b in araliklar))
+                         if not re_bas.match(soyulmus, m.start()))
 
     assert icerideki >= 10, \
         "korpusta sözel içi bölüm kalmamış (%d), kapı boş koşuyor" % icerideki
@@ -306,7 +316,10 @@ def test_yorum_var_mi_kacisi_biliyor(parca, beklenen):
 
 @pytest.mark.parametrize("kaynak,beklenen", [
     ("\\%20 indirim \\section{Giris}\n", ["Giris"]),
-    ("\\section{Kar \\%20} \\subsection{Detay}\n", ["Kar \\%20", "Detay"]),
+    # Yüzde işareti KORUNUYOR ama kaçışı GÖSTERİLMİYOR: LaTeX de "Kar %20"
+    # basıyor. Kaçış korunmasa `%` başlıktan düşerdi (gösterim temizliği
+    # 2026-09-09'da eklenirken bir kez düşmüştü, bu kapı yakaladı).
+    ("\\section{Kar \\%20} \\subsection{Detay}\n", ["Kar %20", "Detay"]),
     ("\\textbackslash\\%5 \\section{A}\n", ["A"]),
     # KONTROL: gerçek yorumlar hâlâ atlanmalı
     ("% \\section{Y}\n", []),
@@ -338,10 +351,25 @@ def test_kacisli_yuzde_bolumu_DUSURMUYOR(qapp, kaynak, beklenen):
 _LEXER_SOZEL = sorted({e.rstrip("*") for e in VERB_ENVS})
 
 
-def test_sozel_ortam_listesi_lexerdan_TURETILIYOR():
-    """Kırılırsa: anahat yine kendi ayrı listesini tutuyor demektir."""
-    from gui.outline import _SOZEL_ORTAMLAR
-    assert sorted(_SOZEL_ORTAMLAR) == _LEXER_SOZEL
+def test_sozel_ortam_listesi_TEK_KAYNAKTAN():
+    """Kırılırsa: anahat yine kendi ayrı listesini tutuyor demektir.
+
+    2026-09-09'da soyma işi `core.latex_utils.sozel_soy`a taşındı (aynı
+    listeyi referans denetimi de kullanıyor ve orada satır içi `\\verb` de
+    kapsanıyor). Kapı artık iki şeye bakıyor: anahat kendi liste/desen
+    tutmuyor, ve soymayı o tek kaynaktan alıyor.
+    """
+    import io
+    import os
+
+    import gui.outline as anahat
+
+    assert anahat.sozel_soy is not None
+    kaynak = io.open(os.path.abspath(anahat.__file__), encoding="utf-8",
+                     newline="").read()
+    for desen in ("_SOZEL_ORTAMLAR", "_RE_SOZEL", "VERB_ENVS"):
+        assert desen not in kaynak, (
+            "anahat yine kendi sözel listesini tutuyor: %r" % desen)
 
 
 def test_lexer_listesi_BOS_DEGIL():
@@ -389,3 +417,147 @@ def test_BENZER_ADLI_ortam_sozel_SAYILMIYOR(qapp):
     p.update_outline("\\begin{verbatimx}\n\\section{GORUNSUN}\n"
                      "\\end{verbatimx}\n")
     assert [i.text(0) for i in p._items] == ["GORUNSUN"]
+
+
+# =====================================================================
+# Anahat GÖSTERİMİ: ham LaTeX değil, okunur başlık
+#
+# 39 şablonun 133 .tex dosyası dört ölçütle tarandı (2026-09-09). Ölçütler
+# ground truth gerektirmiyor: başlıkta LaTeX kalıntısı, BOŞ başlık, yanlış
+# satır numarası, aynı satırda tekrar.
+#
+#   başlıkta LaTeX kalıntısı : 37 tekil / 12 dosya -> 0
+#   BOŞ başlık               : 20 -> 0
+#   aynı satırda tekrar      :  3 -> 0
+#   yanlış satır numarası    :  0 -> 0   (zaten doğruydu)
+#
+# Üç kök, hepsi gerçek satırlardan:
+#   \section*{\centerline{KISALTMALAR}}          template11/Etuthesis
+#   \subsection{\LaTeX-Specific Advice}          template19/access
+#   \section{\break Footnotes}                   template20/access (5 kez)
+#   \section{The \code{main.tex} File Explained} template29-tez/Chapter1
+#   \section[\appendixname~\thesection]{}        template27 (3 kez, BOŞ)
+#   \verb|\section{}| anlatan satır              template29-tez/Chapter1:308
+#                                                (iki BOŞ başlık + tekrar)
+# =====================================================================
+
+
+from gui.outline import _baslik_goster
+
+
+class TestAnahatBaslikGosterimi:
+
+    @pytest.mark.parametrize("ham,beklenen", [
+        # Sarmalayıcı: görünen kısım ARGÜMAN
+        (r"\centerline{KISALTMALAR}", "KISALTMALAR"),
+        (r"The \code{main.tex} File Explained", "The main.tex File Explained"),
+        (r"\textbf{Kalin} ve \emph{egik}", "Kalin ve egik"),
+        (r"Ic ice \textbf{\emph{iki kat}} baslik", "Ic ice iki kat baslik"),
+        # Argümansız komut: ADI kalıyor, `\LaTeX` doğru sonucu veriyor
+        (r"Using \LaTeX", "Using LaTeX"),
+        (r"\LaTeX-Specific Advice", "LaTeX-Specific Advice"),
+        (r"Learning \LaTeX{}", "Learning LaTeX"),
+        (r"\LaTeX{} on a Mac", "LaTeX on a Mac"),
+        # Yerleşim/sembol komutları: tümden atılıyor
+        (r"\break Footnotes", "Footnotes"),
+        (r"ScholarOne\textregistered\ Manuscripts", "ScholarOne Manuscripts"),
+        # Font bildirimi metin üretmiyor
+        (r"\texttt{\bfseries kod}", "kod"),
+        # Matematik ayracı etikette bilgi taşımıyor, içeriği kalıyor
+        (r"$E=mc^2$ uzerine", "E=mc^2 uzerine"),
+        # Bağlayıcı boşluk bir BOŞLUK
+        (r"\appendixname~\thesection", "appendixname thesection"),
+        # Düz başlık dokunulmadan geçiyor
+        ("Duz baslik", "Duz baslik"),
+    ])
+    def test_BASLIK_okunur_hale_geliyor(self, ham, beklenen):
+        """Kırılırsa panelde ham LaTeX görünüyor."""
+        assert _baslik_goster(ham) == beklenen
+
+    @pytest.mark.parametrize("ham,beklenen", [
+        (r"Kar \%20", "Kar %20"),
+        (r"Fiyat \$5", "Fiyat $5"),
+        (r"A \& B", "A & B"),
+        (r"Küme \{x\}", "Küme {x}"),
+        (r"alt\_cizgi", "alt_cizgi"),
+    ])
+    def test_KACISLI_noktalama_GORUNUR_kaliyor(self, ham, beklenen):
+        """Aşırı düzeltme kapısı: `\\%` basılı bir karakter. Sembol kuralı
+        onu bir kez yutmuştu ve deponun kaçışlı yüzde kapısı yakaladı."""
+        assert _baslik_goster(ham) == beklenen
+
+    def test_SATIR_ICI_VERB_anahatta_bolum_URETMIYOR(self, qapp):
+        r"""`\verb|\section{}|` anlatan bir satır iki BOŞ başlık üretiyordu
+        (ölçüldü, template29-tez/Chapter1.tex:308)."""
+        p = OutlinePanel(theme=THEMES["dark"])
+        try:
+            p.update_outline(
+                "\\section{Gercek}\n"
+                "LaTeX \\verb|\\section{}| ve \\verb|\\subsection{}| yazimi.\n")
+
+            assert [i.text(0) for i in p._items] == ["Gercek"]
+        finally:
+            p.deleteLater()
+            qapp.processEvents()
+
+    def test_ZORUNLU_baslik_BOSSA_kisa_baslik_gosteriliyor(self, qapp):
+        r"""`\section[\appendixname~\thesection]{}`: görünen metin KISA
+        başlıktır, anahatta boş satır çıkıyordu."""
+        p = OutlinePanel(theme=THEMES["dark"])
+        try:
+            p.update_outline("\\section[Ek A]{}\n")
+
+            assert [i.text(0) for i in p._items] == ["Ek A"]
+        finally:
+            p.deleteLater()
+            qapp.processEvents()
+
+    def test_GERCEKTEN_basliksiz_bolum_ETIKETLENIYOR(self, qapp):
+        r"""`\section{}` şablonlarda yazarın dolduracağı yer. Boş satır
+        tıklanabilir ama GÖRÜNMEZ."""
+        p = OutlinePanel(theme=THEMES["dark"])
+        try:
+            p.update_outline("\\section{}\\label{}\n")
+
+            assert [i.text(0) for i in p._items] == ["(başlıksız)"]
+        finally:
+            p.deleteLater()
+            qapp.processEvents()
+
+    # --- Aşırı düzeltme kapıları ---
+
+    def test_TEMIZLIK_baslik_DUSURMUYOR(self, qapp):
+        """Kalıntı temizliği bir bölümü anahattan atmamalı: temizlenen
+        başlık boşalsa bile satır listede kalıyor."""
+        p = OutlinePanel(theme=THEMES["dark"])
+        try:
+            p.update_outline(
+                "\\section{\\centerline{A}}\n"
+                "\\section{\\break}\n"
+                "\\section{Normal}\n")
+
+            assert len(p._items) == 3
+            assert [i.text(0) for i in p._items] == ["A", "(başlıksız)",
+                                                     "Normal"]
+        finally:
+            p.deleteLater()
+            qapp.processEvents()
+
+    def test_SATIR_NUMARALARI_temizlikten_ETKILENMIYOR(self, qapp):
+        """Soyma ve temizlik uzunluğu korumalı; korumazsa tıklayan kullanıcı
+        yanlış satıra gider."""
+        from PyQt6.QtCore import Qt
+
+        p = OutlinePanel(theme=THEMES["dark"])
+        try:
+            p.update_outline(
+                "onsoz\n"
+                "\\verb|\\section{sahte}| yazimi\n"
+                "\\section{\\code{gercek}}\n")
+
+            veriler = [(i.text(0), i.data(0, Qt.ItemDataRole.UserRole))
+                       for i in p._items]
+            assert veriler == [("gercek", 2)], veriler
+        finally:
+            p.deleteLater()
+            qapp.processEvents()

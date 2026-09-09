@@ -494,9 +494,13 @@ class TestAnahatIcIceKume:
                 "\\subsection{Küme \\{x\\} ve \\texttt{\\bfseries kod}}\n"
             )
             metinler = [it.text(0) for it in p._items]
+            # Panelde gösterilen metin 2026-09-09'da temizlendi:
+            # sarmalayıcı komut argümanına iniyor, kaçışlı küme
+            # GÖRÜNÜR karakter olarak kalıyor. `_baslik_oku`nun ham
+            # çıktısı değişmedi (yukarıdaki üç kapı onu tutuyor).
             assert metinler == [
-                "A \\textbf{\\emph{B}} C",
-                "Küme \\{x\\} ve \\texttt{\\bfseries kod}",
+                "A B C",
+                "Küme {x} ve kod",
             ], metinler
         finally:
             p.deleteLater()
@@ -515,7 +519,8 @@ class TestAnahatIcIceKume:
             )
             from PyQt6.QtCore import Qt
             veriler = [(it.text(0), it.data(0, Qt.ItemDataRole.UserRole)) for it in p._items]
-            assert veriler == [("Ch: Uzun Başlık", 1), ("Yöntem ve \\emph{Materyal}", 3)], veriler
+            assert veriler == [("Ch: Uzun Başlık", 1),
+                               ("Yöntem ve Materyal", 3)], veriler
         finally:
             p.deleteLater()
             qapp.processEvents()

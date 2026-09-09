@@ -43,8 +43,13 @@ def sozel_soy(text: str) -> str:
     Uzunluk ve satır yapısı KORUNUYOR (``strip_comments`` ile aynı
     sözleşme): çağıranların bir kısmı satır numarası hesaplıyor.
     """
-    if "verb" not in text:
-        return text                      # hız yolu: ne ortam ne komut var
+    # Hız yolu ölçütü ters bölü: soyduğumuz her şey bir komutla başlıyor.
+    # Burada bir kez `"verb" not in text` yazılmıştı ve YANLIŞTI: `comment`,
+    # `minted`, `alltt`, `listing` adlarında "verb" geçmiyor, yani o
+    # ortamların içi hiç soyulmuyordu. Deponun mevcut anahat kapıları bunu
+    # yakaladı (test_file_watch_outline, sekiz ortamın sekizi).
+    if "\\" not in text:
+        return text
     text = _RE_SOZEL_BLOK.sub(
         lambda m: (m.group(0)[:m.start(2) - m.start(0)]
                    + _bosluga_cevir(m.group(2))
