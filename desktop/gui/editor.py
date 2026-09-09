@@ -10,6 +10,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor, QPalette
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
+from core.bibtex import RE_GIRDI_ANAHTARI
 from core.log import get_logger
 from core.latex_refs import (
     CITE_KOMUTLARI, REF_ARALIK_KOMUTLARI, REF_KOMUTLARI, collect_cite_keys,
@@ -54,8 +55,10 @@ _RE_REF_ARALIK_TETIK = re.compile(
     + r'\{[^{}]*\}\{([A-Za-z0-9_:.\-]*)$')
 _RE_CITE_TETIK = re.compile(
     komut_alternatifi(CITE_KOMUTLARI) + r'\{([A-Za-z0-9_:.,\-]*)$')
-# .bib girdi anahtarı: @article{key, — Alt+tık ile makaledeki \cite yerine git
-_RE_BIBENTRY = re.compile(r'@\w+\s*\{\s*([^,\s}]+)\s*,')
+# .bib girdi anahtarı (@article{key,): Alt+tık ile makaledeki \cite yerine git.
+# Desen core.bibtex'ten geliyor, kopyası TUTULMUYOR: burada kendi kopyası
+# vardı ve ikisi `@tur(...)` parantezli biçimde ayrışıyordu (bkz. oradaki not).
+_RE_BIBENTRY = RE_GIRDI_ANAHTARI
 # \bibitem{key} (thebibliography) — Alt+tık ile ters yön: makaledeki \cite yerine
 _RE_BIBITEMARG = re.compile(r'\\bibitem\s*(?:\[[^\]]*\])?\s*\{([^}]+)\}')
 # \label{key} — F2 yeniden adlandırma için imleç altındaki anahtar

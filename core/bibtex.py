@@ -25,7 +25,7 @@ import urllib.request
 from dataclasses import dataclass, field
 
 # Girdi olmayan @ blokları: makro tanımı, yorum, önsöz.
-_GIRDI_DISI = frozenset(["string", "comment", "preamble"])
+GIRDI_DISI = frozenset(["string", "comment", "preamble"])
 
 # Klasik BibTeX'in (plain.bst) zorunlu alanları. Her öğe bir SEÇENEK demeti:
 # ("author", "editor") "author ya da editor" demek.
@@ -153,7 +153,7 @@ def parse_entries(text: str) -> list[BibGirdi]:
             # Dengelenmemiş ayraç: dosyanın kalanı güvenle ayrıştırılamaz.
             # Bulunanları döndürüyoruz; kısmi sonuç, sessiz yanlıştan iyidir.
             return girdiler
-        if tur not in _GIRDI_DISI:
+        if tur not in GIRDI_DISI:
             parcalar = _ust_duzey_bol(text[k + 1:son])
             anahtar = parcalar[0].strip()
             if anahtar:
@@ -169,6 +169,29 @@ def parse_entries(text: str) -> list[BibGirdi]:
                 sayilan_yer = i
                 girdiler.append(BibGirdi(tur, anahtar, satir_no, alanlar))
         i = son + 1
+
+
+# Girdi ANAHTARININ kendisini bulan desen: `@article{kaya2020,` içindeki
+# `kaya2020`. Ayrıştırıcı (parse_entries) girdinin tamamını istiyor,
+# tüketicilerin bir bölümü ise yalnız anahtarın metindeki YERİNİ istiyor:
+# imleç altındaki anahtar (Alt+tık, F2), satır numarası, yeniden adlandırma
+# aralığı. Onlar için ayrıştırıcı çalıştırmak gerekmiyor; ama desen
+# ayrıştırıcıyla AYNI kuralları taşımak zorunda, yoksa aynı dosya hakkında
+# iki farklı cevap çıkıyor.
+#
+# ÖLÇÜLDÜ (2026-09-09): desenin iki kopyası (latex_refs, editor) `@tur(...)`
+# parantezli biçimi tanımıyor, `@comment{eski,` bloğunu ise girdi sanıyordu.
+# Parantezli tek bir girdi uygulamayı kendisiyle çelişkiye düşürüyordu:
+# Kaynakça sekmesi girdiyi listeliyor, referans denetimi aynı anahtara
+# "Tanımsız atıf" diyor, Alt+tık gitmiyor, F2 .bib girdisini atlayıp
+# belgede sarkan atıf bırakıyordu.
+#
+# SINIR (bilerek): virgülsüz `@book{anahtar}` biçimi bu desenle eşleşmiyor,
+# ayrıştırıcıyla ise eşleşiyor. 22 gerçek .bib dosyasının 306 girdisinde
+# örneği yok; alanı olmayan girdi kaynakçada da bir şey basmıyor.
+RE_GIRDI_ANAHTARI = re.compile(
+    r'@(?!(?:' + '|'.join(sorted(GIRDI_DISI)) + r')[\s{(])'
+    r'\w+\s*[{(]\s*([^,\s{}()]+)\s*,', re.I)
 
 
 def mukerrer_anahtarlar(girdiler) -> list[tuple[str, list[int]]]:

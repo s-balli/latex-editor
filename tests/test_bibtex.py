@@ -14,7 +14,7 @@ import pytest
 
 from core.bibtex import (
     BibGirdi, denetle, dosyayi_denetle, eksik_alanlar, mukerrer_anahtarlar,
-    ozet, parse_entries,
+    ozet, parse_entries, RE_GIRDI_ANAHTARI,
 )
 
 
@@ -660,3 +660,36 @@ class TestAgYanitiSinirli:
         from core import bibtex as B
         # Ölçülen gerçek yanıtlar 341-504 bayt.
         assert B._MAX_YANIT > 100 * 1024
+
+
+class TestGirdiAnahtariDeseni:
+    """Anahtarın YERİNİ bulan desen: ayrıştırıcının özeti, kopyası değil.
+
+    Alt+tık, F2 ve satır numarası anahtarın metindeki yerini istiyor;
+    ayrıştırıcı girdinin tamamını üretiyor. İki uygulama aynı dosya hakkında
+    farklı cevap verdiği anda uygulama kendisiyle çelişiyor.
+    """
+
+    def test_ANAHTARA_ayrac_karakteri_GIRMIYOR(self):
+        r"""Aşırı düzeltme kapısı, gerçek veriden.
+
+        template32-deu-hacettepe/packages.tex içindeki
+        `\newcommand\bibstyle@semicolon{\bibpunct();a,,}` satırı
+        `@semicolon{...` görünümünde. Anahtar karakter kümesi ayraçları
+        dışlamazsa bu satır `\bibpunct();a` diye bir kaynakça anahtarı
+        üretiyordu. Desen .tex içeriğinde de çalışıyor (F2 atıf yeniden
+        adlandırma zincirdeki her dosyada .bib girdisi de arıyor), yani bu
+        satır gerçekten deseni görüyor.
+
+        Ayrıştırıcı aynı satırdan hayalet bir girdi çıkarıyor (ölçüldü:
+        tur='semicolon'); orası sorun değil, çünkü `parse_entries` yalnız
+        `find_bib_path`in döndürdüğü .bib içeriğiyle besleniyor. Desen ise
+        .tex görüyor, o yüzden dar olan taraf DESEN olmalı.
+        """
+        satir = "\\newcommand\\bibstyle@semicolon{\\bibpunct();a,,}\n"
+        assert RE_GIRDI_ANAHTARI.findall(satir) == []
+
+    def test_PARANTEZLI_girdi_ayristiriciyla_AYNI(self):
+        metin = "@article(kaya2020,\n title = {X},\n)\n"
+        assert RE_GIRDI_ANAHTARI.findall(metin) == ["kaya2020"]
+        assert [g.anahtar for g in parse_entries(metin)] == ["kaya2020"]

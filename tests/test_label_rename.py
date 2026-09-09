@@ -673,3 +673,22 @@ def test_ORNEK_blogundaki_bib_GIRDISI_de_DEGISMIYOR(qapp, tmp_path):
     assert buf.count("smith2021") == 1               # yalnız gerçek \cite
     assert "\\begin{verbatim}\n@article{smith2020,\n" in buf
     assert bib.read_text(encoding="utf-8").startswith("@article{smith2021,")
+
+
+def test_f2_PARANTEZLI_bib_girdisinde_de_calisiyor(qapp):
+    """`@article(anahtar,` biçiminde F2 sessizce ölmemeli.
+
+    Editörün deseni core.bibtex'ten geliyor; kendi kopyasını taşıdığı sürece
+    bu biçimde imleç altındaki anahtarı görmüyordu (ölçüldü 2026-09-09).
+    Kapı editörün KENDİ yolundan geçiyor, desen kimliğine bakmıyor: kopya
+    geri gelirse burada düşer.
+    """
+    ed = EditorWidget()
+    ed._file_path = "/x/refs.bib"
+    ed.setText("@article(kaya2020,\n title={X},\n)\n")
+    caught = []
+    ed.rename_cite_requested.connect(caught.append)
+    ed.setCursorPosition(0, len("@article(kaya2020") - 1)
+    ed._request_rename()
+    assert caught == ["kaya2020"]
+    assert ed._bib_key_at("@article(kaya2020, title={X})", 12) == "kaya2020"

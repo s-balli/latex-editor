@@ -6,6 +6,7 @@ import time
 import pytest
 
 from core import latex_refs
+from core.bibtex import RE_GIRDI_ANAHTARI
 
 
 # --- collect_labels ---
@@ -1299,3 +1300,76 @@ class TestSinifDosyasindaKaynakcaBildirimi:
         assert latex_refs.find_bib_path(tex.read_text(encoding="utf-8"),
                                         str(tex)) == \
             str(tmp_path / "dogru.bib")
+
+
+class TestParantezliBibGirdisi:
+    r"""`@article(anahtar, ...)` BibTeX'in ikinci geçerli biçimi.
+
+    Girdi anahtarı deseni ile gerçek ayrıştırıcı (core.bibtex.parse_entries)
+    bu biçimde ayrışıyordu ve uygulama KENDİSİYLE çelişiyordu (ölçüldü
+    2026-09-09): Kaynakça sekmesi girdiyi listeliyor, referans denetimi aynı
+    anahtara "Tanımsız atıf" diyor, Alt+tık gitmiyor, F2 .bib girdisini
+    atlayıp belgede sarkan atıf bırakıyordu.
+    """
+
+    BIB = ("@article(kaya2020,\n"
+           "  author = {A. Kaya},\n"
+           "  title = {Parantezli},\n"
+           "  journal = {Dergi},\n"
+           "  year = {2020},\n"
+           ")\n")
+    TEX = ("\\bibliography{kaynak}\n"
+           "\\begin{document}\n"
+           "Bkz \\cite{kaya2020}.\n"
+           "\\end{document}\n")
+
+    def _proje(self, tmp_path):
+        (tmp_path / "kaynak.bib").write_text(self.BIB, encoding="utf-8")
+        tex = tmp_path / "m.tex"
+        tex.write_text(self.TEX, encoding="utf-8")
+        return str(tex)
+
+    def test_DORT_TUKETICI_de_parantezli_girdiyi_goruyor(self, tmp_path):
+        """Dört sonuç da aynı kusurun yüzleri; kapı dördünü birlikte tutuyor."""
+        yol = self._proje(tmp_path)
+        assert latex_refs.collect_cite_keys(self.TEX, yol) == ["kaya2020"]
+        assert latex_refs.audit_references(self.TEX, yol).undefined_cites == []
+        assert "kaya2020" in latex_refs.bib_key_locations(self.TEX, yol)
+        assert latex_refs.bib_key_rename_spans(self.BIB, "kaya2020") == \
+            [(9, 17)]
+
+    def test_AYRISTIRICIYLA_ayni_cevap(self, tmp_path):
+        """Ölçüt iki uygulamanın BİRBİRİNE eşitliği; ikisi de aynı dosyayı
+        okuyor, farklı cevap veriyorlarsa hangisinin doğru olduğu değil,
+        çeliştikleri sorun."""
+        from core.bibtex import parse_entries
+        for metin in (self.BIB,
+                      "@article{a1,\n title={X},\n}\n",
+                      '@string{jgr = "J. Geophys. Res."}\n'
+                      "@article{a2,\n title={X},\n}\n",
+                      "@comment{eski2019,\n title={Y},\n}\n"
+                      "@article{a3,\n title={X},\n}\n",
+                      "@ARTICLE{a4,\n note={posta: x@y.com, z},\n}\n"):
+            ayristirici = sorted({g.anahtar for g in parse_entries(metin)})
+            desen = sorted({m.group(1).strip() for m
+                            in RE_GIRDI_ANAHTARI.finditer(metin)})
+            assert ayristirici == desen, metin
+
+    def test_GIRDI_OLMAYAN_bloklar_anahtar_saymiyor(self, tmp_path):
+        """Aşırı düzeltme kapısı: `@comment{eski,` bir girdi DEĞİL.
+
+        Sayılsa kullanıcı kaldırdığı bir kayıt için "kullanılmayan kaynakça
+        girdisi" önerisi görürdü.
+        """
+        (tmp_path / "kaynak.bib").write_text(
+            "@comment{eski2019,\n  title = {Y},\n}\n"
+            "@article{yeni2020,\n  author = {A},\n  title = {T},\n"
+            "  journal = {J},\n  year = {2020},\n}\n", encoding="utf-8")
+        tex = tmp_path / "m.tex"
+        tex.write_text("\\bibliography{kaynak}\n\\cite{yeni2020}\n",
+                       encoding="utf-8")
+        icerik = tex.read_text(encoding="utf-8")
+
+        assert latex_refs.collect_cite_keys(icerik, str(tex)) == ["yeni2020"]
+        assert latex_refs.audit_references(
+            icerik, str(tex)).unused_bib_keys == []

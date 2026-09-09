@@ -10,6 +10,7 @@ import re
 import time
 from dataclasses import dataclass, field
 
+from core.bibtex import RE_GIRDI_ANAHTARI
 from core.input_parser import parse_inputs
 from core.latex_utils import sozel_soy, strip_comments
 
@@ -31,7 +32,6 @@ _ANAHTAR_YASAK = set("\\{}#%$&~^|")
 
 def _anahtar_olabilir(k: str) -> bool:
     return bool(k) and not (_ANAHTAR_YASAK & set(k))
-_RE_BIBENTRY = re.compile(r'@\w+\s*\{\s*([^,\s}]+)\s*,')
 _RE_ADDBIB = re.compile(r'\\addbibresource\s*\{([^}]+\.bib)\}')
 _RE_BIBLIO = re.compile(r'\\bibliography\s*\{([^}]+)\}')
 
@@ -409,7 +409,7 @@ def collect_cite_keys(content: str, base_path: str) -> list[str]:
         return cached[1]
     try:
         with open(bib_path, 'r', encoding='utf-8', errors='replace') as f:
-            keys = sorted({m.group(1).strip() for m in _RE_BIBENTRY.finditer(f.read())})
+            keys = sorted({m.group(1).strip() for m in RE_GIRDI_ANAHTARI.finditer(f.read())})
     except OSError:
         return []
     _cache_put(_bib_cache, bib_path, (mtime, keys))
@@ -782,7 +782,7 @@ def bib_key_locations(content: str, base_path: str) -> dict[str, tuple[str, int]
         return {}
     out: dict[str, tuple[str, int]] = {}
     for i, ln in enumerate(text.split('\n'), start=1):
-        for m in _RE_BIBENTRY.finditer(ln):
+        for m in RE_GIRDI_ANAHTARI.finditer(ln):
             out.setdefault(m.group(1).strip(), (bib_path, i))
     return out
 
@@ -904,7 +904,7 @@ def bib_key_rename_spans(text: str, old: str) -> list[tuple[int, int]]:
     """.bib içeriğinde ``old`` anahtarlı @type{old, girdisinin anahtar aralığı."""
     tarama = _yeniden_adlandirma_taramasi(text)
     spans: list[tuple[int, int]] = []
-    for m in _RE_BIBENTRY.finditer(tarama):
+    for m in RE_GIRDI_ANAHTARI.finditer(tarama):
         if m.group(1) == old:
             spans.append(m.span(1))
     return spans
