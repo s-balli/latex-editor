@@ -275,8 +275,16 @@ def has_manual_bibliography(content: str, base_path: str) -> bool:
     return False
 
 
-def _bib_paths_in_sinif(bdir: str) -> list[str]:
-    """Belgenin yanındaki `.cls`/`.sty` içinde .bib bildirimi ara.
+def _sinif_dosyalarinda_ara(bdir: str, ayikla) -> list:
+    """Belgenin yanındaki `.cls`/`.sty` içinde bir bildirim ara.
+
+    ``ayikla(metin, bdir)`` bildirimi çıkaran işlev; boş liste "bulunamadı"
+    demek. Genel yazıldı çünkü aynı üç düzeyli arama (belge, `\\input`
+    zinciri, sınıf dosyası) iki ayrı bildirim için gerekiyor: `.bib` yolu ve
+    `\\graphicspath`. İkincisi bu aramayı YAPMIYORDU ve dışa aktarmada
+    ölçüldü (2026-09-10, template28-book1): `\\graphicspath{{Images/}}`
+    bildirimi `LegrandOrangeBook.cls` içinde, üç görselin bağı kırık
+    çıkıyordu.
 
     biblatex şablonlarının bir kısmı `\\addbibresource`i SINIF dosyasına
     koyuyor ve `.tex` zincirinde hiç bildirim olmuyor. ÖLÇÜLDÜ (2026-09-09,
@@ -316,10 +324,44 @@ def _bib_paths_in_sinif(bdir: str) -> list[str]:
                     metin = f.read()
             except OSError:
                 continue
-            yollar = _bib_paths_in(strip_comments(metin), bdir)
-            if yollar:
-                return yollar
+            bulunan = ayikla(strip_comments(metin), bdir)
+            if bulunan:
+                return bulunan
     return []
+
+
+def _zincir_ve_sinifta_ara(content: str, base_path: str, ayikla) -> list:
+    """Bildirimi `\\input` zincirinde, sonra sınıf/stil dosyasında ara."""
+    bdir = _base_dir(base_path)
+    for _p, metin in _chain_texts(content, base_path):
+        bulunan = ayikla(metin, bdir)
+        if bulunan:
+            return bulunan
+    return _sinif_dosyalarinda_ara(bdir, ayikla)
+
+
+def bildirimleri_ara(content: str, base_path: str, ayikla) -> list:
+    """Bir LaTeX bildirimini ÜÇ DÜZEYDE ara: belge, zincir, sınıf dosyası.
+
+    ``ayikla(metin, bdir)`` bildirimi çıkaran işlev; ilk boş olmayan sonuç
+    kazanıyor. Arama STRATEJİSİ burada tek kaynak, ÇIKARMA kuralı çağıranda:
+    `.bib` yolunu `find_bib_paths`, `\\graphicspath` dizinlerini
+    `core.exporter` çıkarıyor.
+
+    Strateji neden üç düzeyli: bildirim ana dosyada olmayabiliyor (çok
+    dosyalı tez) ve hiç `.tex`te olmayabiliyor (şablon onu sınıf dosyasına
+    koyuyor). İki bildirim için de ölçüldü; ayrıntı `find_bib_paths` ve
+    `_sinif_dosyalarinda_ara` notlarında.
+
+    Önbellek YOK: `find_bib_paths` kendi TTL'sini tutuyor çünkü tamamlama
+    yolunda her tuş vuruşunda çağrılıyor. Buradan geçen öteki çağrı (dışa
+    aktarma) kullanıcı eylemi başına bir kez koşuyor.
+    """
+    bdir = _base_dir(base_path)
+    dogrudan = ayikla(strip_comments(content), bdir)
+    if dogrudan:
+        return dogrudan
+    return _zincir_ve_sinifta_ara(content, base_path, ayikla)
 
 
 def find_bib_paths(content: str, base_path: str) -> list[str]:
@@ -354,13 +396,7 @@ def find_bib_paths(content: str, base_path: str) -> list[str]:
     if onbellek and (time.time() - onbellek[0]) < _BIB_CHAIN_TTL:
         return list(onbellek[1])
 
-    sonuc: list[str] = []
-    for _p, metin in _chain_texts(content, base_path):
-        sonuc = _bib_paths_in(metin, bdir)
-        if sonuc:
-            break
-    if not sonuc:
-        sonuc = _bib_paths_in_sinif(bdir)
+    sonuc = _zincir_ve_sinifta_ara(content, base_path, _bib_paths_in)
     if len(_bib_chain_cache) > 8:
         _bib_chain_cache.clear()
     _bib_chain_cache[base_path] = (time.time(), sonuc)

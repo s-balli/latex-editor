@@ -1058,6 +1058,50 @@ class TestExporterYorumAyiklama:
         tex = self._proje(tmp_path, "\\graphicspath{{media/}{sekiller/}}\n")
         assert _extract_graphics_paths(tex) == ["media/", "sekiller/"]
 
+    def test_graphicspath_SINIF_dosyasinda_ve_COK_SATIRLI(self, tmp_path):
+        r"""`\graphicspath` yalnız belgede aranıyordu ve tek satır varsayılıyordu.
+
+        ÖLÇÜLDÜ (2026-09-10, 59 gerçek ana .tex dosyası gerçek pandoc'a
+        verildi): template28-book1'de bildirim `LegrandOrangeBook.cls`
+        içinde, görseller `Images/` altında ve dışa aktarılan Markdown'da
+        ÜÇ görselin bağı kırık çıkıyordu. Dışa aktarma "başarılı" dönüyor,
+        kusur ancak dosya açılınca görünüyor. Düzeltmeden sonra süpürmede
+        kırık bağ 3 -> 0.
+
+        `.bib` araması aynı üç düzeyi (belge, `\input` zinciri, sınıf
+        dosyası) 2026-09-09'da öğrenmişti; aynı dosyada bir işlev ötede
+        duran bu arama öğrenmemiş. Strateji artık ortak
+        (`latex_refs.bildirimleri_ara`).
+
+        İKİNCİ EKSEN, çok satırlı biçim: dış desen `(.+)` ile yazılıydı,
+        satır sonunu geçmiyordu. template1 bildirimi alt alta yazıyor ve
+        girintide BÖLÜNMEZ BOŞLUK (U+00A0) var; ikisi de okunmuyordu.
+        Tek düzeltme ikisini de kapatmıyor, o yüzden ikisi burada.
+        """
+        # 1) bildirim SINIF dosyasında, belgede hiç yok
+        sinif = tmp_path / "sinif"
+        sinif.mkdir()
+        tex = sinif / "main.tex"
+        tex.write_text("\\documentclass{kitap}\n\\begin{document}\n"
+                       "\\includegraphics{logo}\n\\end{document}\n",
+                       encoding="utf-8")
+        (sinif / "kitap.cls").write_text(
+            "\\ProvidesClass{kitap}\n\\graphicspath{{Images/}}\n",
+            encoding="utf-8")
+        assert _extract_graphics_paths(str(tex)) == ["Images/"]
+
+        # 2) çok satırlı bildirim, girintide BÖLÜNMEZ BOŞLUK (U+00A0)
+        cok = tmp_path / "cok"
+        cok.mkdir()
+        tex2 = cok / "main.tex"
+        tex2.write_text("\\documentclass{article}\n"
+                        "\\graphicspath{\n"
+                        "\u00a0\u00a0{./Figures/}\n"
+                        "\u00a0\u00a0{./logo/}\n"
+                        "}\n\\begin{document}\n\\end{document}\n",
+                        encoding="utf-8")
+        assert _extract_graphics_paths(str(tex2)) == ["./Figures/", "./logo/"]
+
 
 # ==========================================================================
 # `\bibliography{a,b}` LaTeX'te gecerli

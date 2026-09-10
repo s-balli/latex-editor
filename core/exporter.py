@@ -9,11 +9,11 @@ import sys
 
 from core.log import get_logger
 from core.paths import clean_child_env, windows_to_wsl
-# Bu depodaki TEK çözücü zinciri (utf-8 -> cp1254 -> iso-8859-9). Modül
-# düzeyinde alınıyor: üç ayrı yerde gerekiyor ve project_search yalnız
+from core.latex_refs import bildirimleri_ara, find_bib_paths
+# Çözücü zinciri (utf-8 -> cp1254 -> iso-8859-9) `core.fs_ops`ta; buradaki
+# ad `project_search`ten alınıyor çünkü modülün dışa açık yüzeyi orası.
+# Modül düzeyinde alınıyor: üç ayrı yerde gerekiyor ve zincir yalnız
 # stdlib'e dayanıyor, döngü ya da açılış maliyeti yok.
-from core.latex_refs import find_bib_paths
-from core.latex_utils import strip_comments
 from core.project_search import coz
 
 _logger = get_logger("exporter")
@@ -531,26 +531,62 @@ def _fix_md_image_paths(tex_path: str, md_path: str):
         _logger.warning("MD resim yolu düzeltme başarısız: %s", e)
 
 
+# `\graphicspath{{a/}{b/}}`. Gövde YALNIZ süslü gruplardan (ve boşluktan)
+# oluşuyor; `\graphicspath` söz dizimi tam bu. Eskiden dış desen `(.+)`
+# ile yazılıydı, yani SATIR SONUNU GEÇMİYORDU: birden çok dizini alt alta
+# yazan biçim (gerçek şablonda var, template1) hiç okunmuyordu.
+#
+#     \graphicspath{
+#         {./Figures/}
+#         {./logo/}
+#     }
+#
+# `re.S` ve `\s*` ile ikisi de okunuyor; girintideki bölünmez boşluk
+# (U+00A0, o dosyada birebir bu var) `\s`ye giriyor.
+_RE_GRAPHICSPATH = re.compile(
+    r'\\graphicspath\s*\{((?:\s*\{[^{}]*\})+)\s*\}', re.S)
+
+
+def _graphicspath_bildirimleri(metin: str, _bdir: str) -> list[str]:
+    r"""Metindeki `\graphicspath` dizinleri. `bildirimleri_ara` imzası.
+
+    Yoruma alınmış bir `\graphicspath` dizin değil örnektir; yorumları
+    çağıran soyuyor (`bildirimleri_ara` ve zincir/sınıf kolları
+    `strip_comments`ten geçiriyor). ÖLÇÜLDÜ (2026-09-06):
+    `% \graphicspath{{eski/}}` satırı listeye 'eski/' ekliyordu ve
+    `_fix_md_image_paths` adayları SIRAYLA denediği için o dizin gerçek
+    olandan ÖNCE deneniyordu.
+    """
+    paths = []
+    for m in _RE_GRAPHICSPATH.finditer(metin):
+        for inner in re.finditer(r'\{([^{}]*)\}', m.group(1)):
+            if inner.group(1):
+                paths.append(inner.group(1))
+    return paths
+
+
 def _extract_graphics_paths(tex_path: str) -> list[str]:
-    r"""\graphicspath{{dir1/}{dir2/}} içindeki yolları çıkar."""
-    import re
+    r"""\graphicspath{{dir1/}{dir2/}} içindeki yolları çıkar.
+
+    ARAMA ÜÇ DÜZEYLİ (`latex_refs.bildirimleri_ara`): belge, `\input`
+    zinciri, sonra `.cls`/`.sty`. Burada yalnız belgeye bakılıyordu ve
+    ÖLÇÜLDÜ (2026-09-10, 59 gerçek ana .tex dosyası uçtan uca pandoc'a
+    verildi): template28-book1'de bildirim `LegrandOrangeBook.cls` içinde,
+    görseller `Images/` altında ve dışa aktarılan Markdown'da ÜÇ görselin
+    bağı kırık çıkıyordu. Dışa aktarma "başarılı" dönüyor, kusur ancak
+    dosya açılınca görünüyor.
+
+    `.bib` araması aynı üç düzeyi 2026-09-09'da öğrenmişti; aynı dosyada,
+    bir işlev ötede duran bu arama öğrenmemiş.
+    """
     try:
         # Çözücü zinciri: `\graphicspath{{şekiller/}}` cp1254 bir belgede
         # `replace` okumasıyla bozuluyor ve o dizindeki hiçbir görsel
         # bulunamıyordu (ölçüldü: 'şekiller/' yerine '�ekiller/').
         with open(tex_path, "rb") as f:
             content = coz(f.read())
-        # Yoruma alınmış bir `\graphicspath` dizin değil örnektir. Ölçüldü
-        # (2026-09-06): `% \graphicspath{{eski/}}` satırı listeye 'eski/'
-        # ekliyordu ve `_fix_md_image_paths` adayları SIRAYLA denediği için
-        # o dizin gerçek olandan ÖNCE deneniyordu. Aynı gerekçe
-        # `_find_bibliography` için de geçerli, ikisi de aynı dosyayı okuyor.
-        content = strip_comments(content)
-        paths = []
-        for m in re.finditer(r'\\graphicspath\s*\{(.+)\}', content):
-            for inner in re.finditer(r'\{([^}]+)\}', m.group(1)):
-                paths.append(inner.group(1))
-        return paths
+        return bildirimleri_ara(content, tex_path,
+                                _graphicspath_bildirimleri)
     except Exception:
         _logger.warning("graphicspath okunamadı: %s", tex_path, exc_info=True)
         return []
