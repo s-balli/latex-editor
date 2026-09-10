@@ -13,6 +13,7 @@ TASARIM: denetim CANLI DEĞİL, komutla çalışır.
 Sözlük yükleme AYRI İŞ PARÇACIĞINDA: 3.5 sn arayüzü dondurur.
 """
 
+import lzma
 import os
 import sys
 
@@ -83,26 +84,35 @@ def _sozluk_dizini_gerekli_mi(dil: str) -> str:
     return ""
 
 
-def _dic_saglam_mi(yol: str) -> bool:
-    """Hunspell `.dic` dosyası tam mı.
+def _guncel_mi(cikti: str, kaynak: str) -> bool:
+    """Açılmış dosya arşivin TAMAMINI taşıyor mu. ÖLÇÜT BOYUT.
 
-    Biçimin KENDİ bütünlük işareti var: ilk satır girdi sayısı, dosya o kadar
-    satır taşımalı. Yan dosya tutmaya gerek kalmıyor ve ESKİ sürümlerin
-    bıraktığı kırpık dosya da onarılabiliyor.
+    Ölçüt `scripts/sozluk_ac.py::ac` ile AYNI olmak zorunda: ikisi de aynı
+    soruyu soruyor (bu ham dosya güncel mi, yoksa `.xz`den yeniden açılmalı
+    mı) ve ikisi de aynı dizine yazıyor. `tests/test_yazim_gui.py` içindeki
+    kapı ikisinin aynı cevabı verdiğini sınıyor.
 
-    ÖLÇÜLDÜ (2026-09-07): 9 MB'lık tr_TR.dic için ilk satır 371169 ve dosyada
-    tam o kadar satır var; sayım 39 ms sürüyor. Sözlük yüklemesi zaten 3.5 sn
-    ve arka planda, yani bu denetim ölçülebilir bir maliyet eklemiyor.
+    Burada eskiden BAŞKA bir ölçüt vardı: `.dic`in kendi sayaç satırına
+    bakan bir sezgi, `.aff` için ise YALNIZ VARLIK. Asimetri ölçüldü
+    (2026-09-10, taze bir sözlük dizininde):
 
-    Sayaç satırı olmayan bir sözlüğe KARIŞILMIYOR: başka bir dil eklenirse
-    biçimi farklı olabilir ve "bozuk" sanıp durmadan yeniden açmak yanlış olur.
+        kırpık `.dic`  -> onarıldı
+        kırpık `.aff`  -> ONARILMADI, sözlük `make_affix() missing 2
+                          required positional arguments` ile hiç
+                          yüklenmiyor ve durum KALICI
+
+    Yani atlanan dosyanın başarısızlığı daha ağır: kullanıcı her "Denetle"de
+    anlaşılmaz bir Python hatası görüyor ve uygulama kendini hiç toparlamıyor.
+    Sezgi zaten arşivin kendisi elde olduğu için gereksizdi.
     """
     try:
-        with open(yol, "rb") as f:
-            bas = f.readline().strip()
-            if not bas.isdigit():
-                return True
-            return sum(1 for _ in f) >= int(bas)
+        with lzma.open(kaynak, "rb") as f:
+            beklenen = len(f.read())
+    except (OSError, lzma.LZMAError):
+        log.warning("Sözlük arşivi okunamadı: %s", kaynak, exc_info=True)
+        return True                  # arşiv bozuk: ham dosyaya dokunma
+    try:
+        return os.path.getsize(cikti) == beklenen
     except OSError:
         return False
 
@@ -118,7 +128,6 @@ def _xz_ac(kaynak: str, cikti: str) -> bool:
 
     Uygulama aynı kuralı `EditorWidget._write_atomic`ta zaten yazıyor.
     """
-    import lzma
     gecici = cikti + ".tmp"
     try:
         with lzma.open(kaynak, "rb") as f:
@@ -152,19 +161,26 @@ def _sikistirilmisi_ac(dizin: str, dil: str) -> None:
     `sozlukler/` içinde yalnız `.xz` bulunuyor, `_sozluk_dizini_gerekli_mi`
     boş dönüyor ve yükleme anlaşılmaz bir hata diyaloğuyla düşüyordu.
 
-    Karar dosya BAŞINA veriliyor ve `.dic` için sağlamlık da soruluyor.
-    Eskiden tek bakış `.dic` VAR MI idi ve iki hâl kalıcı olarak bozuk
-    kalıyordu (ölçüldü 2026-09-07, ikisi de yeniden açılmıyordu):
+    Karar dosya BAŞINA ve İKİ DOSYA için aynı ölçütle veriliyor
+    (`_guncel_mi`). Eskiden tek bakış `.dic` VAR MI idi ve iki hâl kalıcı
+    olarak bozuk kalıyordu (ölçüldü 2026-09-07, ikisi de yeniden
+    açılmıyordu):
       kırpık `.dic`   -> sözlük hatasız yükleniyor, doğru kelimeler yanlış
       `.aff` eksik    -> FileNotFoundError
+    Sonra `.dic` için sağlamlık soruluyor ama `.aff` için yalnız varlığa
+    bakılıyordu; kırpık `.aff` de kalıcı olarak bozuk kalıyordu (ölçüldü
+    2026-09-10, bkz. `_guncel_mi`).
+
+    `.xz` YOKSA hiçbir şey yapılmıyor: onarılacak kaynak yok. Paketlenmiş
+    uygulamada durum tam bu (`.spec` yalnız ham iki dosyayı alıyor, arşivi
+    almıyor), yani orada bu işlev hiçbir maliyet üretmiyor.
     """
     for ad in (dil + ".dic", dil + ".aff"):
         cikti = os.path.join(dizin, ad)
-        if os.path.isfile(cikti) and (not ad.endswith(".dic")
-                                      or _dic_saglam_mi(cikti)):
-            continue
-        kaynak = os.path.join(dizin, ad + ".xz")
+        kaynak = cikti + ".xz"
         if not os.path.isfile(kaynak):
+            continue
+        if _guncel_mi(cikti, kaynak):
             continue
         if not _xz_ac(kaynak, cikti):
             return

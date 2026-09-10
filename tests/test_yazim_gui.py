@@ -606,24 +606,89 @@ def test_SAGLAM_dosyaya_dokunulmuyor(qapp, tmp_path, monkeypatch):
     assert acmalar == [], "saglam sozluk yeniden acildi"
 
 
-def test_SAYACI_OLMAYAN_dic_bozuk_sayilmiyor(qapp, tmp_path, monkeypatch):
-    """Baska bir dil eklenirse bicimi farkli olabilir; durmadan yeniden
-    acmak yanlis olur."""
-    from gui.mixins.yazim_ops import _dic_saglam_mi
-    yol = tmp_path / "sayacsiz.dic"
-    yol.write_text("kelime\nsozluk\n", encoding="utf-8")
-    assert _dic_saglam_mi(str(yol)) is True
+@pytest.mark.parametrize("durum", ["ham yok", "dic kirpik", "aff kirpik",
+                                   "aff eksik", "dic uzun", "ikisi tam",
+                                   "ayni boyut baska icerik"])
+def test_ACMA_OLCUTU_betikle_AYNI(qapp, tmp_path, monkeypatch, durum):
+    r"""Aynı iş iki yerde yazılı; ikisi aynı cevabı vermeli.
 
+        scripts/sozluk_ac.py::ac                  yapımda açar
+        gui/mixins/yazim_ops::_sikistirilmisi_ac  çalışma anında açar
 
-def test_dic_saglamlik_denetimi_SAYIYOR(qapp, tmp_path):
-    from gui.mixins.yazim_ops import _dic_saglam_mi
-    tam = tmp_path / "tam.dic"
-    tam.write_text("2\na\nb\n", encoding="utf-8")
-    eksik = tmp_path / "eksik.dic"
-    eksik.write_text("2\na\n", encoding="utf-8")
-    assert _dic_saglam_mi(str(tam)) is True
-    assert _dic_saglam_mi(str(eksik)) is False
-    assert _dic_saglam_mi(str(tmp_path / "yok.dic")) is False
+    İkisi de aynı dizine yazıyor ve aynı soruyu soruyor. ÖLÇÜT AYRIŞMIŞTI:
+    betik iki dosya için de BOYUTA bakıyordu, uygulama `.dic` için bir
+    sezgiye (sayaç satırı) ve `.aff` için YALNIZ VARLIĞA. Sonuç (ölçüldü
+    2026-09-10, taze bir sözlük dizininde):
+
+        kırpık `.dic`  -> uygulama onarıyor
+        kırpık `.aff`  -> uygulama ONARMIYOR; sözlük `make_affix() missing
+                          2 required positional arguments` ile hiç
+                          yüklenmiyor ve durum KALICI
+
+    Atlanan dosyanın başarısızlığı daha ağır: kullanıcı her "Denetle"de
+    anlaşılmaz bir Python hatası görüyor. Düzeltmeden sonra günlük on
+    Türkçe kelimenin 10'u da doğru sayılıyor.
+
+    Bu kapı elle liste tutmuyor, İKİSİNİ KARŞILAŞTIRIYOR: aynı başlangıç
+    durumundan ikisi de aynı baytları bırakmalı. Son durum ("aynı boyut
+    başka içerik") ölçütün BİLİNEN sınırı: ikisi de dokunmuyor, ve bu
+    kapının işi o sınırın da AYNI kalmasını sınamak.
+    """
+    import lzma
+    import os as _os
+    import sys as _sys
+    _betikler = _os.path.join(
+        _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+        "scripts")
+    if _betikler not in _sys.path:
+        _sys.path.insert(0, _betikler)
+    import sozluk_ac
+
+    dic = b"3\nkelime\nsozluk\nkitap\n"
+    aff = b"SET UTF-8\nSFX A Y 1\nSFX A 0 lar .\n"
+
+    def dizim(kok):
+        kok.mkdir()
+        (kok / "tr_TR.dic.xz").write_bytes(lzma.compress(dic))
+        (kok / "tr_TR.aff.xz").write_bytes(lzma.compress(aff))
+        if durum != "ham yok":
+            (kok / "tr_TR.dic").write_bytes(dic)
+            (kok / "tr_TR.aff").write_bytes(aff)
+        if durum == "dic kirpik":
+            (kok / "tr_TR.dic").write_bytes(dic[:8])
+        elif durum == "aff kirpik":
+            (kok / "tr_TR.aff").write_bytes(aff[:10])
+        elif durum == "aff eksik":
+            (kok / "tr_TR.aff").unlink()
+        elif durum == "dic uzun":
+            # Bozulma kirpilma OLMAK ZORUNDA DEGIL: yarim yazma sonrasi
+            # eski kuyruk yerinde kalirsa dosya UZUN olur.
+            (kok / "tr_TR.dic").write_bytes(dic + b"artik\n")
+        elif durum == "ayni boyut baska icerik":
+            (kok / "tr_TR.aff").write_bytes(b"X" * len(aff))
+        return kok
+
+    uygulama = dizim(tmp_path / "uygulama")
+    betik = dizim(tmp_path / "betik")
+
+    monkeypatch.setattr("gui.mixins.yazim_ops.sozluk_dizini",
+                        lambda: str(uygulama))
+    _sozluk_dizini_gerekli_mi("tr_TR")
+
+    monkeypatch.setattr(sozluk_ac, "DIZIN", str(betik))
+    sozluk_ac.ac(sessiz=True)
+
+    for ad in ("tr_TR.dic", "tr_TR.aff"):
+        u = uygulama / ad
+        b = betik / ad
+        assert u.exists() == b.exists(), (durum, ad)
+        if u.exists():
+            assert u.read_bytes() == b.read_bytes(), (durum, ad)
+    # Onarilmasi gerekenler GERCEKTEN onarilmis olmali (kapi bos kosmasin)
+    if durum in ("ham yok", "dic kirpik", "aff kirpik", "aff eksik",
+                 "dic uzun"):
+        assert (uygulama / "tr_TR.dic").read_bytes() == dic, durum
+        assert (uygulama / "tr_TR.aff").read_bytes() == aff, durum
 
 
 def test_acma_yarida_kesilirse_KIRPIK_dosya_kalmiyor(qapp, tmp_path,
