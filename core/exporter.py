@@ -346,12 +346,60 @@ def _rewrite_docx_member(docx_path: str, member: str, new_bytes: bytes):
     os.replace(tmp, docx_path)
 
 
+# Stil etiketini bir kez yakala, nitelikleri ETİKETİN İÇİNDE ara: OOXML
+# nitelik SIRASINI garanti etmiyor.
+_RE_STIL_ETIKETI = re.compile(r'<w:style\b[^>]*>')
+_RE_STIL_KIMLIGI = re.compile(r'w:styleId="([^"]+)"')
+_RE_STIL_TURU = re.compile(r'w:type="([^"]+)"')
+
+
+def _tablo_stilleri(styles_xml: str) -> set:
+    """`styles.xml`de TABLO türünde tanımlı stil kimlikleri.
+
+    Burada iki ayrı desen vardı ve biri sıraya bağlıydı:
+
+        r'<w:style[^>]*w:type="table"[^>]*w:styleId="([^"]+)"'   tablo
+        r'<w:style[^>]*w:styleId="([^"]+)"'                      hepsi
+
+    İlki `w:type`ı `w:styleId`den ÖNCE bekliyor. GERÇEK pandoc 3.1.3
+    çıktısı tersini yazıyor (ölçüldü 2026-09-10):
+
+        <w:style w:default="1" w:styleId="Table" w:type="table">
+
+    Yani tablo kümesi HER ZAMAN boş, ikinci desen ise doğru çalışıyordu:
+    aynı bilgi iki desende, biri bozuk. Tek geçiş, tek kaynak.
+    """
+    tablo = set()
+    for m in _RE_STIL_ETIKETI.finditer(styles_xml):
+        etiket = m.group(0)
+        km = _RE_STIL_KIMLIGI.search(etiket)
+        tm = _RE_STIL_TURU.search(etiket)
+        if km and tm and tm.group(1) == "table":
+            tablo.add(km.group(1))
+    return tablo
+
+
 def _fix_docx_compat(docx_path: str):
     r"""Word'ün açamadığı docx sorunlarını düzelt:
 
     1) Boş-anchor hyperlink'leri (eksik figure `\ref'leri) sade metne çevirir.
     2) Tanımsız tablo stili referanslarını (pandoc 3.1.3 FigureTable bug'ı) tanımlı
        `Table' stiline yönlendirir. Word tanımsız stili reddedip dosyayı açamaz.
+
+    İKİNCİSİ HİÇ ÇALIŞMIYORDU. Tanımlı tablo stillerini bulan desen sıraya
+    bağlıydı (bkz. `_tablo_stilleri`), küme her zaman boş kalıyor ve
+    `fallback` her zaman None oluyordu; tanımsız stil YÖNLENDİRİLMİYOR,
+    SİLİNİYORDU. ÖLÇÜLDÜ (2026-09-10): gerçek bir çıktıya pandoc'un
+    hatası taklit edilip `FigureTable` sokuldu, düzeltmeden sonra belgede
+    HİÇ `<w:tblStyle>` kalmadı (0 etiket), oysa `Table`a dönmesi
+    gerekiyordu. Sonuç sessiz: tablo biçimini kaybediyor ama Word dosyayı
+    açtığı için kimse fark etmiyor.
+
+    Geçerlilik denetimi de TABLO türüne bakıyor artık, "herhangi bir stil
+    tanımlı mı"ya değil: `w:tblStyle` yalnız tablo stiline işaret
+    edebilir, paragraf stili adına işaret eden bir referansı Word yine
+    reddederdi. Gerçek veride davranış DEĞİŞMİYOR (49 çıktının 34'ünde tek
+    kullanılan stil `Table`, o da tablo türünde).
     """
     import zipfile
     try:
@@ -366,7 +414,7 @@ def _fix_docx_compat(docx_path: str):
                         docx_path, exc_info=True)
         return
 
-    defined = set(re.findall(r'<w:style[^>]*w:styleId="([^"]+)"', styles))
+    table_styles = _tablo_stilleri(styles)
     changed = False
 
     # 1) boş-anchor hyperlink'lerini sade metne çevir
@@ -384,13 +432,15 @@ def _fix_docx_compat(docx_path: str):
     doc = re.sub(r'<w:hyperlink\b([^>]*)>(.*?)</w:hyperlink>', fix_hyperlink, doc, flags=re.DOTALL)
 
     # 2) tanımsız tablo stili -> tanımlı bir tablo stiline (tercihen "Table")
-    table_styles = set(re.findall(r'<w:style[^>]*w:type="table"[^>]*w:styleId="([^"]+)"', styles))
-    fallback = "Table" if "Table" in table_styles else (next(iter(table_styles)) if table_styles else None)
+    # `sorted`, `next(iter(...))` değil: küme sırası koşudan koşuya
+    # değişiyor, aynı belgeden iki farklı çıktı üretirdi.
+    fallback = "Table" if "Table" in table_styles else (
+        sorted(table_styles)[0] if table_styles else None)
 
     def fix_tblstyle(m):
         nonlocal changed
         val = m.group(1)
-        if val in defined:
+        if val in table_styles:
             return m.group(0)
         changed = True
         return f'<w:tblStyle w:val="{fallback}" />' if fallback else ''

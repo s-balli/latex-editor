@@ -628,9 +628,50 @@ class TestFixDocxBrokenAnchors:
         d = _docx.Document(str(docx_path))   # çökmemeli
         assert len(d.paragraphs) >= 1
 
+    def test_tablo_stili_taramasi_NITELIK_SIRASINDAN_bagimsiz(self):
+        r"""Tanımlı tablo stillerini bulan desen sıraya bağlıydı.
+
+        Desen `w:type`ı `w:styleId`den ÖNCE bekliyordu. GERÇEK pandoc
+        3.1.3 çıktısı tersini yazıyor (ölçüldü 2026-09-10):
+
+            <w:style w:default="1" w:styleId="Table" w:type="table">
+
+        Sonuç: tanımlı tablo stili kümesi HER ZAMAN boş, `fallback` her
+        zaman None ve tanımsız stil yönlendirilmiyor SİLİNİYORDU. OOXML
+        nitelik sırasını garanti etmiyor, o yüzden kapı İKİ SIRAYI da
+        sınıyor. Bu kol pandoc GEREKTİRMİYOR: üç CI işinde de koşuyor.
+        """
+        from core.exporter import _tablo_stilleri
+        gercek = ('<w:styles><w:style w:default="1" w:styleId="Table" '
+                  'w:type="table"><w:name w:val="Table"/></w:style>'
+                  '<w:style w:styleId="Compact" w:type="paragraph"/>'
+                  '</w:styles>')
+        ters = ('<w:styles><w:style w:type="table" w:styleId="Table"/>'
+                '<w:style w:type="paragraph" w:styleId="Compact"/>'
+                '</w:styles>')
+        assert _tablo_stilleri(gercek) == {"Table"}
+        assert _tablo_stilleri(ters) == {"Table"}
+        # Paragraf stili tablo stili SAYILMAZ: `w:tblStyle` yalnız tablo
+        # stiline işaret edebilir, yoksa Word dosyayı yine reddeder.
+        assert "Compact" not in _tablo_stilleri(gercek)
+
     @pytest.mark.skipif(not _PANDOC, reason="pandoc gerekli")
     def test_undefined_table_style_replaced(self, tmp_path):
-        # pandoc 3.1.3 FigureTable bug'ı simülasyonu: tanımsız stili enjekte et, düzelir mi?
+        r"""Tanımsız tablo stili SİLİNMEYİP tanımlı `Table`a yönlenmeli.
+
+        Bu kapı VARDI ve doğru şeyi iddia ediyordu, ama BOŞ KOŞUYORDU:
+        tanımsız stili var olan `<w:tblStyle w:val="Table"/>` etiketinin
+        YANINA ekliyordu. Eski kod `FigureTable`ı siliyor, yanındaki
+        `Table` yerinde kaldığı için ikinci iddia yine geçiyordu.
+        Enjeksiyon artık VAR OLANI DEĞİŞTİRİYOR, yani belgede tanımlı
+        hiçbir tablo stili referansı kalmıyor.
+
+        ÖLÇÜLDÜ (2026-09-10, 49 gerçek şablon gerçek pandoc'a verildi):
+        16'sında pandoc `FigureTable` üretiyor, yani senaryo kenar durum
+        değil. Eski kodda 16'sının da tablo stili referansı siliniyordu;
+        8'inde belgede tablo stili HİÇ kalmıyordu (öteki 8'inde başka bir
+        tablonun `Table` referansı vardı).
+        """
         import zipfile, subprocess
         tex = tmp_path / "d.tex"
         tex.write_text(
@@ -641,14 +682,19 @@ class TestFixDocxBrokenAnchors:
         docx_path = tmp_path / "d.docx"
         subprocess.run(["pandoc", str(tex), "-o", str(docx_path)],
                        capture_output=True, check=True)
-        # tanımsız FigureTable stili enjekte et (ilk tablonun tblPr'sine)
         doc = zipfile.ZipFile(str(docx_path)).read('word/document.xml').decode('utf-8')
-        doc = doc.replace('<w:tblPr>', '<w:tblPr><w:tblStyle w:val="FigureTable" />', 1)
+        # VAR OLAN referansı değiştir; eklemek kapıyı boşaltıyordu.
+        assert '<w:tblStyle w:val="Table"' in doc, "pandoc tablo stili yazmadı"
+        doc = re.sub(r'<w:tblStyle\s+w:val="Table"\s*/>',
+                     '<w:tblStyle w:val="FigureTable" />', doc)
+        assert "FigureTable" in doc, "enjeksiyon tutmadı, kapı boş koşardı"
         _rewrite_docx_member(str(docx_path), 'word/document.xml', doc.encode('utf-8'))
         _fix_docx_compat(str(docx_path))
         doc2 = zipfile.ZipFile(str(docx_path)).read('word/document.xml').decode('utf-8')
         assert "FigureTable" not in doc2          # tanımsız stil kaldırıldı
         assert '<w:tblStyle w:val="Table"' in doc2  # tanımlı Table stiline yönlendirildi
+        assert doc2.count("<w:tblStyle") == 1, (
+            "etiket silinmiş; yönlendirme yerine kaldırma yapılıyor")
 
 
 # =====================================================================
