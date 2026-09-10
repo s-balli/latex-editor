@@ -212,6 +212,50 @@ class TestHarfDuyarliligi:
         bar._count_matches("şekil")
         assert bar._match_count == 1
 
+    def test_DUYARSIZ_kip_TURKCE_harfleri_de_katlar(self, qapp):
+        """Duyarsız kip Türkçe harfler için DUYARLI davranıyordu.
+
+        Scintilla'nın harf duyarsız araması yalnız ASCII'yi katlıyor. Belge
+        UTF-8 (kod sayfası 65001 ölçüldü) ama Türkçe harfler çok baytlı, o
+        yüzden hiç katlanmıyorlardı. Kutunun ipucu tam tersini söylüyor:
+        "İşaretliyse 'Şekil' ile 'şekil' ayrı sayılır".
+
+        ÖLÇÜLDÜ (2026-09-10), ASCII dışı harf içeren 83 gerçek şablon
+        dosyasında 12 gerçekçi sorgu: 2286 eşleşmenin 2061'i bulunuyordu,
+        225'i kaçıyordu (%9.8). En kötüsü `örnek`: 126'nın 29'u, çünkü
+        Türkçe başlıklar büyük harfle başlıyor (`Örnek`).
+
+        ÜÇ YOL da aynı eksikle çalışıyordu ve üçü de burada sınanıyor.
+        En kötüsü sonuncusu: "Tümünü Değiştir" belgeyi YARIM değiştirip
+        etiket "1 değişiklik" diyordu, yani sessiz bozulma.
+        """
+        metin = "Şekil şekil ŞEKİL\n"
+        # 1) sayaç
+        bar, _ed = _bar(metin, "şekil")
+        _sec(bar, case=False)
+        bar._count_matches("şekil")
+        assert bar._match_count == 3
+        # 2) gezinme: üç AYRI yere gitmeli (imleç eşleşmenin sonunda kalır)
+        bar, ed = _bar(metin, "şekil")
+        _sec(bar, case=False)
+        yerler = []
+        ed.setCursorPosition(0, 0)
+        while len(yerler) < 5:
+            satir, sutun = ed.getCursorPosition()
+            if not bar._find_first("şekil", wrap=False, forward=True,
+                                   line=satir, col=sutun):
+                break
+            yerler.append(ed.getSelection()[:2])
+            ed.setCursorPosition(*ed.getSelection()[2:])
+        assert yerler == [(0, 0), (0, 6), (0, 12)]
+        # 3) tümünü değiştir: HEPSİ değişmeli
+        bar, ed = _bar(metin, "şekil", "GORSEL")
+        _sec(bar, case=False)
+        bar._replace_all()
+        assert ed.text() == "GORSEL GORSEL GORSEL\n"
+        assert "3" in bar._lbl_count.text()
+
+
 
 class TestTamKelime:
     def test_kapaliyken_ic_ice_eslesiyor(self, qapp):
@@ -1014,6 +1058,10 @@ class TestIkiAramaAyniSayiyi:
     de kullanıcıya "N sonuç" diye aynı dili konuşuyor, o yüzden ölçüt
     birbirlerine EŞİTLİKLERİ. ÖLÇÜLDÜ (2026-09-09): kendisiyle örtüşen
     sorgularda ayrışıyorlardı (`\\` -> 2 / 3, iki boşluk -> 3 / 5).
+
+    O tur bu kapıyı HARF DUYARLI kurmuş (`_cb_case.setChecked(True)`), yani
+    katlama ekseni hiç karşılaştırılmamış; ayrışma orada sürüyordu ve
+    2026-09-10'da bulundu. Duyarsız kip aşağıdaki kardeş testte.
     """
 
     ORNEKLER = [
@@ -1037,3 +1085,38 @@ class TestIkiAramaAyniSayiyi:
                                                case_sensitive=True)
             assert not kesildi
             assert bar._match_count == len(bulgular), (icerik, sorgu)
+
+    # Türkçe belgede Ctrl+F'in gerçekten aradığı kelimeler. Beklenen sayılar
+    # ELLE yazılı, iki tarafın eşitliğinden TÜRETİLMİYOR: yoksa ikisi
+    # birlikte bozulsa kapı yine geçerdi. Kural: `İ` ve `I` küçültmede `i`ye
+    # gidiyor, `ı` kendinde kalıyor (ı/i ayrımı korunuyor, bkz. `kucult`).
+    TURKCE_METIN = ("İçindekiler ve İSTANBUL\n"
+                    "Örnek örnek ÖRNEK\n"
+                    "Şekil şekil ŞEKİL\n")
+    TURKCE_ORNEKLER = [("içindekiler", 1), ("istanbul", 1), ("örnek", 3),
+                       ("ÖRNEK", 3), ("şekil", 3), ("ŞEKİL", 3)]
+
+    def test_ayni_sayi_HARF_DUYARSIZ_kipte_de(self, qapp, tmp_path):
+        """Duyarsız kipte Ctrl+F Türkçe harfleri hiç katlamıyordu.
+
+        Scintilla'nın duyarsız araması yalnız ASCII'yi katlıyor; belge UTF-8
+        olduğu için Türkçe harfler çok baytlı ve katlanmıyorlardı. ÖLÇÜLDÜ
+        (2026-09-10), ASCII dışı harf içeren 83 gerçek şablon dosyasında 12
+        gerçekçi sorgu: 2286 eşleşmenin 2061'i bulunuyordu, 225'i kaçıyordu
+        (%9.8). En kötüsü `örnek`: 126'nın 29'u, çünkü Türkçe başlıklar
+        büyük harfle başlıyor.
+        """
+        from core.project_search import search_project
+
+        yol = tmp_path / "m.tex"
+        yol.write_text(self.TURKCE_METIN, encoding="utf-8", newline="")
+        for sorgu, sayi in self.TURKCE_ORNEKLER:
+            bar, _ed = _bar(self.TURKCE_METIN, sorgu)
+            _sec(bar, case=False)
+            bar._count_matches(sorgu)
+            bulgular, kesildi = search_project(str(tmp_path), sorgu,
+                                               case_sensitive=False)
+            assert not kesildi
+            assert bar._match_count == sayi, ("Ctrl+F", sorgu,
+                                              bar._match_count)
+            assert len(bulgular) == sayi, ("proje", sorgu, len(bulgular))

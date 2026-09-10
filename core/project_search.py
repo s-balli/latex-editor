@@ -78,6 +78,42 @@ def kucult(s: str) -> str:
     return s.lower().replace("̇", "")
 
 
+def eslesme_ofsetleri(metin: str, sorgu: str, *,
+                      case_sensitive: bool = False):
+    """`sorgu`nun `metin` içindeki başlangıç ofsetleri (karakter, artan).
+
+    TEK KAYNAK: projede arama da, Ctrl+F de buradan geçiyor. İkisi eskiden
+    ayrı motorlar kullanıyordu ve harf katlaması AYRIŞMIŞTI: Scintilla'nın
+    duyarsız araması yalnız ASCII'yi katlıyor, yani `şekil` sorgusu
+    `Şekil`i, `istanbul` sorgusu `İstanbul`u hiç bulmuyordu (ölçüldü
+    2026-09-10). Aynı çift bir kez de ÖRTÜŞEN eşleşmelerde ayrışmıştı
+    (aşağıdaki nota bakın); iki eksen, aynı kök.
+
+    ÖRTÜŞEN eşleşme sayılmaz: her eşleşmenin SONUNDAN devam ediliyor. Bir
+    karakter ilerlemek uygulamayı kendisiyle çelişkiye düşürüyordu; aynı
+    metin, aynı sorgu (ölçüldü 2026-09-09, Ctrl+F / Projede Ara):
+
+        `a \\\\ b`  sorgu `\\`        ->  2 / 3
+        `a      b`  sorgu iki boşluk  ->  3 / 5
+
+    İkisi de gerçek LaTeX sorgusu (satır kırma, fazla boşluk temizliği).
+    39 gerçek şablonda `\\` sorgusu 2725 satır gösteriyordu, doğrusu 2629.
+    Scintilla'nın motoru (SCI_SEARCHINTARGET) ve `grep -o` da eşleşmenin
+    sonundan devam ediyor.
+
+    ``kucult`` UZUNLUĞU KORUDUĞU için ofsetler ÖZGÜN metinde de geçerli ve
+    eşleşme uzunluğu her zaman ``len(sorgu)``.
+    """
+    if not sorgu:
+        return
+    karsilastirilan = metin if case_sensitive else kucult(metin)
+    hedef = sorgu if case_sensitive else kucult(sorgu)
+    bas = karsilastirilan.find(hedef)
+    while bas >= 0:
+        yield bas
+        bas = karsilastirilan.find(hedef, bas + len(hedef))
+
+
 # Çözücü zincir TEK KAYNAK core.fs_ops; buradaki ad korunuyor çünkü modülün
 # dışa açık yüzeyi (dışa aktarma, .bib denetimi ve testler `coz`u buradan
 # alıyor). Kendi gövdesi vardı; üç kopyanın biriydi (bkz. oradaki not).
@@ -161,12 +197,13 @@ def search_project(root: str, query: str, *, case_sensitive: bool = False,
         if aranan not in (metin if case_sensitive else kucult(metin)):
             continue
         for no, satir in enumerate(metin.split("\n"), 1):
-            karsilastirilan = satir if case_sensitive else kucult(satir)
-            bas = karsilastirilan.find(aranan)
-            if bas < 0:
-                continue
-            gosterilen = satir.strip()[:_SATIR_KIRP]
-            while bas >= 0:
+            # Eşleştirme kuralı (harf katlaması ve örtüşen eşleşmeler)
+            # `eslesme_ofsetleri`nde; Ctrl+F de aynı işlevi kullanıyor.
+            gosterilen = None
+            for bas in eslesme_ofsetleri(satir, query,
+                                         case_sensitive=case_sensitive):
+                if gosterilen is None:
+                    gosterilen = satir.strip()[:_SATIR_KIRP]
                 bulgular.append(Bulgu(yol, no, bas, gosterilen))
                 # Sınıra DEĞMEK kırpma değildir, sınırı AŞMAK kırpmadır: tam
                 # `limit` kadar eşleşme varken liste eksik değil. Eskiden
@@ -178,21 +215,6 @@ def search_project(root: str, query: str, *, case_sensitive: bool = False,
                 # eşleşme bulunur.
                 if len(bulgular) > limit:
                     return bulgular[:limit], True
-                # Eşleşmenin SONUNDAN devam: kendisiyle örtüşen eşleşmeler
-                # ayrı sonuç değil. Bir karakter ilerlemek uygulamayı
-                # KENDİSİYLE çelişkiye düşürüyordu; aynı metin, aynı sorgu
-                # (ölçüldü 2026-09-09, Ctrl+F / Projede Ara):
-                #
-                #   `a \\\\ b`  sorgu `\\`  ->  2 / 3
-                #   `a      b`  sorgu iki boşluk  ->  3 / 5
-                #
-                # İkisi de gerçek LaTeX sorgusu (satır kırma, fazla boşluk
-                # temizliği). Panelde fazlalıklar AYNI satırın aynı metniyle
-                # görünüyor, kullanıcı ayırt edemiyordu. 39 gerçek şablonda
-                # `\\` sorgusu 2725 satır gösteriyordu, doğrusu 2629.
-                # Ctrl+F'in motoru (SCI_SEARCHINTARGET) da eşleşmenin
-                # sonundan devam ediyor; grep -o da öyle.
-                bas = karsilastirilan.find(aranan, bas + len(aranan))
     return bulgular, False
 
 

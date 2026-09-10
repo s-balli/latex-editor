@@ -9,6 +9,8 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.Qsci import QsciScintilla
 
+from core.project_search import eslesme_ofsetleri
+
 from PyQt6.QtCore import QCoreApplication
 _ = lambda s: QCoreApplication.translate("FindReplaceBar", s)
 
@@ -438,6 +440,105 @@ class FindReplaceBar(QWidget):
             return line, col
         return self._editor.getCursorPosition()
 
+    # ------------------------------------------------------------------
+    # Harf duyarsız düz metin araması: Python tarafında
+    # ------------------------------------------------------------------
+    #
+    # Scintilla'nın harf duyarsız araması yalnız ASCII'yi katlıyor. Belge
+    # UTF-8 (kod sayfası 65001 ölçüldü) ama Türkçe harfler çok baytlı, o
+    # yüzden hiç katlanmıyorlar. ÖLÇÜLDÜ (2026-09-10), yedi gerçekçi Türkçe
+    # sorgudan ALTISI ayrışıyordu (Ctrl+F / Projede Ara):
+    #
+    #     içindekiler   0 / 2      şekil   1 / 3
+    #     istanbul      0 / 1      ŞEKİL   1 / 3
+    #
+    # Yani "harf duyarsız" kip Türkçe harfler için duyarlı davranıyordu ve
+    # kutunun ipucu tam tersini söylüyor ("İşaretliyse 'Şekil' ile 'şekil'
+    # ayrı sayılır"). Gerçek bir 78 KB'lık bölüm dosyasında `ağ` sorgusu
+    # 277 eşleşmenin 270'ini, `şekil` 4'ün 3'ünü buluyordu. Sayma, gezinme
+    # ve "Tümünü Değiştir" üçü de aynı eksikle çalışıyordu: belge YARIM
+    # değişip etiket "1 değişiklik" diyordu.
+    #
+    # Katlama kuralı `core.project_search`ten geliyor (TEK KAYNAK; orada
+    # Türkçe noktalı İ için ölçülmüş). Maliyet ölçüldü: gerçek 78 KB'lık
+    # dosyada 0.7 ms, dört katına çıkarılmışında 3.1 ms. Modülün eski
+    # notu haklı olarak `str.count` ile belgeyi her tuş vuruşunda
+    # kopyalamaktan şikâyetçiydi; buradaki yol 300 ms'lik debounce'un
+    # arkasında ve sayım tavanı var.
+    #
+    # DESEN kipi ve HARF DUYARLI kip Scintilla'da kalıyor: ikisi de doğru
+    # çalışıyor ve desen motorunu Python'da taklit etmek gerekmiyor.
+
+    def _python_yolu(self, re_: bool, cs: bool) -> bool:
+        return not re_ and not cs
+
+    @staticmethod
+    def _kelime_karakteri(ch: str) -> bool:
+        return bool(ch) and (ch.isalnum() or ch == "_")
+
+    def _yerler(self, metin: str, sorgu: str, tam_kelime: bool) -> list:
+        yerler = list(eslesme_ofsetleri(metin, sorgu))
+        if not tam_kelime:
+            return yerler
+        n = len(sorgu)
+        return [b for b in yerler
+                if not self._kelime_karakteri(metin[b - 1:b] if b else "")
+                and not self._kelime_karakteri(metin[b + n:b + n + 1])]
+
+    @staticmethod
+    def _ofset(metin: str, line: int, col: int) -> int:
+        """(satır, sütun) -> karakter ofseti. QScintilla sütunu KARAKTER
+        cinsinden veriyor (ölçüldü: `Şekil şekil` içinde imleç 11'de)."""
+        bas = 0
+        for _ in range(line):
+            yeni = metin.find("\n", bas)
+            if yeni < 0:
+                return len(metin)
+            bas = yeni + 1
+        return min(bas + col, len(metin))
+
+    @staticmethod
+    def _satir_sutun(metin: str, ofset: int) -> tuple:
+        satir = metin.count("\n", 0, ofset)
+        return satir, ofset - (metin.rfind("\n", 0, ofset) + 1)
+
+    def _python_bul(self, sorgu, *, wrap, forward, line, col,
+                    tam_kelime) -> bool:
+        metin = self._editor.text()
+        yerler = self._yerler(metin, sorgu, tam_kelime)
+        if not yerler:
+            return False
+        konum = self._ofset(metin, line, col)
+        if forward:
+            uygun = [b for b in yerler if b >= konum]
+            secim = uygun[0] if uygun else (yerler[0] if wrap else None)
+        else:
+            # Geriye arama VURGULU eşleşmeyi ATLAMALI: `konum` onun başı.
+            uygun = [b for b in yerler if b < konum]
+            secim = uygun[-1] if uygun else (yerler[-1] if wrap else None)
+        if secim is None:
+            return False
+        s1, c1 = self._satir_sutun(metin, secim)
+        s2, c2 = self._satir_sutun(metin, secim + len(sorgu))
+        self._editor.setSelection(s1, c1, s2, c2)
+        return True
+
+    def _degistir(self, yeni: str):
+        """Seçili eşleşmeyi değiştir.
+
+        `replace` geri referansları (`\\1`) ÇÖZÜYOR ve yalnız Scintilla'nın
+        kendi aramasından sonra geçerli; Python yolunda arama Scintilla'dan
+        geçmediği için `replaceSelectedText` gerekiyor. O da geri referansı
+        DÜZ METİN yazıyor, ki düz kipte `replace` de öyle yapıyordu
+        (ikisi de daha önce ölçülmüş). Desen kipi Python yoluna hiç
+        girmiyor, yani geri referans davranışı değişmiyor.
+        """
+        re_, cs, _wo = self._arama_bayraklari()
+        if self._python_yolu(re_, cs):
+            self._editor.replaceSelectedText(yeni)
+        else:
+            self._editor.replace(yeni)
+
     def _find_first(self, text, *, wrap, forward=True, line=None, col=None):
         """findFirst'ü seçenek bayraklarıyla çağır (imleçten ya da verilen yerden).
 
@@ -451,6 +552,9 @@ class FindReplaceBar(QWidget):
             return False
         if line is None:
             line, col = self._editor.getCursorPosition()
+        if self._python_yolu(re_, cs):
+            return self._python_bul(text, wrap=wrap, forward=forward,
+                                    line=line, col=col, tam_kelime=wo)
         return self._editor.findFirst(
             text, re_, cs, wo, wrap, forward, line, col, True, False, re_
         )
@@ -560,6 +664,11 @@ class FindReplaceBar(QWidget):
         re_, cs, wo = self._arama_bayraklari()
         if re_ and not _desen_guvenli(text):
             return 0, False
+        if self._python_yolu(re_, cs):
+            # Sayaç ARAMANIN KENDİ kuralını kullanmalı: aynı yol.
+            n = min(len(self._yerler(ed.text(), text, wo)),
+                    self._COUNT_LIMIT)
+            return n, n >= self._COUNT_LIMIT
         bayrak = 0
         if cs:
             bayrak |= QsciScintilla.SCFIND_MATCHCASE
@@ -622,7 +731,7 @@ class FindReplaceBar(QWidget):
             # replaceSelectedText DEĞİL: geri referansları (\1) düz metin gibi
             # yazıyor. `replace` desen kipinde onları çözüyor, düz kipte zaten
             # harfi harfine bırakıyor (ikisi de ölçüldü).
-            self._editor.replace(replace_text)
+            self._degistir(replace_text)
 
             # Sonrakini bul ve göster
             line, col = self._editor.getCursorPosition()
@@ -665,7 +774,7 @@ class FindReplaceBar(QWidget):
             if count >= self._REPLACE_LIMIT:
                 sinira_ulasildi = True
                 break
-            self._editor.replace(replace_text)
+            self._degistir(replace_text)
             count += 1
             line, col = self._editor.getCursorPosition()
             found = self._find_first(find_text, wrap=False, line=line, col=col)
