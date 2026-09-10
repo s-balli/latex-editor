@@ -614,6 +614,51 @@ def test_HIC_DOSYA_ACIK_DEGILKEN_cokmuyor(tmp_path):
 
 
 @gui
+def test_AGACTAN_derlenen_belgenin_izni_de_geri_alinabiliyor(tmp_path):
+    r"""Kararı YAZAN İKİ yol var; sıfırlama yalnız birini biliyordu.
+
+        _compile       cari sekmedeki belgeyi derler
+        _compile_file  dosya ağacından SAĞ TIKLA derler; belgenin sekmede
+                       açık olması gerekmiyor
+
+    ÖLÇÜLDÜ (2026-09-10): ağaç kökü `a`, cari sekme `a/ana.tex`, ağaçtan
+    derlenen `b/sablon.tex`. Kararı yazan anahtar `b`, sıfırlamanın aradığı
+    `a`; `b`nin izni DURUYOR ve kullanıcıya "bu proje için kayıtlı cevap
+    yok" deniyor. Yani 2026-09-06'da düzeltilen kusur ikinci giriş
+    noktasından aynen sürüyordu ve tam da özelliğin var olma sebebini
+    bozuyordu: indirilmiş bir şablona verilen izin geri alınamıyor.
+
+    TERS YÖN de sınanıyor: ağaçtan B derledikten sonra A'nın izni de
+    silinebilmeli. İkisi birden siliniyor çünkü "sıfırla" bir güvenlik
+    eylemi; fazla silmenin bedeli bir kez daha sorulmak, eksik silmenin
+    bedeli duran bir izin.
+    """
+    a, b = tmp_path / "a", tmp_path / "b"
+    _yaz(a, "ana.tex", "\\documentclass{article}\n\\begin{document}x\\end{document}\n")
+    _yaz(b, "sablon.tex", "\\documentclass{article}\n\\usepackage{minted}\n"
+                          "\\begin{document}x\\end{document}\n")
+
+    class _S(CompileOpsMixin, StubMain):
+        pass
+
+    s = _S(root=str(a), target=str(b / "sablon.tex"))
+    s._editors = [SimpleNamespace(file_path=str(a / "ana.tex"))]
+
+    agac_anahtari = os.path.normpath(s._shell_escape_kok(str(b / "sablon.tex")))
+    sekme_anahtari = os.path.normpath(s._shell_escape_kok(str(a / "ana.tex")))
+    assert agac_anahtari != sekme_anahtari, "kurulum ayrımı göstermiyor"
+
+    s._settings.d[CompileOpsMixin._SE_IZINLI] = [agac_anahtari]
+    s._settings.d[CompileOpsMixin._SE_RED] = [sekme_anahtari]
+    s._reset_shell_escape()
+    assert not s._settings.d[CompileOpsMixin._SE_IZINLI], (
+        "ağaçtan derlenen belgenin izni silinemedi")
+    assert not s._settings.d[CompileOpsMixin._SE_RED], (
+        "cari sekmenin kayıtlı cevabı silinemedi")
+    assert "sıfırlandı" in s._status.msg
+
+
+@gui
 def test_SIFIRLAMA_ile_KARAR_ayni_anahtari_hesapliyor(tmp_path):
     """Kırılırsa iki taraf yine ayrı anahtar üretiyor demektir."""
     a, b = tmp_path / "a", tmp_path / "b"

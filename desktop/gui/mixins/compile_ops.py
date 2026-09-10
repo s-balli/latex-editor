@@ -212,6 +212,48 @@ class CompileOpsMixin:
             return yol
         return getattr(self, "_compile_target", "") or ""
 
+    def _sifirlanacak_hedefler(self) -> list:
+        """Kabuk erişimi cevabı SİLİNECEK belgelerin hepsi.
+
+        Kararı YAZAN İKİ yol var ve `_sifirlanacak_hedef` yalnız birincisini
+        biliyor:
+
+            _compile       cari sekmedeki belgeyi derler
+            _compile_file  dosya ağacından SAĞ TIKLA derler; belgenin
+                           sekmede açık olması gerekmiyor
+
+        Ağaçtan başka bir belge derlenmişse iki taraf yine ayrı anahtar
+        hesaplıyordu. ÖLÇÜLDÜ (2026-09-10): ağaç kökü `a`, cari sekme
+        `a/ana.tex`, ağaçtan derlenen `b/sablon.tex`:
+
+            kararı yazan anahtar : b
+            sıfırlamanın aradığı : a
+            sonuç                : `b`nin izni DURUYOR ve kullanıcıya
+                                   "bu proje için kayıtlı cevap yok" deniyor
+
+        Yani 2026-09-06'da düzeltilen kusur ikinci giriş noktasından aynen
+        sürüyordu ve tam da özelliğin yazıldığı senaryoyu bozuyordu:
+        indirilmiş bir şablona verilen izin geri alınamıyor.
+
+        İKİSİ DE siliniyor, biri seçilmiyor. "Sıfırla" bir güvenlik eylemi;
+        fazla silmenin bedeli kullanıcıya bir kez daha sorulması, eksik
+        silmenin bedeli duran bir izin. Ters yön de böylece kapanıyor:
+        ağaçtan B derledikten sonra A'nın iznini sıfırlamak da çalışıyor.
+
+        İLK ELEMAN BOŞ OLSA DA LİSTEDE KALIYOR: hiç dosya açık değilken
+        `_shell_escape_kok("")` AĞAÇ KÖKÜNÜ veriyor ve "ağaç açık, dosya
+        kapalı" hâlinde sıfırlamanın çalıştığı yol tam bu. Boşu atlayınca
+        o hâlde hiçbir şey silinmiyordu (mevcut iki kapı yakaladı).
+
+        İLGİSİZ projeler etkilenmiyor: silinen anahtarlar yalnız bu iki
+        belgeden hesaplananlar.
+        """
+        hedefler = [self._sifirlanacak_hedef()]
+        son = getattr(self, "_compile_target", "") or ""
+        if son and son not in hedefler:
+            hedefler.append(son)
+        return hedefler
+
     def _reset_shell_escape(self):
         """Bu proje için kayıtlı kabuk erişimi cevabını unut.
 
@@ -235,13 +277,14 @@ class CompileOpsMixin:
         (bkz. `_shell_escape_karari` gerekçesi). Ters yönü de vardı: A için
         kayıtlı izin varken B üzerinde çalışırken sıfırlamak A'nınkini siler.
         """
-        kok = self._shell_escape_kok(self._sifirlanacak_hedef())
+        kokler = {os.path.normpath(self._shell_escape_kok(h))
+                  for h in self._sifirlanacak_hedefler()}
         silindi = False
         for anahtar in (self._SE_IZINLI, self._SE_RED):
             liste = self._se_liste(self._settings, anahtar)
-            if kok in liste:
-                liste.remove(kok)
-                self._settings.setValue(anahtar, liste)
+            kalan = [x for x in liste if x not in kokler]
+            if len(kalan) != len(liste):
+                self._settings.setValue(anahtar, kalan)
                 silindi = True
         if silindi:
             self._status.showMessage(
