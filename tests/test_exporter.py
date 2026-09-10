@@ -567,6 +567,41 @@ class TestResolveMdCitations:
         assert "(A 2020)" in content
         assert "[@unknownkey]" in content    # bilinmeyen -> dokunulmadı
 
+    @pytest.mark.skipif(not _PANDOC, reason="pandoc gerekli")
+    def test_RESIM_BASLIGINDAKI_atif_cozulur_ONEK_SONEK_korunur(self, tmp_path):
+        r"""Atıf deseni AÇILIŞ köşeli parantezi de yutuyordu.
+
+        `[^\]]*` içinde `[` serbestti, yani Markdown resim başlığındaki
+        atıf `![... [@k].](yol)` biçiminde eşleşince grup `... [@k`
+        oluyor, ÖNEK varmış gibi görünüyor ve önek koruması atıfa hiç
+        dokunmuyordu. Kullanıcı `.md` çıktısında şekil başlığında ham
+        `[@PFGPlots]` görüyordu.
+
+        ÖLÇÜLDÜ (2026-09-10, atıf ve .bib içeren 15 gerçek şablon uçtan
+        uca gerçek pandoc'a verildi): çözülemeyen sekiz gruptan YEDİSİ
+        bilerek öyle (dördü .bib'de olmayan anahtar, üçü önek/sonek),
+        sekizincisi tam bu iç içe durum. Düzeltmeden sonra iç içe sınıf
+        1 -> 0, öteki iki sınıf 4 ve 3'te AYNEN kaldı.
+
+        Önek/sonek koruması bu kapının KONTROL yanı: deseni gevşetip
+        `[@k 162]` gibi atıfları da çözmek kolay bir "düzeltme" olurdu ve
+        sayfa numarasını yok ederdi.
+        """
+        bib = tmp_path / "r.bib"
+        bib.write_text(
+            "@misc{PG,\nauthor={Feuersanger, C.},\ntitle={T},\nyear={2010}}\n",
+            encoding="utf-8")
+        md = tmp_path / "d.md"
+        md.write_text(
+            "![3D surface from PGFPlots [@PG].](f.pdf)\n"
+            "Bkz. [@PG 162] ve [e.g. @PG].\n", encoding="utf-8")
+        _resolve_md_citations(str(md), "", str(bib))
+        icerik = md.read_text(encoding="utf-8")
+        assert "(Feuersanger 2010)" in icerik, "resim başlığındaki atıf çözülmedi"
+        assert "[@PG]" not in icerik
+        assert "[@PG 162]" in icerik, "sonek taşıyan atıf bozuldu"
+        assert "[e.g. @PG]" in icerik, "önek taşıyan atıf bozuldu"
+
 
 class TestPandocCsljson:
     @patch("core.exporter.PLATFORM", "win32")

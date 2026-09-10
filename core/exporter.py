@@ -307,7 +307,19 @@ def _resolve_md_citations(md_path: str, tex_path: str, bibs=()):
             shorts.append(_short(e))
         return "(" + "; ".join(shorts) + ")"
 
-    content = re.sub(r"\[([^\]]*@[^]]+)\]", repl, content)
+    # Grubun İÇİNDE `[` YASAK: en İÇTEKİ köşeli parantezle eşleşelim.
+    # `[^\]]*` açılış köşeliyi de yutuyordu, yani Markdown resim
+    # başlığındaki atıf `![... [@key].](yol)` biçiminde eşleşince grup
+    # `... [@key` oluyor, önek varmış gibi görünüyor ve yukarıdaki
+    # `stripped` dalı atıfa DOKUNMUYORDU. ÖLÇÜLDÜ (2026-09-10, atıf ve
+    # .bib içeren 15 gerçek şablon uçtan uca pandoc'a verildi):
+    # çözülemeyen sekiz gruptan yedisi BİLEREK öyle (dördü .bib'de
+    # olmayan anahtar, üçü önek/sonek taşıyor: `[e.g. @k]`,
+    # `[@k 162]`), sekizincisi tam bu iç içe durum ve `.md` çıktısında
+    # şekil başlığında ham `[@PFGPlots]` görünüyordu.
+    #
+    # Daralttığı için önek/sonek kolunu BOZMUYOR: o gruplarda `[` yok.
+    content = re.sub(r"\[([^\[\]]*@[^\[\]]+)\]", repl, content)
 
     # --- 2) referans listesi: citeproc HTML -> refs div -> plain ---
     if PLATFORM == "win32":
