@@ -161,8 +161,88 @@ def test_landing_page_yeni_ozellikleri_iceriyor():
         # var olan iki kartın tazelenmiş metni
         "regular expression", "düzenli ifade",
         "duplicate .bib keys", "mükerrer .bib anahtarını",
+        # 2026-09-10 turu: ikisi de sayfada HİÇ YOKTU. Yazım denetimi
+        # 2 Eylül'de, otomatik kaydetme 8 Eylül'de yayınlandı; arada iki
+        # sürüm çıktı (v1.0.22, v1.0.23) ve sayfa 4 Eylül'den beri
+        # değişmemişti.
+        "Spell check", "Yazım denetimi",
+        "Autosave", "Otomatik kaydetme",
     ):
         assert beklenen in sayfa, f"tanıtım sayfasında yok: {beklenen}"
+
+
+# Kullanıcıya GÖRÜNMEYEN `feat(` kapsamları: bunlar için sayfada kart
+# beklenmiyor. Liste DAR tutuluyor; şüphedeyse kart yazmak doğru olan.
+#   docs / seo / pages : sayfanın kendisi ve arama motoru işleri
+#   paketleme          : exe/AppImage içine ne girdiği
+#   core               : arayüzü olmayan çekirdek katman
+_TANITIM_DISI_KAPSAM = {"docs", "seo", "pages", "paketleme", "core"}
+_RE_FEAT = re.compile(r"^feat(?:\(([^)]*)\))?:")
+
+
+def _git(*args):
+    """`git` çıktısı; git yoksa ya da komut düşerse None."""
+    import subprocess
+    try:
+        r = subprocess.run(("git",) + args, cwd=_ROOT, capture_output=True,
+                           text=True, encoding="utf-8", errors="replace",
+                           timeout=20)
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return r.stdout.strip() if r.returncode == 0 else None
+
+
+def test_tanitim_sayfasi_YAYINLANAN_ozellikten_geride_kalmiyor():
+    """Sayfaya en son dokunulduktan SONRA yayınlanan bir özellik olmasın.
+
+    Yukarıdaki içerik kapısının listesi ELLE yazılı, yani yeni bir özellik
+    o listeye eklenmezse kapı boş koşuyor. ÖLÇÜLDÜ (2026-09-10): sayfa
+    4 Eylül'den beri değişmemişti ve arada iki sürüm çıkmıştı; yazım
+    denetimi (2 Eylül) ile otomatik kaydetme (8 Eylül) sayfada HİÇ yoktu.
+    O sırada beş tanıtım kapısının beşi de geçiyordu.
+
+    Bu kapı elle liste tutmuyor: `feat(` commit'lerini sayfaya en son
+    dokunan commit'ten sonrasında arıyor. Ölçüt TARİH DEĞİL ATA İLİŞKİSİ
+    (`<docs>..HEAD`); rebase edilmiş bir tarih sıralamayı bozabilir.
+
+    NE YAKALAMAZ, açıkça: sayfaya başka bir sebeple dokunulmuşsa (rozet,
+    SEO) bu kapı susar, çünkü sayfa "yeni"dir. Yazım denetimi tam bu
+    şekilde kaçmıştı: 4 Eylül'deki rozet commit'i sayfayı tazelemiş ama
+    kart eklenmemişti. O boşluğu yukarıdaki içerik kapısı kapatıyor;
+    ikisi birbirinin yerine geçmiyor.
+
+    Sığ klonda (CI öntanımlısı `fetch-depth: 1`) tarih yok; kapı o hâlde
+    ATLANIYOR. `ci.yml` bu yüzden `fetch-depth: 0` istiyor.
+
+    ÇALIŞMA AĞACINDA sayfa değişmişse kapı susuyor: commit'lenmemiş bir
+    düzeltme de düzeltmedir. Kapı yalnız commit'lenmiş tarihi görebildiği
+    için, bu olmadan "özelliği ve kartı ayrı commit'lerde yazma" akışında
+    testler kaçınılmaz olarak kırmızı olurdu. CI'da ağaç temiz, yani orada
+    denetim tam.
+    """
+    if _git("rev-parse", "--git-dir") is None:
+        pytest.skip("git yok")
+    if _git("rev-parse", "--is-shallow-repository") != "false":
+        pytest.skip("sığ klon, git tarihi yok")
+    if _git("status", "--porcelain", "--", "docs/index.html"):
+        return                       # sayfa şu anda düzenleniyor
+
+    sayfa_commit = _git("log", "-1", "--format=%H", "--", "docs/index.html")
+    assert sayfa_commit, "docs/index.html git tarihinde hiç görünmüyor"
+
+    sonrasi = _git("log", "--format=%s", f"{sayfa_commit}..HEAD")
+    if sonrasi is None:
+        pytest.skip("git log aralığı okunamadı")
+
+    kalanlar = []
+    for konu in sonrasi.splitlines():
+        m = _RE_FEAT.match(konu.strip())
+        if m and (m.group(1) or "") not in _TANITIM_DISI_KAPSAM:
+            kalanlar.append(konu.strip())
+    assert not kalanlar, (
+        "tanıtım sayfasına en son dokunulduktan sonra yayınlanan özellik(ler) "
+        "var; sayfaya kart ekleyin ya da kapsamı _TANITIM_DISI_KAPSAM'a "
+        "yazın:\n  " + "\n  ".join(kalanlar))
 
 
 def test_landing_page_kart_yapisi_saglam():
@@ -179,7 +259,7 @@ def test_landing_page_kart_yapisi_saglam():
         r'<article class="card feat"><span class="feat-emoji">([^<]*)</span>'
         r'<h3><span class="en">([^<]*)</span><span class="tr">([^<]*)</span>',
         sayfa)
-    assert len(kartlar) >= 38, f"kart sayısı beklenenden az: {len(kartlar)}"
+    assert len(kartlar) >= 40, f"kart sayısı beklenenden az: {len(kartlar)}"
     for emoji, en, tr in kartlar:
         assert emoji.strip(), f"emojisiz kart: {en}"
         assert en.strip() and tr.strip(), f"tek dilli kart: {en}|{tr}"
