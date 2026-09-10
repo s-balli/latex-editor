@@ -42,6 +42,8 @@ import os
 import re
 from dataclasses import dataclass
 
+from core.latex_utils import VERB_ENVS
+
 try:
     from spylls.hunspell import Dictionary
     SPYLLS_VAR = True
@@ -106,6 +108,28 @@ bibitem printbibliography addbibresource
 lstset tikzset hypersetup geometry pagestyle thispagestyle
 """.split())
 
+# İLK argümanları yapılandırma, SONRAKİ argümanı düz metin olan komutlar.
+# `_ARGUMANI_ATLA` hepsini birden atlıyor, burada sayı veriliyor:
+#
+#   \addcontentsline{toc}{section}{Bölüm Sonu Soruları}
+#                    ^hedef ^seviye ^İÇİNDEKİLER'DE GÖRÜNEN BAŞLIK
+#
+# Üçü de düz metin sayılıyordu. ÖLÇÜLDÜ (39 gerçek şablon, 24'ünde 92
+# çağrı): yapısal argümanlardan 182 kelime çıkıyor ve tek dilli denetimde
+# 182'si de bulgu oluyor (`toc` 91, `section` 72, `chapter` 14,
+# `subsection` 5). İkinci dil açıkken 91'i kalıyor ve `toc` template36'da
+# LİSTENİN BİR NUMARASI: kullanıcı panelde önce onu görüyor.
+#
+# Komutu topluca `_ARGUMANI_ATLA`ya yazmak yanlış olurdu: son argüman
+# gerçek metin ve aynı şablonlarda 175 kelime tutuyor. Numaralandırılmamış
+# bölümlerin başlığı tam olarak buradan geçiyor.
+_YAPISAL_ARGUMAN = {
+    "addcontentsline": 2,
+    # `\addtocontents{toc}{~\hfill\textbf{Sayfa}}`: ikinci argüman ham
+    # LaTeX ama içinde gerçek metin OLABİLİYOR ("Sayfa"), o yüzden 1.
+    "addtocontents": 1,
+}
+
 # ÖNSÖZ (\begin{document} öncesi) yapılandırmadır, düz metin değildir:
 # paket seçenekleri, renk adları, uzunluklar, stil tanımları. Denetlemek
 # saf gürültü üretiyor. ÖLÇÜLDÜ (template36-ders, dokuz bölüm): önsöz dahil
@@ -142,11 +166,30 @@ minipage wrapfigure subfigure subtable adjustbox sidewaystable sideways
 algorithm algorithmic multicols wraptable threeparttable
 """.split())
 
+# Matematik ortamları: içerik formül, düz metin değil. Bu liste buranın
+# KENDİ bilgisi, sözel ortamlarla ilgisi yok.
+_MATEMATIK_ORTAM = frozenset(
+    "equation align gather eqnarray displaymath math array "
+    "matrix pmatrix bmatrix".split())
+
 # Bu ortamların İÇİ hiç denetlenmez.
-_ATLANACAK_ORTAM = frozenset(
-    "verbatim Verbatim lstlisting minted alltt tikzpicture "
-    "equation equation* align align* gather gather* eqnarray eqnarray* "
-    "displaymath math array matrix pmatrix bmatrix ".split())
+#
+# Sözel ortamlar `core.latex_utils.VERB_ENVS`ten geliyor: lexer
+# (renklendirme), anahat, kelime sayımı ve referans denetimi de o tek
+# kaynaktan besleniyor. Burada AYRI BİR KOPYA duruyordu ve eksikti;
+# `comment`, `listing`, `BVerbatim`, `LVerbatim` ile yıldızlı biçimler
+# (`verbatim*`, `Verbatim*`) yazım denetimine sızıyordu. Yani editörde
+# sözel renklenen, anahatta görünmeyen, kelime sayımına girmeyen bir
+# bloğun içi bulgu üretiyordu. Aynı liste bir kez de lexer ile anahat
+# arasında ayrışmıştı (bkz. latex_utils.VERB_ENVS).
+#
+# `comment` paketi büyük blokları geçici kapatmanın standart yolu, yani
+# senaryo sıradan: kullanıcının belgeden ÇIKARDIĞI metin denetleniyordu.
+#
+# Yıldız burada değil, karşılaştırmada soyuluyor (`ortam.rstrip("*")`):
+# `align*`, `verbatim*` gibi biçimler için ayrı girdi tutmak gerekmiyor.
+_ATLANACAK_ORTAM = (frozenset(e.rstrip("*") for e in VERB_ENVS)
+                    | _MATEMATIK_ORTAM | frozenset({"tikzpicture"}))
 
 _HARF = re.compile(r"[^\W\d_]", re.UNICODE)
 
@@ -493,7 +536,9 @@ class _Tarayici:
                     ortam = self.s[bas:self.i].strip("{} \t\n")
                     if ad == "begin" and ortam == "document":
                         onsoz = False
-                    elif ad == "begin" and ortam in _ATLANACAK_ORTAM:
+                    elif ad == "begin" and ortam.rstrip("*") in _ATLANACAK_ORTAM:
+                        # `_ortam_atla`ya YILDIZLI ad gidiyor: aranan
+                        # `\end{align*}`, `\end{align}` değil.
                         self._ortam_atla(ortam)
                     elif ad == "begin" and ortam in _BELIRTECLI_ORTAM:
                         # yerleşim/sütun belirteçleri: [htbp], {lcccc}
@@ -523,6 +568,17 @@ class _Tarayici:
                             self._grup_atla()
                         else:
                             break
+                    continue
+
+                kac = _YAPISAL_ARGUMAN.get(ad)
+                if kac:
+                    # YALNIZ ilk `kac` süslü argümanı atla; kalan argüman
+                    # düz metindir ve taranmaya devam eder.
+                    for _ in range(kac):
+                        self._bosluk_atla()
+                        if self._bak() != "{":
+                            break
+                        self._grup_atla()
                     continue
 
                 if ad in _ARGUMANI_ATLA:

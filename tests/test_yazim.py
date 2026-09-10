@@ -38,6 +38,29 @@ def test_label_ve_cite_argumani_atlanir():
     assert "Bkz" in ks and "tablosu" in ks
 
 
+def test_addcontentsline_YAPISAL_argumanini_atlar_BASLIGI_denetler():
+    r"""`\addcontentsline{toc}{section}{Başlık}` üç argümanı da metin
+    sayıyordu; ilk ikisi yapısal.
+
+    ÖLÇÜLDÜ (2026-09-10, 39 gerçek şablon, 24'ünde 92 çağrı): yapısal
+    argümanlardan 182 kelime çıkıyor ve tek dilli denetimde 182'si de bulgu
+    oluyor (`toc` 91, `section` 72, `chapter` 14, `subsection` 5). İkinci
+    dil açıkken 91'i kalıyor ve `toc` template36-ders'te LİSTENİN BİR
+    NUMARASIYDI: kullanıcı panelde önce onu görüyordu.
+
+    İki yön BİRLİKTE sınanıyor. Komutu topluca `_ARGUMANI_ATLA`ya yazmak
+    gürültüyü keser ama BAŞLIĞI da keser: numaralandırılmamış bölümlerin
+    adı tam olarak son argümandan geçiyor ve aynı şablonlarda 175 gerçek
+    kelime tutuyor.
+    """
+    assert sozler("\\addcontentsline{toc}{section}{Bolum Sonu Sorulari}") == \
+        ["Bolum", "Sonu", "Sorulari"]
+    # `\addtocontents`in ikinci argümanı ham LaTeX ama içinde gerçek metin
+    # OLABİLİYOR ("Sayfa", içindekiler tablosunun sütun başlığı).
+    assert sozler("\\addtocontents{toc}{~\\hfill\\textbf{Sayfa}}") == \
+        ["Sayfa"]
+
+
 def test_section_argumani_METINDIR():
     """Komut argümanlarının HEPSİ atılamaz: başlık gerçek metindir."""
     ks = sozler("\\section{Giris Bolumu}\\label{sec:giris}")
@@ -135,6 +158,36 @@ def test_kacisli_yuzde_yorum_degildir():
 def test_verbatim_ici_atlanir():
     ks = sozler("Once\n\\begin{verbatim}\nkodicerigi\n\\end{verbatim}\nSonra")
     assert ks == ["Once", "Sonra"]
+
+
+def test_SOZEL_ORTAM_listesi_TEK_KAYNAKTAN():
+    r"""Kırılırsa: yazım denetimi yine kendi sözel ortam kopyasını tutuyor.
+
+    `core.latex_utils.VERB_ENVS` bu deponun TEK KAYNAĞI; lexer
+    (renklendirme), anahat, kelime sayımı ve referans denetimi ondan
+    besleniyor. `core/yazim.py` ayrı bir KOPYA tutuyordu ve kopya eksikti.
+    ÖLÇÜLDÜ (2026-09-10): `comment`, `listing`, `BVerbatim`, `LVerbatim` ve
+    yıldızlı biçimler (`verbatim*`, `Verbatim*`) yazım denetimine sızıyordu,
+    altı biçimin altısı. Yani editörde sözel renklenen, anahatta
+    görünmeyen, kelime sayımına girmeyen bir bloğun içi bulgu üretiyordu;
+    `comment` paketi büyük blokları geçici kapatmanın standart yolu, yani
+    kullanıcının belgeden ÇIKARDIĞI metin denetleniyordu.
+
+    Aynı liste bir kez de lexer ile anahat arasında ayrışmıştı; o kapı
+    `tests/test_file_watch_outline.py` içinde ve listenin BOŞ olmadığını da
+    orada sınıyor.
+
+    Liste tek kaynaktan TÜRETİLİYOR: yeni bir sözel ortam eklenince bu kapı
+    kendiliğinden onu da sınar.
+    """
+    from core.latex_utils import VERB_ENVS
+    taban = sorted({e.rstrip("*") for e in VERB_ENVS})
+    assert len(taban) >= 9, "tek kaynak daralmış, kapı boş koşuyor"
+    for ad in taban + [e + "*" for e in taban]:
+        ks = sozler("Gorunur\n\\begin{%s}\nsizankelime\n\\end{%s}\nSonraki"
+                    % (ad, ad))
+        assert ks == ["Gorunur", "Sonraki"], \
+            "%r ortamının içi denetleniyor: %s" % (ad, ks)
 
 
 def test_denklem_ortami_atlanir():
@@ -274,9 +327,14 @@ def test_iki_ortam_listesi_AYRIK():
 
     Ayni listede olursa `elif` sirasi yuzunden belirtec dali hic
     calismiyor: olu girdi olur ve okuyani yanlis yonlendirir.
+
+    Karsilastirma YILDIZSIZ: atlanacak ortam denetimi `ortam.rstrip("*")`
+    ile yapiliyor, yani `_ATLANACAK_ORTAM`daki `longtable` girdisi
+    `longtable*`i de yutar.
     """
     from core.yazim import _ATLANACAK_ORTAM, _BELIRTECLI_ORTAM
-    ortak = _ATLANACAK_ORTAM & _BELIRTECLI_ORTAM
+    ortak = ({e.rstrip("*") for e in _ATLANACAK_ORTAM}
+             & {e.rstrip("*") for e in _BELIRTECLI_ORTAM})
     assert not ortak, "iki listede birden: %s" % sorted(ortak)
 
 
