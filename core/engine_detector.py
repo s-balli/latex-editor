@@ -16,6 +16,32 @@ _MAGIC_TEX_PROGRAM = re.compile(
 # Magic comment'ler dosyanın üst kısmında olur; derin false-positive'leri önlemek için
 _MAGIC_SCAN_LINES = 30
 
+# Motor adlarının KANONİK karşılığı. TEK KAYNAK.
+#
+# Aynı bilgi ÜÇ yerde duruyordu ve hiçbir ikisi aynı değildi:
+#
+#   engine_detector._map        magic comment'teki ad  ->  `pdftex` YOK
+#   log_parser._RE_ENGINE_REQ   hata metnindeki ad     ->  `pdfLaTeX` YOK
+#   log_parser._engine_map      o adın karşılığı       ->  pdf* HİÇ YOK
+#
+# Son ikisi AYNI FONKSİYONUN iki ucunda ve birbirine ters: desen `pdfTeX`i
+# yakalıyor, eşlem onu tanımıyor, `.get` varsayılanı da `lualatex`. ÖLÇÜLDÜ
+# (2026-09-12), desenin KENDİ vaat ettiği beş adın tamamı denendi: dördü doğru,
+# `pdfTeX` YANLIŞ. Kullanıcıya "Bu belge pdflatex gerektiriyor" yerine
+# "lualatex gerektiriyor" deniyordu, yani gereksinimin tam TERSİ. Gerçek TeX
+# Live'da `requires pdfTeX` dört, `requires pdfLaTeX` üç pakette geçiyor
+# (asmeconf, asmejour, linegoal, autopdf, hypdestopt, tufte-latex).
+#
+# Anahtarlar KÜÇÜK harf; her iki tüketici de `.lower()` ile bakıyor.
+MOTOR_TAKMA_ADLARI = {
+    "pdftex": "pdflatex",
+    "pdflatex": "pdflatex",
+    "luatex": "lualatex",
+    "lualatex": "lualatex",
+    "xetex": "xelatex",
+    "xelatex": "xelatex",
+}
+
 
 def _magic_engine_from_content(content: str) -> str | None:
     """
@@ -23,18 +49,11 @@ def _magic_engine_from_content(content: str) -> str | None:
 
     Dönüş: 'lualatex', 'pdflatex' veya 'xelatex'; tanınmazsa None.
     """
-    _map = {
-        "pdflatex": "pdflatex",
-        "lualatex": "lualatex",
-        "luatex": "lualatex",
-        "xelatex": "xelatex",
-        "xetex": "xelatex",
-    }
     for line in content.splitlines()[:_MAGIC_SCAN_LINES]:
         m = _MAGIC_TEX_PROGRAM.match(line.strip())
         if not m:
             continue
-        mapped = _map.get(m.group(1).lower())
+        mapped = MOTOR_TAKMA_ADLARI.get(m.group(1).lower())
         if mapped:
             return mapped
     return None

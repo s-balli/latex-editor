@@ -482,3 +482,19 @@ class TestPaketAdiAsiriEslesmiyor:
 
     def test_yuklenen_paketler_requirepackage_i_de_goruyor(self):
         assert _yuklenen_paketler("\\RequirePackage{fontspec}") == {"fontspec"}
+
+
+# --- Magic comment de AYNI tabloyu kullanıyor (2026-09-12) ---
+
+
+def test_magic_comment_TAKMA_ADLARI_tablosundan_cozuluyor():
+    r"""Burada ayrı bir eşlem vardı ve `pdftex` ONDA YOKTU. Tablo tek kaynağa
+    taşındı; `% !TEX program = pdftex` de artık çözülüyor."""
+    from core.engine_detector import (MOTOR_TAKMA_ADLARI,
+                                      _magic_engine_from_content)
+
+    for ad, beklenen in MOTOR_TAKMA_ADLARI.items():
+        icerik = "%% !TEX program = %s\n\\documentclass{article}\n" % ad
+        assert _magic_engine_from_content(icerik) == beklenen, ad
+
+    assert _magic_engine_from_content("% !TEX program = kimyager\nx\n") is None

@@ -521,3 +521,51 @@ class TestDosyaYigini:
                "! Hata.\nl.9 x\n")
         r = parse_output(raw, source_file="main.tex")
         assert r.errors[0].file_path == "main.tex"
+
+
+# --- Motor adı: desen ile eşlem AYRIŞAMAZ (2026-09-12) ---
+
+
+class TestMotorAdiTekKaynak:
+    r"""Desen `pdfTeX`i yakalıyor, eşlem tanımıyor, `.get` varsayılanı da
+    `lualatex`ti: "pdfTeX gerekiyor" diyen bir hatada kullanıcıya
+    gereksinimin TERSİ söyleniyordu.
+
+    ÖLÇÜLDÜ (2026-09-12) desenin KENDİ vaat ettiği beş adın tamamında:
+    dördü doğru, `pdfTeX` yanlış. `pdfLaTeX` (asmeconf, asmejour) ise hiç
+    yakalanmıyordu.
+    """
+
+    def test_HER_takma_ad_dogru_motoru_oneriyor(self):
+        from core.engine_detector import MOTOR_TAKMA_ADLARI
+
+        for ad, beklenen in MOTOR_TAKMA_ADLARI.items():
+            r = parse_output(
+                "! Package pixelart Error: This package requires %s.\nl.1 x\n"
+                % ad)
+            oneriler = [s.message for s in r.suggestions
+                        if "gerektiriyor" in s.message]
+            assert oneriler, ad
+            assert "Bu belge %s gerektiriyor" % beklenen in oneriler[0], \
+                (ad, oneriler[0])
+
+    def test_DESEN_ile_ESLEM_ayni_adlari_biliyor(self):
+        """Kırılırsa biri diğerinin bilmediği bir adı yakalar ve `.get`
+        varsayılanı devreye girip YANLIŞ motor önerir."""
+        import re
+
+        from core.engine_detector import MOTOR_TAKMA_ADLARI
+        from core.log_parser import _RE_ENGINE_REQ
+
+        m = re.search(r"requires\\s\+\(([^)]*)\)", _RE_ENGINE_REQ.pattern)
+        assert m, _RE_ENGINE_REQ.pattern
+        assert set(m.group(1).split("|")) == set(MOTOR_TAKMA_ADLARI)
+
+    def test_GERCEK_TeX_Live_yazimlari(self):
+        """Gerçek paketlerin kullandığı yazımlar (WSL'de TeX Live tarandı):
+        `requires pdfTeX` dört, `requires pdfLaTeX` üç pakette geçiyor."""
+        for ad, beklenen in (("pdfTeX", "pdflatex"), ("pdfLaTeX", "pdflatex"),
+                             ("LuaLaTeX", "lualatex"), ("XeTeX", "xelatex")):
+            r = parse_output("! This class requires %s.\nl.1 x\n" % ad)
+            assert any("Bu belge %s gerektiriyor" % beklenen in s.message
+                       for s in r.suggestions), ad

@@ -4,6 +4,8 @@ import os
 import re
 from dataclasses import dataclass, field
 
+from core.engine_detector import MOTOR_TAKMA_ADLARI
+
 
 @dataclass
 class LatexError:
@@ -75,7 +77,15 @@ _RE_SUGGESTION = re.compile(r'^==>\s*(Eksik (?:dil )?paket[ie]?): (.+)')
 # Kurulum komutu: "    sudo apt-get install ..."
 _RE_INSTALL = re.compile(r'^\s+sudo apt-get install (.+)')
 # Motor gereksinimi: hata mesajında "requires LuaLaTeX" vb.
-_RE_ENGINE_REQ = re.compile(r'requires\s+(LuaLaTeX|LuaTeX|XeLaTeX|XeTeX|pdfTeX)', re.IGNORECASE)
+# Alternatifler EŞLEMİN ANAHTARLARINDAN kuruluyor, elle YAZILMIYOR: ikisi ayrı
+# yazıldığında desen `pdfTeX`i yakalıyor ama eşlem tanımıyordu ve kullanıcıya
+# gereksinimin tersi söyleniyordu (gerekçe ve ölçüm engine_detector'da).
+# Uzundan kısaya: alternatiflerden biri diğerinin önekiyse kısası önce
+# eşleşmesin.
+_RE_ENGINE_REQ = re.compile(
+    r'requires\s+(' + '|'.join(
+        sorted(MOTOR_TAKMA_ADLARI, key=len, reverse=True)) + r')',
+    re.IGNORECASE)
 # derle.sh'nin KENDİ hataları: "[hata] lualatex kurulu değil — derlenemedi".
 # Bunlar LaTeX log'u değil betik çıktısı, o yüzden yukarıdaki '! ' desenleri
 # hiçbirini görmüyordu: motor kurulu değilken, dosya bulunamazken veya PDF hiç
@@ -308,16 +318,10 @@ def parse_output(raw: str, source_file: str = "") -> CompileResult:
         ))
 
     # Hata mesajlarında motor gereksinimi tespiti
-    _engine_map = {
-        "lualatex": "lualatex",
-        "luatex": "lualatex",
-        "xelatex": "xelatex",
-        "xetex": "xelatex",
-    }
     for err in result.errors:
         m = _RE_ENGINE_REQ.search(err.message)
         if m:
-            required = _engine_map.get(m.group(1).lower(), "lualatex")
+            required = MOTOR_TAKMA_ADLARI.get(m.group(1).lower(), "lualatex")
             result.suggestions.append(LatexSuggestion(
                 message=f"Bu belge {required} gerektiriyor. Derleme motorunu {required} olarak değiştirin.",
             ))
