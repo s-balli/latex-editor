@@ -12,7 +12,7 @@ from PyQt6.QtWidgets import (
 from core.latex_refs import (
     CITE_KOMUTLARI, REF_ARALIK_KOMUTLARI, REF_KOMUTLARI, komut_alternatifi,
 )
-from core.latex_utils import VERB_ENVS
+from core.latex_utils import VERB_ENVS, cizim_soy, verb_sil
 from gui.editor import EditorWidget
 from PyQt6.QtCore import QCoreApplication
 
@@ -62,7 +62,14 @@ _RE_SENTINEL = re.compile('[\x01-\x05]')
 
 _RE_COMMENT = re.compile(r'%.*$', re.MULTILINE)
 # \command, yıldızlı biçimi ve köşeli argümanı: \section*[kısa]{...}
-_RE_COMMANDS = re.compile(r'\\[a-zA-Z]+\*?(?:\[[^\]]*\])?')
+#
+# `@` ADIN PARÇASI: LaTeX iç komutları `\makeatletter` ile `@` içeren adlar
+# kullanıyor (`\@journalfull`, `\@title`). Desen `@`yi tanımayınca `\@` ayrı
+# bir sembol komutu sayılıyor ve adın geri kalanı METİNDE kalıyordu;
+# `\@journalfull{Accounting}` parçası "journalfullAccounting" diye TEK bir
+# kelime oluyordu. ÖLÇÜLDÜ (2026-09-12, 132 gerçek şablon): 6 dosyada 701
+# sahte kelime, bir dergi adı tanım dosyasında tek başına 687.
+_RE_COMMANDS = re.compile(r'\\[a-zA-Z@]+\*?(?:\[[^\]]*\])?')
 # \, \; \! gibi sembol komutları (kaçışlar zaten sentinel'de). Boşluk da
 # DAHIL: `\ ` LaTeX'in denetim boşluğu ve satır sonundaki tek `\` de bir
 # komut. Dışarıda kaldıklarında ters bölü kelimeye yapışıyordu (ölçüldü,
@@ -137,6 +144,16 @@ def _gorunur_parcalar(text: str) -> list:
     # böyle gösteriyor. ÖLÇÜLDÜ: aynı görünür metin 27 kelime yerine 4
     # sayılıyordu (%85 kayıp), `lstlisting` ve `minted` ile de aynı.
     text = _RE_VERBATIM_BLOCK.sub(' ', text)
+    # Satır içi `\verb` ve çizim ortamları da GÖVDE ÇIKARIMINDAN ÖNCE, aynı
+    # gerekçeyle: içlerindeki `\end{document}` gövdeyi erken kesiyor.
+    #
+    # İkisi de düz yazı DEĞİL ve ikisini de bu depo başka yerde zaten
+    # biliyordu: `\verb` çözücüsü 2026-09-09'dan, çizim ortamları yazım
+    # denetiminden. Sayaç ikisini de almamıştı. ÖLÇÜLDÜ (2026-09-12, 132
+    # gerçek şablon): satır içi `\verb` 22 dosyada 940, tikz 4 dosyada 717
+    # sahte kelime üretiyordu.
+    text = verb_sil(text)
+    text = cizim_soy(text)
 
     body = _RE_BODY.search(text)
     if body:

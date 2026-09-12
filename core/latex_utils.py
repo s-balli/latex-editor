@@ -25,6 +25,37 @@ _RE_VERB = re.compile(
     r"\\verb\*?(?P<d>[^A-Za-z0-9\s])(?:(?!(?P=d))[^\n])*(?P=d)?")
 
 
+# ÇİZİM ortamları: içerik düz yazı değil, koordinat ve çizim komutu. Sözel
+# ortamlardan AYRI durmaları gerekiyor, çünkü sözel olanların içeriği ekranda
+# olduğu gibi BASILIYOR, bunlarınki basılmıyor.
+#
+# TEK KAYNAK. Yazım denetimi bu ortamları 2026-09-11'den beri atlıyordu ama
+# adı kendi içinde yazılıydı; kelime sayımı o dersi hiç almamıştı. ÖLÇÜLDÜ
+# (2026-09-12, 132 gerçek şablon): tikz içeriği 4 dosyada 717 sahte kelime
+# sayılıyordu, bir soru kâğıdında tek başına 635 (gerçek sayının iki katı).
+CIZIM_ENVS = ("tikzpicture", "pgfpicture")
+
+_RE_CIZIM_BLOK = re.compile(
+    r"\\begin\{(" + "|".join(re.escape(e) for e in CIZIM_ENVS) + r")\*?\}"
+    r"(.*?)(?:\\end\{\1\*?\}|\Z)", re.S)
+
+
+def cizim_soy(metin: str) -> str:
+    r"""Çizim ortamlarını İÇERİĞİYLE BİRLİKTE sil."""
+    return _RE_CIZIM_BLOK.sub(" ", metin)
+
+
+def verb_sil(metin: str) -> str:
+    r"""Satır içi ``\verb`` yapılarını KOMUTUYLA BİRLİKTE sil.
+
+    ``sozel_soy`` gövdeyi boşaltıp komutu ve ayraçları BIRAKIYOR, çünkü
+    çağıranlarının bir kısmı satır ve sütun hesaplıyor. Kelime sayımının
+    ihtiyacı tersi: ayraçlar kalırsa ``\verb|x|`` gövdedeki kelimeler yerine
+    iki ayrı ``|`` parçası sayılıyor, yani sayı düzelmiyor, bozuluyor.
+    """
+    return _RE_VERB.sub(" ", metin)
+
+
 def _bosluga_cevir(metin: str) -> str:
     """Satır sonları DIŞINDA her karakteri boşluğa çevir."""
     return "".join("\n" if c == "\n" else " " for c in metin)

@@ -42,7 +42,7 @@ import os
 import re
 from dataclasses import dataclass
 
-from core.latex_utils import VERB_ENVS
+from core.latex_utils import CIZIM_ENVS, VERB_ENVS
 
 try:
     from spylls.hunspell import Dictionary
@@ -189,7 +189,7 @@ _MATEMATIK_ORTAM = frozenset(
 # Yıldız burada değil, karşılaştırmada soyuluyor (`ortam.rstrip("*")`):
 # `align*`, `verbatim*` gibi biçimler için ayrı girdi tutmak gerekmiyor.
 _ATLANACAK_ORTAM = (frozenset(e.rstrip("*") for e in VERB_ENVS)
-                    | _MATEMATIK_ORTAM | frozenset({"tikzpicture"}))
+                    | _MATEMATIK_ORTAM | frozenset(CIZIM_ENVS))
 
 _HARF = re.compile(r"[^\W\d_]", re.UNICODE)
 

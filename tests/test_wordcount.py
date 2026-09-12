@@ -462,3 +462,74 @@ def test_SOZEL_BLOKTAN_SONRAKI_metin_hala_sayiliyor():
              "gorunur metin burada\n\\end{document}\n")
 
     assert words(belge) == 3
+
+
+# =====================================================================
+# Düz yazı OLMAYAN üç kaynak daha (2026-09-12)
+#
+# Üçü de bu depoda BAŞKA yerde zaten biliniyordu, sayaç almamıştı.
+# ÖLÇÜLDÜ (132 gerçek şablon): satır içi `\verb` 22 dosyada 940, çizim
+# ortamları 4 dosyada 717, `@` içeren komut adları 6 dosyada 701 sahte
+# kelime üretiyordu.
+# =====================================================================
+
+
+def test_SATIR_ICI_verb_govdesi_sayilmiyor():
+    r"""Sözel ORTAMIN içi zaten sayılmıyordu; satır içi `\verb` de aynı şey.
+
+    Kırılırsa: sınıf/paket belgesi gibi `\verb` yoğun bir dosyada sayı
+    katlanıyor (ölçüldü: bir dosyada 102 yerine 1548).
+    """
+    belge = ("\\documentclass{article}\n\\begin{document}\n"
+             "bir iki \\verb+gizli kod burada+ uc\n"
+             "\\end{document}\n")
+    assert words(belge) == 3
+
+    # AŞIRI DÜZELTME: adı `\verb` ile başlayan başka komut yutulmamalı
+    belge2 = ("\\documentclass{article}\n\\begin{document}\n"
+              "bir \\verbose{iki} uc dort\n\\end{document}\n")
+    assert words(belge2) == 4
+
+
+def test_CIZIM_ortamlarinin_ICI_sayilmiyor():
+    r"""tikz içeriği koordinat ve çizim komutu, düz yazı değil.
+
+    Liste `core.latex_utils.CIZIM_ENVS`ten geliyor; yazım denetimi de aynı
+    listeyi kullanıyor. Kırılırsa bir soru kâğıdında sayı ikiye katlanıyor
+    (ölçüldü: 589 yerine 1224).
+    """
+    from core.latex_utils import CIZIM_ENVS
+
+    def govde(ortam):
+        return ("\\documentclass{article}\n\\begin{document}\n"
+                "once\n\\begin{%s}\n"
+                "\\node (A) at (0,0) {A}; \\draw (A) -- (B);\n"
+                "\\end{%s}\nsonra iki\n\\end{document}\n" % (ortam, ortam))
+
+    # `tikzpicture` SABİT yazılı: liste üzerinde dönen bir kapı, listeden
+    # bir ad düşürülünce kendiliğinden zayıflıyor ve mutasyonu YAKALAMIYOR
+    # (ölçüldü, bu turda M4 ilk denemede yanmadı).
+    assert words(govde("tikzpicture")) == 3
+
+    for ortam in CIZIM_ENVS:
+        # AŞIRI DÜZELTME de burada: bloktan SONRAKİ metin hâlâ sayılmalı
+        assert words(govde(ortam)) == 3, ortam
+
+
+def test_AT_iceren_komut_adi_metinde_KALMIYOR():
+    r"""`\makeatletter` dünyasında komut adları `@` taşıyor.
+
+    Desen `@`yi tanımayınca `\@journalfull{Accounting}` parçası
+    "journalfullAccounting" diye TEK kelime oluyordu (ölçüldü: bir dergi
+    tanım dosyasında 687 sahte kelime).
+    """
+    belge = ("\\documentclass{article}\n\\begin{document}\n"
+             "\\gdef\\@journalfull{Accounting and Auditing}\n"
+             "gorunur metin\n\\end{document}\n")
+    parcalar = " ".join(_gorunur_parcalar(belge))
+    assert "journalfull" not in parcalar, parcalar
+
+    # AŞIRI DÜZELTME: sıradan komutun GÖRÜNÜR argümanı hâlâ sayılıyor
+    belge2 = ("\\documentclass{article}\n\\begin{document}\n"
+              "\\textbf{kalin} duz metin\n\\end{document}\n")
+    assert words(belge2) == 3
