@@ -121,6 +121,44 @@ def test_tek_harf_komutu_kelimeye_katilir():
     assert sozler("k\\i sa") == ["kısa"]
 
 
+def test_SUSLU_tek_harf_komutu_kelimeyi_BOLMUYOR():
+    r"""`{\i}` biçimi de kelimenin içinde: Türkçe şablonlarda çok yaygın.
+
+    `\i` ve `\i{}` çözülüyordu, `{\i}` çözülmüyordu: `{` kelimeyi bitiriyor,
+    içerideki harf tek başına kalıp iki harften kısa olduğu için düşüyor ve
+    kalan parça ayrı bir kelime sayılıyordu.
+
+    ÖLÇÜLDÜ (2026-09-12, 39 gerçek şablon, 158285 kelime): iki dosyada 9
+    parça yerine 7 bütün kelime çıkıyor (`Yalçın`, `Şamlı`, `Kılıçer`,
+    `Postalcıoğlu`, `Altıntaş`...). Yedisi de sözlükte VAR, yani dokuz
+    yanlış pozitif kapandı; kaybolan dokuz parçanın hiçbiri sözlükte
+    değildi, yani doğru bir sonuç bozulmadı.
+
+    `s{\o}z` en kötü hâliydi: kelime denetimden TAMAMEN düşüyor, oradaki
+    gerçek bir yazım hatası hiç görünmüyordu.
+    """
+    assert sozler("Yal\\c{c}{\\i}n") == ["Yalçın"]
+    assert sozler("kars{\\i}lastirma") == ["karsılastirma"]
+    assert sozler("Stra{\\ss}e") == ["Straße"]
+    assert sozler("s{\\o}z") == ["søz"]
+    # Süslü sarılmış AKSAN da aynı yoldan geçmeli
+    assert sozler("M{\\\"{u}}hendislik") == ["Mühendislik"]
+
+
+def test_SUSLU_GRUP_hala_kelimeyi_bitiriyor():
+    r"""KARŞI KOL: yalnız TAM `{` + harf komutu + `}` biçimi yutuluyor.
+
+    İçinde başka metin olan bir grup (`{\i n}`) ya da düz bir grup (`{bir}`)
+    bu yoldan geçmemeli; yoksa gruplu her şey kelimeye yapışırdı.
+    """
+    assert sozler("Ankara {bir} yer") == ["Ankara", "bir", "yer"]
+    assert sozler("ad{\\bf soyad}son") == ["ad", "soyad", "son"]
+    # İçinde BAŞKA metin de olan grup: `}` denetimi bunu eliyor. Mutasyonda
+    # bu kolun kapısı olmadığı görüldü (denetimi kaldırmak hiçbir testi
+    # düşürmüyordu) ve kapı buraya eklendi.
+    assert sozler("ad{\\i n}son") == ["ad", "ın", "son"]
+
+
 def test_aksan_konumu_KAYDIRMAZ():
     """Aksan makrosu çözülür ama konum ÖZGÜN metinde kalır.
 

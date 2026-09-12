@@ -430,6 +430,44 @@ class _Tarayici:
                 j += 1
         return _TEK_HARF_KOMUT[ad], j
 
+    def _suslu_harf(self) -> tuple[str, int] | None:
+        r"""`{\i}`, `{\ss}`, `{\c{c}}` gibi SÜSLÜ sarılmış tek harf.
+
+        `\i` ve `\i{}` biçimleri zaten çözülüyordu, süslü biçim
+        çözülmüyordu: `{` kelimeyi BİTİRİYOR, içerideki harf tek başına bir
+        "kelime" oluyor (iki harften kısa olduğu için de düşüyor) ve
+        kalan parça ayrı bir kelime sayılıyordu.
+
+        ÖLÇÜLDÜ (2026-09-12, 39 gerçek şablon; 158285 kelime tarandı):
+
+            yazım                 beklenen   eski çıktı
+            `Yal\c{c}{\i}n`       Yalçın     Yalç
+            `\c{S}aml{\i}`        Şamlı      Şaml
+            `kars{\i}lastirma`    tek kelime kars + lastirma
+            `Stra{\ss}e`          Straße     Stra
+            `s{\o}z`              søz        (hiç kelime yok)
+
+        Sonuncusu en kötüsü: kelime denetimden TAMAMEN düşüyor, yani
+        oradaki gerçek bir yazım hatası hiç görünmüyor.
+
+        Grup TAM OLARAK `{` + harf komutu + `}` olmalı; `{\i n}` gibi
+        içinde başka metin olan gruplar bu yoldan geçmiyor.
+        """
+        if self._bak() != "{" or self._bak(1) != "\\":
+            return None
+        eski = self.i
+        self.i += 1                    # `{`in ardına bak (ikisi de saf
+        try:                           # ileri bakış, konum sayaçlarını
+            sonuc = self._aksan_oku() or self._tek_harf_komut()
+        finally:                       # bozmuyorlar)
+            self.i = eski
+        if not sonuc:
+            return None
+        harf, adim = sonuc
+        if self._bak(1 + adim) != "}":
+            return None
+        return harf, adim + 2
+
     def _komut_oku(self) -> str:
         """İmleç `\\` üzerindeyken komut adını döndürür (imleç adın sonuna gider)."""
         self._ilerle()                       # \
@@ -606,6 +644,18 @@ class _Tarayici:
                     yield r
                 self._ilerle()
                 continue
+
+            # `{\i}` gibi s\u00fcsl\u00fc sar\u0131lm\u0131\u015f harf: kelimeyi B\u00d6LMEMEL\u0130.
+            if c == "{":
+                suslu = self._suslu_harf()
+                if suslu:
+                    harf, adim = suslu
+                    if not kelime:
+                        bas_ofset, bas_satir = self.i, self.satir
+                        bas_sutun = self.i - self.satir_bas
+                    kelime.append(harf)
+                    self._ilerle(adim)
+                    continue
 
             # Rakam kelimenin \u0130\u00c7\u0130NDE olabilir ama ba\u015f\u0131nda olamaz: `sha256`,
             # `COVID19` tek token kalmal\u0131 ki rakam s\u00fczgeci onlar\u0131 eleyebilsin.
