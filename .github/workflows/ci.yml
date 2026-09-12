@@ -251,3 +251,30 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: python -m pytest tests/test_derle_sh.py tests/test_synctex_live.py tests/test_tablo_derleme.py tests/test_ipucu_derleme.py tests/test_pdf_baglanti_derleme.py -v
+
+  # GECICI IS, BIRLESTIRILMEYECEK. release.yml'e eklenecek ozet adiminin
+  # her iki kosucuda calistigini kanitlamak icin. Bkz. SURUM_REHBERI ve
+  # bellek notu: tag'de kosan yol PR'da sinanmali.
+  gecici-ozet-denemesi:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 5
+    steps:
+      - name: sha256sum var mi ve -c tutuyor mu
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v sha256sum
+          mkdir -p dist
+          # Gercek surumdeki ad bicimi: uzun, alt cizgili, uzantili.
+          AD="LaTeX_Editor_v9.9.9_Windows.exe"
+          head -c 1048576 /dev/urandom > "dist/$AD"
+          cd dist
+          sha256sum "$AD" > "$AD.sha256"
+          cat "$AD.sha256"
+          sha256sum -c "$AD.sha256"
+          echo "satir bicimi:"
+          wc -c < "$AD.sha256"
