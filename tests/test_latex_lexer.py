@@ -1216,3 +1216,75 @@ def test_KAPALI_math_etkilenmiyor(qapp):
     assert "MATH" in harita["Once $x^2 + y^2$ sonra."]
     assert "DEFAULT" in harita["Once $x^2 + y^2$ sonra."]
     assert "MATH" in harita["Ikinci paragraf $z$ ile."]
+
+
+# =====================================================================
+# Argüman İÇİNDE `%` de yorumdur (2026-09-12)
+#
+# Argüman tarayıcıları (`_consume_braces` / `_consume_brackets`) `%`i
+# sıradan bir karakter sayıyordu. ÖLÇÜLDÜ, 133 gerçek şablon dosyasındaki
+# 17454 `%` karakteri `strip_comments` ile karşılaştırıldı: 156'sında
+# ayrışma, 35'i SATIR BAŞINDA yani tam satır yorum argüman metni gibi
+# duruyordu. Kalıp sıradan: dergi şablonları `\author{...%` diye satır
+# birleştiriyor ve araya açıklama satırları koyuyor. Düzeltmeden sonra
+# ayrışma 161 -> 9 (kalan 9'un 5'i ölçümün kendi kusuru, 4'ü ayrı bir
+# konu: `\verb+...+` içindeki `$` renklendiricide matematik açıyor).
+# =====================================================================
+
+
+def test_ARGUMAN_ICINDEKI_yorum_da_yorum(qapp):
+    """Kırılırsa: çok satırlı argümandaki açıklama satırı metin gibi görünür."""
+    belge = ("\\author{Ad Soyad%\n"
+             "% kurum listesi\n"
+             "Ikinci Yazar}\n"
+             "Govde.\n")
+    editor, data = _style_text(belge)
+
+    # satır sonundaki `%`
+    assert _style_at(editor, belge.index("%")) == LatexLexer.COMMENT
+    # tam satır yorum: `%` de içeriği de
+    bas = belge.index("% kurum")
+    assert _style_at(editor, bas) == LatexLexer.COMMENT
+    assert _style_at(editor, bas + 5) == LatexLexer.COMMENT
+    # argümanın GERÇEK metni yorum DEĞİL (aşırı düzeltme kapısı)
+    assert _style_at(editor, belge.index("Ikinci")) == LatexLexer.CMD_ARG
+
+
+def test_YORUM_ICINDEKI_kapanis_parantezi_argumani_bitirmiyor(qapp):
+    r"""Yorumun içindeki `}` grubu kapatıyordu, sonrası yanlış renkleniyordu.
+
+    Aynı düzeltmenin ikinci yarısı: yorum tek parça yutulduğu için `{`/`}`
+    ve `\` kaçışları yorum içinde hiç işlenmiyor.
+    """
+    belge = ("\\section{Baslik\n"
+             "% burada } var\n"
+             "devami}\n"
+             "Govde.\n")
+    editor, data = _style_text(belge)
+
+    assert _style_at(editor, belge.index("devami")) == LatexLexer.CMD_ARG, \
+        "yorumdaki `}` argumani erken kapatti"
+    # Argüman kapandıktan sonrası normal metin
+    assert _style_at(editor, belge.index("Govde")) == LatexLexer.DEFAULT
+
+
+def test_KOSELI_argumanda_da_yorum(qapp):
+    """Aynı kural köşeli argümanda da geçerli (`_consume_brackets`)."""
+    belge = ("\\documentclass[a4paper,%\n"
+             "% secenek aciklamasi\n"
+             "twocolumn]{article}\n")
+    editor, data = _style_text(belge)
+
+    bas = belge.index("% secenek")
+    assert _style_at(editor, bas) == LatexLexer.COMMENT
+    assert _style_at(editor, belge.index("twocolumn")) == LatexLexer.BRACKET
+
+
+def test_KACIRILMIS_yuzde_argumanda_yorum_DEGIL(qapp):
+    r"""Aşırı düzeltme kapısı: `\%` yorum açmaz, argüman metni olarak kalır."""
+    belge = "\\caption{Kar \\% 50 artti}\nGovde.\n"
+    editor, data = _style_text(belge)
+
+    i = belge.index("%")
+    assert _style_at(editor, i) != LatexLexer.COMMENT
+    assert _style_at(editor, belge.index("artti")) == LatexLexer.CMD_ARG

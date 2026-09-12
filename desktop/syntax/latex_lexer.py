@@ -722,24 +722,66 @@ class LatexLexer(QsciLexerCustom):
             self.setStyling(k - start, self.DEFAULT)
         return k
 
+    def _yorum_yut(self, source, k, n, yorumlar):
+        """`%`ten satır sonuna kadar yut, aralığı kaydet. Yeni konumu döner.
+
+        ARGÜMANIN İÇİNDE de `%` yorumdur; LaTeX öyle okuyor. Eskiden argüman
+        tarayıcıları `%`i sıradan bir karakter sayıyordu ve bunun İKİ sonucu
+        vardı (ölçüldü 2026-09-12, 133 gerçek şablon dosyasında 17454 `%`):
+
+          1. Renk: 156 `%` yorum rengine hiç girmiyordu, 35'i satır
+             başındaydı yani TAM SATIR yorum argüman metni gibi duruyordu.
+             Kalıp sıradan: dergi şablonları `\\author{...%` diye satır
+             birleştiriyor ve araya `% açıklama` satırları koyuyor.
+          2. Parantez sayımı: yorumun İÇİNDEKİ `}` grubu kapatıyordu, yani
+             argüman yanlış yerde bitiyor ve sonrası yanlış renkleniyordu.
+
+        Yorum bir kerede yutulduğu için ikisi birden düzeliyor: `{`/`}` ve
+        `\\` kaçışları yorum içinde hiç işlenmiyor.
+        """
+        bas = k
+        while k < n and source[k] != _NL:
+            k += 1
+        yorumlar.append((bas, k))
+        return k
+
+    def _stille_yorumlu(self, start, son, style, yorumlar):
+        """`start..son` arasını `style`, yorum aralıklarını COMMENT ile stille.
+
+        `setStyling` ARDIŞIK çalışıyor: aralıkların toplamı tam olarak
+        `son - start` olmalı, yoksa sonraki stiller kayar.
+        """
+        pos = start
+        for a, b in yorumlar:
+            if a > pos:
+                self.setStyling(a - pos, style)
+            self.setStyling(b - a, self.COMMENT)
+            pos = b
+        if son > pos:
+            self.setStyling(son - pos, style)
+
     def _consume_braces(self, source, k, n, style):
         if k >= n or source[k] != 0x7B:  # '{'
             return k
         start = k
         k += 1
         depth = 1
+        yorumlar = []
         while k < n and depth > 0:
             if source[k] == _BS:
                 k += 1
                 if k < n:
                     k += 1
                 continue
+            if source[k] == _PCT:
+                k = self._yorum_yut(source, k, n, yorumlar)
+                continue
             if source[k] == 0x7B:  # '{'
                 depth += 1
             elif source[k] == 0x7D:  # '}'
                 depth -= 1
             k += 1
-        self.setStyling(k - start, style)
+        self._stille_yorumlu(start, k, style, yorumlar)
         return k
 
     def _consume_brackets(self, source, k, n):
@@ -748,16 +790,20 @@ class LatexLexer(QsciLexerCustom):
         start = k
         k += 1
         depth = 1
+        yorumlar = []
         while k < n and depth > 0:
             if source[k] == _BS:
                 k += 1
                 if k < n:
                     k += 1
                 continue
+            if source[k] == _PCT:
+                k = self._yorum_yut(source, k, n, yorumlar)
+                continue
             if source[k] == 0x5B:  # '['
                 depth += 1
             elif source[k] == 0x5D:  # ']'
                 depth -= 1
             k += 1
-        self.setStyling(k - start, self.BRACKET)
+        self._stille_yorumlu(start, k, self.BRACKET, yorumlar)
         return k
