@@ -146,3 +146,25 @@ def test_forward_reverse_roundtrip_exact(compiled):
     rev = reverse_search(fwd.page, fwd.x, fwd.y, pdf, synctex_dir)
     assert rev is not None
     assert rev.line == TARGET_LINE, f"round-trip kayması: {rev.line} != {TARGET_LINE}"
+
+
+def test_AYRI_DIZIN_bayragi_olmadan_bulunamiyor(compiled):
+    r"""KARŞI KOL: `.synctex.gz` ayrı dizindeyken `-d` VERİLMEZSE arama
+    başarısız olmalı.
+
+    Bu dosyadaki öbür testler `.gz`yi ayrı bir dizine taşıyıp `synctex_dir`
+    geçiyor, yani uygulamanın gerçek düzenini taklit ediyor. Ama `-d`
+    gerçekten yük taşıyor mu, bunu hiçbiri göstermiyordu: synctex dosyayı
+    başka bir yoldan bulsaydı testler yine geçerdi.
+
+    ÖLÇÜLDÜ (2026-09-12, taze derlenmiş bir belgeyle üç hâl):
+        gz PDF'in yanında, -d yok   -> sayfa 1, ters arama satır 7
+        gz ayrı dizinde,  -d YOK    -> sonuç YOK
+        gz ayrı dizinde,  -d VAR    -> sayfa 1, ters arama satır 7
+    """
+    tex, pdf, synctex_dir = compiled
+    # önce -d ile çalıştığı sabitleniyor (kapı boş koşmasın)
+    assert forward_search(tex, TARGET_LINE, 1, pdf, synctex_dir) is not None
+
+    assert forward_search(tex, TARGET_LINE, 1, pdf, "") is None, \
+        "-d olmadan da bulundu: bayrak yük taşımıyor ya da .gz hâlâ yanında"
