@@ -792,3 +792,35 @@ def test_KAYIT_DUSERSE_kirli_isaretler_dusurulmuyor(qapp, tmp_path,
     assert stub._file_tree.roots == []
     assert stub._editor_tabs.count() == 2
     assert ed1.isModified(), "kayıt düştü ama başka sekmenin işareti düşürüldü"
+
+
+def test_ACMA_DIYALOGU_kaynak_uzantilariyla_AYNI_kumeyi_gosteriyor(
+        qapp, monkeypatch):
+    """"Dosya Aç" süzgeci `KAYNAK_UZANTILARI` ile aynı kümeyi göstermeli.
+
+    O sabitin kendi yorumu "TEK KAYNAK: klasör ağacı, hızlı aç, projede ara,
+    Birlikte Aç ve sürükle bırak hepsi buradan alır" diyor ve altı kopyanın
+    nasıl ayrıştığı orada ölçülmüş. Ama uygulamanın EN ÇOK kullanılan giriş
+    kapısı, "Dosya Aç" diyaloğu, kümeyi kendi metninde elle taşıyor ve o
+    listede yok. Bugün ikisi aynı; bu kapı aynı kalmalarını sağlıyor,
+    çünkü sabite eklenen bir uzantı diyalogda görünmezse kullanıcı kendi
+    dosyasını listede bulamaz.
+    """
+    import re as _re
+
+    from core.fs_ops import KAYNAK_UZANTILARI
+    from gui.mixins import file_ops as fo
+
+    yakalanan = {}
+
+    def sahte(parent, baslik, dizin, filtre):
+        yakalanan["filtre"] = filtre
+        return [], ""
+
+    monkeypatch.setattr(fo.QFileDialog, "getOpenFileNames",
+                        staticmethod(sahte))
+    _Stub([])._open_file()
+
+    ilk_grup = yakalanan["filtre"].split(";;")[0]
+    ekler = set(_re.findall(r"\*(\.\w+)", ilk_grup))
+    assert ekler == set(KAYNAK_UZANTILARI), (ekler, KAYNAK_UZANTILARI)
