@@ -315,3 +315,68 @@ def test_mevcut_dizine_ekleme_bozulmadi(tmp_path):
     (sub / "uc.tex").write_text("3\n", encoding="utf-8", newline="")
     assert V.changed_files(str(tmp_path)) == {"bolumler/iki.tex",
                                               "bolumler/uc.tex"}
+
+
+# --- sürümlemenin KAPSAMI ---
+
+
+def _depodaki_yollar(root: str) -> set:
+    """Son kayıttaki dosya yolları, GERÇEK git ile okunur."""
+    import subprocess
+
+    r = subprocess.run(["git", "-c", "safe.directory=*",
+                        "ls-tree", "-r", "--name-only", "HEAD"],
+                       cwd=root, capture_output=True, text=True,
+                       encoding="utf-8")
+    assert r.returncode == 0, r.stderr
+    return {s.strip() for s in r.stdout.splitlines() if s.strip()}
+
+
+def test_UYGULAMANIN_GIZLEDIGI_KLASORLER_surumlenmiyor(tmp_path):
+    """Dosya ağacında görünmeyen klasörler geçmişe de girmemeli.
+
+    `snapshot`ın docstring'i "depoya yalnız görünür proje dosyaları girer"
+    diyordu ama `porcelain.add` dosya ağacı taramasını hiç kullanmıyor;
+    neyin gireceğini yalnız `.gitignore` belirliyor ve orada DİZİN yoktu.
+
+    ÖLÇÜLDÜ (2026-09-12), gerçekçi bir tez klasöründe (17 kaynak dosya,
+    yanında `.venv`, `node_modules`, `__pycache__`, `.vscode`): dosya
+    ağacında 23 dosya görünürken depoya 1656 dosya giriyor, 1638'i
+    uygulamanın gizlediği; durum çubuğu "1656 dosya" diyordu.
+    """
+    _mk(tmp_path)
+    for rel in (".venv/lib/paket.py", "node_modules/m/index.js",
+                "__pycache__/c.pyc", ".vscode/settings.json"):
+        p = tmp_path / rel
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text("x\n", encoding="utf-8", newline="")
+    # KARŞI KOL: `build` bilerek sürümleniyor, oraya üretilen .tex konabilir
+    (tmp_path / "build").mkdir()
+    (tmp_path / "build" / "uretilmis.tex").write_text(
+        "\\section{X}\n", encoding="utf-8", newline="")
+
+    V.init_repo(str(tmp_path))
+    girdi = V.snapshot(str(tmp_path), "ilk")
+    yollar = _depodaki_yollar(str(tmp_path))
+
+    gizli = [p for p in yollar
+             if p.startswith((".venv/", "node_modules/",
+                              "__pycache__/", ".vscode/"))]
+    assert gizli == [], gizli
+    assert "build/uretilmis.tex" in yollar
+    # Durum çubuğundaki sayı da aynı kümeden gelmeli
+    assert girdi.nfiles == len(yollar)
+
+
+def test_ignore_sablonunda_dizin_kurallari(tmp_path):
+    """Şablon literal olarak sınanıyor: sabiti gezen kapı sabiti korumaz."""
+    sablon = V.IGNORE_TEMPLATE
+    assert ".*/\n" in sablon                 # nokta ile başlayan klasörler
+    assert "node_modules/\n" in sablon
+    assert "__pycache__/\n" in sablon
+    assert "venv/\n" in sablon
+    # BİLEREK DIŞARIDA: üretilmiş .tex oraya konabiliyor
+    assert "build/\n" not in sablon
+    assert "dist/\n" not in sablon
+    # Şablonun kendi yorumu "son satırı silin" diyor; öyle kalmalı
+    assert sablon.rstrip("\n").endswith("*.pdf")

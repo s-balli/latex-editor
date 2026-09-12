@@ -13,6 +13,7 @@ import time
 from dataclasses import dataclass
 
 from core import fs_ops
+from core.project_search import SKIP_DIRS
 
 _logger = logging.getLogger("latex_editor.versioning")
 
@@ -36,13 +37,28 @@ def _require():
 # Git kullanan biri kendi kimliğiyle dışarıdan kayıt atmaya devam edebilir.
 _AUTHOR = b"LaTeX Editor <latex-editor@local>"
 
+# Sürümlenmeyen DİZİNLER. `project_search.SKIP_DIRS` TEK KAYNAK: dosya ağacı,
+# projede arama ve hızlı açma hepsi oradan besleniyor, yani bu dizinler
+# kullanıcıya zaten GÖSTERİLMİYOR.
+#
+# `build` ve `dist` BİLEREK DIŞARIDA: oraya ÜRETİLEN `.tex` konabiliyor ve bu
+# depo o dersi bir kez almış (bkz. `core/shell_escape` yorumundaki ölçüm,
+# Python "minted yok" derken derle.sh buluyordu). Kaynak kurtarma amaçlı bir
+# geçmişten üretilmiş olsa da `.tex` atmak, kazanacağından çoğunu kaybeder.
+_SURUMLENMEYEN_DIZINLER = tuple(sorted(
+    d for d in SKIP_DIRS if d not in ("build", "dist")))
+
 # LaTeX derleme artıkları geri üretilebilir; geçmişe girmesinler. PDF de
 # bilinçli olarak dışarıda (sürümleme kaynak kurtarma amaçlı; isteyen
 # .gitignore'dan çıkarabilir).
 # Liste ELLE YAZILMIYOR: `fs_ops.DERLEME_ARTIKLARI` tek kaynak. Buradaki ve
 # dosya ağacındaki kopyalar ayrışmıştı (bkz. o sabitin yorumundaki ölçüm).
 IGNORE_TEMPLATE = (
-    "# LaTeX derleme artıkları (geri üretilebilir)\n"
+    "# Uygulamanın dosya ağacında göstermediği klasörler\n"
+    ".*/\n"
+    + "".join("%s/\n" % ad for ad in _SURUMLENMEYEN_DIZINLER
+              if not ad.startswith("."))
+    + "# LaTeX derleme artıkları (geri üretilebilir)\n"
     + "".join("*%s\n" % sonek for sonek in fs_ops.DERLEME_ARTIKLARI)
     + "# PDF yeniden derlenebilir; sürümlenmesini isterseniz son satırı silin\n"
       "*.pdf\n"
@@ -180,8 +196,20 @@ def changed_files(root: str) -> set[str]:
 def snapshot(root: str, message: str) -> VersionEntry | None:
     """Tüm değişiklikleri tek kayda al (değişiklik yoksa None; boş kayıt atma).
 
-    Dosya ağacı taramaları .git ve nokta-klasörleri atladığı için depoya
-    yalnız görünür proje dosyaları girer; .gitignore derleme artıklarını eler.
+    NEYİN GİRECEĞİNİ YALNIZ `.gitignore` BELİRLER. Burada eskiden "dosya
+    ağacı taramaları .git ve nokta-klasörleri atladığı için depoya yalnız
+    görünür proje dosyaları girer" yazıyordu; `porcelain.add` dosya ağacı
+    taramasını hiç kullanmıyor, o yüzden iddia tutmuyordu. ÖLÇÜLDÜ
+    (2026-09-12), gerçekçi bir tez klasöründe (17 kaynak dosya, yanında
+    `.venv`, `node_modules`, `__pycache__`, `.vscode`):
+
+        dosya ağacında görünen      23
+        depoya giren              1656   (1638'i uygulamanın GİZLEDİĞİ)
+        durum çubuğu              "1656 dosya"
+
+    Dizin kuralları artık `.gitignore` şablonunda ve tek kaynaktan geliyor;
+    bkz. `_SURUMLENMEYEN_DIZINLER`. Şablon YALNIZ `.gitignore` yokken
+    yazılıyor, yani eski depolar kendi dosyalarıyla kalır.
     """
     _require()
     repo = Repo(root)
