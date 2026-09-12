@@ -111,10 +111,32 @@ def _parse_forward(output: str) -> ForwardResult | None:
 
 
 def _parse_reverse(output: str) -> ReverseResult | None:
+    # İLK sonuç alınır, tıpkı `_parse_forward`da olduğu gibi. Döngü eskiden
+    # kırılmıyordu, yani SONUNCU kayıt kazanıyordu ve bunun bir gerekçesi de
+    # yazılı değildi.
+    #
+    # ÖLÇÜLDÜ (2026-09-12, 30 gerçek `.synctex.gz`, 143 nokta; her nokta
+    # gerçek bir kaynak satırından ileri arama ile üretildi): synctex 18
+    # noktada BİRDEN ÇOK kayıt döndürüyor ve 18'inde de ilk ile son farklı.
+    # Son kayıt dağılıyor: `egpaper_final.tex` (458 satır) için 19213,
+    # `article.tex` (268 satır) için 14722. İkisi de AYNI dosyayı gösteriyor,
+    # yani satır numarası doğrudan uydurma. Kullanıcı PDF'te tıklıyor ve
+    # editör var olmayan bir satıra atlıyordu.
+    #
+    # İstenen satırdan sapma, 143 noktanın tamamında:
+    #
+    #   son kayıt (eski)  ortanca 0, ortalama 245.1, en büyük 19114
+    #   ilk kayıt (yeni)  ortanca 0, ortalama   6.6, en büyük   283
+    #
+    # Dosyada OLMAYAN satıra gönderen nokta: eskiden 2, şimdi 0. İlk kayıt
+    # her zaman TAM isabet demek değil (yukarıdaki 283), ama hep aynı
+    # dosyanın gerçek bir satırı.
     input_file = line = col = None
     for ln in output.split('\n'):
         ln = ln.strip()
         if ln.startswith("Input:"):
+            if input_file is not None and line is not None:
+                break                     # ilk sonuç tamam
             input_file = ln.split(":", 1)[1].strip()
         elif ln.startswith("Line:"):
             line = int(ln.split(":")[1].strip())

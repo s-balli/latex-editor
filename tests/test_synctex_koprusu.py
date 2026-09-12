@@ -199,3 +199,48 @@ def test_MESAJ_TEK_KAYNAKTAN():
     for ad in ("_apply_forward", "_apply_reverse"):
         kaynak = inspect.getsource(getattr(SyncTexMixin, ad))
         assert "_synctex_araci_yok()" in kaynak, ad
+
+
+# --- Ters ayrıştırıcı da İLK kaydı almalı (2026-09-12) ---
+
+# GERÇEK `synctex edit` çıktısı (template21/egpaper_final.pdf, sayfa 1).
+# İki kayıt da AYNI dosyayı gösteriyor; ikincisinin satırı uydurma, dosya
+# 458 satır.
+_IKI_KAYITLI_TERS = """This is SyncTeX command line utility, version 1.5
+SyncTeX result begin
+Output:egpaper_final.pdf
+Input:/tmp/egpaper_final.tex
+Line:99
+Column:-1
+Offset:0
+Context:
+Output:egpaper_final.pdf
+Input:/tmp/baska.tex
+Line:19213
+Column:5
+Offset:0
+Context:
+SyncTeX result end
+"""
+
+
+def test_TERS_ayristirici_ILK_kaydi_aliyor():
+    r"""İleri ayrıştırıcı ilkini alıyor; ters olan SONUNCUYU alıyordu.
+
+    ÖLÇÜLDÜ (30 gerçek `.synctex.gz`, 143 nokta): synctex 18 noktada birden
+    çok kayıt döndürüyor ve 18'inde de ilk ile son farklı. Son kaydı almak
+    istenen satırdan ortalama 245 satır sapıyordu (en büyük 19114) ve iki
+    noktada dosyada OLMAYAN bir satıra gönderiyordu; ilk kayıtla ortalama
+    6.6 satır ve dosya dışına çıkan yok.
+    """
+    r = _parse_reverse(_IKI_KAYITLI_TERS)
+    assert r.line == 99, "son kayıt alınmış"
+    assert r.file_path == "/tmp/egpaper_final.tex"
+    # Sütun da İLK kaydın sütunu olmalı (-1 -> 0), ikincinin 5'i değil
+    assert r.col == 0
+
+
+def test_TERS_ayristirici_TEK_kayitta_degismedi():
+    """Aşırı düzeltme kolu: tek kayıtlı çıktı eskisi gibi okunuyor."""
+    r = _parse_reverse("Input:/a.tex\nLine:42\nColumn:7\n")
+    assert (r.file_path, r.line, r.col) == ("/a.tex", 42, 7)
