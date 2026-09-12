@@ -237,12 +237,31 @@ def parse_bibitems(content: str, base_path: str) -> list[tuple[str, str, int, st
     cikti: list[tuple[str, str, int, str]] = []
     gorulen: set[str] = set()
     for yol, metin in kaynaklar:
-        for m in _RE_BIBITEM_GOVDE.finditer(metin):
+        # YORUMLAR SOYULUYOR. Eskiden ham metinle çalışılıyordu ve gerekçesi
+        # "satır numarası GERÇEK dosyadaki satır olmalı" idi; `strip_comments`
+        # satırları KORUDUĞU için o kaygı yersiz (aynı dosyadaki
+        # `_bibitem_line_in` ve `_extract_labels` zaten öyle yapıyor).
+        #
+        # Bedeli ölçüldü (2026-09-12, 39 gerçek şablon): yoruma alınmış üç
+        # `\bibitem` (template33-tez/17kaynaklar.tex) GERÇEK girdi sayılıyordu.
+        # İki yüzey ayrışıyordu: Kaynakça sekmesi onları listeliyor ve
+        # `\cite{` tamamlaması öneriyor, ama Alt+tık ile "tanıma git"
+        # hiçbir yere gitmiyordu (`find_bibitem_location` yorumları zaten
+        # soyuyor). 216 girdinin 213'ü iki tarafta da aynıydı, ayrışan
+        # yalnız bu üçü.
+        #
+        # SÖZEL bloklar BİLEREK soyulmuyor: karşı taraf (`_bibitem_line_in`)
+        # da soymuyor ve ikisinin AYNI kuralı görmesi bu düzeltmenin konusu.
+        # Satır sayımı SOYULMUŞ metinde yapılmalı: ofsetler oradan geliyor.
+        # Ham metinde saymak satırı kaydırıyor (kapı yakaladı: yoruma alınmış
+        # bir girdiden sonraki gerçek girdi 3 yerine 2 çıkıyordu).
+        temiz = strip_comments(metin)
+        for m in _RE_BIBITEM_GOVDE.finditer(temiz):
             anahtar = m.group(1).strip()
             if not anahtar or anahtar in gorulen:
                 continue
             gorulen.add(anahtar)
-            cikti.append((anahtar, yol, metin.count("\n", 0, m.start()) + 1,
+            cikti.append((anahtar, yol, temiz.count("\n", 0, m.start()) + 1,
                           _bibitem_metni(m.group(2))))
     return cikti
 

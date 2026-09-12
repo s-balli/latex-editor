@@ -814,6 +814,36 @@ def test_bibitem_yoksa_bos(tmp_path):
     assert latex_refs.parse_bibitems(icerik, str(p)) == []
 
 
+def test_YORUMA_ALINMIS_bibitem_GIRDI_SAYILMIYOR(tmp_path):
+    r"""Yorumdaki `\bibitem` gerçek bir kaynak değil; iki yüzey de öyle görmeli.
+
+    `parse_bibitems` ham metinle çalışıyordu, `find_bibitem_location` ise
+    yorumları zaten soyuyordu. ÖLÇÜLDÜ (2026-09-12, 39 gerçek şablon):
+    216 girdinin 213'ü iki tarafta da aynıydı; ayrışan üçü
+    template33-tez/17kaynaklar.tex'te yoruma alınmış `\bibitem`lerdi.
+    Kaynakça sekmesi onları listeliyor ve `\cite{` tamamlaması öneriyor,
+    ama Alt+tık ile "tanıma git" hiçbir yere gitmiyordu.
+
+    SATIR NUMARASI da sınanıyor: `strip_comments` satırları koruduğu için
+    yoruma alınmış girdiden SONRAKİ gerçek girdinin satırı kaymamalı.
+    """
+    p = tmp_path / "m.tex"
+    icerik = ("\\begin{thebibliography}{9}\n"
+              "% \\bibitem{yorumda} Bu bir ornek.\n"
+              "\\bibitem{gercek} A. Yazar, 2020.\n"
+              "\\end{thebibliography}\n")
+    p.write_text(icerik, encoding="utf-8")
+
+    g = latex_refs.parse_bibitems(icerik, str(p))
+    assert [x[0] for x in g] == ["gercek"]
+    assert g[0][2] == 3, g
+
+    # İki yüzey aynı kuralı görmeli
+    assert latex_refs.find_bibitem_location(icerik, str(p), "yorumda") is None
+    assert latex_refs.find_bibitem_location(icerik, str(p), "gercek") \
+        == (str(p), 3)
+
+
 class TestBibitemYili:
     """Yıl TAHMİN EDİLMİYOR: tek aday yoksa boş.
 
