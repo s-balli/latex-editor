@@ -80,6 +80,18 @@ jobs:
 
   build-windows:
     needs: test
+    # JOB DUZEYINDE izin, cunku is akisi duzeyindeki `contents: write`
+    # buraya yazilinca TAMAMEN degisiyor; uc yeni izin eklerken onu da
+    # tekrar yazmak sart, yoksa yayina dosya yuklenemez.
+    #
+    # id-token       : Sigstore imza sertifikasi icin OIDC jetonu
+    # attestations   : kaniti depoya yazmak
+    # artifact-metadata: yapit kaydi olusturmak
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -147,8 +159,46 @@ jobs:
           body_path: release-notes.md
           fail_on_unmatched_files: true
 
+      # IMZALI DERLEME KANITI. Paketler IMZASIZ (kod imzalama sertifikamiz
+      # yok) ve Windows'ta SmartScreen uyarisi cikiyor. Bu adim onu
+      # SUSTURMUYOR; cozdugu sey baska ve daha temel: "bu exe gercekten bu
+      # depodan, bu commit'ten, bu kosuda mi cikti" sorusunu KANITLA
+      # cevapliyor. Kullanici dogrulamasi:
+      #
+      #     gh attestation verify LaTeX_Editor_v<surum>_Windows.exe \
+      #         --repo s-balli/latex-editor
+      #
+      # NEDEN OZET DOSYASI DEGIL: GitHub zaten her varlik icin sha256
+      # digest yayinliyor (`assets[].digest`) ve ozet, indirilen dosyayla
+      # AYNI sunucuda durdugu icin kaynak kanit degil, yalniz bozulma
+      # denetimi. Kanit Sigstore ile imzalanip Rekor seffaflik kutugune
+      # yaziliyor, yani depo disinda dogrulanabiliyor.
+      #
+      # NEDEN YUKLEMEDEN SONRA: kanit adimi takilirsa yayin ENGELLENMESIN.
+      # Kosu kirmizi olur, gorunur ve tek basina yeniden kosturulabilir.
+      #
+      # ON UCUS: PR #11'de ci.yml'e gecici bir isle kosuldu ve gecti
+      # (release.yml yalniz tag'de kosuyor, yani buraya dogrudan yazmak
+      # "hic kosmamis yol" olurdu).
+      - name: Derleme kaniti (imzali provenance)
+        uses: actions/attest@v4
+        with:
+          subject-path: desktop/dist/LaTeX_Editor_v${{ steps.ver.outputs.VERSION }}_Windows.exe
+
   build-linux:
     needs: test
+    # JOB DUZEYINDE izin, cunku is akisi duzeyindeki `contents: write`
+    # buraya yazilinca TAMAMEN degisiyor; uc yeni izin eklerken onu da
+    # tekrar yazmak sart, yoksa yayina dosya yuklenemez.
+    #
+    # id-token       : Sigstore imza sertifikasi icin OIDC jetonu
+    # attestations   : kaniti depoya yazmak
+    # artifact-metadata: yapit kaydi olusturmak
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -299,6 +349,13 @@ jobs:
           name: LaTeX Editor v${{ steps.ver.outputs.VERSION }}
           body_path: release-notes.md
           fail_on_unmatched_files: true
+
+      # Bkz. build-windows'taki ayni adimin gerekcesi. YALNIZ AppImage:
+      # `.zsync` calistirilan bir sey degil, guncelleme delta dosyasi.
+      - name: Derleme kaniti (imzali provenance)
+        uses: actions/attest@v4
+        with:
+          subject-path: desktop/dist/LaTeX_Editor_v${{ steps.ver.outputs.VERSION }}_Linux_x86_64.AppImage
 
   # Yayin cikinca winget-pkgs'e surum yukseltme PR'i ac. Ilk surum (1.0.19)
   # ELLE gonderildi (microsoft/winget-pkgs#429063); bu eylem yalniz var olan

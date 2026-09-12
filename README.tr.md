@@ -38,6 +38,14 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 
 > ⚠️ **Önemli:** Uygulama yalnızca GUI'yi içerir. LaTeX derleyicisi (`lualatex`/`pdflatex`/`xelatex`) ayrıca **TeX Live** ile kurulmalıdır — Windows'ta **WSL** üzerinden, Linux'ta `apt` ile. Detaylar için [Gereksinimler](#gereksinimler) bölümüne bakın.
 
+> 🔏 **İndirdiğinizi doğrulama.** Sürüm dosyaları kod imzalı değil, o yüzden Windows SmartScreen ilk açılışta uyarı veriyor. Ama imzalı bir derleme kanıtı taşıyorlar; bu daha temel bir soruyu cevaplıyor: bu dosya gerçekten bu depodan, bu iş akışı koşusunda mı üretildi? GitHub CLI ile bakabilirsiniz:
+>
+> ```sh
+> gh attestation verify LaTeX_Editor_v<sürüm>_Windows.exe --repo s-balli/latex-editor
+> ```
+>
+> Kanıt Sigstore ile imzalanıp herkese açık Rekor şeffaflık kütüğüne yazılıyor, yani bu depodan bağımsız olarak da doğrulanabiliyor. Kanıtlar v1.0.23'ten SONRA yayınlanan ilk sürümle başlıyor; daha eski dosyalarda yok ve komut bunu bildiriyor.
+
 ---
 
 ## Sürüm Geçmişi

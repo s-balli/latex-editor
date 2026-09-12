@@ -38,6 +38,14 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 
 > ⚠️ **Important:** The app only includes the GUI. The LaTeX compiler (`lualatex`/`pdflatex`/`xelatex`) must be installed separately via **TeX Live** — on Windows through **WSL**, on Linux via `apt`. See [Requirements](#requirements) section for details.
 
+> 🔏 **Verifying your download.** Release binaries are not code-signed, so Windows SmartScreen will warn on first run. They do carry a signed build provenance attestation, which answers a more basic question: was this file really built from this repository, by this workflow run? Check it with the GitHub CLI:
+>
+> ```sh
+> gh attestation verify LaTeX_Editor_v<version>_Windows.exe --repo s-balli/latex-editor
+> ```
+>
+> The attestation is signed through Sigstore and recorded in the public Rekor transparency log, so it can be verified independently of this repository. Attestations start with the first release published after v1.0.23; earlier files have none and the command will report that.
+
 ---
 
 ## Version History
