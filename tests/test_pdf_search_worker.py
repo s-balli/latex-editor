@@ -483,3 +483,69 @@ def test_ENTER_bos_sorguda_hicbir_sey_yapmiyor(qapp, tmp_path):
         v.shutdown()
         v.deleteLater()
         qapp.processEvents()
+
+
+# =====================================================================
+# Arama, sayfa metnini ONARARAK arıyor (2026-09-12)
+#
+# OT1 belgelerde aksanlar ayrı glif basılıyor: `öğrenci` sayfa metninde
+# `¨o˘grenci` olarak duruyor. Kopyalama yolu bunu 2026-09-08'den beri
+# onarıyordu, arama yolu o taşınmanın DIŞINDA kalmıştı ve pdfium'un kendi
+# `textpage.search()`ine ham sorguyu veriyordu.
+#
+# ÖLÇÜLDÜ (58 gerçek PDF + aynı adlı kaynak, kaynakta geçen 642 Türkçe
+# kelime): pdfium 471'ini buluyordu, bu yol 523'ünü buluyor; kayıp 0.
+# =====================================================================
+
+from gui.pdf_metin import birlesik_metin  # noqa: E402
+from gui.pdf_search_worker import _sayfada_bul  # noqa: E402
+
+
+class TestOnarilmisArama:
+
+    def test_AYRIK_aksanli_kelime_bulunuyor_ve_aralik_HAM_metne_ait(self):
+        r"""Kırılırsa: Türkçe belgede arama hiçbir şey bulmaz.
+
+        Aralık HAM metne ait olmak ZORUNDA: vurgu `get_charbox` ile ham
+        karakter indisinden çiziliyor. Onarılmış metinde indis kayıyor.
+        """
+        ham = "Bu bir ¨o˘grenci belgesidir."
+        (aralik,) = _sayfada_bul(ham, "öğrenci")
+        bas, bit = aralik
+        assert ham[bas:bit] == "¨o˘grenci"
+
+    def test_TURKCE_katlama_editorunkiyle_AYNI(self):
+        r"""Arama artık `project_search.eslesme_ofsetleri`den geçiyor, yani
+        Ctrl+F ve Projede Ara ile aynı katlama. Kırılırsa `istanbul` sorgusu
+        `İstanbul`u bulmaz; ı/i ayrımı da korunmalı."""
+        assert _sayfada_bul("˙Istanbul", "istanbul")
+        assert _sayfada_bul("˙Istanbul", "İSTANBUL")
+        # ı ile i AYRI harf: katlama onları birbirine çevirmemeli
+        assert _sayfada_bul("ışık", "IŞIK") == []
+        assert _sayfada_bul("ışık", "ışık")
+
+    def test_DUZ_metinde_gerileme_yok(self):
+        r"""Aşırı düzeltme kolu: aksansız metinde davranış eskisi gibi.
+
+        Örtüşmeyen eşleşmeler, doğru aralık, sorgu yoksa boş liste.
+        """
+        ham = "ab ab ab"
+        assert _sayfada_bul(ham, "ab") == [(0, 2), (3, 5), (6, 8)]
+        assert _sayfada_bul(ham, "zz") == []
+        assert _sayfada_bul(ham, "") == []
+
+    @pytest.mark.parametrize("ham", [
+        "¨o˘grenci",
+        "C¸ ALIS¸MA",
+        "S¸EK˙IL",
+        "resmˆı",
+    ])
+    def test_KOPYALAMANIN_onardigini_ARAMA_da_buluyor(self, ham):
+        r"""İki yol AYNI tablodan besleniyor; ayrışırlarsa kullanıcı panoda
+        doğru metni görüp aynı kelimeyi aramada bulamaz.
+
+        Sözcük sözcük aranıyor: büyük harfler arasına giren boşluk
+        (`C¸ ALIS¸MA` -> `Ç ALIŞMA`) bilinen ve belgelenmiş sınır.
+        """
+        for sozcuk in birlesik_metin(ham).split():
+            assert _sayfada_bul(ham, sozcuk), (ham, sozcuk)

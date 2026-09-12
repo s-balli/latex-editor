@@ -20,7 +20,38 @@ import pypdfium2  # type: ignore
 
 from PyQt6.QtCore import QThread, pyqtSignal
 
+from core.project_search import eslesme_ofsetleri
+from gui.pdf_metin import aksanlari_birlestir
 from gui.pdfium_lock import pdfium_lock
+
+
+def _sayfada_bul(ham: str, sorgu: str) -> list[tuple[int, int]]:
+    """Sayfa metnindeki eşleşmelerin HAM karakter aralıkları: [(baş, bit)].
+
+    pdfium'un kendi ``textpage.search()``i BIRAKILDI, iki sebeple:
+
+    1. Sayfa metnini ONARMADAN arıyordu. OT1 belgelerde aksanlar ayrı glif
+       basılıyor ve `öğrenci` metinde `¨o˘grenci` olarak duruyor; kullanıcı
+       ne yazarsa yazsın bulamıyordu. Kopyalama yolu bu onarımı 2026-09-08'den
+       beri yapıyor, arama yolu o taşınmanın dışında kalmıştı.
+    2. Harf katlaması editörünkinden AYRIYDI. Artık `eslesme_ofsetleri`
+       kullanılıyor, yani PDF'te arama ile Ctrl+F ve Projede Ara aynı Türkçe
+       katlamayı paylaşıyor (İ/ı ayrımı dahil).
+
+    ÖLÇÜLDÜ (2026-09-12, 58 gerçek PDF + aynı adlı kaynak; kaynakta geçen 642
+    Türkçe kelime arandı): pdfium 471'ini buluyordu, bu yol 523'ünü buluyor.
+    Kazanç 52, KAYIP 0: pdfium'un bulduğu tek bir kelime bile düşmüyor.
+
+    Dönen aralık HAM metne ait olmak zorunda: vurgu `get_charbox` ile ham
+    karakter indisinden çiziliyor. Onarılmış metinde indis kayıyor, o yüzden
+    `aksanlari_birlestir` haritayı da veriyor.
+    """
+    onarilmis, harita = aksanlari_birlestir(ham)
+    n = len(sorgu)
+    if harita is None:                 # onaracak bir şey yoktu, indisler ham
+        return [(j, j + n) for j in eslesme_ofsetleri(onarilmis, sorgu)]
+    return [(harita[j][0], harita[j + n - 1][1])
+            for j in eslesme_ofsetleri(onarilmis, sorgu)]
 
 _alive_workers: set["PdfSearchWorker"] = set()
 
@@ -117,6 +148,8 @@ class PdfSearchWorker(QThread):
     def _search_all(self, query: str) -> list[tuple[int, int, int]] | None:
         """Tüm sayfalarda ara. Süren arama iptal edilirse None döner."""
         results: list[tuple[int, int, int]] = []
+        if not query:
+            return results
         # len(doc) da bir pdfium çağrısıdır (FPDF_GetPageCount) — kilit ister.
         # Döngü dışında bir kez alınıyor: içeride alınsa kilit, hemen ardından
         # gelen `with self._cond` ile iç içe girer ve kilit sırasını bozardı.
@@ -131,13 +164,9 @@ class PdfSearchWorker(QThread):
             try:
                 # Kilit SAYFA BAŞINA (bkz. gui/pdfium_lock.py)
                 with pdfium_lock:
-                    textpage = self._doc[i].get_textpage()
-                    searcher = textpage.search(query)
-                    while True:
-                        match = searcher.get_next()
-                        if match is None:
-                            break
-                        results.append((i, match[0], match[1]))
+                    ham = self._doc[i].get_textpage().get_text_bounded()
+                for bas, bit in _sayfada_bul(ham, query):
+                    results.append((i, bas, bit - bas))
             except Exception:
                 continue
         return results
