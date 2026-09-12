@@ -49,10 +49,39 @@ KAYNAK_UZANTILARI = (".tex", ".cls", ".sty", ".bib")
 # `.pdf` BİLEREK DIŞARIDA: iki anlamlı. `ana.tex` yanındaki `ana.pdf` çıktı,
 # `Figures/Sample.pdf` ise vektörel şekil. Ayrımı `file_tree._dosya_gizli_mi`
 # yapıyor; sürümleme ise `.pdf`i kendi şablonunda ayrıca sayıyor.
+#
+# LİSTE ÖLÇÜMLE BÜYÜDÜ (2026-09-12). Tanım şu: derlemeden ÖNCE olmayan,
+# SONRA duran dosya. 39 gerçek şablon derlendi ve klasörün önce/sonra farkı
+# alındı: 200 yeni dosyanın 193'ü ağaçta gizleniyordu, 7'si GÖRÜNÜYORDU.
+# Bunlardan üçü kesin artık ve listeye girdi:
+#
+#   .abs        Elsevier CAS sınıfı (template16, template23)
+#   .ptc        titletoc kısmi içindekiler (template28-book1)
+#   -blx.bib    biblatex'in KENDİ ürettiği denetim dosyası (template29-tez);
+#               ağaçta gerçek bir kaynakça gibi duruyordu
+#
+# Korpusta geçmeyen ama Türkçe tezlerde sık kullanılan paketler için küçük
+# belgeler ayrıca derlendi (tahmin değil, ölçüm):
+#
+#   .glo .acn   glossaries (kısaltmalar/sözlük), acronym seçeneğiyle .acn
+#   .loa        algorithm (algoritma listesi)
+#   .lol        listings (kod listesi)
+#
+# GİRMEYENLER ve nedeni: `.ist` glossaries'in yazdığı makeindex biçim
+# dosyası ama kullanıcı da elle yazabiliyor, iki anlamlı. `example.eps`,
+# `...-eps-converted-to.pdf` ve üretilen bir `.tex` de görünür kaldı:
+# üçü de KAYNAK olabilecek türler ve `.pdf` dersi (aşağıda) burada da
+# geçerli, yanlış gizlemenin bedeli kullanıcının kendi dosyasını
+# kaybetmesi.
 DERLEME_ARTIKLARI = (
-    ".aux", ".bbl", ".bcf", ".blg", ".dvi", ".fdb_latexmk", ".fls",
-    ".idx", ".ilg", ".ind", ".lof", ".log", ".lot", ".nav", ".out",
-    ".run.xml", ".snm", ".synctex.gz", ".toc", ".vrb", ".xdv",
+    ".abs", ".acn", ".aux", ".bbl", ".bcf", ".blg", ".dvi", ".fdb_latexmk",
+    ".fls", ".glo", ".idx", ".ilg", ".ind", ".loa", ".lof", ".log", ".lol",
+    ".lot", ".nav", ".out", ".ptc", ".run.xml", ".snm", ".synctex.gz",
+    ".toc", ".vrb", ".xdv",
+    # Uzantı DEĞİL, sonek: eşleştirme `endswith` ile yapılıyor (yukarıya
+    # bakın). `ana-blx.bib` biblatex'in ürettiği dosya, kullanıcının
+    # kaynakçası `ana.bib` etkilenmiyor.
+    "-blx.bib",
 )
 
 

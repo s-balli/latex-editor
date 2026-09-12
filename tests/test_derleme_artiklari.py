@@ -41,8 +41,20 @@ def _agacta_gizli(ad, dizin=_DIZIN, tex_adlari=()):
 
 
 def _surumde_yoksayiliyor(ad):
+    """`.gitignore` şablonu bu adı eliyor mu.
+
+    Kalıp `*.` ile başlamak ZORUNDA DEĞİL: liste uzantı değil SONEK tutuyor
+    ve şablon `*-blx.bib` gibi bir satır da üretebiliyor. Eski yazım yalnız
+    `*.` ile başlayanlara bakıyordu, yani o satırı hiç görmüyor ve kapı
+    sessizce "sürümleme yoksaymıyor" diyordu (kapı eklenince düştü).
+
+    Gerçek git ile doğrulandı (2026-09-12): `*-blx.bib` satırı
+    `main-blx.bib`i eliyor, `ana.bib`e dokunmuyor.
+
+    Dizin kuralları (`node_modules/`, `.*/`) bu soruya girmiyor.
+    """
     for satir in IGNORE_TEMPLATE.splitlines():
-        if not satir.startswith("*."):
+        if not satir.startswith("*") or satir.endswith("/"):
             continue
         if re.fullmatch(re.escape(satir).replace(r"\*", ".*"), ad):
             return True
@@ -108,7 +120,14 @@ def test_YENI_SONEK_iki_yuzeye_de_ulasiyor(monkeypatch):
 
 @pytest.mark.parametrize("ad", ["ana.tex", "kaynaklar.bib", "stil.cls",
                                 "paket.sty", "sekil.png", "sekil.jpg",
-                                "notlar.md", "veri.csv"])
+                                "notlar.md", "veri.csv",
+                                # `.ist` glossaries'in yazdığı biçim dosyası
+                                # ama kullanıcı da elle yazabiliyor; iki
+                                # anlamlı olduğu için listeye ALINMADI.
+                                "ana.ist",
+                                # `-blx.bib` soneki eklendi; kullanıcının
+                                # kendi `.bib`i bundan etkilenmemeli.
+                                "ana.bib", "kaynakca-ek.bib"])
 def test_KAYNAK_dosyalari_gizlenmiyor(ad):
     assert not _agacta_gizli(ad), ad
 
@@ -168,6 +187,16 @@ _OLCULEN_CIKTILAR = [
     "ana.synctex.gz", "ana.toc",
     "ana.xdv",          # xelatex -no-pdf
     "ana.dvi",          # latex
+    # 2026-09-12 ölçümü: 39 şablon derlendi, klasörün önce/sonra farkı
+    # alındı. 200 yeni dosyanın 7'si ağaçta GÖRÜNÜYORDU; şunlar kesin artık.
+    "ana.abs",          # Elsevier CAS sınıfı (template16, template23)
+    "ana.ptc",          # titletoc kısmi içindekiler (template28-book1)
+    "ana-blx.bib",      # biblatex'in KENDİ ürettiği denetim dosyası
+    # Korpusta geçmeyen ama Türkçe tezlerde sık: küçük belgeler derlenerek
+    # ölçüldü (tahmin değil).
+    "ana.glo", "ana.acn",   # glossaries (acronym seçeneğiyle .acn)
+    "ana.loa",              # algorithm
+    "ana.lol",              # listings
 ]
 
 
