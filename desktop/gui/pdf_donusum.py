@@ -109,6 +109,25 @@ def kutu_gorsele(g, sol: float, alt: float, sag: float, ust: float,
 # (TeX'in kendi düzlemi), üstelik DÖNDÜRÜLMEMİŞ sayfaya göre. /Rotate 0'da
 # ekranla birebir örtüştüğü için eski kod dönüşümsüz çalışıyordu; döndürülmüş
 # sayfada örtüşmüyor.
+#
+# BİLİNEN SINIR, `\begin{landscape}` SAYFALARI (ölçüldü 2026-09-12).
+# `lscape`/`pdflscape` gövdeyi `\rotatebox` ile çeviriyor ve sayfaya
+# `/Rotate 90` koyuyor. SyncTeX `\rotatebox`u İZLEMİYOR: kaydı DÖNME ÖNCESİ
+# yerleşime ait. Gerçek örnek (mnras_guide.pdf sayfa 6, 90 derece), aynı
+# tablo satırı için:
+#
+#     pdfium 'Header' glifleri   x  70.3.. 75.8   y  56.0.. 78.8
+#     synctex kaydı              x 548.2..897.9   y 522.3..532.3
+#
+# synctex'in x'i sayfa GENİŞLİĞİNİ (595.3) aşıyor; o değerler ancak dönme
+# öncesi, sayfadan taşan yerleşimde anlamlı. Yani bu sayfalarda ileri arama
+# vurguyu yanlış yere koyuyor ve bunu düzeltecek bir dönüşüm YOK: gereken
+# bilgi `.synctex.gz` dosyasında hiç bulunmuyor. Aynı sınır synctex kullanan
+# öteki görüntüleyicilerde de var.
+#
+# Ne kadar sık: 39 gerçek şablonun 1637 sayfasında 3 döndürülmüş sayfa
+# (%0.2), iki belgede. Aşağıdaki dönüşüm tablosu döndürülmüş sayfalarda
+# METİN SEÇİMİ ve vurgu için gerekli olmaya devam ediyor (o ölçüm altta).
 
 
 def synctexten_gorsele(g, sx: float, sy: float, olcek: float):
