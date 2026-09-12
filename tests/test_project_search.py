@@ -962,3 +962,34 @@ class TestKokDegisinceGecmis:
             short="bbbbbbb")])
         assert panel._history_list.count() == 1
         assert "B ilk sürüm" in panel._history_list.item(0).text()
+
+
+def test_BOM_lu_dosyada_SUTUN_editordekiyle_AYNI(qapp, tmp_path):
+    """Bildirilen sütun, tıklanınca gidilen editördeki yeri göstermeli.
+
+    Çözücü zincirde `utf-8-sig` yok, yani BOM metne U+FEFF olarak giriyor ve
+    1. satırın ofsetlerini bir kaydırıyor; editör tarafında Scintilla
+    `setText` sırasında onu düşürüyor. ÖLÇÜLDÜ (2026-09-12, gerçek BOM'lu
+    `template14/main.tex`): `documentclass` sütun 2 bildiriliyor, editörde o
+    sütunda `ocumentclass` duruyor.
+
+    İki KARŞI KOL aynı testte: 2. satır BOM'dan etkilenmiyor, ve BOM'suz
+    ikiz dosya hiç etkilenmemeli. Düzeltme ilk karakteri koşulsuz atarsa
+    ikiz düşer, bütün sütunları kaydırırsa 2. satır düşer.
+    """
+    from gui.editor import EditorWidget
+
+    icerik = "\\section{Giris}\nikinci satirda giris var\n"
+    (tmp_path / "bom.tex").write_bytes(("\ufeff" + icerik).encode("utf-8"))
+    (tmp_path / "bomsuz.tex").write_bytes(icerik.encode("utf-8"))
+
+    bulgular, kesildi = search_project(str(tmp_path), "giris")
+    assert not kesildi and len(bulgular) == 4, bulgular
+
+    ed = EditorWidget()
+    for b in bulgular:
+        assert ed.open_file(b.path)
+        assert "\ufeff" not in ed.text(), "editörde BOM kaldı, varsayım değişti"
+        satir = ed.text(b.line - 1)
+        assert satir[b.col:b.col + 5].lower() == "giris", (
+            os.path.basename(b.path), b.line, b.col, repr(satir))

@@ -192,6 +192,20 @@ def search_project(root: str, query: str, *, case_sensitive: bool = False,
             # yürüyüşle okuma arasında silinmiş olabilir.
             continue
         metin = coz(ham)
+        # BOM ATILIYOR: bildirilen sütun EDİTÖRÜN GÖSTERDİĞİ metne göre
+        # olmak zorunda, tıklayınca oraya gidiliyor. Çözücü zincirde
+        # `utf-8-sig` yok, yani BOM metne U+FEFF olarak giriyor ve 1. satırın
+        # bütün ofsetlerini bir kaydırıyor; editör tarafında Scintilla
+        # `setText` sırasında onu düşürüyor.
+        #
+        # ÖLÇÜLDÜ (2026-09-12, gerçek BOM'lu `template14/main.tex`):
+        # `documentclass` sütun 2 bildiriliyor, editörde o sütunda
+        # `ocumentclass` duruyor. Yalnız 1. satır etkileniyor, BOM orada.
+        # Korpusta 231 kaynak dosyanın 1'i BOM taşıyor ve o bir `main.tex`.
+        #
+        # Yalnız ARAMA metni kırpılıyor; dosya olduğu gibi duruyor.
+        if metin.startswith("﻿"):
+            metin = metin[1:]
         # Hız yolu: dosyada hiç geçmiyorsa satır satır bakma. Tipik projede
         # dosyaların çoğu bu daldan çıkar.
         if aranan not in (metin if case_sensitive else kucult(metin)):
