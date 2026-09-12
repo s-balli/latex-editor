@@ -17,8 +17,9 @@ from PyQt6.QtWidgets import (
 )
 
 from core.latex_tables import (
-    TableOptions, build_tabular, csv_to_rows, extract_caption_label,
-    parse_first_tabular, suggest_label, unescape_cell,
+    TABLO_ORTAMLARI, VARSAYILAN_GENISLIK, TableOptions, build_tabular,
+    csv_to_rows, extract_caption_label, parse_first_tabular, suggest_label,
+    unescape_cell,
 )
 
 _ = lambda s: QCoreApplication.translate("TableWizardDialog", s)
@@ -31,7 +32,11 @@ _ALIGNS = [
     (_("Paragraf (p{3cm})"), "p"),
 ]
 
-_ENVS = ("tabular", "tabularx", "longtable")
+# Ortam listesi core.latex_tables'tan geliyor. Burada kendi kopyası vardı ve
+# `tabular*` ONDA YOKTU: ayrıştırıcı onu tanıyor, açılır kutu tanımıyordu.
+# Sonuç, var olan bir `tabular*` bloğu açılıp Tamam denince sessizce `tabular`
+# olarak geri yazılıyordu (ölçüldü: 6 gerçek şablonda 8 blok).
+_ENVS = TABLO_ORTAMLARI
 
 
 class _TekerlekSuzgeci(QObject):
@@ -69,6 +74,9 @@ class TableWizardDialog(QDialog):
         self._existing = list(existing_labels or [])
         self._label_manual = False
         self._updating = False
+        # Düzenlenen tablonun KENDİ genişlik argümanı (tabularx / tabular*).
+        # Yeni tabloda varsayılan kalır.
+        self._genislik = VARSAYILAN_GENISLIK
         # TEK süzgeç nesnesi: her kutuya ayrı nesne kurmak gereksiz, üstelik
         # dinamik kurulan hizalama kutuları için de aynısı kullanılıyor.
         self._tekerlek_suzgeci = _TekerlekSuzgeci(self)
@@ -375,6 +383,7 @@ class TableWizardDialog(QDialog):
     def options(self) -> TableOptions:
         return TableOptions(
             environment=self._env.currentText(),
+            width=self._genislik,
             booktabs=self._cb_booktabs.isChecked(),
             header_row=self._cb_header.isChecked(),
             vertical_lines=self._cb_vlines.isChecked(),
@@ -429,6 +438,7 @@ class TableWizardDialog(QDialog):
         self._aligns_from_spec(aligns)
         if block.get("env") in _ENVS:
             self._env.setCurrentText(block["env"])
+        self._genislik = block.get("width") or VARSAYILAN_GENISLIK
         self._update_preview()
 
     def _aligns_from_spec(self, aligns: list[str]):

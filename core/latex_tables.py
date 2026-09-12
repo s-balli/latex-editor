@@ -10,6 +10,30 @@ import re
 import unicodedata
 from dataclasses import dataclass
 
+# --- Tablo ortamları ---
+
+# Tablo ortamlarının BAŞLIK BİÇİMİ. TEK KAYNAK.
+#
+# LaTeX'te iki ortam ZORUNLU bir genişlik argümanı alıyor, diğer ikisi almıyor:
+#
+#     \begin{tabular}{spec}              \begin{longtable}{spec}
+#     \begin{tabularx}{genişlik}{spec}   \begin{tabular*}{genişlik}{spec}
+#
+# Bu bilgi DÖRT ayrı yerde, dört farklı içerikle duruyordu: desen dört ortamı
+# tanıyor, genişlik atlama yalnız `tabularx`i biliyor, `build_tabular`
+# `\linewidth`i sabit yazıyor, sihirbazın kendi listesi ise üç ortam sayıyor.
+# ÖLÇÜLDÜ (2026-09-12, 39 şablonda 194 gerçek tablo): var olan bir tabloyu
+# sihirbazda açıp Tamam demek 8 `tabular*` bloğunun ortamını `tabular`a
+# çeviriyor ve genişliğini düşürüyordu; 9 `tabularx` bloğunun genişliği de
+# (`0.97\textwidth` gibi) `\linewidth`e eziliyordu.
+#
+# Sıra ARAYÜZ sırası: sihirbazın açılır kutusu da bu listeyi kullanıyor ve ilk
+# öğe varsayılan seçim oluyor. Desen kurulurken uzundan kısaya sıralanıyor,
+# yoksa `tabular` alternatifi `tabular*`ı önden yerdi.
+TABLO_ORTAMLARI = ("tabular", "tabular*", "tabularx", "longtable")
+GENISLIK_ISTEYEN = frozenset({"tabular*", "tabularx"})
+VARSAYILAN_GENISLIK = "\\linewidth"
+
 # --- Hücre kaçışı ---
 
 # & satır ayracı, % yorum başlatır, _/# alt çizli/düz moduna sokar, $ math açar.
@@ -111,7 +135,11 @@ def build_col_spec(aligns: list[str], vertical_lines: bool,
 @dataclass
 class TableOptions:
     """Tablo üretimi seçenekleri (GUI dialog değerleri)."""
-    environment: str = "tabular"      # tabular | tabularx | longtable
+    environment: str = "tabular"      # bkz. TABLO_ORTAMLARI
+    # Yalnız GENISLIK_ISTEYEN ortamlarda yazılır. Var olan bir tabloyu
+    # düzenlerken sihirbaz onun KENDİ genişliğini buraya koyuyor; yoksa
+    # kullanıcının `0.97\textwidth`i sessizce `\linewidth` oluyordu.
+    width: str = VARSAYILAN_GENISLIK
     booktabs: bool = True             # toprule/midrule/bottomrule (yoksa \hline)
     header_row: bool = True           # ilk satır başlık (kural ile ayrılır)
     vertical_lines: bool = False      # kolon çizgileri (|)
@@ -146,8 +174,9 @@ def build_tabular(rows: list[list[str]], aligns: list[str],
     bottom = "\\bottomrule" if opts.booktabs else "\\hline"
 
     col_spec = build_col_spec(aligns, opts.vertical_lines, opts.environment)
-    if opts.environment == "tabularx":
-        begin = f"\\begin{{tabularx}}{{\\linewidth}}{{{col_spec}}}"
+    if opts.environment in GENISLIK_ISTEYEN:
+        genislik = opts.width or VARSAYILAN_GENISLIK
+        begin = f"\\begin{{{opts.environment}}}{{{genislik}}}{{{col_spec}}}"
     else:
         begin = f"\\begin{{{opts.environment}}}{{{col_spec}}}"
 
@@ -275,7 +304,10 @@ def csv_to_rows(path: str) -> list[list[str]]:
 
 # --- Mevcut tabloyu bulma / hizalama ---
 
-_RE_BEGIN = re.compile(r"\\begin\{(tabular\*?|tabularx|longtable)\}")
+_RE_BEGIN = re.compile(
+    r"\\begin\{(" + "|".join(
+        re.escape(e) for e in sorted(TABLO_ORTAMLARI, key=len, reverse=True)
+    ) + r")\}")
 _RE_RULE = re.compile(
     r"^\s*\\(toprule|midrule|bottomrule|hline|endhead|endfoot|endfirsthead)\b")
 _RE_SPLIT_CELLS = re.compile(r"(?<!\\)&")
@@ -348,6 +380,33 @@ def _logical_rows(lines):
         yield son
 
 
+def _grup_oku(text: str, i: int, limit: int) -> tuple[str, int]:
+    """``i``den başlayarak dengeli bir ``{...}`` grubu oku.
+
+    Döner: (içerik, kapanıştan sonraki konum). Grup yoksa ("", i).
+
+    Düzenli ifadeyle YAZILAMIYOR: kolon belirtimi keyfi derinlikte iç grup
+    taşıyabiliyor. Eski desen tek düzey iç gruba izin veriyordu ve gerçek bir
+    şablondaki `|c|>{\\columncolor{layer7!30}}c|c|` belirtimini hiç
+    okuyamıyordu (ölçüldü); belirtim boş kalınca metni GÖVDE sanıp tablonun
+    ilk satırına hücre olarak yazıyordu.
+    """
+    while i < limit and text[i] in " \t\r\n":
+        i += 1
+    if i >= limit or text[i] != "{":
+        return "", i
+    derinlik, bas = 0, i
+    while i < limit:
+        if text[i] == "{":
+            derinlik += 1
+        elif text[i] == "}":
+            derinlik -= 1
+            if derinlik == 0:
+                return text[bas + 1:i], i + 1
+        i += 1
+    return "", bas
+
+
 def parse_tabular_at(text: str, pos: int) -> dict | None:
     """``pos`` (karakter offset) bir tabular ortamı içindeyse blok bilgisi döndür.
 
@@ -367,21 +426,17 @@ def parse_tabular_at(text: str, pos: int) -> dict | None:
         return None
     m, start, end = best
     env = m.group(1)
-    spec_at = m.end()
-    if env == "tabularx":
-        # \begin{tabularx}{\linewidth}{spec} — ilk küme parantezi genişlik
-        # argümanıdır; kolon belirtimi ikincisidir.
-        width_m = re.match(r"\s*\{[^{}]*\}", text[spec_at:end])
-        if width_m:
-            spec_at += width_m.end()
-    spec_m = re.match(r"\s*(\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\})", text[spec_at:end])
-    col_spec = spec_m.group(1)[1:-1] if spec_m else ""
+    i = m.end()
+    width = ""
+    if env in GENISLIK_ISTEYEN:
+        # İlk küme parantezi GENİŞLİK argümanıdır, kolon belirtimi ikincisidir.
+        width, i = _grup_oku(text, i, end)
+    col_spec, i = _grup_oku(text, i, end)
 
-    body_start = spec_at + (spec_m.end() if spec_m else 0)
-    rows = [g[1] for g in _logical_rows(text[body_start:end].split("\n"))
+    rows = [g[1] for g in _logical_rows(text[i:end].split("\n"))
             if g[0] == "satir" and g[1] != [""]]
     return {"start": start, "end": end, "env": env, "col_spec": col_spec,
-            "rows": rows}
+            "width": width, "rows": rows}
 
 
 def parse_first_tabular(text: str) -> dict | None:

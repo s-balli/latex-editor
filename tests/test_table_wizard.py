@@ -769,3 +769,40 @@ def test_align_table_KARDESIYLE_ayni_cumleyi_kuruyor(qapp):
     b = _Stub([])
     b._table_wizard()
     assert a._status.msg == b._status.msg != "", (a._status.msg, b._status.msg)
+
+
+# =====================================================================
+# Var olan tabloyu açıp Tamam demek onu BOZMAMALI (2026-09-12)
+# =====================================================================
+
+
+def test_ORTAM_LISTESI_cekirdekten_geliyor(qapp):
+    r"""Sihirbazın kendi ortam listesi vardı ve `tabular*` ONDA YOKTU;
+    ayrıştırıcı tanıdığı hâlde açılır kutu tanımıyordu, blok da sessizce
+    `tabular` olarak geri yazılıyordu."""
+    from core.latex_tables import TABLO_ORTAMLARI
+
+    dlg = TableWizardDialog()
+    kutudakiler = tuple(dlg._env.itemText(i)
+                        for i in range(dlg._env.count()))
+    assert kutudakiler == tuple(TABLO_ORTAMLARI)
+    assert dlg._env.currentText() == "tabular", "varsayılan ortam değişmiş"
+
+
+def test_ACIP_KAPATINCA_ortam_ve_genislik_ayakta(qapp):
+    r"""ÖLÇÜLDÜ (194 gerçek tablo): 8 `tabular*` bloğunun ortamı `tabular`a
+    dönüyor ve genişliği düşüyordu; 9 `tabularx` bloğunun genişliği de
+    `\linewidth`e eziliyordu."""
+    from core.latex_tables import parse_first_tabular
+
+    for ortam, genislik in (("tabular*", "\\tblwidth"),
+                            ("tabularx", "0.97\\textwidth")):
+        kod = ("\\begin{%s}{%s}{@{}ll@{}}\nA & B \\\\\nC & D \\\\\n"
+               "\\end{%s}") % (ortam, genislik, ortam)
+        dlg = TableWizardDialog()
+        dlg.load_block(parse_first_tabular(kod))
+        uretilen = dlg.result_text()
+
+        assert ("\\begin{%s}{%s}{" % (ortam, genislik)) in uretilen, uretilen
+        assert "A" in uretilen and "D" in uretilen
+        assert "@" not in uretilen, "kolon belirtimi hücreye düşmüş"

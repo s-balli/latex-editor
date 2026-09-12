@@ -5,9 +5,9 @@ import re
 
 import pytest
 
-from core.latex_tables import (guvenli_label, 
-    TableOptions, build_col_spec, build_tabular, csv_to_rows, escape_cell,
-    extract_caption_label, format_tabular, parse_first_tabular,
+from core.latex_tables import (guvenli_label,
+    GENISLIK_ISTEYEN, TableOptions, build_col_spec, build_tabular, csv_to_rows,
+    escape_cell, extract_caption_label, format_tabular, parse_first_tabular,
     parse_tabular_at, slugify, suggest_label, unescape_cell,
 )
 
@@ -540,3 +540,59 @@ class TestGuvenliEtiket:
                             TableOptions(label="tab:a%b", wrap_table=True))
         assert "\\label{tab:ab}" in kod
         assert "tab:a%b" not in kod
+
+
+# =====================================================================
+# Başlık biçimi: genişlik argümanı ve iç içe kolon belirtimi (2026-09-12)
+#
+# ÖLÇÜLDÜ (39 şablonda 194 gerçek tablo): `tabular*` bloklarının 8'inde
+# genişlik argümanı KOLON BELİRTİMİ sanılıyordu, yani gerçek belirtim
+# tablonun ilk satırına hücre olarak düşüyordu.
+# =====================================================================
+
+
+class TestBaslikBicimi:
+    def test_tabular_yildizli_GENISLIK_argumanini_atliyor(self):
+        r"""Kırılırsa: `\tblwidth` kolon belirtimi sanılır, gerçek belirtim
+        (`@{}ll@{}`) da tablonun ilk hücresine yazılır."""
+        kod = ("\\begin{tabular*}{\\tblwidth}{@{}ll@{}}\n"
+               "A & B \\\\\n"
+               "\\end{tabular*}")
+        blk = parse_tabular_at(kod, 5)
+
+        assert blk["env"] == "tabular*"
+        assert blk["width"] == "\\tblwidth"
+        assert blk["col_spec"] == "@{}ll@{}"
+        assert blk["rows"] == [["A", "B"]]
+
+    def test_ICICE_kolon_belirtimi_okunuyor(self):
+        r"""Eski desen tek düzey iç gruba izin veriyordu; gerçek bir şablondaki
+        `>{\columncolor{layer7!30}}` belirtimi hiç okunamıyordu."""
+        kod = ("\\begin{tabular}{|c|>{\\columncolor{layer7!30}}c|c|}\n"
+               "A & B & C \\\\\n"
+               "\\end{tabular}")
+        blk = parse_tabular_at(kod, 5)
+
+        assert blk["col_spec"] == "|c|>{\\columncolor{layer7!30}}c|c|"
+        assert blk["rows"] == [["A", "B", "C"]]
+
+    def test_uretimde_GENISLIK_korunuyor(self):
+        r"""`build_tabular` genişliği `\linewidth` diye SABİT yazıyordu; var
+        olan bir tablo düzenlenince kullanıcının `0.97\textwidth`i gidiyordu.
+        """
+        for ortam in sorted(GENISLIK_ISTEYEN):
+            kod = build_tabular(
+                [["a", "b"]], ["l", "l"],
+                TableOptions(environment=ortam, width="0.97\\textwidth",
+                             wrap_table=False))
+            assert ("\\begin{%s}{0.97\\textwidth}{" % ortam) in kod, ortam
+
+    def test_GENISLIK_ISTEMEYEN_ortama_genislik_yazilmiyor(self):
+        """Aşırı düzeltme kolu: `tabular` ve `longtable` genişlik almaz."""
+        for ortam in ("tabular", "longtable"):
+            kod = build_tabular([["a", "b"]], ["l", "l"],
+                                TableOptions(environment=ortam,
+                                             width="0.97\\textwidth",
+                                             wrap_table=False))
+            assert ("\\begin{%s}{ll}" % ortam) in kod, ortam
+            assert "textwidth" not in kod, ortam
