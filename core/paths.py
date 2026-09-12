@@ -56,10 +56,38 @@ def windows_to_wsl(windows_path: str) -> str:
     return p
 
 
-def wsl_to_windows(wsl_path: str) -> str:
-    """/mnt/c/Users/... -> C:\\Users\\..."""
+# `\\wsl.localhost\<dağıtım>` kökü. `windows_to_wsl` bu öneki ATIYOR
+# (dağıtımın kendi kökü `/`), yani geri çevrim onu tek başına üretemiyor;
+# `ornek` bu yüzden gerekiyor.
+_RE_WSL_KOK = re.compile(
+    r'^(\\\\wsl(?:\$|\.localhost)\\[^\\]+)(?=\\|$)', re.IGNORECASE)
+
+
+def wsl_to_windows(wsl_path: str, *, ornek: str = "") -> str:
+    """/mnt/c/Users/... -> C:\\Users\\...
+
+    ``ornek``: AYNI derlemeden bilinen bir Windows yolu (uygulamada PDF'in
+    yolu). Verilirse `/mnt/` DIŞINDAKİ biçimler de geri çevrilebiliyor.
+
+    Neden gerekli: proje WSL'in KENDİ dosya sisteminde durabiliyor
+    (`\\\\wsl.localhost\\Ubuntu\\home\\x`) ve WSL belgeleri bunu zaten
+    öneriyor, çapraz dosya sistemi erişimi yavaş olduğu için. İleri çevrim
+    o biçimi biliyor, geri çevrim BİLMİYORDU: SyncTeX ters araması
+    synctex'ten `/home/x/tez.tex` alıp Windows'a öyle veriyordu ve
+    `main_window._goto_line` o yolu açamayıp sessizce vazgeçiyordu.
+    ÜRETİLDİ (2026-09-12, WSL'in kendi dosya sisteminde derlenmiş gerçek
+    bir belgeyle): ileri arama çalışıyor, satır numarası da doğru geliyor,
+    ama kullanıcı PDF'te tıklayınca editörde hiçbir şey olmuyordu.
+
+    Dağıtım adı ileri çevrimde atıldığı için burada ÖRNEKTEN alınıyor;
+    uydurmak yanlış olurdu (kullanıcının birden çok dağıtımı olabilir).
+    """
     m = re.match(r'^/mnt/([a-zA-Z])(/.*)$', wsl_path)
     if m:
         win_path = m.group(2).replace('/', '\\')
         return f"{m.group(1).upper()}:{win_path}"
+    if ornek and wsl_path.startswith("/"):
+        kok = _RE_WSL_KOK.match(ornek)
+        if kok:
+            return kok.group(1) + wsl_path.replace("/", "\\")
     return wsl_path

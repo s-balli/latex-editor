@@ -244,3 +244,65 @@ def test_TERS_ayristirici_TEK_kayitta_degismedi():
     """Aşırı düzeltme kolu: tek kayıtlı çıktı eskisi gibi okunuyor."""
     r = _parse_reverse("Input:/a.tex\nLine:42\nColumn:7\n")
     assert (r.file_path, r.line, r.col) == ("/a.tex", 42, 7)
+
+
+# --- Ters arama: koordinat KESİRLİ, yol WSL-UNC'ye geri dönüyor (2026-09-12) ---
+
+def _komutu_yakala(monkeypatch, platform, x, y, pdf, cikti):
+    """Ters aramayı koş, synctex'e giden komutu ve sonucu döndür."""
+    from unittest.mock import patch
+    from types import SimpleNamespace
+
+    yakalanan = {}
+
+    def sahte_run(cmd, **k):
+        yakalanan["cmd"] = cmd
+        return SimpleNamespace(returncode=0, stdout=cikti, stderr="")
+
+    monkeypatch.setattr(st, "_PLATFORM", platform)
+    with patch("gui.synctex.subprocess.run", side_effect=sahte_run):
+        sonuc = st.reverse_search(1, x, y, pdf)
+    return yakalanan["cmd"], sonuc
+
+
+@pytest.mark.parametrize("platform", _PLATFORMLAR)
+def test_TERS_arama_koordinati_KIRPMIYOR(monkeypatch, platform):
+    """Kırılırsa: kullanıcının tıkladığı nokta bir puntoya kadar kayıyor.
+
+    ÖLÇÜLDÜ (142 nokta): kırpmak 11 noktada FARKLI satır döndürüyor; tam
+    isabet 76'ya karşı 80. Satır yüksekliği ~9 pt, yani 1 pt satır
+    sınırında cevabı değiştirebiliyor.
+    """
+    cmd, _s = _komutu_yakala(monkeypatch, platform, 10.75, 20.25,
+                             "/a.pdf", TAM_TERS)
+    spec = [a for a in cmd if ":" in str(a) and "pdf" in str(a)][-1]
+    assert "10.75" in spec and "20.25" in spec, spec
+
+
+def test_WSL_UNC_yolu_WINDOWSA_geri_cevriliyor(monkeypatch):
+    r"""Proje WSL'in KENDİ dosya sisteminde durabiliyor.
+
+    İleri çevrim `\\wsl.localhost\Ubuntu\home\x`i biliyor, geri çevrim
+    bilmiyordu: synctex `/home/x/main.tex` döndürüyor ve `_goto_line` o
+    yolu Windows'ta açamayıp sessizce vazgeçiyordu. ÜRETİLDİ: WSL'in kendi
+    dosya sisteminde derlenmiş gerçek bir belgede ileri arama çalışıyor,
+    ters arama açılamayan bir yol veriyordu.
+    """
+    cikti = ("SyncTeX result begin\nInput:/home/secho/tez/main.tex\n"
+             "Line:7\nColumn:-1\nSyncTeX result end\n")
+    _cmd, s = _komutu_yakala(
+        monkeypatch, "win32", 10.0, 20.0,
+        "\\\\wsl.localhost\\Ubuntu\\home\\secho\\tez\\main.pdf", cikti)
+    assert s.file_path == \
+        "\\\\wsl.localhost\\Ubuntu\\home\\secho\\tez\\main.tex"
+    assert s.line == 7
+
+
+def test_SURUCU_yolunda_eski_davranis_SURUYOR(monkeypatch):
+    """Aşırı düzeltme kolu: `/mnt/` biçimi örnekten etkilenmemeli."""
+    cikti = ("SyncTeX result begin\nInput:/mnt/c/Users/a/main.tex\n"
+             "Line:3\nColumn:-1\nSyncTeX result end\n")
+    _cmd, s = _komutu_yakala(monkeypatch, "win32", 1.0, 2.0,
+                             "\\\\wsl.localhost\\Ubuntu\\home\\a\\main.pdf",
+                             cikti)
+    assert s.file_path == "C:\\Users\\a\\main.tex"

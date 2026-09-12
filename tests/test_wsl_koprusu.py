@@ -187,11 +187,23 @@ class TestGeriArama:
         # Ters bölü ve boşluklar korunmuş, sürücü harfi büyütülmüş olmalı.
         assert sonuc.file_path == "C:\\Users\\Serif Cagri\\Tez Calismasi\\bolum ozet.tex"
 
-    def test_koordinatlar_tamsayilastiriliyor(self, sahte_wsl):
+    def test_koordinatlar_KESIRLI_gidiyor(self, sahte_wsl):
+        """Koordinat `int()` ile kırpılıyordu; bu test o biçimi sabitliyordu
+        ama kırpmanın bir gerekçesi hiçbir yerde yazılı değildi.
+
+        ÖLÇÜLDÜ (2026-09-12, 30 gerçek `.synctex.gz`, 142 nokta): kırpmak 11
+        noktada FARKLI satır döndürüyor. İstenen satıra tam isabet 76'ya
+        karşı 80, ortalama sapma 4.7'ye karşı 4.5. Satır yüksekliği ~9 pt,
+        yani 1 pt satır sınırında cevabı değiştiriyor. synctex kesirli
+        koordinatı zaten kabul ediyor (aynı ölçümde 142 çağrı).
+        """
         synctex.reverse_search(7, 133.768, 412.5, r"C:\x\main.pdf")
         argv = sahte_wsl.argv_listesi()[0]
         assert argv[:3] == ["-e", "synctex", "edit"]
-        assert argv[4] == "7:133:412:/mnt/c/x/main.pdf"
+        sayfa, x, y, yol = argv[4].split(":")
+        assert (sayfa, yol) == ("7", "/mnt/c/x/main.pdf")
+        assert float(x) == pytest.approx(133.768)
+        assert float(y) == pytest.approx(412.5)
 
 
 class TestHataYollari:

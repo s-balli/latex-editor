@@ -106,3 +106,35 @@ def test_clean_child_env_keeps_env_when_clean(monkeypatch):
     monkeypatch.delenv("LD_LIBRARY_PATH", raising=False)
     monkeypatch.delenv("LD_PRELOAD", raising=False)
     assert clean_child_env() == dict(__import__("os").environ)
+
+
+class TestWslKendiDosyaSistemi:
+    r"""`\\wsl.localhost\<dağıtım>\...` biçiminin GERİ çevrimi.
+
+    Dağıtım adı ileri çevrimde atılıyor, o yüzden geri çevrim onu ancak
+    aynı derlemeden bilinen bir ÖRNEK yoldan öğrenebiliyor.
+    """
+
+    UNC = "\\\\wsl.localhost\\Ubuntu\\home\\secho\\tez\\main.pdf"
+
+    def test_ORNEK_verilince_geri_donuyor(self):
+        assert wsl_to_windows("/home/secho/tez/bolum1.tex", ornek=self.UNC) \
+            == "\\\\wsl.localhost\\Ubuntu\\home\\secho\\tez\\bolum1.tex"
+
+    def test_DOLARLI_bicim_de_calisiyor(self):
+        unc = "\\\\wsl$\\Debian\\home\\a\\x.pdf"
+        assert wsl_to_windows("/home/a/y.tex", ornek=unc) \
+            == "\\\\wsl$\\Debian\\home\\a\\y.tex"
+
+    def test_ORNEK_YOKSA_eski_davranis(self):
+        """Var olan kapı bunu zaten sabitliyordu; burada açıkça yazılı."""
+        assert wsl_to_windows("/home/user/file") == "/home/user/file"
+
+    def test_MNT_bicimi_ORNEKTEN_etkilenmiyor(self):
+        assert wsl_to_windows("/mnt/c/Users/a/x.tex", ornek=self.UNC) \
+            == "C:\\Users\\a\\x.tex"
+
+    def test_SURUCU_yollu_ornek_POSIX_yolu_cevirmiyor(self):
+        """Örnek WSL-UNC DEĞİLSE uydurma yapılmamalı."""
+        assert wsl_to_windows("/home/a/x.tex", ornek="C:\\p\\main.pdf") \
+            == "/home/a/x.tex"

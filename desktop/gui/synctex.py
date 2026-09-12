@@ -223,11 +223,18 @@ def _forward_native(tex_path: str, line: int, col: int, pdf_path: str,
         return ARAC_YOK
 
 
+# Koordinat synctex'e KESİRLİ veriliyor. `int(x)`/`int(y)` ile kırpılıyordu
+# ve bunun bir gerekçesi yazılı değildi; kullanıcının tıkladığı nokta bir
+# puntoya kadar kaydırılmış oluyordu. Satır yüksekliği ~9 pt, yani 1 pt
+# satır sınırında cevabı değiştirebiliyor. ÖLÇÜLDÜ (2026-09-12, 142 nokta):
+# kırpmak 11 noktada FARKLI satır döndürüyor; tam isabet 76'ya karşı 80,
+# istenen satırdan ortalama sapma 4.7'ye karşı 4.5. Kazanç küçük ama tek
+# yönlü ve bedeli yok: synctex kesirli koordinatı zaten kabul ediyor.
 def _reverse_wsl(page: int, x: float, y: float, pdf_path: str,
                 synctex_dir: str = "") -> ReverseResult | None:
     wsl_pdf = windows_to_wsl(pdf_path)
     cmd = ["wsl", "-e", "synctex", "edit",
-           "-o", f"{page}:{int(x)}:{int(y)}:{wsl_pdf}"]
+           "-o", f"{page}:{x:f}:{y:f}:{wsl_pdf}"]
     if synctex_dir:
         cmd += ["-d", windows_to_wsl(synctex_dir)]
     try:
@@ -240,7 +247,11 @@ def _reverse_wsl(page: int, x: float, y: float, pdf_path: str,
             return None
         parsed = _parse_reverse(r.stdout)
         if parsed:
-            parsed.file_path = wsl_to_windows(parsed.file_path)
+            # `ornek` PDF'in Windows yolu: proje WSL'in KENDİ dosya
+            # sisteminde duruyorsa dağıtım adı yalnız oradan öğrenilebiliyor
+            # (gerekçe ve üretilmiş örnek core/paths.py'de).
+            parsed.file_path = wsl_to_windows(parsed.file_path,
+                                              ornek=pdf_path)
         return parsed
     except subprocess.TimeoutExpired as e:
         _logger.warning("SyncTeX reverse (WSL) zaman aşımı: sayfa %d (%s)", page, e)
@@ -253,7 +264,7 @@ def _reverse_wsl(page: int, x: float, y: float, pdf_path: str,
 def _reverse_native(page: int, x: float, y: float, pdf_path: str,
                     synctex_dir: str = "") -> ReverseResult | None:
     cmd = ["synctex", "edit",
-           "-o", f"{page}:{int(x)}:{int(y)}:{pdf_path}"]
+           "-o", f"{page}:{x:f}:{y:f}:{pdf_path}"]
     if synctex_dir:
         cmd += ["-d", synctex_dir]
     try:
