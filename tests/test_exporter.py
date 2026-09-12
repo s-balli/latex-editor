@@ -858,6 +858,42 @@ class TestMdResimYollari:
         duzelt(str(tex), str(md))
         assert self._yollar(md) == ["https://ornek.org/x.png"]
 
+    def test_DERLEYICININ_sectigi_dosya_secilmeli(self, tmp_path):
+        r"""Uzantısız `\includegraphics{logo}` için aday sırası graphicx'inki.
+
+        ÖLÇÜLDÜ (2026-09-12, gerçek pdflatex; okuduğu dosyayı `.log` kendi
+        yazıyor): eski sıra kurulan 11 durumun 6'sında derleyiciden BAŞKA bir
+        dosya seçiyordu.
+
+            diskteki adaylar      pdflatex   eski sıra
+            logo.pdf + logo.png     pdf        png
+            logo.eps + logo.PNG     png        eps
+            logo.PNG                png        bulamıyor
+
+        Yani çıktı, belgenin gösterdiğinden başka bir görseli gömüyordu.
+        """
+        from core.exporter import _fix_md_image_paths
+
+        tex = tmp_path / "m.tex"
+        tex.write_text("", encoding="utf-8")
+        (tmp_path / "logo.pdf").write_bytes(b"%PDF-1.4\n")
+        (tmp_path / "logo.png").write_bytes(b"x")
+        md = tmp_path / "m.md"
+        md.write_text("![](logo)\n", encoding="utf-8")
+        _fix_md_image_paths(str(tex), str(md))
+        (yol,) = self._yollar(md)
+        assert yol.endswith("logo.pdf"), yol
+
+        # BÜYÜK harfli uzantı: pdflatex buluyor, dışa aktarma da bulmalı
+        # (harf duyarlı dosya sisteminde, yani Linux'ta gerçek koşul).
+        (tmp_path / "foto.JPG").write_bytes(b"x")
+        md2 = tmp_path / "m2.md"
+        md2.write_text("![](foto)\n", encoding="utf-8")
+        _fix_md_image_paths(str(tex), str(md2))
+        (yol2,) = self._yollar(md2)
+        assert os.path.isfile(yol2), yol2
+        assert yol2.lower().endswith("foto.jpg"), yol2
+
 
 # ---------------------------------------------------------------------------
 # ESKİ TÜRKÇE KODLAMALAR

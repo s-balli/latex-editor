@@ -544,6 +544,35 @@ def _find_bibliography(tex_path: str) -> list[str]:
     return find_bib_paths(content, tex_path)
 
 
+# Uzantısız `\includegraphics{logo}` hangi dosyaya çözülür: bunu GRAPHICX
+# belirliyor. Bu sıra onun pdftex öntanımının (`\DeclareGraphicsExtensions`)
+# aynısı ve ölçümle doğrulandı.
+#
+# ÖLÇÜLDÜ (2026-09-12, gerçek pdflatex; hangi dosyayı okuduğunu `.log` kendi
+# yazıyor). Eski sıra (`"", .png, .pdf, .jpg, .jpeg, .eps`) kurulan 11 durumun
+# 6'sında derleyiciden BAŞKA bir dosya seçiyordu:
+#
+#     diskteki adaylar      pdflatex   eski sıra
+#     logo.pdf + logo.png     pdf        png
+#     logo.eps + logo.PNG     png        eps
+#     logo.PNG                png        bulamıyor
+#     logo.PDF                pdf        bulamıyor
+#
+# Yani DOCX/Markdown çıktısı, belgenin GÖSTERDİĞİNDEN başka bir görseli
+# gömebiliyordu; büyük harfli uzantıda ise hiç bulamayıp bağlantıyı kırıyordu.
+# Büyük harf sorunu yalnız Linux'ta: Windows dosya sistemi harf duyarsız.
+#
+# 39 gerçek şablonda bu durumların HİÇBİRİ yok (534 `\includegraphics`, 34'ü
+# uzantısız, 4'ü çok adaylı ve dördü de `.eps` ile eşleşiyor, hiç `.pdf`+`.png`
+# çifti yok). Yani ölçülen kusur ulaşılabilir ama bu derlemede canlı değil.
+#
+# `""` BAŞTA KALMALI: .tex'te uzantı yazılmışsa o dosya seçilmeli.
+# `.eps` EN SONDA: listeye epstopdf sonradan ekliyor (ölçüldü, `.eps` ile
+# `.PNG` birlikteyken pdflatex `.PNG`yi alıyor).
+_GORSEL_ARAMA_SIRASI = ("", ".pdf", ".png", ".jpg", ".jpeg",
+                        ".PDF", ".PNG", ".JPG", ".JPEG", ".eps")
+
+
 def _fix_md_image_paths(tex_path: str, md_path: str):
     r"""Markdown'daki göreceli resim yollarını .tex dizinine göre mutlak yap.
 
@@ -570,7 +599,7 @@ def _fix_md_image_paths(tex_path: str, md_path: str):
             # üretmediği için aşağıdaki except da yakalamıyordu.
             adaylar = [gp + path for gp in graphics_paths] + [path]
             for aday in adaylar:
-                for ek in ("", ".png", ".pdf", ".jpg", ".jpeg", ".eps"):
+                for ek in _GORSEL_ARAMA_SIRASI:
                     tam = os.path.normpath(os.path.join(tex_dir, aday + ek))
                     if os.path.isfile(tam):
                         return f"![{alt}]({tam.replace(os.sep, '/')})"
