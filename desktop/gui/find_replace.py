@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.Qsci import QsciScintilla
 
-from core.project_search import eslesme_ofsetleri
+from core.project_search import eslesme_ofsetleri, kucult
 
 from PyQt6.QtCore import QCoreApplication
 _ = lambda s: QCoreApplication.translate("FindReplaceBar", s)
@@ -176,6 +176,91 @@ def _desen_guvenli(desen: str) -> bool:
     if enbuyuk > _MAX_GRUP_DERINLIGI:
         return False
     return not _ic_ice_nicelik(desen)
+
+
+# ----------------------------------------------------------------------
+# Desen kipinde harf katlama: motorun katlayamadığını desene yazmak
+# ----------------------------------------------------------------------
+#
+# Scintilla'nın harf duyarsız DESEN araması ASCII dışı harflerin YALNIZ BİR
+# KISMINI katlıyor. ÖLÇÜLDÜ (2026-09-12; aynı belge, aynı sorgu, yalnız
+# "Desen" kutusu farklı, beklenen her satırda 2):
+#
+#     çift     düz kip   desen kipi
+#     a / A       2          2
+#     ğ / Ğ       2          2
+#     ş / Ş       2          2
+#     ç / Ç       2          1
+#     i / İ       2          1
+#     ö / Ö       2          1
+#     ü / Ü       2          1
+#     é / É       2          1
+#
+# Yani `üçgen` sorgusu desen kipinde `ÜÇGEN` ile `Üçgen`i hiç bulmuyordu
+# (gerçek bir belgede 3 eşleşmenin 1'i), `şekil` sorgusu `ŞEKİL`i
+# kaçırıyordu. "Tümünü Değiştir" de aynı eksik listeyle çalışıp belgeyi
+# YARIM değiştiriyor, etiket ise yaptığı değişikliği doğru sayıyordu:
+# kullanıcı hiçbir uyarı görmüyordu.
+#
+# Düz metin kipinde aynı eksik 2026-09-10'da Python yoluna geçilerek
+# kapatılmıştı; desen kipi Scintilla'da KALMAK ZORUNDA: `\1` geri
+# referansları onun `replace`inden geçiyor ve lehçe ECMAScript. O yüzden
+# çözüm motoru değiştirmek değil, deseni motorun anlayacağı biçimde
+# yazmak: `ç` -> `[çÇ]`.
+#
+# Katlama kuralı `core.project_search.kucult`tan geliyor (TEK KAYNAK; ı/i
+# ayrımı ve Türkçe noktalı İ orada ölçülmüş).
+
+
+def _esdeger_harfler(c: str) -> str:
+    """`c` ile harf duyarsız EŞ sayılan karakterler, ``kucult`` kuralına göre.
+
+    `ı` için yalnız kendisi dönüyor: `'ı'.upper()` `I` veriyor ama
+    ``kucult('I')`` `i`, yani ikisi EŞ DEĞİL. ı/i ayrımı böyle korunuyor.
+    """
+    hedef = kucult(c)
+    adaylar = {c, c.lower(), c.upper()}
+    if hedef == "i":
+        # Türkçe noktalı İ küçülünce `i` oluyor ama `'i'.upper()` onu
+        # üretmiyor; ayrıca yazmak gerekiyor.
+        adaylar |= {"i", "I", "İ"}
+    return "".join(sorted(d for d in adaylar
+                          if len(d) == 1 and kucult(d) == hedef))
+
+
+def _desen_harf_katla(desen: str) -> str:
+    """Harf duyarsız desende ASCII dışı harfleri İKİ HÂLİYLE de yaz.
+
+    Yalnız motorun kendi katlamasının yetmediği yere dokunuyor: eş
+    karakterlerin hepsi ASCII ise desen olduğu gibi kalıyor (Scintilla
+    ASCII'yi doğru katlıyor, ölçüldü).
+
+    Karakter sınıfı yaratmak grup NUMARALARINI değiştirmiyor, dolayısıyla
+    `\\1` geri referansları etkilenmiyor.
+
+    SINIR: karakter sınıfının (`[...]`) İÇİNE dokunulmuyor. Orada `-`
+    aralık işletiyor ve araya harf eklemek aralığı kaydırabilirdi;
+    `[çÇ]` gibi bir sınıfı kullanıcı zaten iki hâliyle yazıyor.
+    Kaçırılmış karakter (`\\ç`) de olduğu gibi bırakılıyor.
+    """
+    parcalar = []
+    kacis = sinif = False
+    for c in desen:
+        if kacis:
+            kacis = False
+        elif c == "\\":
+            kacis = True
+        elif sinif:
+            sinif = c != "]"
+        elif c == "[":
+            sinif = True
+        else:
+            esler = _esdeger_harfler(c)
+            if len(esler) > 1 and not esler.isascii():
+                parcalar.append("[" + esler + "]")
+                continue
+        parcalar.append(c)
+    return "".join(parcalar)
 
 
 class FindReplaceBar(QWidget):
@@ -473,6 +558,15 @@ class FindReplaceBar(QWidget):
         return not re_ and not cs
 
     @staticmethod
+    def _motor_deseni(text: str, re_: bool, cs: bool) -> str:
+        """Scintilla'ya GİDECEK desen: TEK KAYNAK.
+
+        Bul, sayaç ve değiştir aynı dönüşümü görmek zorunda; ayrışırlarsa
+        etiket bir sayı söylerken ileri tuşu başka bir kümede gezinir.
+        """
+        return _desen_harf_katla(text) if (re_ and not cs) else text
+
+    @staticmethod
     def _kelime_karakteri(ch: str) -> bool:
         return bool(ch) and (ch.isalnum() or ch == "_")
 
@@ -556,7 +650,8 @@ class FindReplaceBar(QWidget):
             return self._python_bul(text, wrap=wrap, forward=forward,
                                     line=line, col=col, tam_kelime=wo)
         return self._editor.findFirst(
-            text, re_, cs, wo, wrap, forward, line, col, True, False, re_
+            self._motor_deseni(text, re_, cs),
+            re_, cs, wo, wrap, forward, line, col, True, False, re_
         )
 
     def _do_find(self):
@@ -680,7 +775,7 @@ class FindReplaceBar(QWidget):
 
         # Scintilla konumları BAYT cinsinden; belge UTF-8 olduğu için sorgu da
         # bayta çevriliyor. Sayım için karakter ofseti gerekmiyor.
-        ham = text.encode("utf-8")
+        ham = self._motor_deseni(text, re_, cs).encode("utf-8")
         son = ed.SendScintilla(QsciScintilla.SCI_GETLENGTH)
         konum, n = 0, 0
         while konum <= son and n < self._COUNT_LIMIT:

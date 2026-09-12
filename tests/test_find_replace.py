@@ -1120,3 +1120,98 @@ class TestIkiAramaAyniSayiyi:
             assert bar._match_count == sayi, ("Ctrl+F", sorgu,
                                               bar._match_count)
             assert len(bulgular) == sayi, ("proje", sorgu, len(bulgular))
+
+
+class TestDesenKipindeTurkceKatlama:
+    """Düz metin kipinde kapatılan eksik DESEN kipinde duruyordu.
+
+    Scintilla'nın harf duyarsız desen araması ASCII dışı harflerin yalnız
+    bir kısmını katlıyor. ÖLÇÜLDÜ (2026-09-12; aynı belge, aynı sorgu,
+    yalnız "Desen" kutusu farklı, beklenen her satırda 2):
+
+        çift     düz kip   desen kipi
+        a / A       2          2
+        ğ / Ğ       2          2
+        ş / Ş       2          2
+        ç / Ç       2          1
+        i / İ       2          1
+        ö / Ö       2          1
+        ü / Ü       2          1
+
+    Yani `üçgen` sorgusu desen kipinde 3 eşleşmenin 1'ini buluyordu.
+    "Tümünü Değiştir" de aynı eksik listeyle çalışıp belgeyi YARIM
+    değiştiriyor, etiket ise yaptığı değişikliği doğru sayıyordu.
+    """
+
+    def test_UC_YOL_da_Turkce_harfleri_katliyor(self, qapp):
+        metin = "üçgen ÜÇGEN Üçgen\n"
+        # 1) sayaç
+        bar, _ed = _bar(metin, "üçgen")
+        _sec(bar, regex=True)
+        bar._count_matches("üçgen")
+        assert bar._match_count == 3
+        # 2) gezinme: üç AYRI yere gitmeli
+        bar, ed = _bar(metin, "üçgen")
+        _sec(bar, regex=True)
+        yerler = []
+        ed.setCursorPosition(0, 0)
+        while len(yerler) < 5:
+            satir, sutun = ed.getCursorPosition()
+            if not bar._find_first("üçgen", wrap=False, forward=True,
+                                   line=satir, col=sutun):
+                break
+            yerler.append(ed.getSelection()[:2])
+            ed.setCursorPosition(*ed.getSelection()[2:])
+        assert yerler == [(0, 0), (0, 6), (0, 12)]
+        # 3) tümünü değiştir: HEPSİ değişmeli
+        bar, ed = _bar(metin, "üçgen", "X")
+        _sec(bar, regex=True)
+        bar._replace_all()
+        assert ed.text() == "X X X\n"
+        # 4) noktalı İ de: `şekil` sorgusu `ŞEKİL`i bulmalı
+        bar, _ed = _bar("Şekil şekil ŞEKİL\n", "şekil")
+        _sec(bar, regex=True)
+        bar._count_matches("şekil")
+        assert bar._match_count == 3
+        # 5) KARŞI KOL: duyarlı kipte hiçbiri katlanmamalı
+        bar, _ed = _bar(metin, "üçgen")
+        _sec(bar, regex=True, case=True)
+        bar._count_matches("üçgen")
+        assert bar._match_count == 1
+
+    def test_i_noktasiz_I_ile_KATLANMIYOR(self, qapp):
+        """ı/i ayrımı korunuyor: `ısı` sorgusu `ISI`yi bulmamalı.
+
+        `'ı'.upper()` `I` veriyor ama katlama kuralı (``kucult``) ikisini EŞ
+        SAYMIYOR. Desen kipi de düz kiple aynı cevabı vermek zorunda.
+        """
+        bar, _ed = _bar("ısı ISI\n", "ısı")
+        _sec(bar, regex=True)
+        bar._count_matches("ısı")
+        assert bar._match_count == 1
+
+        bar, _ed = _bar("ısı ISI\n", "ısı")
+        _sec(bar, regex=False)
+        bar._count_matches("ısı")
+        assert bar._match_count == 1
+
+
+def test_donusum_desenin_ANLAMINI_bozmuyor():
+    """Desen yeniden yazılıyor; yazdıklarımız ANLAMI değiştirmemeli."""
+    from gui.find_replace import _desen_harf_katla
+
+    # Dokunulmayanlar
+    assert _desen_harf_katla("a\\d+") == "a\\d+"       # ASCII ve kaçışlar
+    assert _desen_harf_katla("[çÇ]") == "[çÇ]"         # sınıf İÇİ
+    assert _desen_harf_katla("\\ç") == "\\ç"           # kaçırılmış harf
+    assert _desen_harf_katla("ısı") == "ısı"           # ı/i ayrımı
+
+    # Yazılanlar
+    assert set(_desen_harf_katla("ç")) == set("[çÇ]")
+    assert set(_desen_harf_katla("i")) == set("[iIİ]")
+
+    # Grup NUMARALARI değişmemeli: `\1` geri referansları buna bağlı.
+    assert _desen_harf_katla("(şekil) (\\d+)").count("(") == 2
+
+    # Nicelik harfin değil, SINIFIN üstünde kalmalı
+    assert _desen_harf_katla("ş{2}").endswith("]{2}")
