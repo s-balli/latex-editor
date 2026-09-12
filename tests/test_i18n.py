@@ -568,3 +568,121 @@ class TestVarsayilanDil:
         assert "VARSAYILAN_DIL" in kaynak, "secici sabiti okumuyor"
         assert 'value("language", "' not in kaynak, \
             "secici kendi dil varsayilanini yaziyor"
+
+
+# --- Katalog TAM mı, derlenmiş hâli GÜNCEL mi (2026-09-12) ---
+
+
+class TestKatalogButunlugu:
+    """Çeviri İKİ ayrı dosyada duruyor ve ikisi de sessizce geride kalabilir.
+
+    `.ts` kaynak katalog, `.qm` uygulamanın gerçekten okuduğu derlenmiş hâli.
+    Yeni bir `_()` dizgisi katalog güncellenmeden eklenirse İngilizce arayüzde
+    TÜRKÇE görünüyor; `.ts` güncellenip `lrelease` unutulursa uygulama eski
+    metni göstermeye devam ediyor. İkisinde de hiçbir hata çıkmıyor ve
+    `.qm`leri üreten bir CI adımı da yok, ikisi de depoda duruyor.
+
+    ÖLÇÜLDÜ (2026-09-12): bugün ikisi de tam. Kaynakta 612 ayrı `_()` dizgisi
+    (721 çağrı), katalogda 656 bitmiş ileti, `.qm` ile `.ts` iki dilde de
+    656/656 aynı. Kapılar bu durumu SABİTLİYOR.
+    """
+
+    _ATLANAN = ("__pycache__", ".venv", "venv", "build", "dist", "site-packages")
+
+    @classmethod
+    def _kaynak_dizgileri(cls):
+        """desktop/ altındaki `_( "..." )` çağrılarının dizgileri.
+
+        Kataloğu üreten `scripts/extract_tr.py` BİLEREK kullanılmıyor: kapının
+        kehaneti denetlediği aracın kendisi olmamalı.
+        """
+        import ast
+
+        kok = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        out = {}
+        for d, dizinler, adlar in os.walk(os.path.join(kok, "desktop")):
+            dizinler[:] = [x for x in dizinler
+                           if not any(a in x for a in cls._ATLANAN)]
+            for ad in adlar:
+                if not ad.endswith(".py"):
+                    continue
+                yol = os.path.join(d, ad)
+                with open(yol, encoding="utf-8") as f:
+                    try:
+                        agac = ast.parse(f.read())
+                    except SyntaxError:
+                        continue
+                for dugum in ast.walk(agac):
+                    if not (isinstance(dugum, ast.Call)
+                            and isinstance(dugum.func, ast.Name)
+                            and dugum.func.id == "_"
+                            and len(dugum.args) == 1):
+                        continue
+                    a = dugum.args[0]
+                    if isinstance(a, ast.Constant) and isinstance(a.value, str):
+                        out.setdefault(a.value,
+                                       "%s:%d" % (os.path.relpath(yol, kok),
+                                                  dugum.lineno))
+        return out
+
+    @staticmethod
+    def _bitmis_iletiler(dil):
+        """`.ts` içindeki BİTMİŞ iletiler: (bağlam, kaynak, çeviri)."""
+        import xml.etree.ElementTree as ET
+
+        yol = os.path.join(_find_trans_dir(), "latexeditor_%s.ts" % dil)
+        agac = ET.parse(yol)
+        out = []
+        for ctx in agac.getroot().findall("context"):
+            ad_el = ctx.find("name")
+            ad = ad_el.text if ad_el is not None else ""
+            for msg in ctx.findall("message"):
+                k_el, c_el = msg.find("source"), msg.find("translation")
+                if k_el is None or c_el is None:
+                    continue
+                if (c_el.get("type") or "") in ("vanished", "obsolete",
+                                                "unfinished"):
+                    continue
+                metin = c_el.text or ""
+                if not metin.strip():
+                    continue
+                out.append((ad, k_el.text or "", metin))
+        return out
+
+    def test_her_arayuz_dizgisi_INGILIZCE_katalogda(self):
+        """Kırılırsa: o dizgi İngilizce arayüzde Türkçe görünür."""
+        kataloglu = {kaynak for _b, kaynak, _c in self._bitmis_iletiler("en")}
+        eksik = sorted((s, yer) for s, yer in self._kaynak_dizgileri().items()
+                       if s not in kataloglu)
+        assert eksik == [], (
+            "%d dizgi İngilizce katalogda yok, ilk üçü: %s"
+            % (len(eksik), eksik[:3]))
+
+    def test_qm_dosyalari_ts_ILE_AYNI_seyi_soyluyor(self):
+        """Kırılırsa: `.ts` güncel ama uygulama ESKİ metni gösteriyor.
+
+        Kehanet `.ts`in kendisi; okuyan taraf Qt'nin KENDİ QTranslator'u,
+        yani uygulamanın gördüğü yol.
+        """
+        from PyQt6.QtCore import QTranslator
+
+        if not isinstance(QTranslator, type):
+            pytest.skip("PyQt6 mock'lanmış, gerçek .qm okunamaz")
+
+        for dil in ("en", "tr"):
+            iletiler = self._bitmis_iletiler(dil)
+            assert iletiler, dil
+            qm = os.path.join(_find_trans_dir(), "latexeditor_%s.qm" % dil)
+            tr = QTranslator()
+            assert tr.load(qm), qm
+            ayrisan = []
+            for baglam, kaynak, beklenen in iletiler:
+                # PyQt6 str -> const char* çevriminde ASCII kullanıyor;
+                # Türkçe kaynak metinler patlıyor. Bayt vermek gerekiyor.
+                alinan = tr.translate(baglam.encode("utf-8"),
+                                      kaynak.encode("utf-8"))
+                if alinan != beklenen:
+                    ayrisan.append((baglam, kaynak, beklenen, alinan))
+            assert ayrisan == [], (
+                "%s: %d ileti .qm ile ayrışıyor (lrelease unutuldu mu?), "
+                "ilk ikisi: %s" % (dil, len(ayrisan), ayrisan[:2]))
