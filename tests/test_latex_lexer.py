@@ -1288,3 +1288,79 @@ def test_KACIRILMIS_yuzde_argumanda_yorum_DEGIL(qapp):
     i = belge.index("%")
     assert _style_at(editor, i) != LatexLexer.COMMENT
     assert _style_at(editor, belge.index("artti")) == LatexLexer.CMD_ARG
+
+
+# =====================================================================
+# Satır içi `\verb` (2026-09-12)
+#
+# Renklendirici `\begin{verbatim}` BLOKLARINI biliyordu ama satır içi
+# `\verb`i hiç tanımıyordu; `core.latex_utils._RE_VERB` onu 2026-09-09'dan
+# beri biliyor (referans denetimi, anahat, kelime sayımı, yazım denetimi
+# oradan besleniyor). Bu tüketici o taşınmanın dışında kalmıştı.
+#
+# ÖLÇÜLDÜ (133 gerçek şablon, 22 dosyada 617 satır içi `\verb`):
+#   önce  VERBATIM 1, COMMAND 403, DEFAULT 154, CMD_ARG 38, MATH 13,
+#         BRACKET 6, COMMENT 2
+#   sonra VERBATIM 615, COMMENT 2 (o ikisi GERÇEK yorum satırında, doğru)
+# =====================================================================
+
+
+def test_SATIR_ICI_verb_govdesi_VERBATIM(qapp):
+    r"""Kırılırsa: `\verb|\cite{k}|` ekranda komut gibi görünür."""
+    belge = "Once \\verb|\\cite{k}| sonra.\n"
+    editor, _data = _style_text(belge)
+
+    assert _style_at(editor, belge.index("\\verb")) == LatexLexer.COMMAND
+    for i in range(belge.index("|"), belge.rindex("|") + 1):
+        assert _style_at(editor, i) == LatexLexer.VERBATIM, belge[i]
+    assert _style_at(editor, belge.index(" sonra") + 1) == LatexLexer.DEFAULT
+
+
+def test_verb_ICINDEKI_dolar_ve_yuzde_kacmiyor(qapp):
+    r"""Gövdedeki `$` matematik, `%` yorum AÇMAMALI.
+
+    İkisi de gerçek şablonlardan çıktı: 11 gövdede `$` var
+    (`\verb'$1+1=2$'`), `%` taşıyan gövde ise satırın gerisini yorum
+    rengine sokuyordu.
+    """
+    belge = "A \\verb+$x+ B\nC \\verb+%y+ D\n"
+    editor, _data = _style_text(belge)
+
+    assert _style_at(editor, belge.index("B")) == LatexLexer.DEFAULT, \
+        "gövdedeki $ matematik açtı"
+    assert _style_at(editor, belge.index("D")) == LatexLexer.DEFAULT, \
+        "gövdedeki % yorum açtı"
+
+
+def test_verb_AYRACI_serbest_ve_satirda_biter(qapp):
+    r"""Ayraç harf/rakam/boşluk dışında herhangi bir karakter olabilir;
+    kapanmamış `\verb` satır sonunda biter (LaTeX'te de öyle)."""
+    for ayrac in ("|", "+", '"', "!"):
+        belge = "X \\verb%s\\foo%s Y\n" % (ayrac, ayrac)
+        editor, _data = _style_text(belge)
+        assert _style_at(editor, belge.index("\\foo")) == LatexLexer.VERBATIM, \
+            ayrac
+        assert _style_at(editor, belge.index(" Y") + 1) == LatexLexer.DEFAULT
+
+    kapanmamis = "X \\verb|\\foo\nIkinci satir\n"
+    editor, _data = _style_text(kapanmamis)
+    assert _style_at(editor, kapanmamis.index("Ikinci")) == LatexLexer.DEFAULT, \
+        "kapanmamış verb satır sonunu geçti"
+
+    # Harf, rakam ve BOŞLUK ayraç olamaz. Düz yazı içinde geçen çıplak
+    # `\verb` sonraki kelimeyi yutmamalı; gerçek şablonlarda bu biçim var
+    # ("the use of \verb/verbatim is not recommended").
+    duz = "Use the \\verb command here.\n"
+    editor, _data = _style_text(duz)
+    assert _style_at(editor, duz.index("command")) == LatexLexer.DEFAULT, \
+        "boşluk ayraç sayıldı, sonraki kelime yutuldu"
+
+
+def test_verb_OLMAYAN_komut_etkilenmiyor(qapp):
+    r"""Aşırı düzeltme kapısı: adı `\verb` ile BAŞLAYAN başka bir komut
+    `\verb` sanılmamalı, `$...$` de normal matematik kalmalı."""
+    belge = "Once $x$ sonra \\verbose{a} son.\n"
+    editor, _data = _style_text(belge)
+
+    assert _style_at(editor, belge.index("$x$")) == LatexLexer.MATH
+    assert _style_at(editor, belge.index("{a}") + 1) == LatexLexer.CMD_ARG

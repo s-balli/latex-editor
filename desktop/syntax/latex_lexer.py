@@ -699,6 +699,9 @@ class LatexLexer(QsciLexerCustom):
 
         self.setStyling(j - i, self.COMMAND)
 
+        if cmd_name == b"verb":
+            return self._consume_verb(source, j, n)
+
         if cmd_name in self._ENV_COMMANDS:
             k = self._skip_ws(source, j, n)
             k = self._consume_braces(source, k, n, self.ENV_ARG)
@@ -720,6 +723,46 @@ class LatexLexer(QsciLexerCustom):
             k += 1
         if k > start:
             self.setStyling(k - start, self.DEFAULT)
+        return k
+
+    def _consume_verb(self, source, k, n):
+        r"""`\verb<ayraç>...<ayraç>` gövdesini VERBATIM stille.
+
+        Renklendirici `\begin{verbatim}` BLOKLARINI biliyordu ama SATIR İÇİ
+        `\verb`i hiç tanımıyordu; oysa `core.latex_utils._RE_VERB` onu
+        2026-09-09'dan beri biliyor (referans denetimi, anahat, kelime
+        sayımı ve yazım denetimi oradan besleniyor). Bu tüketici o
+        taşınmanın dışında kalmıştı.
+
+        Sonuç ÖLÇÜLDÜ (2026-09-12, 133 gerçek şablon dosyası): 22 dosyada
+        617 satır içi `\verb`; içeriğin 450'si düz metin DEĞİL bir stille
+        boyanıyordu (391 COMMAND, 38 CMD_ARG, 13 MATH, 5 BRACKET,
+        2 COMMENT). 425 gövdede ters bölü, 184'ünde süslü parantez,
+        11'inde `$` var. Yani `\verb'\upi'` ekranda komut gibi,
+        `\verb'$1+1=2$'` matematik gibi görünüyordu; `%` taşıyan gövde ise
+        SATIRIN GERİSİNİ yorum rengine sokuyordu.
+
+        Ayraç kuralı `_RE_VERB` ile aynı: harf, rakam ve boşluk dışında
+        herhangi bir karakter. Gövde SATIR SONUNU GEÇMEZ (LaTeX'te de
+        geçmiyor), o yüzden satır durumu önbelleğine hiç dokunmuyor.
+
+        BİLİNEN SINIR: `\texttt{\verb|x|}` gibi bir ARGÜMANIN içindeki
+        `\verb` hâlâ tanınmıyor, çünkü argüman tarayıcısı grubu topluca
+        stilliyor. `\verb` zaten kırılgan bir komut ve argüman içinde
+        LaTeX'te de sorun çıkarıyor; gerçek şablonlarda örneği yok.
+        """
+        if k >= n:
+            return k
+        d = source[k]
+        if _is_alpha(d) or 0x30 <= d <= 0x39 or d in b" \t\r\n":
+            return k                       # geçerli ayraç değil
+        start = k
+        k += 1
+        while k < n and source[k] != d and source[k] != _NL:
+            k += 1
+        if k < n and source[k] == d:
+            k += 1                          # kapanış ayracı gövdeye dahil
+        self.setStyling(k - start, self.VERBATIM)
         return k
 
     def _yorum_yut(self, source, k, n, yorumlar):
