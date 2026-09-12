@@ -88,8 +88,29 @@ class EditOpsMixin:
             line_from = line
             line_to = line
 
-        first_line_text = editor.text(line_from).lstrip()
-        is_commented = first_line_text.startswith('%')
+        # YÖN KARARI: seçimdeki BOŞ OLMAYAN satırların HEPSİ yorumluysa aç,
+        # değilse yorumla. Eskiden karar YALNIZ İLK SATIRIN ham başlangıcına
+        # bakıyordu ve iki durumda Ctrl+/ toggle olmaktan çıkıyordu:
+        #
+        # BOŞ SATIRLA BAŞLAYAN SEÇİM. `"".lstrip().startswith('%')` False,
+        # yani karar her seferinde "yorumla". İkinci Ctrl+/ yorumu açmıyor,
+        # bir `%` daha ekliyordu. ÖLÇÜLDÜ (2026-09-12, gerçek editör, 39
+        # şablondan alınan tekdüze seçimler): ilk satırı boş 200 seçimin
+        # 200'ü de iki basıştan sonra `%%` ile kalıyordu. Boş satırdan
+        # sürüklemeye başlamak olağan: paragrafın üstündeki boş satır.
+        #
+        # `%%%%%` AYRAÇ SATIRIYLA BAŞLAYAN SEÇİM. Yorum açıldıktan sonra
+        # ayraç hâlâ `%` ile başlıyor, yani karar yine "aç" çıkıyor: ikinci
+        # basış ayraçtan bir `%` daha yontuyor ve yorumdaki LaTeX satırları
+        # AÇIK KALIYOR. Ölçümde bu, `% \let\oldbibitem\bibitem` gibi
+        # satırların canlı koda dönmesi demekti (template33-tez).
+        #
+        # Yeni kural VS Code'unkiyle aynı ve karışık seçimde de tanımlı:
+        # karışıksa önce hepsi yorumlanır, sonraki basış hepsini açar.
+        kapsam = [editor.text(ln) for ln in range(line_from, line_to + 1)]
+        dolu_satirlar = [t for t in kapsam if t.strip()]
+        is_commented = bool(dolu_satirlar) and all(
+            t.lstrip().startswith('%') for t in dolu_satirlar)
 
         editor.beginUndoAction()
         for ln in range(line_from, line_to + 1):

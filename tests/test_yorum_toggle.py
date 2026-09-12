@@ -61,19 +61,61 @@ def _toggle(metin, secim=None, imlec=None):
 def test_yorum_acarken_YUZDE_KACISI_silinmiyor(qapp):
     """`\\%` kaçışındaki yüzde silinirse geriye tanımsız kontrol dizisi kalır.
 
-    Seçimin ilk satırı yorum, ikincisi değil. Eskiden ikinci satırdaki ilk
-    `%` de siliniyor ve belge derlenemez hâle geliyordu.
+    Yorum açarken satırdaki İLK `%` değil, GİRİNTİDEKİ `%` kaldırılmalı.
+    Eskiden `text.find('%')` kullanılıyordu ve bu satırda `\\%15`in yüzdesi
+    siliniyor, belge derlenemez hâle geliyordu.
+
+    Seçim BİLEREK tekdüze (iki satır da yorumlu): yön kararı artık "boş
+    olmayan satırların hepsi yorumlu mu" sorusuna bakıyor, karışık bir
+    seçim bu dala hiç girmiyor.
     """
-    sonuc = _toggle("% Bu bolum eski\nKar orani \\%15 artti.\n",
-                    secim=(0, 0, 1, 20))
-    assert sonuc == " Bu bolum eski\nKar orani \\%15 artti.\n"
+    sonuc = _toggle("% Bu bolum eski\n% Kar orani \\%15 artti.\n",
+                    secim=(0, 0, 1, 22))
+    assert sonuc == " Bu bolum eski\n Kar orani \\%15 artti.\n"
     assert "\\%15" in sonuc
 
 
 def test_yorum_acarken_SATIR_ICI_yorum_silinmiyor(qapp):
     """Satır içi yorum işareti silinirse açıklama canlı metne dönüp derlenir."""
-    sonuc = _toggle("% ust yorum\nx = 5 % aciklama\n", secim=(0, 0, 1, 16))
-    assert sonuc == " ust yorum\nx = 5 % aciklama\n"
+    sonuc = _toggle("% ust yorum\n% x = 5 % aciklama\n", secim=(0, 0, 1, 18))
+    assert sonuc == " ust yorum\n x = 5 % aciklama\n"
+
+
+def test_BOS_satirla_baslayan_secimde_IKINCI_BASIS_yorumu_ACIYOR(qapp):
+    """Ctrl+/ toggle olmalı: ilk satır boş diye yön hep "yorumla" kalmasın.
+
+    Yön kararı yalnız ilk satırın ham başlangıcına bakıyordu;
+    `"".lstrip().startswith('%')` False olduğu için boş satırla başlayan her
+    seçimde karar "yorumla" çıkıyor, ikinci basış bir `%` DAHA ekliyordu.
+
+    ÖLÇÜLDÜ (2026-09-12, gerçek editör, 39 şablondan alınan tekdüze
+    seçimler): ilk satırı boş 200 seçimin 200'ü de iki basıştan sonra `%%`
+    ile kalıyordu. Paragrafın üstündeki boş satırdan sürüklemeye başlamak
+    olağan bir seçim biçimi.
+    """
+    metin = "\n\\section{Giris}\nBir cumle.\n"
+    bir = _toggle(metin, secim=(0, 0, 2, 10))
+    assert bir == "\n%\\section{Giris}\n%Bir cumle.\n"
+    assert _toggle(bir, secim=(0, 0, 2, 11)) == metin
+
+
+def test_AYRAC_satiriyla_baslayan_secim_ikinci_basista_GERI_YORUMLANIYOR(qapp):
+    """`%%%%%` ayracı yüzünden yön "aç"ta takılıp kod CANLI kalmamalı.
+
+    Yorum açıldıktan sonra ayraç hâlâ `%` ile başlıyor. Eski kural ilk
+    satıra baktığı için ikinci basış yine "aç" diyor, ayraçtan bir `%` daha
+    yontuyor ve yorumdaki LaTeX satırları AÇIK kalıyordu; ölçümde bu,
+    `% \\let\\oldbibitem\\bibitem` gibi satırların canlı koda dönmesi demekti
+    (template33-tez).
+
+    İkinci basıştaki ` %` kayması bilinen ve zararsız: yorum açma
+    girintideki `%`yi alıyor, yorumlama girintiden sonra yazıyor; satır
+    yorum olarak kalıyor.
+    """
+    metin = "%%%%%\n% \\let\\a\\b\n"
+    bir = _toggle(metin, secim=(0, 0, 1, 10))
+    assert bir == "%%%%\n \\let\\a\\b\n"
+    assert _toggle(bir, secim=(0, 0, 1, 10)) == "%%%%%\n %\\let\\a\\b\n"
 
 
 def test_girintili_yorum_yine_acilabiliyor(qapp):
