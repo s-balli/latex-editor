@@ -246,3 +246,44 @@ class TestAdUzunluguBirimi:
             assert fs_ops.ad_hatasi(ad) == "", ad
             yol = fs_ops.yeni_dosya(str(tmp_path), ad)
             assert os.path.isfile(yol)
+
+
+# --- Satır sonu indirgeme: TEK KAYNAK (2026-09-12) ---
+
+
+class TestLfYeIndir:
+    def test_SIRA_cift_cevrilmis_satiri_IKIYE_bolmuyor(self):
+        r"""`\r\r\n` ÖNCE tek `\n`'e inmeli.
+
+        İki aşamalı replace (`\r\n`→`\n`, sonra `\r`→`\n`) onu `\n\n`
+        yapıyor, yani metni sessizce çift satıra boğuyor.
+        """
+        assert fs_ops.lf_ye_indir("bir\r\r\niki") == "bir\niki"
+
+    def test_diger_bicimler_de_LF_ye_iniyor(self):
+        assert fs_ops.lf_ye_indir("a\r\nb\rc\nd") == "a\nb\nc\nd"
+        assert fs_ops.lf_ye_indir("dokunulmamış") == "dokunulmamış"
+
+    def test_INDIRGEME_GOVDESI_baska_dosyada_YOK(self):
+        r"""Kural iki yerde ayrı yazılmıştı ve `\r\r\n`de AYRIŞIYORLARDI:
+        `gui.editor.save_file` doğru zinciri, `core.recovery` iki aşamalı
+        olanı kullanıyordu. Üçüncü bir kopya çıkarsa aynı sessiz hata geri
+        gelir, çünkü kopyayı yazan `\r\r\n`yi akıl etmiyor.
+        """
+        kok = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        suclular = []
+        for alt in ("core", os.path.join("desktop", "gui")):
+            for d, _dizinler, dosyalar in os.walk(os.path.join(kok, alt)):
+                for ad in dosyalar:
+                    if not ad.endswith(".py"):
+                        continue
+                    yol = os.path.join(d, ad)
+                    if os.path.abspath(yol) == os.path.abspath(fs_ops.__file__):
+                        continue
+                    with open(yol, encoding="utf-8") as f:
+                        govde = f.read()
+                    if 'replace("\\r' in govde:
+                        suclular.append(os.path.relpath(yol, kok))
+        assert suclular == [], (
+            "satır sonu indirgemesi fs_ops.lf_ye_indir'den alınmalı: %s"
+            % suclular)

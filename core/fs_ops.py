@@ -93,6 +93,28 @@ def coz(ham: bytes) -> str:
     return coz_adiyla(ham)[0]
 
 
+def lf_ye_indir(metin: str) -> str:
+    r"""Her satır sonu biçimini TEK LF'ye indir.
+
+    SIRA ÖNEMLİ: `\r\r\n` ÖNCE tek `\n`'e inmelidir. İki aşamalı replace onu
+    `\n\n` yapar, yani metni sessizce iki katı satıra boğar.
+
+    `\r\r\n` uydurma bir durum değil: bu uygulamanın eski sürümleri Windows'ta
+    text-mode yazarken `\n`'i `\r\n`'e çevirip üretiyordu (94969a9 ile
+    kapatıldı), dolayısıyla kullanıcıların diskinde duruyor olabilir.
+
+    TEK KAYNAK. İki yer aynı kuralı ayrı ayrı yazmıştı ve tam bu noktada
+    AYRIŞIYORLARDI: `gui.editor.save_file` üç aşamalı (doğru) zinciri
+    kullanıyor, `core.recovery` ise iki aşamalı olanı. ÖLÇÜLDÜ (2026-09-12,
+    132 gerçek şablon): `\r\r\n` taşıyan bir dosyayı açıp KAYDETTİKTEN hemen
+    sonra çökme kurtarması 129'unda "kaydedilmemiş değişiklik bulundu"
+    diyordu, oysa disk arabellekle birebir aynıydı.
+    """
+    return (metin.replace("\r\r\n", "\n")
+                 .replace("\r\n", "\n")
+                 .replace("\r", "\n"))
+
+
 def derleme_artigi_mi(ad: str) -> bool:
     """Dosya adı bir LaTeX derleme artığı mı (`.pdf` HARİÇ, bkz. yukarısı)."""
     dusuk = ad.lower()

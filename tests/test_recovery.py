@@ -622,3 +622,31 @@ def test_cp1254_kurtarma_akisi_bozulmadi(tmp_path):
                  content="Çağrı\n", encoding="cp1254", newline="lf")
     (farkli,) = recovery.oku(str(tmp_path))
     assert recovery.kayip_var_mi(farkli) is True
+
+
+# --- \r\r\n: indirgeme kuralı editörle AYNI olmalı (2026-09-12) ---
+
+
+def test_CIFT_CEVRILMIS_arabellek_kaydedildikten_sonra_kayip_sayilmiyor(tmp_path):
+    r"""Kırılırsa: kullanıcı Ctrl+S'e bastı, uygulama çöktü, ve açılışta
+    "kaydedilmemiş değişiklik bulundu" diye BOŞUNA soruluyor.
+
+    `\r\r\n` uydurma bir durum değil: bu uygulamanın eski sürümlerinin
+    diskte bıraktığı hasar (94969a9 ile kapatıldı). İndirgeme kuralı iki
+    yerde AYRI yazılmıştı; editör üç aşamalı (doğru) zinciri, kurtarma iki
+    aşamalı olanı kullanıyordu ve iki aşamalı olan `\r\r\n`yi İKİ satır
+    sanıyor.
+
+    ÖLÇÜLDÜ (132 gerçek şablon, gerçek `open_file` + `save_file` üzerinden):
+    kaydettikten hemen sonra 129'unda yanlış "kayıp var" deniyordu.
+    """
+    hedef = tmp_path / "eski_surumden.tex"
+    hedef.write_bytes(b"bir\niki\n")          # save_file'ın ürettiği hâl
+    snap = recovery.Snapshot("i", str(hedef), "bir\r\r\niki\r\r\n",
+                             "utf-8", "lf", 1.0)
+    assert recovery.kayip_var_mi(snap) is False
+
+    # Aşırı düzeltme kolu: gerçek kayıp HÂLÂ yakalanmalı.
+    kirli = recovery.Snapshot("i", str(hedef), "bir\r\r\niki\r\r\nuc\r\r\n",
+                              "utf-8", "lf", 1.0)
+    assert recovery.kayip_var_mi(kirli) is True

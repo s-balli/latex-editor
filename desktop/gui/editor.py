@@ -11,7 +11,7 @@ from PyQt6.QtGui import QColor, QPalette
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from core.bibtex import RE_GIRDI_ANAHTARI
-from core.fs_ops import coz_adiyla
+from core.fs_ops import coz_adiyla, lf_ye_indir
 from core.log import get_logger
 from core.latex_refs import (
     CITE_KOMUTLARI, REF_ARALIK_KOMUTLARI, REF_KOMUTLARI, collect_cite_keys,
@@ -956,12 +956,10 @@ class EditorWidget(QsciScintilla):
         try:
             # Arabellek metnini dosyanın satır sonu stiline indir: QScintilla
             # Windows'ta CRLF üretebilir; çift çevirim (\r\r\n) derlemeyi bozar.
-            # Sıra önemli: \r\r\n önce TEK \n'e inmelidir; yoksa iki aşamalı
-            # replace onu \n\n yapar (dosyayı çift satıra boğar).
-            content = (self.text()
-                       .replace("\r\r\n", "\n")
-                       .replace("\r\n", "\n")
-                       .replace("\r", "\n"))
+            # İndirgeme zinciri (ve sıranın neden önemli olduğu) core.fs_ops'ta:
+            # aynı kural çökme kurtarmasında da gerekiyor ve orada AYRI yazılmış
+            # hâli \r\r\n'i iki satır sanıyordu.
+            content = lf_ye_indir(self.text())
             if self._newline == "crlf":
                 content = content.replace("\n", "\r\n")
             self._write_atomic(self._file_path, content, self._encoding)

@@ -23,6 +23,8 @@ import tempfile
 import time
 from dataclasses import dataclass
 
+from core.fs_ops import lf_ye_indir
+
 # Anlık görüntü biçimi sürümü. Okurken uyuşmayan sürüm sessizce ATILIR:
 # eski biçimli bir artığı yanlış yorumlayıp kullanıcının içeriğini bozmaktansa
 # kurtarmayı atlamak yeğdir.
@@ -199,9 +201,7 @@ def kayip_var_mi(snap: Snapshot) -> bool:
     except OSError:
         return True
     # Satır sonu stilini normalize et: editör CRLF'i kayıtta üretiyor,
-    # anlık görüntü ise arabellek metnini (LF) taşıyor — fark gerçek değil.
-    return _lf(diskteki) != _lf(snap.content)
-
-
-def _lf(s: str) -> str:
-    return s.replace("\r\n", "\n").replace("\r", "\n")
+    # anlık görüntü ise arabellek metnini (LF) taşıyor, fark gerçek değil.
+    # İndirgeme KURALI kendi gövdesinde yazılıydı ve `\r\r\n` üzerinde
+    # editörün kaydetme yoluyla AYRIŞIYORDU (gerekçe ve ölçüm fs_ops'ta).
+    return lf_ye_indir(diskteki) != lf_ye_indir(snap.content)
