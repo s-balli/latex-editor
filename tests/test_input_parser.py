@@ -60,10 +60,42 @@ class TestParseInputs:
         assert result[0]["name"] == "chapter1.tex"
 
     def test_explicit_extension(self, tmp_path):
+        """KARŞI KOL: uzantı yazılmışsa ad OLDUĞU GİBİ çözülmeli.
+
+        Adaylar `ad` ve `ad + '.tex'` sırasıyla deneniyor; ilki atlanırsa
+        burada `chapter1.tex.tex` aranırdı. Eskiden yalnız `len(result)`
+        sınanıyordu, yani bu ayrım kapıdan geçerdi.
+        """
         chapter = tmp_path / "chapter1.tex"
         chapter.write_text("content", encoding="utf-8")
         result = parse_inputs("\\input{chapter1.tex}", str(tmp_path))
         assert len(result) == 1
+        assert result[0]["name"] == "chapter1.tex"
+
+    def test_ADINDA_NOKTA_olan_include_izleniyor(self, tmp_path):
+        r"""`\include{Chapters/0.1_Onsoz}` takip edilmeli.
+
+        Uzantı `os.path.splitext` ile tahmin ediliyordu; bu ad ona göre
+        `.1_Onsoz` uzantılı görünüyor, `.tex` eklenmiyor ve dosya HİÇ
+        bulunamıyordu. LaTeX'in kuralı bu değil: `\include` her zaman
+        `.tex` ekler.
+
+        ÖLÇÜLDÜ (2026-09-12), kehanet derlemenin ürettiği `.aux`
+        dosyalarındaki `\newlabel` girdileri: 39 şablonda
+        template32-deu-hacettepe'nin üç gerçek etiketi (`abstract`,
+        `acknowledgements`, `ozet`) `\ref{` tamamlamasına hiç gelmiyordu;
+        üçü de adında nokta olan `\include` dosyalarında. Aynı zincirden
+        beslendiği için Referans Denetimi de o `\ref`leri TANIMSIZ sanıyor.
+
+        `latex_refs` bu zinciri `parse_inputs`tan alıyor (`_flatten_input_
+        paths`), yani etiket toplama, tanım arama ve dosya ağacı aynı
+        düzeltmeyi buradan devralıyor.
+        """
+        (tmp_path / "Chapters").mkdir()
+        (tmp_path / "Chapters" / "0.1_Onsoz.tex").write_text(
+            "\\label{onsoz}\n", encoding="utf-8")
+        result = parse_inputs("\\include{Chapters/0.1_Onsoz}", str(tmp_path))
+        assert [r["name"] for r in result] == ["0.1_Onsoz.tex"]
 
     def test_empty_ref_skipped(self, tmp_path):
         result = parse_inputs("\\input{}", str(tmp_path))
@@ -210,6 +242,25 @@ class TestAltDizinZinciri:
         refs = parse_inputs("\\input{bol/b1}\n", str(tmp_path))
         cocuklar = refs[0].get("children") or []
         assert [c["name"] for c in cocuklar] == ["b2.tex"]
+
+    def test_IKI_YERDE_de_varsa_KOK_kazaniyor(self, tmp_path):
+        """Çocuğun kendi dizini YEDEK; LaTeX yolları kök dizine göre çözüyor.
+
+        Mutasyonda bu kolun HİÇ KAPISI OLMADIĞI görüldü: kök/çocuk
+        önceliğini ters çevirmek tek bir testi bile düşürmüyordu. İki yerde
+        de aynı adlı dosya varsa kökteki seçilmeli; yoksa etiketler ve
+        makrolar YANLIŞ dosyadan toplanır.
+        """
+        (tmp_path / "bol").mkdir()
+        (tmp_path / "makrolar.tex").write_text("kokten\n", encoding="utf-8")
+        (tmp_path / "bol" / "makrolar.tex").write_text("cocuktan\n",
+                                                       encoding="utf-8")
+        (tmp_path / "bol" / "b1.tex").write_text("\\input{makrolar}\n",
+                                                 encoding="utf-8")
+
+        refs = parse_inputs("\\input{bol/b1}\n", str(tmp_path))
+        (cocuk,) = refs[0].get("children") or []
+        assert cocuk["path"] == os.path.join(str(tmp_path), "makrolar.tex")
 
     def test_kok_disina_cikis_hala_engelleniyor(self, tmp_path):
         """Traversal koruması kökle yapılmalı; dışarısı yine yasak."""

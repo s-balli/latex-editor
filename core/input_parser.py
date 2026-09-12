@@ -36,16 +36,30 @@ def parse_inputs(content: str, base_dir: str, visited: set | None = None,
         ref = match.group(1).strip()
         if not ref:
             continue
-        if not os.path.splitext(ref)[1]:
-            ref += '.tex'
-
-        # Önce LaTeX uzlaşımı (köke göre); bulunamazsa çocuğa göre dene —
-        # bazı projeler bölümleri kendi dizinlerine göre yazıyor.
-        full_path = os.path.normpath(os.path.join(root_dir, ref))
-        if not os.path.isfile(full_path):
-            aday = os.path.normpath(os.path.join(base_dir, ref))
-            if os.path.isfile(aday):
-                full_path = aday
+        # UZANTI `splitext` ILE TAHMİN EDİLEMEZ: adda nokta olması uzantı
+        # demek değil. `\include{Chapters/0.1_Acknowledgement}` splitext'e
+        # göre `.1_Acknowledgement` uzantılı görünüyor, `.tex` eklenmiyor ve
+        # dosya HİÇ BULUNAMIYORDU. LaTeX'in kuralı da bu değil: `\include`
+        # her zaman `.tex` ekler, `\input` ise önce adın kendisini dener.
+        #
+        # ÖLÇÜLDÜ (2026-09-12), kehanet derlemenin ürettiği `.aux`
+        # dosyaları (`\newlabel` girdileri, yani LaTeX'in GERÇEKTEN tanımlı
+        # saydığı etiketler): 39 şablonda `\ref{` tamamlaması hiç olmayan
+        # etiket önermiyor ama template32-deu-hacettepe'de üç gerçek etiketi
+        # (`abstract`, `acknowledgements`, `ozet`) hiç görmüyordu; üçü de
+        # adında nokta olan `\include` dosyalarında. Bedeli yalnız eksik
+        # öneri değil: Referans Denetimi o `\ref`leri TANIMSIZ sanıyor.
+        #
+        # Aday sırası: önce kök (LaTeX'in çözdüğü yer), sonra çocuğun kendi
+        # dizini (bazı projeler bölümleri ona göre yazıyor); her ikisinde de
+        # önce adın kendisi, sonra `.tex` eklenmiş hâli.
+        adaylar = [os.path.normpath(os.path.join(kok, ad))
+                   for kok in (root_dir, base_dir)
+                   for ad in (ref, ref + '.tex')]
+        # Hiçbiri yoksa köke göre `.tex`li hâl: aşağıdaki `isfile` denetimi
+        # onu zaten eliyor, ama yol traversal denetimine bir şey vermeliyiz.
+        full_path = next((y for y in adaylar if os.path.isfile(y)),
+                         adaylar[1])
         # Path traversal koruması — kök dizine göre (çocuğa göre değil)
         try:
             Path(full_path).resolve().relative_to(root_resolved)
