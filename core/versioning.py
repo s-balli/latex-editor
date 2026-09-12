@@ -78,7 +78,24 @@ class VersionEntry:
 
 
 def is_repo(root: str) -> bool:
-    return os.path.isdir(os.path.join(root, ".git"))
+    """Burada bir git deposu var mı.
+
+    `.git` DOSYA da olabilir: git çalışma ağaçlarında (`git worktree`) ve alt
+    modüllerde `gitdir: <yol>` yazan bir bağlantı dosyasıdır. Burada `isdir`
+    aranıyordu, yani ikisi de depo sayılmıyordu.
+
+    ÜRETİLDİ (2026-09-12, gerçek `git worktree add` ile): `is_repo` False
+    diyor, `repo_status` "burada depo yok, üst depo da yok" diyor (yani
+    "kayıtlar sizin dalınıza gider" uyarısı HİÇ ÇIKMIYOR), `init_repo`
+    depoyu kurmaya çalışıp `FileExistsError` alıyor ve kullanıcı
+    "Sürüm kaydı başarısız: [WinError 183] ... .git" görüyor. Geçmiş paneli
+    de boş: `history` da bu kapıdan geçiyor.
+
+    dulwich bu bağlantıyı ZATEN çözüyor (ölçüldü: `Repo(worktree)` açılıyor,
+    `snapshot` doğru dala kayıt atıyor, gerçek `git log` onu görüyor ve ana
+    dal etkilenmiyor). Eksik olan yalnız burasıydı.
+    """
+    return os.path.exists(os.path.join(root, ".git"))
 
 
 @dataclass
@@ -103,13 +120,17 @@ class RepoStatus:
 
 
 def _enclosing_repo(root: str) -> str:
-    """root'u kapsayan en yakın üst deponun yolu (yoksa "")."""
+    """root'u kapsayan en yakın üst deponun yolu (yoksa "").
+
+    Ölçüt `is_repo` ile AYNI olmak zorunda: üst klasör bir çalışma ağacı ya
+    da alt modül olabilir ve orada `.git` bir dosyadır.
+    """
     cur = os.path.abspath(root)
     while True:
         parent = os.path.dirname(cur)
         if parent == cur:            # kök dizine ulaşıldı
             return ""
-        if os.path.isdir(os.path.join(parent, ".git")):
+        if is_repo(parent):
             return parent
         cur = parent
 
@@ -251,6 +272,9 @@ def drop_all(root: str) -> bool:
     silmede klasör geri getirilebilir. Depo yoksa False.
     """
     git_dir = os.path.join(root, ".git")
+    # BİLEREK `isdir`: çalışma ağacında/alt modülde `.git` bir BAĞLANTI
+    # DOSYASI ve geçmiş orada değil, ana depoda duruyor. Onu çöpe atmak
+    # geçmişi silmez, yalnız çalışma ağacını kopartırdı.
     if not os.path.isdir(git_dir):
         return False
     import send2trash

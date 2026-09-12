@@ -380,3 +380,58 @@ def test_ignore_sablonunda_dizin_kurallari(tmp_path):
     assert "dist/\n" not in sablon
     # Şablonun kendi yorumu "son satırı silin" diyor; öyle kalmalı
     assert sablon.rstrip("\n").endswith("*.pdf")
+
+
+def test_CALISMA_AGACINDA_da_depo_goruluyor(tmp_path):
+    """`.git` DOSYA olabilir: `git worktree` ve alt modüller böyle.
+
+    `isdir` arandığı için ikisi de depo sayılmıyordu. ÜRETİLDİ (2026-09-12,
+    gerçek `git worktree add`): "kayıtlar sizin dalınıza gider" uyarısı hiç
+    çıkmıyor, `init_repo` `FileExistsError` alıyor ve kullanıcı
+    "Sürüm kaydı başarısız: [WinError 183] ... .git" görüyor; geçmiş paneli
+    de boş kalıyor.
+    """
+    import subprocess
+
+    ana = tmp_path / "ana"
+    ana.mkdir()
+    g = ["git", "-c", "user.name=t", "-c", "user.email=t@t",
+         "-c", "commit.gpgsign=false", "-c", "safe.directory=*"]
+
+    def kos(*args, cwd=ana):
+        r = subprocess.run(g + list(args), cwd=str(cwd), capture_output=True,
+                           text=True, encoding="utf-8")
+        assert r.returncode == 0, r.stdout + r.stderr
+        return r.stdout
+
+    kos("init", "-q")
+    (ana / "a.tex").write_text("x\n", encoding="utf-8", newline="")
+    kos("add", ".")
+    kos("commit", "-q", "-m", "ilk")
+    wt = tmp_path / "calisma"
+    kos("worktree", "add", "-q", str(wt), "-b", "dal2")
+    assert (wt / ".git").is_file()          # bağlantı DOSYASI
+
+    assert V.is_repo(str(wt))
+    st = V.repo_status(str(wt))
+    assert st.exists
+    # Kullanıcının kendi deposu: "kayıtlar dalınıza gider" uyarısı çıkmalı
+    assert st.foreign
+
+    # Üst klasör çalışma ağacıysa içindeki proje İÇ İÇE sayılmalı: ölçüt
+    # `is_repo` ile aynı olmak zorunda (`_enclosing_repo` da bakıyor).
+    alt = wt / "alt-proje"
+    alt.mkdir()
+    st_alt = V.repo_status(str(alt))
+    assert st_alt.nested and st_alt.parent_repo.endswith("calisma")
+
+    V.init_repo(str(wt))                     # eskiden FileExistsError
+    (wt / "b.tex").write_text("y\n", encoding="utf-8", newline="")
+    girdi = V.snapshot(str(wt), "calisma agaci kaydi")
+    assert girdi is not None
+    assert [e.message for e in V.history(str(wt))][0] == "calisma agaci kaydi"
+
+    # Geçmiş ANA depoda; bağlantı dosyasını çöpe atmak onu silmez, yalnız
+    # çalışma ağacını kopartırdı.
+    assert V.drop_all(str(wt)) is False
+    assert (wt / ".git").is_file()
