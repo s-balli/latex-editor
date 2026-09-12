@@ -306,3 +306,82 @@ def test_SURUCU_yolunda_eski_davranis_SURUYOR(monkeypatch):
                              "\\\\wsl.localhost\\Ubuntu\\home\\a\\main.pdf",
                              cikti)
     assert s.file_path == "C:\\Users\\a\\main.tex"
+
+
+# --- BAYAT `.synctex.gz` (2026-09-12) ---
+#
+# Eskiden yalnız dosyanın VARLIĞINA bakılıyordu. `derle.sh` GEÇİCİ dizinde
+# derleyip PDF'i `mv`, `.gz`yi `cp ... || true` ile kaynak klasöre taşıyor;
+# belge (ya da sınıfı) `\synctex=0` yazıyorsa motor `.gz` ÜRETMİYOR,
+# kopyalama sessizce atlanıyor ve ESKİ `.gz` yerinde kalıyor.
+#
+# ÜRETİLDİ: belge 7 satırdan 13 satıra çıktı, PDF yenilendi, `.gz` eski
+# kaldı; satır 13 sorulduğunda eski yerleşimin koordinatı dönüyordu ve
+# kullanıcıya hiçbir uyarı çıkmıyordu.
+
+
+class TestBayatSynctex:
+
+    def _kur(self, tmp_path, gz_yasi=None):
+        """(stub, pdf yolu). `gz_yasi` saniye: `.gz`yi o kadar ESKİ yap."""
+        import os
+        import time
+
+        from gui.mixins.synctex_ops import SyncTexMixin
+
+        pdf = tmp_path / "main.pdf"
+        pdf.write_bytes(b"%PDF-1.4\n")
+        gz = tmp_path / "main.synctex.gz"
+        gz.write_bytes(b"gz")
+        simdi = time.time()
+        os.utime(str(pdf), (simdi, simdi))
+        if gz_yasi is not None:
+            os.utime(str(gz), (simdi - gz_yasi, simdi - gz_yasi))
+
+        class Stub(SyncTexMixin):
+            def __init__(self, dizin):
+                self._synctex_dir = dizin
+
+        return Stub(str(tmp_path)), str(pdf), gz
+
+    def test_gz_PDF_ten_eskiyse_BAYAT(self, tmp_path):
+        """Kırılırsa: kullanıcı eski yerleşime göre yanlış yere atlar."""
+        stub, pdf, _gz = self._kur(tmp_path, gz_yasi=60)
+        assert stub._synctex_gz_durumu(pdf) == "bayat"
+
+    def test_SAGLAM_cift_tamam(self, tmp_path):
+        """Aşırı düzeltme kolu: `.gz` PDF'ten YENİ olduğunda çalışmalı.
+
+        ÖLÇÜLDÜ (30 gerçek çift): `gz - pdf` farkı 0.0 ile +1.4 sn arasında
+        ve hiçbirinde negatif değil; hepsi "tamam" diyor.
+        """
+        stub, pdf, _gz = self._kur(tmp_path, gz_yasi=-1.0)
+        assert stub._synctex_gz_durumu(pdf) == "tamam"
+
+    def test_KUCUK_fark_bayat_SAYILMIYOR(self, tmp_path):
+        """Dosya sistemi çözünürlüğü payı: FAT 2 sn'ye yuvarlıyor."""
+        stub, pdf, _gz = self._kur(tmp_path, gz_yasi=1.0)
+        assert stub._synctex_gz_durumu(pdf) == "tamam"
+
+    def test_gz_YOKSA_yok(self, tmp_path):
+        stub, pdf, gz = self._kur(tmp_path)
+        gz.unlink()
+        assert stub._synctex_gz_durumu(pdf) == "yok"
+
+    def test_IKI_SEBEP_AYRI_mesaj(self):
+        """"yok" ile "bayat" aynı cümleyi vermemeli: yapılacak iş farklı."""
+        from gui.mixins.synctex_ops import _GZ_MESAJI
+
+        mesajlar = {k: f() for k, f in _GZ_MESAJI.items()}
+        assert set(mesajlar) == {"yok", "bayat"}
+        assert mesajlar["yok"] != mesajlar["bayat"]
+        assert all(m.strip() for m in mesajlar.values())
+
+    def test_ILERI_ve_TERS_ayni_on_kosula_bagli(self):
+        """TEK KAYNAK: iki yol da `_synctex_gz_durumu`ya sormalı."""
+        import inspect
+
+        for ad in ("_on_forward_search", "_on_reverse_search"):
+            kaynak = inspect.getsource(getattr(SyncTexMixin, ad))
+            assert "_synctex_gz_durumu(" in kaynak, ad
+            assert "_GZ_MESAJI[" in kaynak, ad

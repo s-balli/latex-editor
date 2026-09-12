@@ -17,6 +17,19 @@ from PyQt6.QtCore import QCoreApplication
 _ = lambda s: QCoreApplication.translate("SyncTexMixin", s)
 _logger = get_logger("synctex_ops")
 
+# `.synctex.gz` PDF'ten bu kadar saniyeden fazla eskiyse BAYAT sayılıyor.
+# Ölçümü ve gerekçesi `_synctex_gz_durumu`nun docstring'inde.
+_BAYAT_PAYI = 2.0
+
+# Ön koşul mesajları TEK YERDE: ileri ve ters arama aynı sebebe iki ayrı
+# cevap vermesin (aynı ilkeyi `test_MESAJ_TEK_KAYNAKTAN` sonuç kolunda da
+# denetliyor). Lambda, çünkü `_()` çağrı anında çözülmeli: QTranslator
+# uygulama başladıktan SONRA yükleniyor.
+_GZ_MESAJI = {
+    "yok": lambda: _("SyncTeX: .synctex.gz bulunamadı, yeniden derleyin"),
+    "bayat": lambda: _("SyncTeX verisi bu PDF'ten eski, yeniden derleyin"),
+}
+
 
 class SyncTexMixin:
 
@@ -43,10 +56,12 @@ class SyncTexMixin:
             if not quiet:
                 self._status.showMessage(_("SyncTeX: Önce derleyin"))
             return
-        if not self._synctex_gz_var_mi(self._current_pdf):
-            _logger.info("SyncTeX forward atlandı, .synctex.gz yok: %s:%d", os.path.basename(tex_path), line)
+        durum = self._synctex_gz_durumu(self._current_pdf)
+        if durum != "tamam":
+            _logger.info("SyncTeX forward atlandı (%s): %s:%d",
+                         durum, os.path.basename(tex_path), line)
             if not quiet:
-                self._status.showMessage(_("SyncTeX: .synctex.gz bulunamadı, yeniden derleyin"))
+                self._status.showMessage(_GZ_MESAJI[durum]())
             return
 
         self._synctex_worker.submit(
@@ -99,15 +114,43 @@ class SyncTexMixin:
             if not quiet:
                 self._status.showMessage(_("SyncTeX: Eşleşme bulunamadı"))
 
-    def _synctex_gz_var_mi(self, pdf_path: str) -> bool:
-        """Derleme dizininde bu PDF'in `.synctex.gz`i var mı.
+    def _synctex_gz_durumu(self, pdf_path: str) -> str:
+        """`.synctex.gz` durumu: "tamam" | "yok" | "bayat".
 
         TEK KAYNAK: ileri ve ters arama AYNI ön koşula bağlı. Denetim
         yalnız ileri aramada yazılıydı ve ters arama onu almamıştı; ölçüldü
         2026-09-06, `.gz` yokken ters arama işçiye iş gönderiyordu.
+
+        BAYATLIK, 2026-09-12'de eklendi. Eskiden yalnız dosyanın VARLIĞINA
+        bakılıyordu; PDF'ten ESKİ bir `.gz` sessizce kullanılıyor ve
+        kullanıcı yanlış yere atlıyordu.
+
+        ULAŞILABİLİR YOL ve ÜRETİLDİ: `derle.sh` GEÇİCİ dizinde derliyor,
+        sonra PDF'i `mv`, `.synctex.gz`yi `cp ... || true` ile kaynak
+        klasöre taşıyor. Belge (ya da sınıfı) `\\synctex=0` yazıyorsa motor
+        `.gz` ÜRETMİYOR, kopyalama sessizce atlanıyor ve kaynak klasördeki
+        ESKİ `.gz` yerinde kalıyor. `pdflatex` kendi çıktı dizinindeki eski
+        dosyayı siliyor ama bizimki ayrı dizin, oraya dokunmuyor.
+        Üretilen örnekte belge 7 satırdan 13 satıra çıktı, PDF yenilendi,
+        `.gz` eski kaldı ve satır 13 sorulduğunda eski yerleşimin
+        koordinatı dönüyordu.
+
+        EŞİK ÖLÇÜMDEN: 30 gerçek çiftte `gz - pdf` farkı 0.0 ile +1.4 sn
+        arasında ve HİÇBİRİNDE negatif değil (PDF `mv` ile taşındığı için
+        mtime'ı korunuyor, `.gz` ise `cp` ile hemen sonra yazılıyor). İki
+        saniyelik pay dosya sistemi çözünürlüğü için.
         """
         gz_name = os.path.splitext(os.path.basename(pdf_path))[0] + ".synctex.gz"
-        return os.path.exists(os.path.join(self._synctex_dir, gz_name))
+        gz = os.path.join(self._synctex_dir, gz_name)
+        try:
+            gz_zaman = os.path.getmtime(gz)
+        except OSError:
+            return "yok"
+        try:
+            pdf_zaman = os.path.getmtime(pdf_path)
+        except OSError:
+            return "tamam"      # PDF okunamıyorsa karar verecek veri yok
+        return "bayat" if gz_zaman < pdf_zaman - _BAYAT_PAYI else "tamam"
 
     def _on_reverse_search(self, page: int, x: float, y: float, pdf_path: str):
         if not pdf_path or not os.path.exists(pdf_path):
@@ -119,10 +162,11 @@ class SyncTexMixin:
         # None döndüğü için kullanıcıya "Eşleşme bulunamadı" yazılıyordu.
         # Yanlış mesaj: kullanıcı konumu yanlış sanıyor, oysa yapması
         # gereken derlemek. İleri arama bu dersi zaten biliyordu.
-        if not self._synctex_gz_var_mi(pdf_path):
-            _logger.info("SyncTeX reverse atlandı, .synctex.gz yok: sayfa %d", page)
-            self._status.showMessage(
-                _("SyncTeX: .synctex.gz bulunamadı, yeniden derleyin"))
+        durum = self._synctex_gz_durumu(pdf_path)
+        if durum != "tamam":
+            _logger.info("SyncTeX reverse atlandı (%s): sayfa %d",
+                         durum, page)
+            self._status.showMessage(_GZ_MESAJI[durum]())
             return
         self._synctex_worker.submit(
             "reverse", (page, x, y, pdf_path), self._synctex_dir,
