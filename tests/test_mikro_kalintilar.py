@@ -623,9 +623,19 @@ class TestPromptReloadOkumaHatasi:
         assert stub.engine_cagrildi == 0
 
     def test_okuma_basariliysa_hash_GUNCELLENIR(self, monkeypatch):
+        """Kardeş testin karşı kolu: başarılı okumada hash ESKİDE KALMAMALI.
+
+        Beklenen DEĞER 2026-09-12'de değişti: hash artık `new_hash`ten değil,
+        yüklenen DOSYADAN okunuyor (gerekçe `_prompt_reload` içinde). Bu
+        taklitte yol gerçek değil, dolayısıyla okuma düşüyor ve "bilmiyorum"
+        anlamına gelen boş değer yazılıyor. Testin konusu zaten değerin
+        kendisi değil, GÜNCELLENMİŞ olması.
+        """
         fn, stub, editor = self._kur(monkeypatch, acilir=True, secim="yukle")
         fn(stub, editor, "/x/a.tex", "YENI")
-        assert stub._save_hashes["/x/a.tex"] == "YENI"
+        assert stub._save_hashes["/x/a.tex"] != "ESKI"
+        assert stub._save_hashes["/x/a.tex"] == \
+            stub._file_hash("/x/a.tex")
         assert stub.engine_cagrildi == 1
 
     def test_kendiminkini_koru_yolu_degismedi(self, monkeypatch):

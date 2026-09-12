@@ -561,3 +561,138 @@ class TestAnahatBaslikGosterimi:
         finally:
             p.deleteLater()
             qapp.processEvents()
+
+
+# --- Yeniden yükledikten sonra kaydedilen hash (2026-09-12) ---
+
+
+def test_YUKLEDIKTEN_sonra_hash_YUKLENEN_icerige_ait(qapp, tmp_path,
+                                                     monkeypatch):
+    r"""Diyalog AÇIKKEN dosya bir daha değişirse kaydedilen hash yanlış kalıyordu.
+
+    `_prompt_reload`a verilen `new_hash` diyalog açılmadan ÖNCE hesaplanıyor.
+    Diyalog modal ve dakikalarca açık kalabiliyor; o sırada dosya değişirse
+    `open_file` GÜNCEL içeriği yüklüyor ama hash ESKİ duruma ait kalıyordu.
+
+    ÜRETİLDİ: arabellekte B, kayıtlı hash A. Arabellek diskle birebir aynı
+    olduğu hâlde uygulama onu "değişmiş" sayıyor ve TEK değişiklik için
+    İKİNCİ kez soruyor. Kardeş kol ("Kendiminkini Koru") hash'i zaten
+    yeniden okuyor.
+    """
+    from PyQt6.QtWidgets import QMessageBox
+
+    yol = tmp_path / "bolum.tex"
+    yol.write_text("\\section{Bir}\nILK\n", encoding="utf-8")
+    ed = EditorWidget()
+    assert ed.open_file(str(yol))
+    stub = _WatchStub([ed])
+    stub._file_watch_add(str(yol))
+
+    yol.write_text("\\section{Bir}\nA HALI\n", encoding="utf-8")
+    hash_a = stub._file_hash(str(yol))
+
+    def sahte_exec(self):
+        # diyalog AÇIKKEN dosya B'ye dönüyor
+        yol.write_text("\\section{Bir}\nB HALI\n", encoding="utf-8")
+        for b in self.buttons():
+            if b.text().startswith(("Yeniden Yükle", "Diskten")):
+                self._secilen = b
+                return 0
+        raise AssertionError([b.text() for b in self.buttons()])
+
+    monkeypatch.setattr(QMessageBox, "exec", sahte_exec)
+    monkeypatch.setattr(QMessageBox, "clickedButton",
+                        lambda self: getattr(self, "_secilen", None))
+
+    stub._prompt_reload(ed, str(yol), hash_a)
+
+    hash_b = stub._file_hash(str(yol))
+    assert "B HALI" in ed.text(), "diskteki güncel içerik yüklenmemiş"
+    assert stub._save_hashes[str(yol)] == hash_b, \
+        "kaydedilen hash yüklenen içeriğe ait değil"
+    assert stub._save_hashes[str(yol)] != hash_a
+
+
+def test_KORU_kolunda_da_hash_DISKTEN_okunuyor(qapp, tmp_path, monkeypatch):
+    """Kardeş kol: "Kendiminkini Koru" da hash'i diyalogtan SONRA okumalı.
+
+    Mutasyon denemesinde bu kolun hiç kapısı olmadığı görüldü: `new_hash`e
+    döndürülünce hiçbir test düşmüyordu. İki kol aynı kuralı uyguluyor,
+    ikisinin de kapısı olmalı.
+    """
+    from PyQt6.QtWidgets import QMessageBox
+
+    yol = tmp_path / "bolum.tex"
+    yol.write_text("\\section{Bir}\nILK\n", encoding="utf-8")
+    ed = EditorWidget()
+    assert ed.open_file(str(yol))
+    ed.setText("\\section{Bir}\nKENDI YAZDIGIM\n")      # kirli
+    stub = _WatchStub([ed])
+    stub._file_watch_add(str(yol))
+
+    yol.write_text("\\section{Bir}\nA HALI\n", encoding="utf-8")
+    hash_a = stub._file_hash(str(yol))
+
+    def sahte_exec(self):
+        yol.write_text("\\section{Bir}\nB HALI\n", encoding="utf-8")
+        for b in self.buttons():
+            if b.text().startswith(("Kendiminkini", "Yoksay")):
+                self._secilen = b
+                return 0
+        raise AssertionError([b.text() for b in self.buttons()])
+
+    monkeypatch.setattr(QMessageBox, "exec", sahte_exec)
+    monkeypatch.setattr(QMessageBox, "clickedButton",
+                        lambda self: getattr(self, "_secilen", None))
+
+    stub._prompt_reload(ed, str(yol), hash_a)
+
+    assert stub._save_hashes[str(yol)] == stub._file_hash(str(yol))
+    assert stub._save_hashes[str(yol)] != hash_a
+
+
+def test_OKUMA_DUSERSE_hash_BOS_kaliyor(qapp, tmp_path, monkeypatch):
+    """Bilinmeyeni bilinen saymaktansa fazladan sormak yeğdir.
+
+    `open_file` başarılı ama hemen ardından hash okuması düşerse diskin
+    durumu BİLİNMİYOR. Diyalog öncesi değeri yazmak, disk o hâle dönmüşse
+    arabellek ondan farklı olduğu hâlde "aynı" saydırıp soruyu hiç
+    sordurmazdı.
+    """
+    from PyQt6.QtWidgets import QMessageBox
+
+    yol = tmp_path / "bolum.tex"
+    yol.write_text("\\section{Bir}\nILK\n", encoding="utf-8")
+    ed = EditorWidget()
+    assert ed.open_file(str(yol))
+    stub = _WatchStub([ed])
+    stub._file_watch_add(str(yol))
+
+    yol.write_text("\\section{Bir}\nA HALI\n", encoding="utf-8")
+    hash_a = stub._file_hash(str(yol))
+
+    def sahte_exec(self):
+        for b in self.buttons():
+            if b.text().startswith(("Yeniden Yükle", "Diskten")):
+                self._secilen = b
+                return 0
+        raise AssertionError([b.text() for b in self.buttons()])
+
+    monkeypatch.setattr(QMessageBox, "exec", sahte_exec)
+    monkeypatch.setattr(QMessageBox, "clickedButton",
+                        lambda self: getattr(self, "_secilen", None))
+
+    # `open_file`tan SONRAKI hash okumasi dussun
+    sayac = {"n": 0}
+    gercek = _WatchStub._file_hash
+
+    def dusen_hash(path):
+        sayac["n"] += 1
+        return "" if sayac["n"] > 0 else gercek(path)
+
+    monkeypatch.setattr(_WatchStub, "_file_hash", staticmethod(dusen_hash))
+    stub._prompt_reload(ed, str(yol), hash_a)
+
+    assert stub._save_hashes[str(yol)] != hash_a, \
+        "bilinmeyen durum, diyalog oncesi degerle dolduruldu"
+    assert stub._save_hashes[str(yol)] == ""

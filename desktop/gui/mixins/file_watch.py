@@ -348,7 +348,28 @@ class FileWatchMixin:
             line_text = editor.text(line).rstrip("\n")
             editor.setCursorPosition(line, min(col, len(line_text)))
             editor.ensureLineVisible(line)
-            self._save_hashes[path] = new_hash
+            # Hash, YÜKLENEN dosyadan YENİDEN okunuyor; `new_hash` diyalog
+            # AÇILMADAN ÖNCE hesaplanmıştı. Diyalog modal ve dakikalarca açık
+            # kalabiliyor; o sırada dosya bir daha değişirse `open_file`
+            # GÜNCEL içeriği yüklüyor ama kaydedilen hash ESKİ duruma ait
+            # kalıyordu. ÜRETİLDİ (2026-09-12): arabellekte B, kayıtlı hash
+            # A; arabellek diskle birebir aynı olduğu hâlde uygulama onu
+            # "değişmiş" sayıyor ve kullanıcıya TEK değişiklik için İKİNCİ
+            # kez soruyor. Kardeş kol ("Kendiminkini Koru") bu dersi zaten
+            # biliyor ve hash'i dosyadan yeniden okuyor; asimetri buradaydı.
+            #
+            # Pencere sıfırlanmıyor, DARALIYOR: `open_file` ile bu okuma
+            # arasında da dosya değişebilir. Sıfırlamak `open_file`ın
+            # okuduğu baytları geri istemek demek, o da bu katmanda yok.
+            #
+            # Okuma DÜŞERSE boş kalıyor ve bu BİLEREK: boş hash "diski
+            # bilmiyorum" demek ve bir sonraki değişiklikte kullanıcıya
+            # tekrar sorulur. Önce buraya `or new_hash` yazmıştım, YANLIŞ
+            # yöndü: `new_hash` diyalog öncesi diske ait ve disk o hâle geri
+            # dönmüşse arabellek ondan FARKLI olduğu hâlde "aynı" sayılıp
+            # soru hiç sorulmazdı. Bilinmeyeni bilinen saymaktansa fazladan
+            # sormak yeğdir.
+            self._save_hashes[path] = self._file_hash(path)
             self._disk_ayristi.discard(path)   # arabellek artık diskle aynı
             self._detect_engine(path)
             _logger.info("Dosya diskten yeniden yüklendi: %s", path)
