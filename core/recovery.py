@@ -19,11 +19,10 @@ açmadan koşar.
 import codecs
 import json
 import os
-import tempfile
 import time
 from dataclasses import dataclass
 
-from core.fs_ops import lf_ye_indir
+from core.fs_ops import lf_ye_indir, yaz_atomik
 
 # Anlık görüntü biçimi sürümü. Okurken uyuşmayan sürüm sessizce ATILIR:
 # eski biçimli bir artığı yanlış yorumlayıp kullanıcının içeriğini bozmaktansa
@@ -56,25 +55,14 @@ def _yaz_atomik(yol: str, veri: bytes) -> None:
     """Aynı dizinde geçici dosyaya yaz, fsync et, atomik replace.
 
     Çökme kurtarma dosyasının kendisi çökmede yarım kalırsa hiçbir işe
-    yaramaz — o yüzden burada da tmp + fsync + replace şart. Geçici dosya
-    hedefle AYNI dizinde tutulur ki os.replace gerçekten atomik olsun.
-    (editor._write_atomic ile aynı desen; orası metin + kodlama round-trip'i
-    ile ilgilendiği, burası ham bayt yazdığı için ayrı duruyorlar.)
+    yaramaz, o yüzden burada da tmp + fsync + replace şart.
+
+    Gövde `core.fs_ops.yaz_atomik`e taşındı: aynı ham bayt yazıcısı bir
+    üçüncü yerde daha gerekiyordu (`bibtex.bibe_ekle`) ve orada YOKTU,
+    kullanıcının kaynakçası kesilen bir yazmada sıfırlanabiliyordu.
+    Ad burada korunuyor, testler bu adı kullanıyor.
     """
-    d = os.path.dirname(yol)
-    fd, tmp = tempfile.mkstemp(dir=d, suffix=".tmp")
-    try:
-        with os.fdopen(fd, "wb") as f:
-            f.write(veri)
-            f.flush()
-            os.fsync(f.fileno())
-        os.replace(tmp, yol)
-    except BaseException:
-        try:
-            os.unlink(tmp)
-        except OSError:
-            pass
-        raise
+    yaz_atomik(yol, veri)
 
 
 def yaz(dizin: str, snap_id: str, *, file_path: str, content: str,

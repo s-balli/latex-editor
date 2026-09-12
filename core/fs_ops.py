@@ -14,6 +14,7 @@ yaratan makinede değil karşı taraftaki makinede patlıyor.
 
 import os
 import re
+import tempfile
 
 # Editörün KAYNAK sayıp açtığı uzantılar. TEK KAYNAK: klasör ağacı, hızlı aç,
 # projede ara, "Birlikte Aç" ve sürükle-bırak hepsi buradan alır.
@@ -91,6 +92,45 @@ def coz_adiyla(ham: bytes) -> tuple[str, str]:
 def coz(ham: bytes) -> str:
     """Yalnız metin. Dosyayı YAZMAYAN yollar için (arama, dışa aktarma)."""
     return coz_adiyla(ham)[0]
+
+
+def yaz_atomik(yol: str, veri: bytes, *, sonek: str = ".tmp") -> None:
+    """Baytları AYNI DİZİNDE geçici dosyaya yaz, fsync et, atomik yerine koy.
+
+    Var olan bir dosyanın ÜSTÜNE yazmanın tek güvenli yolu. `open(yol, "wb")`
+    dosyayı açar açmaz boşaltıyor; yazma bitmeden bir şey olursa (disk dolu,
+    elektrik, süreç öldürülmesi) geriye boş ya da yarım dosya kalıyor.
+
+    ÖLÇÜLDÜ (2026-09-12, hata enjeksiyonuyla): cp1254 bir `.bib`e sığmayan
+    bir girdi eklenirken `bibe_ekle` dosyanın tamamını utf-8'e çeviriyor ve
+    o yol `wb` kullanıyordu; yazma tek bir noktada düşürülünce kullanıcının
+    kaynakçası 0 BAYTA indi ve var olan girdi gitti.
+
+    TEK KAYNAK. Aynı desen depoda iki yerde daha yazılıydı
+    (`gui.editor._write_atomic`, `core.recovery._yaz_atomik`) ve ikisinin de
+    gerekçesi kaynağında duruyordu; üçüncü yazıcı o dersin dışında kalmıştı.
+    `editor._write_atomic` AYRI duruyor ve öyle kalıyor: o metin + kodlama
+    round-trip'i, sembolik bağ çözümü ve izin devralmayla da ilgileniyor.
+
+    Geçici dosya hedefle AYNI dizinde tutulur, yoksa `os.replace` çapraz
+    dosya sistemi taşıması olur ve atomikliğini yitirir. Sonek `.tmp`
+    varsayılan, çünkü `core.recovery.hepsini_sil` yarım kalmış `.tmp`
+    artıklarını ada bakarak topluyor.
+    """
+    dizin = os.path.dirname(os.path.abspath(yol))
+    fd, gecici = tempfile.mkstemp(dir=dizin, suffix=sonek)
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(veri)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(gecici, yol)
+    except BaseException:
+        try:
+            os.unlink(gecici)
+        except OSError:
+            pass
+        raise
 
 
 def lf_ye_indir(metin: str) -> str:

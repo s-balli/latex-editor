@@ -693,3 +693,81 @@ class TestGirdiAnahtariDeseni:
         metin = "@article(kaya2020,\n title = {X},\n)\n"
         assert RE_GIRDI_ANAHTARI.findall(metin) == ["kaya2020"]
         assert [g.anahtar for g in parse_entries(metin)] == ["kaya2020"]
+
+
+# --- Kodlama çevirisi kullanıcının .bib'ini YOK ETMEMELİ (2026-09-12) ---
+
+import builtins  # noqa: E402
+import os  # noqa: E402
+
+from core import bibtex  # noqa: E402
+
+
+class TestKodlamaCevirisiAtomik:
+    r"""Yeni girdi dosyanın eski kodlamasına sığmazsa `bibe_ekle` dosyanın
+    TAMAMINI utf-8'e çeviriyor, yani var olan kaynakçanın ÜSTÜNE yazıyor.
+
+    O yol `open(yol, "wb")` kullanıyordu ve `wb` dosyayı açar açmaz
+    boşaltıyor. ÖLÇÜLDÜ (2026-09-12, hata enjeksiyonu): yazma tek bir
+    noktada düşürülünce `.bib` 0 BAYTA indi ve kullanıcının girdisi gitti.
+    """
+
+    MEVCUT = ("@article{yilmaz2020,\n"
+              "  author = {Yılmaz, Şule},\n"
+              "  title = {Önemli Çalışma},\n"
+              "  year = {2020}\n}\n")
+    # cp1254'e SIĞMAYAN harf: çeviri yolunu zorlar
+    YENI = "@article{yeni2024,\n  author = {Zhang, 汉},\n  year = {2024}\n}\n"
+
+    def _cp1254_bib(self, tmp_path):
+        yol = tmp_path / "ref.bib"
+        yol.write_bytes(self.MEVCUT.encode("cp1254"))
+        return yol
+
+    def test_cevirinin_KENDISI_calisiyor(self, tmp_path):
+        """Önce yolun gerçekten buradan geçtiği sabitleniyor: dosya utf-8
+        oluyor, eski girdi duruyor, yeni girdi eklenmiş."""
+        yol = self._cp1254_bib(tmp_path)
+        bibtex.bibe_ekle(str(yol), self.YENI)
+
+        ham = yol.read_bytes()
+        metin = ham.decode("utf-8")          # artık utf-8 olmalı
+        assert "yilmaz2020" in metin and "yeni2024" in metin
+        assert "Şule" in metin and "汉" in metin
+
+    def test_YAZMA_kesilirse_var_olan_kaynakca_duruyor(self, tmp_path,
+                                                       monkeypatch):
+        r"""Kırılırsa: kullanıcının bütün kaynakçası gider.
+
+        Hata enjeksiyonu HEM `open` HEM `os.fdopen` üzerine kuruluyor;
+        atomik yazıcı geçici dosyayı `mkstemp` + `fdopen` ile açıyor ve
+        yalnız `open`ı sarmak onu hiç görmüyor (ölçümde bu tuzağa düştüm).
+        """
+        yol = self._cp1254_bib(tmp_path)
+        once = yol.read_bytes()
+
+        durum = {"patladi": False}
+
+        def sar(f, kip):
+            if "w" in kip and "b" in kip and not durum["patladi"]:
+                def write(_veri):
+                    durum["patladi"] = True
+                    raise OSError(28, "enjekte")
+                f.write = write
+            return f
+
+        gercek_open, gercek_fdopen = builtins.open, os.fdopen
+        monkeypatch.setattr(builtins, "open", lambda *a, **k: sar(
+            gercek_open(*a, **k), a[1] if len(a) > 1 else k.get("mode", "r")))
+        monkeypatch.setattr(os, "fdopen", lambda *a, **k: sar(
+            gercek_fdopen(*a, **k),
+            a[1] if len(a) > 1 else k.get("mode", "r")))
+
+        with pytest.raises(OSError):
+            bibtex.bibe_ekle(str(yol), self.YENI)
+
+        monkeypatch.undo()
+        assert durum["patladi"], "enjeksiyon hiç değmedi, kapı boş koşuyor"
+        assert yol.read_bytes() == once, "var olan kaynakça bozuldu"
+        assert not [p for p in os.listdir(str(tmp_path))
+                    if p.endswith(".tmp")], "geçici dosya geride kaldı"

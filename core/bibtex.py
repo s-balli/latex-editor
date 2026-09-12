@@ -454,6 +454,7 @@ def normallestir(ham: str, *, mevcut_anahtarlar=()) -> tuple[str, str]:
 # Çözücü zincir TEK KAYNAK core.fs_ops (bkz. oradaki not); burada kendi
 # gövdesi vardı ve `gui/editor._decode_bytes` ile birebir aynıydı.
 from core.fs_ops import coz_adiyla as _coz_adiyla  # noqa: E402
+from core.fs_ops import yaz_atomik  # noqa: E402
 
 
 def ekleme_metni(var_olan: str, girdi_metni: str) -> str:
@@ -500,8 +501,12 @@ def bibe_ekle(yol: str, girdi_metni: str) -> None:
         # bir harf; DOI ile gelen kayıtlarda olağan). Karma kodlamalı dosya
         # üretmektense dosyanın TAMAMI utf-8'e çevriliyor: metin birebir
         # korunuyor, yalnız baytlar değişiyor ve dosya tek kodlamada kalıyor.
-        with open(yol, "wb") as f:
-            f.write((var_olan + eklenecek).encode("utf-8"))
+        #
+        # ATOMİK: burası kullanıcının var olan kaynakçasının ÜSTÜNE yazıyor.
+        # `open(yol, "wb")` ile yazılıyordu ve o dosyayı açar açmaz
+        # boşaltıyor; ÖLÇÜLDÜ (2026-09-12, hata enjeksiyonu): yazma tek bir
+        # noktada düşürülünce `.bib` 0 BAYTA indi ve var olan girdi gitti.
+        yaz_atomik(yol, (var_olan + eklenecek).encode("utf-8"))
         return
 
     # İkili ekleme: satır sonu çevirisi yok (eski `newline=""` ile aynı).

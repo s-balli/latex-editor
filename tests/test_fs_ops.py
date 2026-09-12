@@ -287,3 +287,39 @@ class TestLfYeIndir:
         assert suclular == [], (
             "satır sonu indirgemesi fs_ops.lf_ye_indir'den alınmalı: %s"
             % suclular)
+
+
+# --- Atomik ham bayt yazıcı: TEK KAYNAK (2026-09-12) ---
+
+
+class TestYazAtomik:
+    def test_var_olan_dosyanin_USTUNE_yaziyor(self, tmp_path):
+        yol = tmp_path / "a.bin"
+        yol.write_bytes(b"eski icerik")
+        fs_ops.yaz_atomik(str(yol), b"yeni icerik")
+        assert yol.read_bytes() == b"yeni icerik"
+
+    def test_YOK_dosyayi_da_yaratiyor(self, tmp_path):
+        yol = tmp_path / "yeni.bin"
+        fs_ops.yaz_atomik(str(yol), b"veri")
+        assert yol.read_bytes() == b"veri"
+        assert not [p for p in os.listdir(str(tmp_path))
+                    if p.endswith(".tmp")]
+
+    def test_KURTARMA_da_ayni_yaziciyi_kullaniyor(self, tmp_path):
+        """Gövde burada tek kaynak; `core.recovery` kendi kopyasını
+        tutuyordu. Kırılırsa iki yazıcı yeniden ayrışır."""
+        from core import recovery
+
+        cagrildi = []
+        eski = fs_ops.yaz_atomik
+        try:
+            def sahte(yol, veri, **k):
+                cagrildi.append(yol)
+                return eski(yol, veri, **k)
+            recovery.yaz_atomik = sahte
+            assert recovery.yaz(str(tmp_path), "s1", file_path="",
+                                content="metin")
+        finally:
+            recovery.yaz_atomik = eski
+        assert cagrildi, "recovery kendi yazıcısını kullanıyor"
