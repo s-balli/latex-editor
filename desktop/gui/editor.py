@@ -14,7 +14,7 @@ from core.bibtex import RE_GIRDI_ANAHTARI
 from core.fs_ops import coz_adiyla, lf_ye_indir
 from core.log import get_logger
 from core.latex_refs import (
-    CITE_KOMUTLARI, REF_ARALIK_KOMUTLARI, REF_KOMUTLARI, collect_cite_keys,
+    CITE_KOMUTLARI, REF_ARALIK_KOMUTLARI, REF_KOMUTLARI, collect_citable_keys,
     collect_image_paths, collect_input_paths, collect_labels,
     komut_alternatifi,
 )
@@ -664,7 +664,7 @@ class EditorWidget(QsciScintilla):
         r"""\cite{...} için .bib anahtarlarını öner (key1,key2 çoklu destek)."""
         partial = typed.rsplit(',', 1)[-1]   # son virgülden sonraki segment
         try:
-            keys = collect_cite_keys(self.text(), self._file_path)
+            keys = collect_citable_keys(self.text(), self._file_path)
         except Exception:
             _logger.debug("cite anahtar toplama başarısız", exc_info=True)
             return

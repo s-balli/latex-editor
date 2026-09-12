@@ -436,8 +436,13 @@ class EditOpsMixin:
             self._doi_runner.done.connect(self._on_doi_fetched)
         self._doi_bib_yolu = yol
         self._status.showMessage(_("DOI getiriliyor..."))
-        from core.latex_refs import collect_cite_keys
-        self._doi_runner.start(doi, collect_cite_keys(editor.text(), editor.file_path))
+        # `\bibitem` anahtarları da KULLANILMIŞ sayılır: DOI'den gelen kayıt
+        # elle yazılmış bir kaynakçadaki anahtarla çakışırsa belgede aynı
+        # anahtar iki kez tanımlanır (aynı hata bir kez .bib içinde yaşandı,
+        # bkz. `DoiRunner.start` gerekçesi).
+        from core.latex_refs import collect_citable_keys
+        self._doi_runner.start(
+            doi, collect_citable_keys(editor.text(), editor.file_path))
 
     def _on_doi_fetched(self, ok: bool, metin: str, anahtar: str, hata: str):
         if not ok:

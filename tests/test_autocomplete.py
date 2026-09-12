@@ -360,3 +360,66 @@ def test_BASKA_komutlar_tamamlama_ACMIYOR(qapp):
         ed.setCursorPosition(0, len(metin))
         ed._check_autocomplete()
         assert cagrildi == [], metin
+
+
+_ELLE_KAYNAKCA = (
+    "\\begin{document}\n"
+    "\\cite{ek1}\n"
+    "\\begin{thebibliography}{9}\n"
+    "\\bibitem{ek1} Bir kaynak.\n"
+    "\\bibitem{ek2} Iki kaynak.\n"
+    "\\end{thebibliography}\n"
+    "\\end{document}\n"
+)
+
+
+def _cite_onerileri(ed, yazilan):
+    yakalanan = []
+    ed._popup_goster = lambda eslesen, parca: yakalanan.append(list(eslesen))
+    ed._show_cite_completion(yazilan)
+    return yakalanan[0] if yakalanan else []
+
+
+def test_ELLE_YAZILMIS_kaynakca_da_ONERILIYOR(qapp, tmp_path):
+    r"""`.bib` yoksa da `\bibitem` anahtarları önerilmeli.
+
+    Uygulamanın geri kalanı bu anahtarları ZATEN biliyor: referans denetimi
+    `undefined_cites`tan düşüyor, Alt+tık `\bibitem{k}` üzerinden ters yöne
+    gidiyor. Eksik olan yalnız tamamlamaydı; `.bib`i olmayan belgede
+    `\cite{` yazınca HİÇBİR ŞEY önerilmiyordu.
+
+    ÖLÇÜLDÜ (2026-09-12, 39 gerçek şablon): 13'ünde elle yazılmış kaynakça
+    var ve 12'sinde liste BOŞ geliyordu (6 ile 41 arası girdiye rağmen);
+    `.bib`i de olan template33-tez'de 118 anahtar önerilirken 3 `\bibitem`
+    görünmüyordu. Toplam 216 girdi.
+    """
+    yol = tmp_path / "ana.tex"
+    yol.write_text(_ELLE_KAYNAKCA, encoding="utf-8", newline="")
+    ed = EditorWidget()
+    assert ed.open_file(str(yol))
+    assert _cite_onerileri(ed, "ek") == ["ek1", "ek2"]
+
+
+def test_KAYDEDILMEMIS_belgede_de_oneriliyor(qapp):
+    r"""Yolu olmayan arabellekte de `\bibitem`ler önerilmeli.
+
+    `parse_bibitems` belgenin KENDİSİNİ ancak `base_path` varsa okuyor, o
+    yüzden canlı arabellek ayrıca taranıyor. Mutasyonda bu kolun hiç
+    kapısı olmadığı görüldü: taramayı kaldırmak tek bir testi bile
+    düşürmüyordu.
+    """
+    ed = EditorWidget()
+    ed.setText(_ELLE_KAYNAKCA)
+    assert _cite_onerileri(ed, "ek") == ["ek1", "ek2"]
+
+
+def test_bib_VE_bibitem_BIRLIKTE_oneriliyor(qapp, tmp_path):
+    """KARŞI KOL: birleşim alınmalı, biri ötekinin yerine geçmemeli."""
+    (tmp_path / "k.bib").write_text("@book{ekbib, title={X}}\n",
+                                    encoding="utf-8", newline="")
+    yol = tmp_path / "ana.tex"
+    yol.write_text("\\bibliography{k}\n" + _ELLE_KAYNAKCA,
+                   encoding="utf-8", newline="")
+    ed = EditorWidget()
+    assert ed.open_file(str(yol))
+    assert _cite_onerileri(ed, "ek") == ["ek1", "ek2", "ekbib"]

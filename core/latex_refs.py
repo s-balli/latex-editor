@@ -508,6 +508,36 @@ def collect_cite_keys(content: str, base_path: str) -> list[str]:
     return sorted(keys)
 
 
+def collect_citable_keys(content: str, base_path: str) -> list[str]:
+    r"""`\cite` EDİLEBİLİR bütün anahtarlar: .bib girdileri + `\bibitem`ler.
+
+    Elle yazılmış kaynakça (`thebibliography` + `\bibitem`) .bib kadar
+    geçerli bir kaynakçadır ve uygulamanın geri kalanı bunu zaten biliyor:
+    referans denetimi `undefined_cites`tan `\bibitem` anahtarlarını
+    düşüyor, Alt+tık `\bibitem{k}` üzerinden ters yöne gidiyor. Yalnız
+    tamamlama bilmiyordu; `.bib` yoksa `\cite{` yazınca HİÇBİR ŞEY
+    önermiyordu.
+
+    ÖLÇÜLDÜ (2026-09-12, 39 gerçek şablon): 13 şablonda elle yazılmış
+    kaynakça var ve 12'sinde öneri listesi BOŞ geliyordu (6 ile 41 arası
+    girdiye rağmen); .bib'i de olan template33-tez'de 118 anahtar
+    öneriliyor ama 3 `\bibitem` görünmüyordu. Toplam 216 girdi.
+
+    Aynı soru ("bu anahtar zaten kullanılıyor mu") DOI ile kaynak eklerken
+    de soruluyor; orada da bu liste veriliyor, yoksa DOI'den gelen kayıt
+    var olan bir `\bibitem` anahtarıyla çakışabilir.
+    """
+    keys = set(collect_cite_keys(content, base_path))
+    # Canlı arabellek AYRICA taranıyor: `parse_bibitems` belgenin kendisini
+    # ancak `base_path` VARSA okuyor, yani hiç kaydedilmemiş bir belgede
+    # kendi `\bibitem`leri listeye girmezdi.
+    keys.update(k for m in _RE_BIBITEM.finditer(content)
+                if (k := m.group(1).strip()))
+    keys.update(k for k, _yol, _satir, _metin
+                in parse_bibitems(content, base_path))
+    return sorted(keys)
+
+
 # --- Alt+tık ile tanıma git: anahtarın (dosya, satır) konumu ---
 
 def _label_line_in(text: str, key: str) -> int | None:
