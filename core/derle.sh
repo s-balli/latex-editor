@@ -382,8 +382,27 @@ derle_dosya() {
         fi
     elif [ -f "$TMPDIR/${ISIM}.aux" ] && grep -rl '\\bibdata' "$TMPDIR/"*.aux &>/dev/null; then
         if command -v bibtex &>/dev/null; then
-            local BIB_CIKTI
-            BIB_CIKTI=$(cd "$TMPDIR" && bibtex "${ISIM}" 2>&1) || true
+            # BibTeX `\bibdata` içeren HER `.aux` için ayrı koşuyor, yalnız
+            # ana dosya için değil. Koşul zaten bütün `.aux`lara bakıyordu;
+            # çalıştırma tek dosyada kalmıştı.
+            #
+            # Belge `multibib` ile `\newcites{ek}{Başlık}` yazınca İKİNCİ bir
+            # kaynakça ve ona ait ayrı bir yardımcı dosya (`ek.aux`) açılıyor.
+            # `bibtex ek` koşmazsa `ek.bbl` hiç oluşmuyor ve ikinci kaynakça
+            # belgede BOŞ çıkıyor: başlık basılıyor, altında hiçbir girdi yok.
+            #
+            # ÖLÇÜLDÜ (2026-09-13, template11 uygulamayla birlikte gelen bir
+            # şablon; kehanet üretilen PDF'in metni): "Kaynaklar" başlığının
+            # altında 0 karakter vardı, dört girdinin dördü de eksikti. Her
+            # `.aux` için bibtex koşunca 2375 karakter ve dördü de yerinde;
+            # sayfa sayısı 32'den 33'e çıkıyor.
+            local BIB_CIKTI="" BIB_AUX
+            while IFS= read -r BIB_AUX; do
+                [ -n "$BIB_AUX" ] || continue
+                BIB_AUX=$(basename "$BIB_AUX" .aux)
+                BIB_CIKTI+=$(cd "$TMPDIR" && bibtex "$BIB_AUX" 2>&1 || true)
+                BIB_CIKTI+=$'\n'
+            done < <(grep -l '\\bibdata' "$TMPDIR/"*.aux 2>/dev/null || true)
             local BIB_HATALAR
             BIB_HATALAR=$(echo "$BIB_CIKTI" | grep -i "error\|warning" || true)
             if [ -n "$BIB_HATALAR" ]; then

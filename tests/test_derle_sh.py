@@ -84,6 +84,42 @@ BIB_TEX = r"""\documentclass{article}
 BIB_REF = r"""@article{test2020, author={Test}, title={Sample}, journal={J}, year={2020}}
 """
 
+# İKİNCİ kaynakça: `multibib` `\newcites{ek}{...}` ayrı bir yardımcı dosya
+# (`ek.aux`) açıyor ve BibTeX'in onun için AYRICA koşması gerekiyor.
+MULTIBIB_TEX = r"""\documentclass{article}
+\usepackage{natbib}
+\usepackage{multibib}
+\newcites{ek}{Ek Kaynaklar}
+\begin{document}
+Ana atif \cite{ana2020}. Ikinci atif \citeek{ek2021}.
+\bibliographystyle{plain}
+\bibliography{refs}
+\bibliographystyleek{plain}
+\bibliographyek{refs}
+\end{document}
+"""
+
+MULTIBIB_REF = r"""@article{ana2020, author={Anaeser, Ali}, title={Ana Calisma},
+  journal={Dergi A}, year={2020}}
+@article{ek2021, author={Ekeser, Veli}, title={Ek Calisma},
+  journal={Dergi B}, year={2021}}
+"""
+
+
+def _kpsewhich(ad):
+    try:
+        return subprocess.run(["kpsewhich", ad], capture_output=True,
+                              text=True, encoding="utf-8").stdout.strip()
+    except Exception:
+        return ""
+
+
+_multibib_skip = pytest.mark.skipif(
+    not (shutil.which("bibtex") and _kpsewhich("multibib.sty")
+         and _kpsewhich("natbib.sty")),
+    reason="bibtex + multibib + natbib kurulu değil",
+)
+
 def _run_derle(args, cwd, timeout=30):
     result = subprocess.run(
         ["bash", SCRIPT] + args,
@@ -247,6 +283,37 @@ class TestKaynakca:
         assert r.returncode == 0
         assert (tmp_path / "main.pdf").exists()
         assert "Eksik paket: biber" not in r.stdout
+
+    @_multibib_skip
+    def test_IKINCI_kaynakca_da_basiliyor(self, tmp_path):
+        r"""BibTeX `\bibdata` içeren HER `.aux` için koşmalı.
+
+        Kırılırsa ikinci kaynakça belgede BOŞ çıkıyor: başlık basılıyor,
+        altında hiçbir girdi yok. ÖLÇÜLDÜ (2026-09-13, template11 ve
+        uretilen PDF'in metniyle): dört girdinin dördü de eksikti.
+
+        Ana kaynakça da aynı testte sınanıyor (karşı kol): düzeltme
+        fazladan iş yapıp çalışan tarafı bozmamalı.
+        """
+        pdfium = pytest.importorskip("pypdfium2")
+        (tmp_path / "ana.tex").write_text(MULTIBIB_TEX, encoding="utf-8")
+        (tmp_path / "refs.bib").write_text(MULTIBIB_REF, encoding="utf-8")
+
+        r = _run_derle([str(tmp_path / "ana.tex")], cwd=str(tmp_path),
+                       timeout=180)
+
+        assert (tmp_path / "ana.pdf").exists(), r.stdout[-2000:]
+        belge = pdfium.PdfDocument(str(tmp_path / "ana.pdf"))
+        try:
+            # `get_text_bounded`: uygulamanın PDF içi araması da onu
+            # kullanıyor (pdf_search_worker); `get_text_range` varsayılan
+            # argümanlarla uyarı basıyor.
+            metin = "".join(belge[i].get_textpage().get_text_bounded()
+                            for i in range(len(belge)))
+        finally:
+            belge.close()
+        assert "Anaeser" in metin, metin[-800:]
+        assert "Ekeser" in metin, metin[-800:]
 
     @_biber_skip
     def test_biber_eksik_onerisi(self, tmp_path):
