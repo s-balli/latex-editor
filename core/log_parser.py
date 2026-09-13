@@ -117,8 +117,36 @@ _RE_YAPI_BAS = re.compile(
     r'Missing character:)', re.IGNORECASE)
 
 
+# Hata satırı da sarıyor ama BAŞKA BİÇİMDE: 79 sütun değil, LaTeX'in kendi
+# hata biçimlendirmesi cümleyi kelime sınırında ikinci satıra taşıyor:
+#
+#     ! LaTeX Error: Unicode character ★ (U+2605)
+#     not set up for use with LaTeX.
+#
+# Ayrıştırıcı yalnız ilk satırı alıyordu, yani mesaj cümle ortasında
+# kesiliyor ve `error_hints`in TAM BU HATA İÇİN yazılmış deseni
+# ("Unicode character .+ not set up") hiç eşleşmiyordu: kullanıcı kırpık
+# bir cümle görüyor, ipucu hiç çıkmıyordu. Word'den yapıştırılmış tırnak,
+# uzun tire ya da derece işareti pdflatex'te bu hatayı veriyor.
+#
+# ÖLÇÜT NOKTA: cümle noktayla bitmiyorsa yarım kalmıştır. ÖLÇÜLDÜ
+# (2026-09-13, on iki gerçekçi bozuk belge, gerçek derleme):
+#
+#     nokta ile biten hata satırı      17   (10'unun ardından `<inserted
+#                                            text>`, `<read *>` gibi TeX
+#                                            BAĞLAM satırı var: onları
+#                                            birleştirmek mesajı kirletirdi)
+#     noktasız biten                    1   (Unicode hatası; ardındaki satır
+#                                            gerçekten cümlenin devamı)
+#
+# Yani kural bu örneklemde 1/1 doğru birleştiriyor, 17/17 yanlış
+# birleştirmeden kaçınıyor.
+_RE_HATA_BAS = re.compile(r'^\s*! ')
+_CUMLE_SONU = (".", "?", "!")
+
+
 def _mantiksal_satirlar(ham: list[str]) -> list[str]:
-    """79 sütunda sarmış UYARI satırlarını devamlarıyla birleştir."""
+    """Sarmış UYARI ve HATA satırlarını devamlarıyla birleştir."""
     out: list[str] = []
     i, n = 0, len(ham)
     while i < n:
@@ -130,6 +158,14 @@ def _mantiksal_satirlar(ham: list[str]) -> list[str]:
                    and not _RE_YAPI_BAS.match(ham[i + 1])):
                 son = ham[i + 1]
                 s += son
+                i += 1
+        elif _RE_HATA_BAS.match(s):
+            # Uyarı kolundan farklı olarak BOŞLUKLA ekleniyor: kırılma
+            # kelime sınırında, 79. sütunda değil.
+            while (not s.rstrip().endswith(_CUMLE_SONU) and i + 1 < n
+                   and ham[i + 1].strip()
+                   and not _RE_YAPI_BAS.match(ham[i + 1])):
+                s = s.rstrip() + " " + ham[i + 1].strip()
                 i += 1
         out.append(s)
         i += 1

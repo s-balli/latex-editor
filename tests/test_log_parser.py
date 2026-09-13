@@ -569,3 +569,55 @@ class TestMotorAdiTekKaynak:
             r = parse_output("! This class requires %s.\nl.1 x\n" % ad)
             assert any("Bu belge %s gerektiriyor" % beklenen in s.message
                        for s in r.suggestions), ad
+
+
+# =====================================================================
+# HATA satırının sarması: 79 sütun değil, LaTeX'in kendi biçimlendirmesi
+#
+# LaTeX uzun bir hata cümlesini kelime sınırında ikinci satıra taşıyor:
+#
+#     ! LaTeX Error: Unicode character X (U+2605)
+#     not set up for use with LaTeX.
+#
+# Ayrıştırıcı yalnız ilk satırı alıyordu; mesaj cümle ortasında kesiliyor
+# ve `error_hints`in TAM BU HATA İÇİN yazılmış deseni hiç eşleşmiyordu.
+# =====================================================================
+
+
+def test_SARAN_hata_mesaji_DEVAMIYLA_birlestiriliyor():
+    r"""Word'den yapıştırılmış bir karakter pdflatex'te bu hatayı veriyor.
+
+    ÜRETİLDİ (2026-09-13, gerçek pdflatex): mesaj `(U+2605)` ile bitiyor,
+    "not set up for use with LaTeX." sonraki satırda kalıyordu; ipucu
+    çıkmıyor, kullanıcı kırpık bir cümle görüyordu.
+    """
+    ham = ("  ! LaTeX Error: Unicode character \u2605 (U+2605)\n"
+           "  not set up for use with LaTeX.\n"
+           "  \n"
+           "  See the LaTeX manual or LaTeX Companion for explanation.\n"
+           "  l.4 \u2605 yildiz\n")
+    r = parse_output(ham, "b.tex")
+    assert len(r.errors) == 1, r.errors
+    # Birleştirme BOŞLUKLA: kırılma kelime sınırında, 79. sütunda değil.
+    assert r.errors[0].message == (
+        "LaTeX Error: Unicode character ★ (U+2605) "
+        "not set up for use with LaTeX.")
+    assert r.errors[0].line_number == 4
+    assert get_hint(r.errors[0].message) is not None
+
+
+def test_NOKTAYLA_biten_hata_BAGLAM_satirini_YUTMUYOR():
+    r"""KARŞI KOL: cümle tamamsa sonraki satır mesaja KARIŞMAMALI.
+
+    Nokta ile biten hataların ardından çoğu zaman TeX'in bağlam satırı
+    geliyor (`<inserted text>`, `<read *>`). ÖLÇÜLDÜ (2026-09-13, on iki
+    bozuk belge): noktayla biten 17 hatanın 10'unda böyle bir satır var.
+    Körlemesine birleştirmek mesajı kirletirdi.
+    """
+    ham = ("! Missing $ inserted.\n"
+           "<inserted text> \n"
+           "                $\n"
+           "l.3 x_2 metin\n")
+    r = parse_output(ham, "b.tex")
+    assert r.errors[0].message == "Missing $ inserted."
+    assert r.errors[0].line_number == 3
