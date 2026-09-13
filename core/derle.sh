@@ -423,9 +423,30 @@ derle_dosya() {
     fi
 
     # İndeks — makeindex (.idx → .ind)
-    if [ -f "$TMPDIR/${ISIM}.idx" ] && command -v makeindex &>/dev/null; then
-        local IDX_CIKTI
-        IDX_CIKTI=$(cd "$TMPDIR" && makeindex "${ISIM}" 2>&1) || true
+    #
+    # HER `.idx` için koşuyor, yalnız ana dosya için değil. `imakeidx` ile
+    # `\makeindex[name=kisi]` yazan belge ikinci bir dizin açıyor ve onu
+    # `kisi.idx` dosyasına yazıyor; o işlenmezse ikinci dizin BOŞ çıkıyor.
+    # Kaynakçadaki (`\newcites`) ve sözlükteki kusurun aynısı: üretilen
+    # yardımcı dosyalardan yalnız birine bakılıyordu.
+    #
+    # ÖLÇÜLDÜ (2026-09-13, kehanet üretilen PDF'in metni): iki dizinli
+    # belgede ana dizin basılıyor, ikinci dizinin girdisi PDF'te hiç yok;
+    # her `.idx` işlenince ikisi de yerinde. Tek dizinli klasik biçim aynı
+    # ölçümde KONTROL olarak durdu ve o zaten çalışıyordu.
+    if command -v makeindex &>/dev/null; then
+        local IDX_CIKTI="" IDX_DOSYA
+        for IDX_DOSYA in "$TMPDIR"/*.idx; do
+            # Eşleşme yoksa kabuk deseni OLDUĞU GİBİ bırakıyor. Bugün bu
+            # koruma GÖZLENEBİLİR bir şey değiştirmiyor (ölçüldü: korumasız
+            # sürümün çıktısı da birebir aynı, çünkü makeindex'in "dosya
+            # yok" iletisi aşağıdaki uyarı süzgecine takılmıyor); yine de
+            # var olmayan bir dosyayı araca vermiyoruz.
+            [ -f "$IDX_DOSYA" ] || continue
+            IDX_CIKTI+=$(cd "$TMPDIR" \
+                && makeindex "$(basename "$IDX_DOSYA" .idx)" 2>&1 || true)
+            IDX_CIKTI+=$'\n'
+        done
         local IDX_HATALAR
         IDX_HATALAR=$(echo "$IDX_CIKTI" | grep -iE "error|warn" || true)
         if [ -n "$IDX_HATALAR" ]; then

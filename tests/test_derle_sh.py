@@ -158,6 +158,39 @@ Isik hizi \(c\) sabittir.
 \end{document}
 """
 
+# Dizin: `imakeidx` ile `\makeindex[name=kisi]` ikinci bir dizin açıyor ve
+# onu `kisi.idx` dosyasına yazıyor.
+DIZIN_TEK_TEX = r"""\documentclass{article}
+\usepackage{makeidx}
+\makeindex
+\begin{document}
+Bir sozcuk\index{KlasikGirdi}.
+\printindex
+\end{document}
+"""
+
+DIZIN_IKI_TEX = r"""\documentclass{article}
+\usepackage{imakeidx}
+\makeindex
+\makeindex[name=kisi, title=Kisi Dizini]
+\begin{document}
+Bir sozcuk\index{KonuGirdisi}.
+Bir ad\index[kisi]{KisiGirdisi}.
+\printindex
+\printindex[kisi]
+\end{document}
+"""
+
+_dizin_skip = pytest.mark.skipif(
+    not (shutil.which("makeindex") and _kpsewhich("makeidx.sty")),
+    reason="makeindex + makeidx kurulu değil",
+)
+
+_imakeidx_skip = pytest.mark.skipif(
+    not (shutil.which("makeindex") and _kpsewhich("imakeidx.sty")),
+    reason="makeindex + imakeidx kurulu değil",
+)
+
 _sozluk_skip = pytest.mark.skipif(
     not ((shutil.which("makeglossaries")
           or shutil.which("makeglossaries-lite"))
@@ -467,6 +500,38 @@ class TestSozlukVeSimge:
 
         assert ("Eksik paket: makeglossaries" in r.stdout) is uyari_bekleniyor
         assert ("texlive-latex-extra" in r.stdout) is uyari_bekleniyor
+
+
+class TestDizin:
+    r"""Dizin: `makeindex` HER `.idx` için koşmalı.
+
+    `\index{X}` görünür çıktı üretmiyor, yani anahtar PDF'te ancak BASILAN
+    dizinde geçebilir; ölçüt bu. ÖLÇÜLDÜ (2026-09-13): iki dizinli belgede
+    ikinci dizinin girdisi PDF'te hiç yoktu.
+    """
+
+    @_imakeidx_skip
+    def test_IKI_dizin_de_basiliyor(self, tmp_path):
+        (tmp_path / "ana.tex").write_text(DIZIN_IKI_TEX, encoding="utf-8")
+
+        r = _run_derle([str(tmp_path / "ana.tex")], cwd=str(tmp_path),
+                       timeout=180)
+
+        assert (tmp_path / "ana.pdf").exists(), r.stdout[-2000:]
+        metin = _pdf_metni(tmp_path / "ana.pdf")
+        assert "KonuGirdisi" in metin, metin[-800:]
+        assert "KisiGirdisi" in metin, metin[-800:]
+
+    @_dizin_skip
+    def test_TEK_dizin_hala_basiliyor(self, tmp_path):
+        """Karşı kol: döngüye geçiş klasik tek dizini bozmamalı."""
+        (tmp_path / "ana.tex").write_text(DIZIN_TEK_TEX, encoding="utf-8")
+
+        r = _run_derle([str(tmp_path / "ana.tex")], cwd=str(tmp_path),
+                       timeout=180)
+
+        assert (tmp_path / "ana.pdf").exists(), r.stdout[-2000:]
+        assert "KlasikGirdi" in _pdf_metni(tmp_path / "ana.pdf")
 
 
 class TestInputInclude:
