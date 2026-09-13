@@ -114,6 +114,76 @@ def _kpsewhich(ad):
         return ""
 
 
+def _pdf_metni(pdf_yolu):
+    """Üretilen PDF'in bütün sayfalarının metni.
+
+    Kaynakça/sözlük/simge listesi gibi İKİ AŞAMALI bölümlerde tek geçerli
+    kehanet PDF'in kendisi: yardımcı araç koşmayınca başlık basılıyor ama
+    altı boş kalıyor ve derleme başarıyla bitiyor.
+
+    `get_text_bounded`: uygulamanın PDF içi araması da onu kullanıyor
+    (pdf_search_worker); `get_text_range` varsayılan argümanlarla uyarı
+    basıyor.
+    """
+    pdfium = pytest.importorskip("pypdfium2")
+    belge = pdfium.PdfDocument(str(pdf_yolu))
+    try:
+        return "".join(belge[i].get_textpage().get_text_bounded()
+                       for i in range(len(belge)))
+    finally:
+        belge.close()
+
+
+# Sözlük (glossaries) ve simge listesi (nomencl): kaynakça/dizinle aynı iki
+# aşamalı düzen. LaTeX girdileri `.glo`/`.nlo` dosyasına yazıyor, ayrı bir
+# araç basılacak `.gls`/`.nls` dosyasını üretiyor.
+SOZLUK_TEX = r"""\documentclass{article}
+\usepackage{glossaries}
+\makeglossaries
+\newglossaryentry{lat}{name=LatexDizgi,
+  description={bir dizgi sistemi ACIKLAMASI}}
+\begin{document}
+Metinde \gls{lat} geciyor.
+\printglossaries
+\end{document}
+"""
+
+SIMGE_TEX = r"""\documentclass{article}
+\usepackage{nomencl}
+\makenomenclature
+\begin{document}
+Isik hizi \(c\) sabittir.
+\nomenclature{\(c\)}{IsikHizi ACIKLAMASI}
+\printnomenclature
+\end{document}
+"""
+
+_sozluk_skip = pytest.mark.skipif(
+    not ((shutil.which("makeglossaries")
+          or shutil.which("makeglossaries-lite"))
+         and _kpsewhich("glossaries.sty")),
+    reason="makeglossaries + glossaries kurulu değil",
+)
+
+_simge_skip = pytest.mark.skipif(
+    not (shutil.which("makeindex") and _kpsewhich("nomencl.sty")
+         and _kpsewhich("nomencl.ist")),
+    reason="makeindex + nomencl kurulu değil",
+)
+
+
+def _komutu_gizle(*adlar):
+    """`command -v <ad>` başarısız olsun; öteki komutlar etkilenmesin.
+
+    Aynı hile `test_biber_eksik_onerisi`de de kullanılıyor.
+    """
+    kosullar = " ".join(
+        'if [ "$1" = "-v" ] && [ "$2" = "%s" ]; then return 127; fi;' % ad
+        for ad in adlar)
+    return ('command() { %s builtin command "$@"; }; export -f command; '
+            'bash "$0" "$@"' % kosullar)
+
+
 _multibib_skip = pytest.mark.skipif(
     not (shutil.which("bibtex") and _kpsewhich("multibib.sty")
          and _kpsewhich("natbib.sty")),
@@ -295,7 +365,6 @@ class TestKaynakca:
         Ana kaynakça da aynı testte sınanıyor (karşı kol): düzeltme
         fazladan iş yapıp çalışan tarafı bozmamalı.
         """
-        pdfium = pytest.importorskip("pypdfium2")
         (tmp_path / "ana.tex").write_text(MULTIBIB_TEX, encoding="utf-8")
         (tmp_path / "refs.bib").write_text(MULTIBIB_REF, encoding="utf-8")
 
@@ -303,15 +372,7 @@ class TestKaynakca:
                        timeout=180)
 
         assert (tmp_path / "ana.pdf").exists(), r.stdout[-2000:]
-        belge = pdfium.PdfDocument(str(tmp_path / "ana.pdf"))
-        try:
-            # `get_text_bounded`: uygulamanın PDF içi araması da onu
-            # kullanıyor (pdf_search_worker); `get_text_range` varsayılan
-            # argümanlarla uyarı basıyor.
-            metin = "".join(belge[i].get_textpage().get_text_bounded()
-                            for i in range(len(belge)))
-        finally:
-            belge.close()
+        metin = _pdf_metni(tmp_path / "ana.pdf")
         assert "Anaeser" in metin, metin[-800:]
         assert "Ekeser" in metin, metin[-800:]
 
@@ -328,6 +389,82 @@ class TestKaynakca:
             capture_output=True, text=True, cwd=str(tmp_path), timeout=120, encoding="utf-8")
         assert "Eksik paket: biber" in r.stdout
         assert "sudo apt-get install biber" in r.stdout
+
+
+class TestSozlukVeSimge:
+    r"""Sözlük ve simge listesi: yardımcı araç koşmazsa bölüm BOŞ çıkıyor.
+
+    Kaynakçadan tek farkı sessizliği: derleme başarıyla bitiyor, `[?]` ya da
+    `??` işareti çıkmıyor, kullanıcı yalnız boş bir "Kısaltmalar" sayfası
+    görüyor. ÖLÇÜLDÜ (2026-09-13, kehanet üretilen PDF'in metni): ikisi de
+    PDF'te yoktu.
+    """
+
+    @_sozluk_skip
+    def test_SOZLUK_basiliyor(self, tmp_path):
+        (tmp_path / "ana.tex").write_text(SOZLUK_TEX, encoding="utf-8")
+
+        r = _run_derle([str(tmp_path / "ana.tex")], cwd=str(tmp_path),
+                       timeout=180)
+
+        assert (tmp_path / "ana.pdf").exists(), r.stdout[-2000:]
+        metin = _pdf_metni(tmp_path / "ana.pdf")
+        assert "LatexDizgi" in metin, metin[-800:]
+        assert "ACIKLAMASI" in metin, metin[-800:]
+
+    @_simge_skip
+    def test_SIMGE_LISTESI_basiliyor(self, tmp_path):
+        (tmp_path / "ana.tex").write_text(SIMGE_TEX, encoding="utf-8")
+
+        r = _run_derle([str(tmp_path / "ana.tex")], cwd=str(tmp_path),
+                       timeout=180)
+
+        assert (tmp_path / "ana.pdf").exists(), r.stdout[-2000:]
+        metin = _pdf_metni(tmp_path / "ana.pdf")
+        assert "IsikHizi" in metin, metin[-800:]
+        assert "ACIKLAMASI" in metin, metin[-800:]
+
+    @_sozluk_skip
+    def test_YEDEK_arac_devreye_giriyor(self, tmp_path):
+        """`makeglossaries` yoksa Lua sürümü (`-lite`) koşmalı.
+
+        Bazı kurulumlarda Perl yok; ikisi de aynı apt paketinden geliyor.
+        """
+        if not shutil.which("makeglossaries-lite"):
+            pytest.skip("makeglossaries-lite kurulu değil")
+        (tmp_path / "ana.tex").write_text(SOZLUK_TEX, encoding="utf-8")
+
+        subprocess.run(
+            ["bash", "-c", _komutu_gizle("makeglossaries"), SCRIPT,
+             str(tmp_path / "ana.tex")],
+            capture_output=True, text=True, cwd=str(tmp_path), timeout=180,
+            encoding="utf-8")
+
+        # Ölçüt AÇIKLAMA, ad değil: `\gls{lat}` girdinin ADINI gövdede
+        # zaten basıyor, yani "LatexDizgi" sözlük hiç üretilmese de PDF'te
+        # görünüyor. Mutasyon bunu yakaladı: sözlük adımı kapatıldığında bu
+        # kapı yanmıyordu.
+        metin = _pdf_metni(tmp_path / "ana.pdf")
+        assert "ACIKLAMASI" in metin, metin[-800:]
+
+    @pytest.mark.parametrize("tex,uyari_bekleniyor", [
+        (SOZLUK_TEX, True),
+        # Karşı kol: sözlüğü olmayan belgede uyarı ÇIKMAMALI. Koşulsuz
+        # uyarı her derlemeye kalıcı gürültü eklerdi.
+        (MINIMAL_TEX, False),
+    ])
+    def test_arac_yoksa_paket_onerisi(self, tmp_path, tex, uyari_bekleniyor):
+        (tmp_path / "ana.tex").write_text(tex, encoding="utf-8")
+
+        r = subprocess.run(
+            ["bash", "-c",
+             _komutu_gizle("makeglossaries", "makeglossaries-lite"),
+             SCRIPT, str(tmp_path / "ana.tex")],
+            capture_output=True, text=True, cwd=str(tmp_path), timeout=180,
+            encoding="utf-8")
+
+        assert ("Eksik paket: makeglossaries" in r.stdout) is uyari_bekleniyor
+        assert ("texlive-latex-extra" in r.stdout) is uyari_bekleniyor
 
 
 class TestInputInclude:

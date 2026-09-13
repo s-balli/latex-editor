@@ -440,6 +440,61 @@ derle_dosya() {
         fi
     fi
 
+    # Sözlük/kısaltmalar (glossaries) ve simge listesi (nomencl).
+    #
+    # İkisi de kaynakça ve dizinle AYNI iki aşamalı düzende çalışıyor: LaTeX
+    # girdileri bir yardımcı dosyaya yazıyor (`.glo`, `.nlo`), ayrı bir araç
+    # onu sıralayıp basılacak dosyayı üretiyor (`.gls`, `.nls`), sonraki geçiş
+    # onu okuyor. Araç koşmayınca başlık basılıyor, altında hiçbir şey
+    # olmuyor ve HATA DA ÇIKMIYOR; kullanıcı boş bir "Kısaltmalar" sayfası
+    # görüyor. Betik ek geçiş kararında `glo` ve `nls` uzantılarına zaten
+    # bakıyordu, üreten adım eksikti.
+    #
+    # ÖLÇÜLDÜ (2026-09-13, kehanet üretilen PDF'in metni): sözlük girdisi de
+    # simge girdisi de PDF'te YOKTU; araçlar koşulunca ikisi de basılıyor.
+    # Dizin (makeindex) aynı ölçümde KONTROL olarak duruyordu ve o zaten
+    # çalışıyordu, yani ölçüm topyekûn yanlış değildi.
+    if [ -f "$TMPDIR/${ISIM}.glo" ]; then
+        # `makeglossaries` Perl, `makeglossaries-lite` Lua sürümü; ikisi de
+        # aynı apt paketinden geliyor (`dpkg -S` ile doğrulandı) ama bazı
+        # kurulumlarda Perl olmadığı için yalnız lite sürümü çalışıyor.
+        local GLO_ARAC=""
+        command -v makeglossaries &>/dev/null && GLO_ARAC=makeglossaries
+        [ -z "$GLO_ARAC" ] && command -v makeglossaries-lite &>/dev/null \
+            && GLO_ARAC=makeglossaries-lite
+        if [ -n "$GLO_ARAC" ]; then
+            local GLO_CIKTI
+            GLO_CIKTI=$(cd "$TMPDIR" && "$GLO_ARAC" "${ISIM}" 2>&1 || true)
+            local GLO_HATALAR
+            GLO_HATALAR=$(echo "$GLO_CIKTI" | grep -iE "error|warn" || true)
+            if [ -n "$GLO_HATALAR" ]; then
+                echo -e "${SARI}[$GLO_ARAC] $DOSYA_ADI: sozluk uyarilari:${SIFIRLA}"
+                echo "$GLO_HATALAR" | while read -r line; do
+                    printf "${SARI}  %s${SIFIRLA}\n" "$line"
+                done
+            fi
+        else
+            echo -e "${SARI}[uyari] Sözlük için makeglossaries gerekli ama kurulu değil, sözlük boş çıkacak.${SIFIRLA}"
+            printf "${MAVI2}==> Eksik paket: makeglossaries (glossaries aracı)${SIFIRLA}\n"
+            printf "${MAVI2}    sudo apt-get install texlive-latex-extra${SIFIRLA}\n"
+        fi
+    fi
+    if [ -f "$TMPDIR/${ISIM}.nlo" ] && command -v makeindex &>/dev/null; then
+        # nomencl'in kendi stil dosyası; `nomencl.sty` ile aynı pakette
+        # geldiği için belge derlenebiliyorsa o da var.
+        local NLO_CIKTI
+        NLO_CIKTI=$(cd "$TMPDIR" && makeindex -s nomencl.ist \
+            "${ISIM}.nlo" -o "${ISIM}.nls" 2>&1 || true)
+        local NLO_HATALAR
+        NLO_HATALAR=$(echo "$NLO_CIKTI" | grep -iE "error" || true)
+        if [ -n "$NLO_HATALAR" ]; then
+            echo -e "${SARI}[nomencl] $DOSYA_ADI: simge listesi uyarilari:${SIFIRLA}"
+            echo "$NLO_HATALAR" | while read -r line; do
+                printf "${SARI}  %s${SIFIRLA}\n" "$line"
+            done
+        fi
+    fi
+
     # Ek derleme geçişleri — yardımcı dosyalar (toc/bbl/bcf/lof/lot/idx/glo/nls)
     # oluştuysa veya "rerun" mesajı varsa. Çapraz referans/TOC/cleveref için bazen
     # 3-4 geçiş gerekir; bu yüzden sabit 3 yerine rerun bitene (MAX_GECIS'e kadar) döner.
