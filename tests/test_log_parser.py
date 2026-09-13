@@ -140,6 +140,24 @@ class TestWarnings:
         assert len(r.warnings) == 1
         assert r.warnings[0].warning_type == "Font"
 
+    def test_latex_FONT_warning_ayri_baslik(self):
+        r"""`LaTeX Font Warning:` ayrı bir başlık; `LaTeX Warning:` deseni onu
+        görmüyordu. Yazı tipi sessizce değişiyor, derleme başarılı bitiyor."""
+        r = parse_output("LaTeX Font Warning: Font shape `T1/ptm/m/sl'"
+                         " undefined")
+        assert len(r.warnings) == 1
+        assert r.warnings[0].warning_type == "Font"
+        assert r.warnings[0].message.startswith("Font shape")
+
+    def test_luatex_ADSIZ_motor_uyarisi(self):
+        r"""LuaTeX motor adını yazmıyor; pdfTeX'te görünen aynı kusur
+        uygulamanın VARSAYILAN motorunda hiç görünmüyordu."""
+        r = parse_output("warning  (pdf backend): ignoring duplicate"
+                         " destination with the name 'figure.1'")
+        assert len(r.warnings) == 1
+        assert r.warnings[0].warning_type == "LuaTeX"
+        assert r.warnings[0].message.startswith("ignoring duplicate")
+
 
 # --- Öneriler ---
 
@@ -450,6 +468,21 @@ class TestSaranUyarilar:
         raw = "LaTeX Warning: There were undefined references.\nsonraki satir\n"
         r = parse_output(raw)
         assert r.warnings[0].message == "There were undefined references."
+
+    def test_YENI_SINIF_onceki_uyariya_yapistirilmiyor(self):
+        r"""Gerçek korpustan (template3): panelde iki boşluk girintisiyle TAM
+        79 sütun olan bir uyarı, kendinden sonraki `LaTeX Font Warning`
+        satırını YUTUYORDU; iki uyarı tek satırda birleşip biri kayboluyordu.
+        Sınıf `_RE_YAPI_BAS`e eklenmemişti."""
+        onceki = ("  Package lineno Warning: Line number reference failed,"
+                  " re-run to get it right.")
+        assert len(onceki) == _SARMA          # koşul gerçekten kuruluyor
+        raw = (onceki + "\n"
+               + "  LaTeX Font Warning: Font shape `OML/cmm/b/it' in size"
+                 " <5.5> not available\n")
+        r = parse_output(raw)
+        assert len(r.warnings) == 2, [w.message for w in r.warnings]
+        assert r.warnings[1].warning_type == "Font"
 
     def test_bos_satirda_birlestirme_duruyor(self):
         bas = ("LaTeX Warning: Reference `sek:oldukca-uzun-bir-etiket' on"

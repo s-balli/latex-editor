@@ -494,17 +494,23 @@ class TestUyariSuzgeci:
         "pdfTeX warning (ext4): destination with the same identifier",
         "Font T1/ptm/b/n/10 not loadable",
         "Missing character: There is no ı (U+0131) in font ptmr8t!",
+        # 2026-09-14'te gerçek korpustan: ikisi de hiçbir kolda yoktu.
+        "LaTeX Font Warning: Font shape `T1/ptm/m/sl' undefined",
+        "warning  (pdf backend): ignoring duplicate destination with the "
+        "name 'figure.1'",
     ]
 
     @staticmethod
     def _desenler():
-        """Betikteki `UYARI_DESENI` + eksik glif kolu."""
+        """Betikteki İKİ süzgeç kolu da buradan okunuyor, elle yazılmıyor."""
         with open(SCRIPT, encoding="utf-8") as f:
             kaynak = f.read()
-        m = re.search(r"^UYARI_DESENI='([^']*)'", kaynak, re.M)
-        assert m, "UYARI_DESENI bulunamadi"
-        # Eksik glif ayrı bir grep ile, benzersizleştirilerek toplanıyor.
-        return [m.group(1), r"^Missing character:"]
+        desenler = []
+        for ad in ("UYARI_DESENI", "TEKRARLAYAN_UYARI"):
+            m = re.search(r"^%s='([^']*)'" % ad, kaynak, re.M)
+            assert m, "%s bulunamadi" % ad
+            desenler.append(m.group(1))
+        return desenler
 
     @pytest.mark.parametrize("satir", SATIRLAR)
     def test_AYRISTIRICININ_bildigi_sinif_SUZGECTEN_geciyor(self, satir):

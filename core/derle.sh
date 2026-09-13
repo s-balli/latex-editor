@@ -57,6 +57,36 @@ HATA_DESENI='^!|^[^ ].*\.[A-Za-z0-9]+:[0-9]+: '
 # BAŞARILI bitiyor ve kullanıcı ancak okurken fark ediyor.
 UYARI_DESENI='^LaTeX Warning|^Package.*Warning|^Overfull|^Underfull|^(pdfTeX|LuaTeX|XeTeX) warning|^Font .* not loadable'
 
+# TEKRARLAYAN uyarı sınıfları: aynı satır belge boyunca onlarca, yüzlerce
+# kez geçtiği için BENZERSİZLEŞTİRİLİYOR. Yukarıdaki desende olmamaları
+# şart, yoksa iki koldan birden basılırlar.
+#
+# `Missing character:` bu koldaki ilk sınıftı: aynı karakter belge boyunca
+# yüzlerce kez geçiyor (bir şablonda 8226 satır) ve hepsini listelemek
+# Uyarılar sekmesini kullanılmaz yapıyordu. Her (karakter, yazı tipi)
+# ikilisi bir kez bildiriliyor, hacim alfabeyle sınırlı kalıyor.
+#
+# ÖLÇÜLDÜ (2026-09-14, 39 şablonun 55 ana belgesi kendi motoruyla derlenip
+# süzgecin ÖNÜNE gelen metinle panele ULAŞAN metin karşılaştırılarak).
+# İçinde "Warning" geçen 810 satırın 568'ini ne bu süzgeç ne de
+# `core/log_parser.py` tanıyordu; ikisi tek sınıfta toplanıyor:
+#
+#   LaTeX Font Warning: ...   199 satır, 55 belgenin 18'inde
+#     Yazı tipi biçimi yoksa LaTeX sessizce BAŞKASINI koyuyor ve derleme
+#     başarılı bitiyor; kullanıcı ancak PDF'e bakınca fark ediyor.
+#     `^LaTeX Warning` bu satıra UYMUYOR ("LaTeX Font Warning").
+#
+#   warning  (pdf backend): ...   358 satır, 55 belgenin 17'sinde
+#     LuaTeX kendi adını yazmıyor, o yüzden `^(pdfTeX|LuaTeX|XeTeX) warning`
+#     kolu boşa düşüyordu. Aynı kusurun pdfTeX'teki karşılığı ("pdfTeX
+#     warning (ext4): destination with the same identifier ...") panele
+#     ULAŞIYOR. Yani çift etiket uyarısı pdflatex'te görünüyor,
+#     uygulamanın VARSAYILAN motoru lualatex'te hiç görünmüyordu.
+#
+# Sınıf sınıf tasarlanmış belgelerle yapılan önceki ölçüm bunları
+# bulamamıştı: yalnızca akla gelen sınıfları sınıyordu.
+TEKRARLAYAN_UYARI='^Missing character:|^LaTeX Font Warning:|^warning +\('
+
 # Renk kodlari
 KIRMIZI='\033[0;31m'
 YESIL='\033[0;32m'
@@ -675,12 +705,7 @@ derle_dosya() {
     UYARI_SATIRLARI=$(
         {
             echo "$SON_CIKTI" | grep -E "$UYARI_DESENI" || true
-            # Eksik glif satırları BENZERSİZLEŞTİRİLİYOR: aynı karakter
-            # belge boyunca yüzlerce kez geçiyor (ayrıştırıcıdaki ölçüm:
-            # bir şablonda 8226 satır). Her (karakter, yazı tipi) ikilisi
-            # bir kez bildiriliyor; hacim alfabeyle sınırlı kalıyor ve
-            # panelde tekrar yığılmıyor.
-            echo "$SON_CIKTI" | grep '^Missing character:' | sort -u || true
+            echo "$SON_CIKTI" | grep -E "$TEKRARLAYAN_UYARI" | sort -u || true
         } | grep -v '^[[:space:]]*$' || true)
     local UYARI_SAYISI
     UYARI_SAYISI=$(echo "$UYARI_SATIRLARI" | grep -c . || true)

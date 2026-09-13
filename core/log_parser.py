@@ -54,13 +54,28 @@ _RE_PKG_ERROR = re.compile(r'^\s*! Package (\S+) Error: (.+)')
 _RE_LINE_CTX = re.compile(r'^\s*l\.(\d+)')
 # Uyarı satır numarası: "on input line 42" veya "on lines 5--10"
 _RE_WARN_LINE = re.compile(r'(?:on|at) (?:input )?lines? (\d+)')
-# LaTeX uyarısı
-_RE_LATEX_WARN = re.compile(r'^\s*LaTeX Warning: (.+)')
+# LaTeX uyarısı. `LaTeX Font Warning:` AYRI bir başlık ve desene girmiyordu:
+# yazı tipi biçimi yokken LaTeX sessizce başkasını koyuyor, derleme başarılı
+# bitiyor ve kullanıcı ancak PDF'e bakınca fark ediyor. ÖLÇÜLDÜ (2026-09-14):
+# 55 gerçek belgenin 18'inde toplam 199 satır, hepsi görünmezdi.
+#
+# Devam satırı (`(Font)    using ... instead on input line 9.`) BİLEREK
+# dışarıda: `(natbib)` gibi paket devam satırları da öteden beri panele
+# çıkmıyor, tek satırlık kural korunuyor.
+_RE_LATEX_WARN = re.compile(r'^\s*LaTeX( Font)? Warning: (.+)')
 # Paket uyarısı
 _RE_PKG_WARN = re.compile(r'^\s*Package (\S+) Warning: (.+)')
 # Motor uyarısı: "pdfTeX warning (ext4): destination ... duplicate ignored" vb.
 # Çift \label tespiti (error_hints duplicate_label ipucu) bu satırdan gelir.
-_RE_ENGINE_WARN = re.compile(r'^\s*(pdfTeX|LuaTeX|XeTeX) warning[^:]*: (.+)', re.IGNORECASE)
+#
+# LuaTeX KENDİ ADINI YAZMIYOR: "warning  (pdf backend): ignoring duplicate
+# destination with the name 'figure.9'". Motor adı zorunluyken bu biçim hiç
+# eşleşmiyordu, yani aynı kusur pdflatex'te uyarı üretiyor, uygulamanın
+# VARSAYILAN motoru lualatex'te hiç üretmiyordu. ÖLÇÜLDÜ (2026-09-14): 55
+# belgenin 17'sinde 358 satır; panele ulaşan sayısı sıfırdı.
+_RE_ENGINE_WARN = re.compile(
+    r'^\s*(?:(pdfTeX|LuaTeX|XeTeX) warning|warning\s+\([^)]*\))[^:]*:\s*(.+)',
+    re.IGNORECASE)
 # Overfull/Underfull
 _RE_BOX_WARN = re.compile(r'^\s*(Overfull|Underfull) \\\w+ .+')
 # Font uyarısı
@@ -112,14 +127,20 @@ _RE_SCRIPT_ERROR = re.compile(r'^\s*\[hata\]\s*(.+?)\s*$')
 # 1084 uyarının 344'ü (%31.7) sarıyor, 135'i satır numarasını kaybediyor.
 _SARMA = 79
 _RE_UYARI_BAS = re.compile(
-    r'^\s*(?:LaTeX|Package \S+) Warning: ')
+    r'^\s*(?:LaTeX(?: Font)?|Package \S+) Warning: ')
 # Birleştirme YALNIZ uyarılar için. Her 79 sütunluk satırı körlemesine
 # birleştirmek GÜVENSİZ: ölçüldü, 4147 tam-79 satırın 395'inin (%9.5)
 # ardından gerçek bir yapı satırı geliyor (çoğu `l.NN` hata bağlamı) ve onları
 # yutardık.
+# Yeni tanınan iki sınıf BURAYA DA girmek zorunda: bu liste "bu satır bir
+# yapı başlangıcıdır, önceki sarmış satıra yapıştırma" diyor. ÖLÇÜLDÜ
+# (2026-09-14, gerçek korpus): `LaTeX Font Warning` panele ulaşır ulaşmaz,
+# ondan önce gelen tam 79 sütunluk bir uyarı onu YUTUYORDU (template3'te
+# `Package lineno Warning: ...` satırı panelde iki boşluk girintisiyle tam
+# 79 sütun oluyor). İki ayrı uyarı tek satırda birleşip biri kayboluyordu.
 _RE_YAPI_BAS = re.compile(
-    r'^\s*(?:!|l\.\d+|LaTeX Warning:|Package \S+ Warning:|'
-    r'(?:pdfTeX|LuaTeX|XeTeX) warning|Overfull|Underfull|==>|'
+    r'^\s*(?:!|l\.\d+|LaTeX(?: Font)? Warning:|Package \S+ Warning:|'
+    r'(?:pdfTeX|LuaTeX|XeTeX) warning|warning\s+\(|Overfull|Underfull|==>|'
     r'Missing character:)', re.IGNORECASE)
 
 
@@ -304,12 +325,12 @@ def parse_output(raw: str, source_file: str = "") -> CompileResult:
         m = _RE_LATEX_WARN.match(line)
         if m:
             warn_line = 0
-            lm = _RE_WARN_LINE.search(m.group(1))
+            lm = _RE_WARN_LINE.search(m.group(2))
             if lm:
                 warn_line = int(lm.group(1))
             result.warnings.append(LatexWarning(
-                message=m.group(1),
-                warning_type="LaTeX",
+                message=m.group(2),
+                warning_type="Font" if m.group(1) else "LaTeX",
                 file_path=current_file,
                 line_number=warn_line,
             ))
@@ -320,7 +341,8 @@ def parse_output(raw: str, source_file: str = "") -> CompileResult:
         if m:
             result.warnings.append(LatexWarning(
                 message=m.group(2),
-                warning_type=m.group(1),
+                # Adsız biçimi yalnız LuaTeX'in pdf arka ucu yazıyor.
+                warning_type=m.group(1) or "LuaTeX",
                 file_path=current_file,
             ))
             continue

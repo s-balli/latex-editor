@@ -48,7 +48,15 @@ _PATTERNS: list[tuple[re.Pattern, str]] = [
     (re.compile(r"Citation `[^']*' undefined|Citation .* undefined"), "citation_undefined"),
     (re.compile(r"Reference `[^']*' .*undefined|Reference .* undefined"), "reference_undefined"),
     (re.compile(r"There were undefined references|Rerun to get cross"), "rerun_needed"),
-    (re.compile(r"destination with the same identifier"), "duplicate_label"),
+    # İki motor AYNI kusuru başka kelimelerle bildiriyor; ipucu ikisini de
+    # tanımak zorunda. pdfTeX: "destination with the same identifier
+    # (name{figure.1}) has been already used, duplicate ignored".
+    # LuaTeX: "ignoring duplicate destination with the name 'figure.1'".
+    # LuaTeX biçimi tanınmıyordu, yani ipucu uygulamanın VARSAYILAN
+    # motorunda hiç çıkamıyordu (ölçüldü 2026-09-14, 55 gerçek belgenin
+    # 17'sinde 358 satır).
+    (re.compile(r"destination with the same identifier"
+                r"|ignoring duplicate destination"), "duplicate_label"),
     # LaTeX'in kendi çift-etiket uyarısı (ikinci derleme geçesinde):
     # "Label `x' multiply defined." / "There were multiply-defined labels."
     (re.compile(r"multiply.defined labels?|Label `[^']*' multiply defined"),

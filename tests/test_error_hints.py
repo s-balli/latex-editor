@@ -101,6 +101,14 @@ def test_pdftex_duplicate_destination():
     assert get_hint(msg)[0] == "duplicate_label"
 
 
+def test_luatex_duplicate_destination():
+    """Aynı kusurun LuaTeX'teki kelimesi. pdfTeX biçimi tanınıyordu, bu
+    tanınmıyordu; yani ipucu uygulamanın VARSAYILAN motorunda hiç
+    çıkamıyordu (ölçüldü 2026-09-14: 55 belgenin 17'sinde 358 satır)."""
+    msg = "ignoring duplicate destination with the name 'figure.9'"
+    assert get_hint(msg)[0] == "duplicate_label"
+
+
 def test_latex_multiply_defined_label():
     assert get_hint("Label `ciftEtiket' multiply defined.")[0] == "duplicate_label"
     assert get_hint("There were multiply-defined labels.")[0] == "duplicate_label"
