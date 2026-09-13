@@ -373,6 +373,70 @@ def test_bos_dosya_hata_vermiyor(tmp_path):
 # ---------------------------------------------------------------------------
 
 
+class TestCokKolonluSatir:
+    r"""`\multicolumn{n}{...}{...}` TEK hücredir ama n KOLON kaplar.
+
+    Sihirbazın grid'i dikdörtgen olduğu için böyle bir satır sondan boş
+    hücrelerle dolu geliyor; o boşluklar çıktıya `&` olarak girince satır
+    kolon sayısını AŞIYOR ve tablo derlenmiyor.
+
+    ÖLÇÜLDÜ (2026-09-13, kehanet gerçek derleme): 39 şablonun
+    `\multicolumn`/`\multirow` içeren ve tek başına derlenebilen
+    tablolarından ikisi sihirbazdan geçtikten sonra
+    "! Extra alignment tab has been changed to \cr" ile düşüyordu, yani
+    kullanıcı ÇALIŞAN bir tabloyu açıp Ekle'ye basınca belgesi derlenemez
+    hâle geliyordu.
+
+    Karşı kol ayrı sınıfta: `\multicolumn` yoksa kısa satır yine
+    doldurulmalı (bkz. TestDuzensizSatirlar).
+    """
+
+    # Gerçek bir şablondan (template18/empty.tex) türetilmiş biçim: başlık
+    # satırı üç `\multicolumn{2}`, veri satırı altı düz hücre.
+    SATIRLAR = [["", "\\multicolumn{2}{c}{Model 1}",
+                 "\\multicolumn{2}{c}{Model 2}", "", "", ""],
+                ["Ad", "FM", "AUC", "FM", "AUC", "Not"]]
+
+    @staticmethod
+    def _kapsam(satir: str) -> int:
+        """Bir gövde satırının KAPLADIĞI kolon sayısı.
+
+        Ayraç `&` üzerinden bölünüyor, ` & ` üzerinden DEĞİL: satır bir boş
+        hücreyle bitince aradaki boşluk kırpılıyor ve " & " ile bölmek o
+        hücreyi saymıyordu (ilk yazımda kapı bu yüzden yanlış düşmüştü).
+        """
+        n = 0
+        for h in re.split(r"(?<!\\)&", satir):
+            m = re.search(r"\\multicolumn\{(\d+)\}", h)
+            n += int(m.group(1)) if m else 1
+        return n
+
+    def _govde(self, kod: str) -> list[str]:
+        return [s.rstrip()[:-2] for s in kod.split("\n")
+                if s.rstrip().endswith("\\\\")]
+
+    def test_HER_satir_ayni_kolon_sayisini_kapliyor(self):
+        kod = build_tabular(self.SATIRLAR, ["l"] * 6)
+
+        kapsamlar = {self._kapsam(s) for s in self._govde(kod)}
+
+        assert kapsamlar == {6}, (kapsamlar, kod)
+
+    def test_TASMA_bos_olmayan_hucreyi_ATMIYOR(self):
+        """Aşırı düzeltme kapısı: taşmayı kırparak çözmek VERİ silerdi.
+
+        Yalnız SONDAKİ BOŞ hücreler atılıyor; dolu bir hücre taşmayı
+        gideriyor olsa bile duruyor. Bu dosyadaki kardeş kararla aynı
+        yönde: "kırpmak yerine doldurmak, kullanıcının verisi sessizce
+        düşmesin".
+        """
+        satirlar = [["\\multicolumn{2}{c}{Ust}", "Deger"], ["a", "b"]]
+
+        kod = build_tabular(satirlar, ["l", "l"])
+
+        assert "Deger" in kod, kod
+
+
 class TestDuzensizSatirlar:
     """CSV'den gelen satırlar farklı uzunlukta olabilir.
 

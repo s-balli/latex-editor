@@ -150,6 +150,30 @@ class TableOptions:
     extra_args: str = "[htbp]"        # table kılıfı konum parametresi
 
 
+_RE_MULTICOLUMN = re.compile(r"\\multicolumn\s*\{\s*(\d+)\s*\}")
+
+
+def _kapsanan_kolon(cells: list[str]) -> int:
+    r"""Satırın KAPLADIĞI kolon sayısı; hücre sayısıyla aynı olmayabilir.
+
+    `\multicolumn{2}{c}{X}` tek hücredir ama İKİ kolon kaplar. Sayım
+    ikisini ayırmazsa kısa görünen satır "doldurulacak" sanılıp sonuna
+    fazladan `&` ekleniyor ve tablo DERLENMİYOR.
+
+    ÖLÇÜLDÜ (2026-09-13, kehanet gerçek derleme): 39 şablonun
+    `\multicolumn`/`\multirow` içeren ve tek başına derlenebilen
+    tablolarından ikisi sihirbazdan geçince
+    "! Extra alignment tab has been changed to \cr" ile düşüyordu, yani
+    kullanıcı ÇALIŞAN bir tabloyu açıp Ekle'ye basınca belgesi derlenemez
+    hâle geliyordu.
+    """
+    toplam = 0
+    for c in cells:
+        m = _RE_MULTICOLUMN.search(c)
+        toplam += int(m.group(1)) if m else 1
+    return toplam
+
+
 def build_tabular(rows: list[list[str]], aligns: list[str],
                   opts: TableOptions | None = None) -> str:
     """Hücre satırlarından tam LaTeX tablo bloğu üret.
@@ -184,7 +208,14 @@ def build_tabular(rows: list[list[str]], aligns: list[str],
     lines = [begin, f"{ind}{top}"]
     for i, row in enumerate(rows):
         cells = [escape_cell(c) for c in row]
-        cells += [""] * (ncols - len(cells))     # kısa satırlar boş hücreyle
+        # TAŞAN satırın SONDAKİ boş hücreleri atılıyor. Sihirbazın grid'i
+        # DİKDÖRTGEN: `\multicolumn{2}{c}{X}` yazan bir satır kolon sayısına
+        # göre daha AZ hücre tutuyor, grid onu boş hücrelerle dolduruyor ve
+        # o boşluklar çıktıya `&` olarak giriyor.
+        while (len(cells) > 1 and not cells[-1].strip()
+               and _kapsanan_kolon(cells) > ncols):
+            cells.pop()
+        cells += [""] * (ncols - _kapsanan_kolon(cells))  # kısa satır doldur
         lines.append(f"{ind}{' & '.join(cells)} \\\\")
         if opts.header_row and i == 0 and len(rows) > 1:
             lines.append(f"{ind}{mid}")
