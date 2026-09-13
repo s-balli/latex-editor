@@ -648,6 +648,25 @@ _GORSEL_ARAMA_SIRASI = ("", ".pdf", ".png", ".jpg", ".jpeg",
                         ".PDF", ".PNG", ".JPG", ".JPEG", ".eps")
 
 
+# Markdown görseli. BAŞLIK İÇİNDE `]` OLABİLİR: pandoc `\caption` metnini
+# olduğu gibi yazıyor ve o metinde atıf (`[@anahtar]`), köşeli parantezli
+# kısaltma ya da dipnot işareti bulunabiliyor. `[^\]]*` ilk `]`de duruyor,
+# eşleşme kuruluyor ve o görselin yolu HİÇ düzeltilmiyordu: `.md` kaynak
+# klasörün dışına kaydedilince bağlantı kırık kalıyor.
+#
+# ÖLÇÜLDÜ (2026-09-13, 38 şablon uçtan uca dışa aktarıldı): başlığında
+# atıf olan bir şekil (template4, `figures/Example.pdf`) göreli yolla
+# kalıyordu; dosya diskte VAR, yalnız bağ kırık.
+#
+# `\](?!\()`: başlık içindeki `]`e izin var, görselin kapanışı olan
+# `](` dizisine yok. Aynı ders atıf çözümünde de alınmıştı (bkz.
+# `_resolve_md_citations` içindeki iç içe köşeli parantez gerekçesi).
+_RE_MD_GORSEL_GOVDE = r'!\[((?:[^\]]|\](?!\())*)\]\(([^)]+)\)'
+_RE_MD_GORSEL = re.compile(_RE_MD_GORSEL_GOVDE)
+_RE_MD_GORSEL_OLCU = re.compile(
+    r'(' + _RE_MD_GORSEL_GOVDE + r')\s*\{[^}]*width[^}]*\}')
+
+
 def _fix_md_image_paths(tex_path: str, md_path: str):
     r"""Markdown'daki göreceli resim yollarını .tex dizinine göre mutlak yap.
 
@@ -659,8 +678,6 @@ def _fix_md_image_paths(tex_path: str, md_path: str):
     try:
         with open(md_path, "r", encoding="utf-8") as f:
             content = f.read()
-
-        import re
 
         def _replace(m):
             alt = m.group(1)
@@ -687,9 +704,8 @@ def _fix_md_image_paths(tex_path: str, md_path: str):
         # pandoc'un görsel niteliğini yalnız GÖRSEL sözdizimine bağlıyken
         # kaldır. Eski desen belge genelinde 'width' geçen her küme parantezli
         # bloğu siliyordu (metin içindeki {image width: 5cm} gibi örnekler dahil).
-        content = re.sub(
-            r'(!\[[^\]]*\]\([^)]+\))\s*\{[^}]*width[^}]*\}', r'\1', content)
-        content = re.sub(r'!\[([^\]]*)\]\(([^)]+)\)', _replace, content)
+        content = _RE_MD_GORSEL_OLCU.sub(r'\1', content)
+        content = _RE_MD_GORSEL.sub(_replace, content)
 
         with open(md_path, "w", encoding="utf-8") as f:
             f.write(content)

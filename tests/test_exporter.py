@@ -323,6 +323,67 @@ class TestFixMdImagePaths:
         # str(tex_file.parent) ters bölü verdiği için karşılaştırma normalize edilir.
         assert str(tex_file.parent).replace(os.sep, "/") in content
 
+    def test_BASLIKTA_koseli_parantez_yolu_ENGELLEMIYOR(self, tmp_path):
+        r"""Şekil başlığında `]` olabilir: atıf, kısaltma, dipnot işareti.
+
+        Desen ilk `]`de duruyordu, eşleşme kuruluyor ve o görselin yolu
+        HİÇ düzeltilmiyordu; `.md` kaynak klasörün dışına kaydedilince bağ
+        kırık kalıyor. ÖLÇÜLDÜ (2026-09-13, 38 şablon uçtan uca dışa
+        aktarıldı): başlığında atıf olan bir şekilde yol göreli kalıyordu,
+        dosya diskte VARKEN.
+        """
+        (tmp_path / "figures").mkdir()
+        (tmp_path / "figures" / "Example.pdf").write_bytes(b"%PDF-1.4\n")
+        tex_file = tmp_path / "doc.tex"
+        tex_file.write_text("no graphicspath", encoding="utf-8")
+        md_file = tmp_path / "doc.md"
+        md_file.write_text(
+            "![Ornek sekil [@PFGPlots].](figures/Example.pdf)"
+            '{#fig:figure width="0.7\\\\columnwidth"}',
+            encoding="utf-8")
+
+        _fix_md_image_paths(str(tex_file), str(md_file))
+
+        icerik = md_file.read_text(encoding="utf-8")
+        assert str(tmp_path).replace(os.sep, "/") in icerik, icerik
+        assert "[@PFGPlots]" in icerik, icerik       # başlık korunuyor
+        # Ölçü niteliği de temizleniyor: o kol da aynı gövdeyi kullanıyor.
+        assert "width=" not in icerik, icerik
+
+    def test_AYNI_SATIRDA_iki_gorsel_BIRLESMIYOR(self, tmp_path):
+        """Karşı kol: başlıktaki `]`e izin verirken kapanış kaçmamalı.
+
+        Desen `](` dizisini korumazsa iki görsel tek eşleşmede birleşiyor
+        ve ikincisinin yolu ilkinin başlığına gömülüyor.
+        """
+        (tmp_path / "a.png").write_bytes(b"\x89PNG\r\n")
+        (tmp_path / "b.png").write_bytes(b"\x89PNG\r\n")
+        tex_file = tmp_path / "doc.tex"
+        tex_file.write_text("no graphicspath", encoding="utf-8")
+        md_file = tmp_path / "doc.md"
+        md_file.write_text("![bir](a.png) ve ![iki](b.png)", encoding="utf-8")
+
+        _fix_md_image_paths(str(tex_file), str(md_file))
+
+        icerik = md_file.read_text(encoding="utf-8")
+        assert icerik.count("![") == 2, icerik
+        for ad in ("a.png", "b.png"):
+            assert (str(tmp_path).replace(os.sep, "/") + "/" + ad) in icerik, \
+                icerik
+
+    def test_BASLIKSIZ_gorsel_hala_duzeliyor(self, tmp_path):
+        """Karşı kol: genişletilen desen olağan biçimi bozmamalı."""
+        (tmp_path / "a.png").write_bytes(b"\x89PNG\r\n")
+        tex_file = tmp_path / "doc.tex"
+        tex_file.write_text("no graphicspath", encoding="utf-8")
+        md_file = tmp_path / "doc.md"
+        md_file.write_text("![](a.png)", encoding="utf-8")
+
+        _fix_md_image_paths(str(tex_file), str(md_file))
+
+        assert str(tmp_path).replace(os.sep, "/") in md_file.read_text(
+            encoding="utf-8")
+
     def test_absolute_path_unchanged(self, tmp_path):
         tex_file = tmp_path / "doc.tex"
         tex_file.write_text("no graphicspath", encoding="utf-8")
