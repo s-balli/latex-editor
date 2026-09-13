@@ -62,6 +62,48 @@ def test_dialog_options_live_preview(qapp):
     assert dlg._preview.toPlainText() == code
 
 
+def test_ARADAKI_bos_satir_KORUNUYOR(qapp):
+    r"""Var olan tabloda ARALIK için konmuş boş satır silinmemeli.
+
+    Kullanıcının en olağan hareketi imleci tablonun içine koyup sihirbazı
+    açmak ve "Ekle"ye basmak. ÖLÇÜLDÜ (2026-09-13, 39 şablonun 255
+    tablosu): aradaki boş satırlar atılıyordu ve Hacettepe tez şablonunun
+    jüri onay sayfası 15 satırdan 10'a iniyordu.
+
+    Boş hücre metin üretmediği için `pdftotext` bu farkı göstermiyor;
+    kehanet sayfanın KENDİSİ oldu: beş satırlık bir tablo üçe inince ilk
+    sayfanın %0.33'ü değişiyor (satırlar ve altındaki metin kayıyor).
+    """
+    text = ("\\begin{tabular}{ll}\n"
+            "Baskan & imza \\\\\n"
+            " & \\\\\n"
+            "Danisman & imza \\\\\n"
+            "\\end{tabular}\n")
+    block = parse_tabular_at(text, text.index("Baskan"))
+    dlg = TableWizardDialog()
+
+    dlg.load_block(block)
+
+    assert len(dlg.cells()) == 3, dlg.cells()
+    assert dlg.cells()[1] == ["", ""], dlg.cells()
+    # Üretilen kodda da duruyor: satır sayacı gövdedeki `\\` sayısı.
+    assert dlg.result_text().count("\\\\") == 3, dlg.result_text()
+
+
+def test_SONDAKI_bos_satirlar_hala_ATILIYOR(qapp):
+    """Karşı kol: grid'in doldurulmamış alt satırları çıktıya girmemeli.
+
+    Üretim kipinin olağan hâli bu; düzeltme onu bozmamalı.
+    """
+    dlg = TableWizardDialog()
+    dlg._rows.setValue(5)
+    dlg._resize_grid()
+    dlg._grid.setItem(0, 0, QTableWidgetItem("Ad"))
+    dlg._grid.setItem(1, 0, QTableWidgetItem("Deger"))
+
+    assert len(dlg.cells()) == 2, dlg.cells()
+
+
 def test_dialog_load_block_edits_existing(qapp):
     text = ("\\begin{table}\n\\begin{tabular}{lr}\n\\toprule\n"
             "Ad & Deger \\\\\n\\midrule\na & 1 \\\\\n\\bottomrule\n"

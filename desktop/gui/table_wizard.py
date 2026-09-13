@@ -362,15 +362,31 @@ class TableWizardDialog(QDialog):
             self._label_manual = True
 
     def cells(self) -> list[list[str]]:
-        """Grid'den hücre satırlarını oku (tamamen boş satırlar atılır)."""
+        """Grid'den hücre satırlarını oku; SONDAKİ boş satırlar atılır.
+
+        ARADAKİ boş satır KORUNUYOR. Eskiden boş olan her satır atılıyordu
+        ve bu, var olan bir tabloyu düzenlerken kullanıcının ARALIK için
+        koyduğu satırları siliyordu. ÖLÇÜLDÜ (2026-09-13, 39 şablonun 255
+        tablosu): üç tabloda satır kayboluyordu, biri Hacettepe tez
+        şablonunun jüri onay sayfası (15 satır 10'a iniyor).
+
+        Boş hücre metin üretmediği için `pdftotext` bu farkı göstermiyor;
+        kehanet sayfanın KENDİSİ oldu. Beş satırlık bir tabloda üç satıra
+        inince ilk sayfanın %0.33'ü (6594 piksel) değişiyor: satırlar
+        yukarı kayıyor ve altındaki metin de kayıyor.
+
+        Sondakileri atmak yerinde duruyor: grid'in doldurulmamış alt
+        satırları çıktıya girmesin (üretim kipinin olağan hâli).
+        """
         rows = []
         for i in range(self._grid.rowCount()):
             row = []
             for j in range(self._grid.columnCount()):
                 item = self._grid.item(i, j)
                 row.append(item.text() if item else "")
-            if any(c.strip() for c in row):
-                rows.append(row)
+            rows.append(row)
+        while rows and not any(c.strip() for c in rows[-1]):
+            rows.pop()
         return rows
 
     def _aligns(self) -> list[str]:
