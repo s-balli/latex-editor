@@ -1095,6 +1095,79 @@ def test_F2_atif_ailesini_guncelliyor(kullanim):
     assert latex_refs.cite_rename_spans(kullanim, "k1"), kullanim
 
 
+# =====================================================================
+# Belgenin KENDİ tanımladığı ikinci kaynakça
+#
+# natbib ve multibib'in `\newcites{further}{Kaynaklar}` komutu SONEKLİ bir
+# atıf ailesi daha türetiyor (`\citefurther{...}`). Sonek belgenin seçtiği
+# bir ad olduğu için sabit listeye yazılamaz; bildirimden okunmak zorunda.
+#
+# ÖLÇÜLDÜ (2026-09-13, template11, LaTeX'in kendi kayıtlarıyla): belgede 18
+# sonekli atıf var, uygulama 3'ünü görüyordu. Yukarıdaki iki zarar da
+# gerçekleşiyordu:
+#   denetim  7 girdilik `.bib`in 4'üne "Kullanılmayan .bib girdisi" diyordu,
+#            oysa LaTeX dördünü de `.aux`a `\citation` olarak yazmıştı.
+#   F2       `.bib` girdisini değiştirip kullanımların 0'ına dokunuyordu;
+#            sonrasında BibTeX "I didn't find a database entry" deyip
+#            kaynakçayı 4 girdiden 3'e düşürüyordu (belgede `[?]`).
+# =====================================================================
+
+def _newcites_projesi(tmp_path, onsoz, kullanim):
+    (tmp_path / "refs.bib").write_text(
+        "@article{k1, author={A}, title={T}, journal={J}, year={2020}}\n",
+        encoding="utf-8")
+    tex = tmp_path / "d.tex"
+    tex.write_text("\\documentclass{article}\n\\usepackage{natbib}\n"
+                   "\\bibliography{refs}\n" + onsoz +
+                   "\\begin{document}\n" + kullanim +
+                   "\n\\end{document}\n", encoding="utf-8")
+    return tex
+
+
+def test_DENETIM_belgenin_TANIMLADIGI_atif_ailesini_goruyor(tmp_path):
+    """Kırılırsa panel gerçekten atıf yapılan girdiye "Kullanılmayan .bib
+    girdisi" deyip kullanıcıyı onu silmeye çağırıyor."""
+    tex = _newcites_projesi(tmp_path, "\\newcites{further}{Kaynaklar}\n",
+                            r"\citefurther{k1}")
+
+    d = latex_refs.audit_references(tex.read_text(encoding="utf-8"), str(tex))
+
+    assert d.unused_bib_keys == [], d.unused_bib_keys
+    assert d.undefined_cites == [], d.undefined_cites
+
+
+def test_F2_belgenin_TANIMLADIGI_atif_ailesini_guncelliyor():
+    """Kırılırsa F2 `.bib` girdisini değiştirip kullanımı olduğu gibi
+    bırakıyor; BibTeX girdiyi bulamıyor ve kaynakçada `[?]` basılıyor."""
+    metin = "\\newcites{further}{Kaynaklar}\n\\citefurther{k1}\n"
+
+    assert latex_refs.cite_rename_spans(metin, "k1"), metin
+
+
+@pytest.mark.parametrize("onsoz,kullanim", [
+    ("", r"\citefurther{k1}"),
+    # `IEEEtran.cls` ve `ASYU.cls` bu kullanımı YORUM satırında örnekliyor
+    # (ölçüldü, beş şablonda). Yorum bildirim sayılırsa olmayan bir `sec`
+    # ailesi uydurulur.
+    ("% \\newcites{sec}{Secondary Literature}\n", r"\citesec{k1}"),
+    # Bildirim VAR ama komut o aileden değil. `\citestyle` natbib'in gerçek
+    # bir komutu ve argümanı bir anahtar değil, stil adı; atıf sayılırsa
+    # "Tanımsız \cite: plainnat" diye kalıcı sahte bulgu çıkar.
+    ("\\newcites{further}{Kaynaklar}\n", r"\citestyle{plainnat}"),
+])
+def test_BILDIRIM_YOKSA_sonekli_komut_atif_SAYILMIYOR(tmp_path, onsoz,
+                                                      kullanim):
+    """Karşı kol: aile UYDURULMAMALI. Belge tanımlamadığı sürece
+    `\\citefurther` bir atıf komutu değil; anahtarını atıf saymak bu kez
+    ters yönde sahte bulgu üretirdi."""
+    tex = _newcites_projesi(tmp_path, onsoz, kullanim)
+
+    d = latex_refs.audit_references(tex.read_text(encoding="utf-8"), str(tex))
+
+    assert d.unused_bib_keys == ["k1"], d.unused_bib_keys
+    assert d.undefined_cites == [], d.undefined_cites
+
+
 # --- Aşırı düzeltme kapıları ---
 
 def test_TEKIL_komuttan_sonraki_suslu_parantez_anahtar_DEGIL():

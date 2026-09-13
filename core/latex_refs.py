@@ -676,6 +676,52 @@ _RE_CITEUSE = re.compile(
     r'\s*(?:\[[^\]]*\]\s*)*\{([^}]*)\}'
 )
 
+# Belgenin KENDİ tanımladığı ikinci kaynakça: natbib ve multibib'in
+# `\newcites{further}{Kaynaklar}` komutu SONEKLİ bir atıf ailesi daha
+# türetiyor (`\citefurther{...}`, `\nocitefurther{...}`). Sonek belgenin
+# seçtiği bir ad olduğu için sabit listeye yazılamaz, BİLDİRİMDEN okunması
+# gerekir.
+#
+# ÖLÇÜLDÜ (2026-09-13, template11, LaTeX'in kendi kayıtlarıyla): belgede
+# 18 sonekli atıf var, uygulama 3'ünü (yalnız soneksiz olanları) görüyordu.
+# Yukarıdaki iki zarar da gerçekleşiyordu:
+#   denetim  7 girdilik .bib'in 4'üne "Kullanılmayan .bib girdisi" diyordu;
+#            LaTeX o dördü de `.aux`a `\citation` olarak yazmıştı.
+#   F2       `.bib` girdisini değiştirip kullanımların 0'ına dokunuyordu;
+#            sonrasında BibTeX "I didn't find a database entry" deyip
+#            kaynakçayı 4 girdiden 3'e düşürüyordu (belgede `[?]`).
+_RE_NEWCITES = re.compile(r'\\newcites\s*\{([^}]*)\}')
+# Sonek bir komut ADININ parçası: yalnız harf olabilir. Doğrulama şart,
+# çünkü sonek doğrudan bir regex'e giriyor.
+_RE_NEWCITES_EK = re.compile(r'^[A-Za-z]+$')
+
+
+def _atif_deseni(texts) -> re.Pattern:
+    r"""Belgeye ÖZGÜ atıf deseni: `\newcites` sonekli aile de dahil.
+
+    ``texts``: bildirimi arayacağımız metinler. YORUMLARI SOYULMUŞ olmalı;
+    `IEEEtran.cls` ve `ASYU.cls` `\newcites` kullanımını yorum satırında
+    ÖRNEKLİYOR (ölçüldü, beş şablonda), yorum soyulmazsa olmayan bir
+    `sec` ailesi uydurulurdu.
+
+    Bildirim yoksa ortak `_RE_CITEUSE` döner: olağan belge fazladan tek bir
+    regex derlemesi bile ödemiyor.
+    """
+    ekler = sorted({e for t in texts if 'newcites' in t
+                    for m in _RE_NEWCITES.finditer(t)
+                    for e in (x.strip() for x in m.group(1).split(','))
+                    if _RE_NEWCITES_EK.match(e)})
+    if not ekler:
+        return _RE_CITEUSE
+    # Sonekliler önce yazılıyor; sıra DAVRANIŞI değiştirmiyor (denendi:
+    # ters sırayla da aynı sonuç, çünkü `cite` kolu `\citefurther`de
+    # tıkanıp geri izliyor). Okurken türetilmiş ailenin önce görünmesi için.
+    adlar = [k + e for e in ekler for k in _CITE_KOMUTLARI]
+    return re.compile(
+        r'\\(?:' + '|'.join(adlar + list(_CITE_KOMUTLARI)) + r')\*?'
+        r'\s*(?:\[[^\]]*\]\s*)*\{([^}]*)\}'
+    )
+
 
 def find_cite_usage(bib_path: str, key: str) -> tuple[str, int] | None:
     """\\bib girdisi ``key``'in makalede \\cite edildiği (tex yolu, satır) konumu.
@@ -715,8 +761,10 @@ def find_cite_usage(bib_path: str, key: str) -> tuple[str, int] | None:
                     text = f.read()
             except OSError:
                 continue
-            for i, ln in enumerate(strip_comments(text).split('\n'), start=1):
-                for m in _RE_CITEUSE.finditer(ln):
+            temiz = strip_comments(text)
+            desen = _atif_deseni([temiz])
+            for i, ln in enumerate(temiz.split('\n'), start=1):
+                for m in desen.finditer(ln):
                     keys = [k.strip() for k in m.group(1).split(',')]
                     if key in keys:
                         return (path, i)
@@ -852,13 +900,14 @@ def audit_references(content: str, base_path: str) -> RefAudit:
     zincirdeki çocuk dosyalar diskten okunur.
     """
     texts = _audit_texts(content, base_path)
+    atif = _atif_deseni(texts)
     used_refs: set[str] = set()
     used_cites: set[str] = set()
     nocite_all = False
     for t in texts:
         for m in _RE_REFUSE.finditer(t):
             used_refs.update(_kullanim_anahtarlari(m))
-        for m in _RE_CITEUSE.finditer(t):
+        for m in atif.finditer(t):
             # '*' bir anahtar DEĞİL: \nocite{*} "hepsini kaynakçaya al" demek.
             # _RE_CITEUSE \nocite'ı da kapsadığı için '*' used_cites'a giriyor,
             # hiçbir .bib girdisiyle eşleşmiyor ve "Tanımsız \cite: *" diye
@@ -939,9 +988,10 @@ def bib_key_locations(content: str, base_path: str) -> dict[str, tuple[str, int]
 def key_usage_locations(content: str, base_path: str,
                         family: str) -> dict[str, tuple[str, int]]:
     """``family`` ('ref'|'cite') anahtarları → ilk kullanım (dosya, satır)."""
-    pat = _RE_REFUSE if family == "ref" else _RE_CITEUSE
     out: dict[str, tuple[str, int]] = {}
     entries = [(base_path, strip_comments(content))] + _chain_texts(content, base_path)
+    pat = (_RE_REFUSE if family == "ref"
+           else _atif_deseni([t for _p, t in entries]))
     for path, t in entries:
         for i, ln in enumerate(t.split('\n'), start=1):
             for m in pat.finditer(ln):
@@ -959,8 +1009,9 @@ def find_key_usage(content: str, base_path: str, key: str, family: str) -> tuple
     anahtarlı kullanımda (\\cref{a,b}) segment segment eşleşilir.
     Bulunamazsa None.
     """
-    pat = _RE_REFUSE if family == "ref" else _RE_CITEUSE
     entries = [(base_path, strip_comments(content))] + _chain_texts(content, base_path)
+    pat = (_RE_REFUSE if family == "ref"
+           else _atif_deseni([t for _p, t in entries]))
     for path, t in entries:
         for i, ln in enumerate(t.split('\n'), start=1):
             for m in pat.finditer(ln):
@@ -1044,7 +1095,9 @@ def cite_rename_spans(text: str, old: str) -> list[tuple[int, int]]:
     """
     tarama = _yeniden_adlandirma_taramasi(text)
     spans: list[tuple[int, int]] = []
-    for m in _RE_CITEUSE.finditer(tarama):
+    # Bildirim YORUMU SOYULMUŞ metinde aranıyor (bkz. `_atif_deseni`);
+    # aralıklar ise `tarama` üzerinde, çünkü uzunluğu özgün metinle aynı.
+    for m in _atif_deseni([strip_comments(text)]).finditer(tarama):
         spans.extend(_segment_araliklari(m, old))
     return spans
 
