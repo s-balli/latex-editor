@@ -16,10 +16,23 @@ from dataclasses import dataclass
 # Denetlenen harici araçlar (derleme zincirinin tamamı)
 TOOLS = ("lualatex", "pdflatex", "xelatex", "biber", "pandoc", "synctex", "pygmentize")
 
-# Yoksun araca karşılık gelen Ubuntu/Debian paketi. xelatex önerisi
-# engine_detector/derle.sh'tekiyle aynı (texlive-xetex).
+# Yoksun araca karşılık gelen Ubuntu/Debian paketi. Ölçüt: aracın KOMUTUNU
+# hangi paket getiriyorsa o.
+#
+# DOĞRULANDI (2026-09-13, `dpkg -S $(command -v <araç>)`):
+#   pdflatex -> texlive-latex-base      lualatex   -> texlive-latex-base
+#   xelatex  -> texlive-xetex           biber      -> biber
+#   synctex  -> texlive-binaries        pandoc     -> pandoc
+#   pygmentize -> python3-pygments
+#
+# `lualatex` için `texlive-luatex` YAZIYORDU ve yanlıştı: o pakette
+# `lualatex` diye bir komut yok ve `texlive-latex-base`e bağımlı da değil,
+# yani önerilen komut çalıştıktan sonra motor yine bulunamıyordu.
+#
+# Motor satırları `core/derle.sh`deki `MOTOR_PAKET` ile aynı olmak zorunda;
+# `tests/test_motor_paketi.py` ikisinin ayrışmadığını sabitliyor.
 APT_HINTS = {
-    "lualatex": "texlive-luatex",
+    "lualatex": "texlive-latex-base",
     "pdflatex": "texlive-latex-base",
     "xelatex": "texlive-xetex",
     "biber": "biber",

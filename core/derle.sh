@@ -309,9 +309,24 @@ derle_dosya() {
 
     # Motor kurulu mu? — biber/bibtex deseninde öneriyle bildir (GUI Öneriler
     # sekmesi bu çıktıyı parse eder).
+    # Paket adları: motor KOMUTUNU (sembolik bağı) hangi paket getiriyorsa o.
+    #
+    # DOĞRULANDI (2026-09-13, `dpkg -S /usr/bin/<motor>`):
+    #   /usr/bin/pdflatex  -> texlive-latex-base
+    #   /usr/bin/lualatex  -> texlive-latex-base
+    #   /usr/bin/xelatex   -> texlive-xetex
+    #
+    # `lualatex` için `texlive-luatex` YAZIYORDU ve yanlıştı: o paketin
+    # içinde `lualatex` diye bir komut yok (`dpkg -L`: checkcites,
+    # luaotfload-tool, optex, texfindpkg) ve `texlive-latex-base`e de
+    # bağımlı değil. Yani TeX'siz bir makinede önerilen komut çalıştıktan
+    # sonra `lualatex` yine bulunamıyordu.
+    #
+    # Aynı eşlem `core/env_check.py`deki APT_HINTS'te de duruyor; ikisinin
+    # ayrışmadığını `tests/test_motor_paketi.py` sabitliyor.
     local MOTOR_PAKET
     case "$MOTOR" in
-        lualatex) MOTOR_PAKET="texlive-luatex" ;;
+        lualatex) MOTOR_PAKET="texlive-latex-base" ;;
         pdflatex) MOTOR_PAKET="texlive-latex-base" ;;
         xelatex)  MOTOR_PAKET="texlive-xetex" ;;
     esac
