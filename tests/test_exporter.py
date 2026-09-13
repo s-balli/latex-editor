@@ -37,6 +37,7 @@ from core.exporter import (
     _export_wsl,
     _preprocess_tex,
     _find_bibliography,
+    _resolve_md_bibitem_citations,
     _resolve_md_citations,
     _refs_basligi,
     _pandoc_csljson,
@@ -171,6 +172,38 @@ class TestExport:
         with patch("os.path.exists", return_value=True):
             export("/home/user/doc.tex", "/home/user/doc.md")
         mock_fix.assert_called_once()
+
+    @patch("core.exporter._resolve_md_bibitem_citations")
+    @patch("core.exporter._fix_md_image_paths")
+    @patch("core.exporter._find_bibliography", return_value=[])
+    @patch("core.exporter._export_native", return_value=(True, ""))
+    @patch("core.exporter.PLATFORM", "linux")
+    def test_md_export_BIBSIZ_belgede_bibitem_kolunu_cagiriyor(
+            self, mock_native, mock_bib, mock_fix, mock_coz):
+        r"""`.bib` yoksa kaynakça elle yazılmış olabilir; o kol koşmalı.
+
+        Kırılırsa `[@b1]` Markdown'da ham kalıyor (ölçüldü: 38 şablonun
+        10'unda, 143 atıf).
+        """
+        with patch("os.path.exists", return_value=True):
+            export("/home/user/doc.tex", "/home/user/doc.md")
+
+        mock_coz.assert_called_once()
+
+    @patch("core.exporter._resolve_md_citations")
+    @patch("core.exporter._resolve_md_bibitem_citations")
+    @patch("core.exporter._fix_md_image_paths")
+    @patch("core.exporter._find_bibliography", return_value=["/r.bib"])
+    @patch("core.exporter._export_native", return_value=(True, ""))
+    @patch("core.exporter.PLATFORM", "linux")
+    def test_md_export_BIBLI_belgede_citeproc_kolu_kosuyor(
+            self, mock_native, mock_bib, mock_fix, mock_coz, mock_cite):
+        """Karşı kol: `.bib` varsa citeproc yolu, bibitem yolu DEĞİL."""
+        with patch("os.path.exists", return_value=True):
+            export("/home/user/doc.tex", "/home/user/doc.md")
+
+        mock_cite.assert_called_once()
+        mock_coz.assert_not_called()
 
     @patch("core.exporter._export_native", return_value=(True, ""))
     @patch("core.exporter.PLATFORM", "linux")
@@ -528,6 +561,79 @@ class TestExportIntegration:
         assert "Kazemi" in content          # citeproc çözümü
         assert "[@" not in content          # çözülmemiş cite kalmadı
         assert "# " not in content          # markdown başlık yok (gerçek plain)
+
+
+class TestBibitemAtiflari:
+    r"""`.bib` YOKKEN, kaynakça `\begin{thebibliography}` ile elle yazılmış.
+
+    pandoc'a `--citeproc` verilemediği için `[@b1]` çözülmeden kalıyordu:
+    Markdown'ı okuyan kişi için anlamsız bir işaret, oysa LaTeX aynı
+    belgede `[1]` basıyor. ÖLÇÜLDÜ (2026-09-13, 38 şablon uçtan uca dışa
+    aktarıldı): çözülmemiş 149 atıfın 143'ü bu durumdan geliyordu ve
+    hepsinin belgesinde `\bibitem` girdileri hazır duruyordu.
+
+    pandoc GEREKMİYOR: fonksiyon üretilmiş Markdown üzerinde çalışıyor.
+    """
+
+    TEX = ("\\documentclass{article}\n\\begin{document}\n"
+           "Bkz. \\cite{b1} ve \\cite{b2}.\n"
+           "\\begin{thebibliography}{00}\n"
+           "\\bibitem{b1} Yilmaz, A., Bir Calisma, 2020.\n"
+           "\\bibitem{b2} Demir, B., Baska Calisma, 2021.\n"
+           "\\end{thebibliography}\n\\end{document}\n")
+
+    def _proje(self, tmp_path, md_icerik):
+        tex = tmp_path / "ana.tex"
+        tex.write_text(self.TEX, encoding="utf-8")
+        md = tmp_path / "ana.md"
+        md.write_text(md_icerik, encoding="utf-8")
+        return tex, md
+
+    def test_atif_BIBITEM_SIRASINA_gore_numaralaniyor(self, tmp_path):
+        tex, md = self._proje(tmp_path, "Bkz. [@b1] ve [@b2].\n")
+
+        _resolve_md_bibitem_citations(str(md), str(tex))
+
+        icerik = md.read_text(encoding="utf-8")
+        assert "Bkz. [1] ve [2]." in icerik, icerik
+        assert "[@b" not in icerik, icerik
+
+    def test_COK_ANAHTARLI_grup_birlikte_numaralaniyor(self, tmp_path):
+        tex, md = self._proje(tmp_path, "Bkz. [@b1; @b2].\n")
+
+        _resolve_md_bibitem_citations(str(md), str(tex))
+
+        assert "[1, 2]" in md.read_text(encoding="utf-8")
+
+    @pytest.mark.parametrize("md_icerik,kalmali", [
+        # Bilinmeyen anahtar: yarım çeviri ham kalıntıdan daha yanıltıcı.
+        ("Bkz. [@yokboyle].\n", "[@yokboyle]"),
+        # KARIŞIK grup: biri bilinmeyense grubun tamamı olduğu gibi kalır.
+        # Yalnız bilinmeyeni atıp `[1]` yazmak kaynağı YANLIŞ gösterirdi.
+        ("Bkz. [@b1; @yokboyle].\n", "[@b1; @yokboyle]"),
+        # Önek/sonek taşıyan grup kullanıcının yazdığı metni taşıyor.
+        ("Bkz. [bkz. @b1].\n", "[bkz. @b1]"),
+        ("Bkz. [@b1 s. 12].\n", "[@b1 s. 12]"),
+    ])
+    def test_DOKUNULMAYAN_gruplar(self, tmp_path, md_icerik, kalmali):
+        """Karşı kol: çeviri yalnız SADECE anahtardan oluşan gruplarda."""
+        tex, md = self._proje(tmp_path, md_icerik)
+
+        _resolve_md_bibitem_citations(str(md), str(tex))
+
+        assert kalmali in md.read_text(encoding="utf-8")
+
+    def test_BIBITEM_yoksa_dosyaya_dokunulmuyor(self, tmp_path):
+        tex = tmp_path / "ana.tex"
+        tex.write_text("\\documentclass{article}\n\\begin{document}\n"
+                       "Bkz. \\cite{b1}.\n\\end{document}\n",
+                       encoding="utf-8")
+        md = tmp_path / "ana.md"
+        md.write_text("Bkz. [@b1].\n", encoding="utf-8")
+
+        _resolve_md_bibitem_citations(str(md), str(tex))
+
+        assert md.read_text(encoding="utf-8") == "Bkz. [@b1].\n"
 
 
 class TestResolveMdCitations:

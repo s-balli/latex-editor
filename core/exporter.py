@@ -87,6 +87,10 @@ def export(tex_path: str, dest_path: str) -> tuple[bool, str]:
             if bibs:
                 # tmp_tex citeproc referans üretimi için lazım; silinmeden önce çağır.
                 _resolve_md_citations(dest_path, tmp_tex, bibs)
+            else:
+                # `.bib` yoksa kaynakça elle yazılmış olabilir; atıflar
+                # `\bibitem` sırasına göre numaralanır (bkz. fonksiyon).
+                _resolve_md_bibitem_citations(dest_path, tex_path)
         elif ok and hedef_ext == ".docx":
             _fix_docx_compat(dest_path)
     except Exception as e:
@@ -244,6 +248,82 @@ def _refs_basligi(tex_path: str) -> str:
     return _REFS_BASLIK.get(belgeden_dil(kaynak) or "", "References")
 
 
+# Markdown'daki atıf grubu ve anahtarı. TEK KAYNAK: hem `.bib`li citeproc
+# yolu hem `.bib`siz (elle yazılmış kaynakça) yolu aynı kuralı kullanıyor.
+#
+# Grubun İÇİNDE `[` YASAK: en İÇTEKİ köşeli parantezle eşleşiyoruz;
+# gerekçesi ve ölçümü aşağıdaki kullanım yerinde.
+_RE_MD_ATIF_GRUBU = re.compile(r"\[([^\[\]]*@[^\[\]]+)\]")
+_RE_MD_ANAHTAR = re.compile(r"@([A-Za-z0-9_:+-]+)")
+
+
+def _atif_anahtarlari(inside: str) -> list[str] | None:
+    """Grup SADECE anahtarlardan mı oluşuyor; öyleyse anahtar listesi.
+
+    Önek/sonek taşıyan gruplara (`[e.g. @k]`, `[@k 162]`) dokunulmuyor:
+    kullanıcının yazdığı metin kaybolmasın.
+    """
+    keys = _RE_MD_ANAHTAR.findall(inside)
+    if not keys:
+        return None
+    if _RE_MD_ANAHTAR.sub("", inside).replace(";", "").strip():
+        return None
+    return keys
+
+
+def _resolve_md_bibitem_citations(md_path: str, tex_path: str):
+    r"""`.bib` YOKKEN `[@anahtar]` atıflarını `[N]` yap.
+
+    Kaynakçasını `\begin{thebibliography}` ile ELLE yazan belgelerde
+    `.bib` dosyası yok, o yüzden pandoc'a `--citeproc` verilemiyor ve
+    `[@b1]` çözülmeden kalıyor. Markdown okuyan kişi için bu, anlamsız bir
+    işaret; LaTeX aynı belgede `[1]` basıyor.
+
+    ÖLÇÜLDÜ (2026-09-13, 38 şablon uçtan uca dışa aktarıldı): 10 şablonda
+    çözülmemiş atıf kaldı ve HEPSİ `.bib`i olmayan, `\bibitem` kullanan
+    belgelerdi (ör. template19: 23 kalıntı, belgede 34 `\bibitem`).
+
+    Numara `\bibitem` SIRASI: LaTeX'in sayısal kaynakça biçimiyle aynı ve
+    pandoc kaynakça bloğunu da aynı sırada yazıyor.
+    """
+    from core.latex_refs import parse_bibitems
+
+    try:
+        with open(tex_path, "rb") as f:
+            icerik = coz(f.read())
+    except OSError:
+        return
+    girdiler = parse_bibitems(icerik, tex_path)
+    if not girdiler:
+        return
+    numara = {g[0]: i for i, g in enumerate(girdiler, 1)}
+
+    def repl(m):
+        keys = _atif_anahtarlari(m.group(1))
+        if not keys:
+            return m.group(0)
+        sayilar = [numara.get(k) for k in keys]
+        # Bilinmeyen anahtar varsa GRUBA DOKUNMA: yarım çeviri, ham
+        # kalıntıdan daha yanıltıcı olurdu.
+        if any(n is None for n in sayilar):
+            return m.group(0)
+        return "[" + ", ".join(str(n) for n in sayilar) + "]"
+
+    try:
+        with open(md_path, "r", encoding="utf-8") as f:
+            content = f.read()
+    except OSError:
+        return
+    yeni = _RE_MD_ATIF_GRUBU.sub(repl, content)
+    if yeni == content:
+        return
+    try:
+        with open(md_path, "w", encoding="utf-8") as f:
+            f.write(yeni)
+    except OSError as e:
+        _logger.warning("MD bibitem atıf çözme başarısız: %s", e)
+
+
 def _resolve_md_citations(md_path: str, tex_path: str, bibs=()):
     r"""Markdown'daki [@key] citation'larını çöz ve referans listesi ekle.
 
@@ -291,13 +371,8 @@ def _resolve_md_citations(md_path: str, tex_path: str, bibs=()):
         return
 
     def repl(m):
-        inside = m.group(1)
-        keys = re.findall(r"@([A-Za-z0-9_:+-]+)", inside)
+        keys = _atif_anahtarlari(m.group(1))
         if not keys:
-            return m.group(0)
-        # Sadece @key(ler) ve ;/boşluk varsa değiştir; prefix/suffix varsa dokunma.
-        stripped = re.sub(r"@[A-Za-z0-9_:+-]+", "", inside).replace(";", "").strip()
-        if stripped:
             return m.group(0)
         shorts = []
         for k in keys:
@@ -319,7 +394,7 @@ def _resolve_md_citations(md_path: str, tex_path: str, bibs=()):
     # şekil başlığında ham `[@PFGPlots]` görünüyordu.
     #
     # Daralttığı için önek/sonek kolunu BOZMUYOR: o gruplarda `[` yok.
-    content = re.sub(r"\[([^\[\]]*@[^\[\]]+)\]", repl, content)
+    content = _RE_MD_ATIF_GRUBU.sub(repl, content)
 
     # --- 2) referans listesi: citeproc HTML -> refs div -> plain ---
     if PLATFORM == "win32":
