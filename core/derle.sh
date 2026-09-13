@@ -22,6 +22,19 @@ SIFIRLA='\033[0m'
 MAVI2='\033[1;36m'
 
 # Eksik dosya → paket eşleme tablosu
+#
+# DOĞRULANDI (2026-09-13, Ubuntu/TeX Live): her dosya `kpsewhich` ile
+# bulunup sahibi `dpkg -S` ile soruldu. 32 denetlenebilir girdinin 5'i YANLIŞ
+# pakete gönderiyordu (kullanıcı komutu çalıştırıp yine aynı hatayı alırdı):
+#
+#   cancel.sty      texlive-science     -> texlive-latex-extra
+#   nicefrac.sty    texlive-science     -> texlive-latex-extra
+#   units.sty       texlive-science     -> texlive-latex-extra
+#   emulateapj.cls  texlive-publishers  -> texlive-latex-extra
+#   pifont.sty      texlive-fonts-extra -> texlive-latex-base
+#
+# Kalan 5 girdi bu kurulumda yüklü olmadığı için denetlenemedi; paket
+# ADLARININ apt'de var olduğu ayrıca doğrulandı.
 declare -A PAKET_HARITASI=(
     # texlive-humanities
     ["phonrule.sty"]="texlive-humanities"
@@ -32,7 +45,6 @@ declare -A PAKET_HARITASI=(
     ["revtex4-2.cls"]="texlive-publishers"
     ["revtex4-1.cls"]="texlive-publishers"
     ["revtex4.cls"]="texlive-publishers"
-    ["emulateapj.cls"]="texlive-publishers"
     ["aastex.cls"]="texlive-publishers"
     ["aguplus.cls"]="texlive-publishers"
     ["agu2018.bst"]="texlive-publishers"
@@ -43,9 +55,11 @@ declare -A PAKET_HARITASI=(
     ["chemformula.sty"]="texlive-science"
     ["chemmacros.sty"]="texlive-science"
     ["siunitx.sty"]="texlive-science"
-    ["units.sty"]="texlive-science"
-    ["nicefrac.sty"]="texlive-science"
-    ["cancel.sty"]="texlive-science"
+    # texlive-latex-extra (dpkg ile doğrulandı; üçü de science sanılıyordu)
+    ["units.sty"]="texlive-latex-extra"
+    ["nicefrac.sty"]="texlive-latex-extra"
+    ["cancel.sty"]="texlive-latex-extra"
+    ["emulateapj.cls"]="texlive-latex-extra"
     # texlive-pstricks
     ["pstricks.sty"]="texlive-pstricks"
     ["pst-node.sty"]="texlive-pstricks"
@@ -56,7 +70,8 @@ declare -A PAKET_HARITASI=(
     ["fontawesome.sty"]="texlive-fonts-extra"
     ["fontawesome5.sty"]="texlive-fonts-extra"
     ["dingbat.sty"]="texlive-fonts-extra"
-    ["pifont.sty"]="texlive-fonts-extra"
+    # texlive-latex-base (pifont temel kurulumda; dpkg ile doğrulandı)
+    ["pifont.sty"]="texlive-latex-base"
     # texlive-bibtex-extra
     ["plainurl.bst"]="texlive-bibtex-extra"
     ["apacite.bst"]="texlive-bibtex-extra"
@@ -71,6 +86,15 @@ declare -A PAKET_HARITASI=(
 )
 
 # Babel dil → paket eşleme tablosu
+#
+# DOĞRULANDI (2026-09-13, Ubuntu): beş girdi apt'de HİÇ OLMAYAN paket adları
+# veriyordu, yani kullanıcı komutu çalıştırınca "Unable to locate package"
+# alıyordu. Debian bu dilleri tek pakette topluyor:
+#
+#   danish, dutch, finnish, norwegian, swedish  ->  texlive-lang-european
+#
+# Tablodaki 27 paket adının tamamı `apt-cache policy` ile denetlendi;
+# yalnız bu beşi yoktu.
 declare -A BABEL_HARITASI=(
     ["brazil"]="texlive-lang-portuguese"
     ["portuguese"]="texlive-lang-portuguese"
@@ -78,7 +102,7 @@ declare -A BABEL_HARITASI=(
     ["french"]="texlive-lang-french"
     ["german"]="texlive-lang-german"
     ["italian"]="texlive-lang-italian"
-    ["dutch"]="texlive-lang-dutch"
+    ["dutch"]="texlive-lang-european"
     ["polish"]="texlive-lang-polish"
     ["czech"]="texlive-lang-czechslovak"
     ["slovak"]="texlive-lang-czechslovak"
@@ -88,10 +112,10 @@ declare -A BABEL_HARITASI=(
     ["chinese"]="texlive-lang-chinese"
     ["korean"]="texlive-lang-korean"
     ["arabic"]="texlive-lang-arabic"
-    ["finnish"]="texlive-lang-finnish"
-    ["swedish"]="texlive-lang-swedish"
-    ["norwegian"]="texlive-lang-norwegian"
-    ["danish"]="texlive-lang-danish"
+    ["finnish"]="texlive-lang-european"
+    ["swedish"]="texlive-lang-european"
+    ["norwegian"]="texlive-lang-european"
+    ["danish"]="texlive-lang-european"
 )
 
 # Eksik paket tespiti
