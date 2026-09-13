@@ -13,6 +13,38 @@ set -euo pipefail
 # çalıştığından yol baştan temizlenir.
 unset LD_LIBRARY_PATH LD_PRELOAD
 
+# TeX günlüğü varsayılan olarak 79 sütunda SARIYOR. Açılan dosyanın adı da
+# sarıyor ve ikiye bölünüyor; uygulama hangi dosyada olduğunu günlükteki
+# `(dosya ... )` yığınından çıkardığı için bölünen ad yığına hiç girmiyor ve
+# hata YANLIŞ DOSYAYA yazılıyor.
+#
+# ÖLÇÜLDÜ (2026-09-13, hatayı bilerek belli bir satıra koyup): 70 karakteri
+# aşan bir yol altındaki bölüm dosyasındaki hata ana belgeye atfediliyordu,
+# yani kullanıcı hataya tıklayınca ana dosyanın sağlam bir satırına
+# gidiyordu. `max_print_line=1000` ile ad tek parça kalıyor ve hata kendi
+# dosyasına düşüyor. latexmk de aynı değişkeni aynı gerekçeyle ayarlıyor.
+export max_print_line=1000
+
+# Hata satırı deseni. TEK KAYNAK: üç ayrı yerde kullanılıyor ve motora
+# `-file-line-error` verildiği için İKİ biçim birden geçerli.
+#
+# `-file-line-error` olmadan TeX yalnız "! Undefined control sequence."
+# yazıyor; hangi dosyada olduğu günlüğün `(dosya ... )` iç içe
+# parantezlerinde duruyor ve bu betik kullanıcıya YALNIZ hata bloklarını
+# bastığı için o bilgi GUI'ye HİÇ ulaşmıyordu. Sonuç: `\input` ile bölünmüş
+# bir belgede her hata ANA DOSYAYA atfediliyor, kullanıcı hataya tıklayınca
+# ana belgenin sağlam bir satırına gidiyordu (ölçüldü 2026-09-13, hata
+# bilerek belli bir dosyanın belli bir satırına konarak: yedi kurgunun
+# yedisinde de dosya ana belge çıkıyordu).
+#
+# `-file-line-error` ile hatanın başına "./bolum/ch1.tex:3: " geliyor, yani
+# bağlamı MOTORUN KENDİSİ taşıyor ve yeniden kurmaya gerek kalmıyor.
+#
+# Ada BOŞLUK serbest (`./bolum/ch bir.tex:3: ...`); ayırt edici olan
+# `.<uzanti>:<sayi>: ` üçlüsü. Boşluksuz yazılınca boşluklu dosya adı olan
+# projelerde hata satırı hiç basılmıyordu (ölçüldü).
+HATA_DESENI='^!|^[^ ].*\.[A-Za-z0-9]+:[0-9]+: '
+
 # Renk kodlari
 KIRMIZI='\033[0;31m'
 YESIL='\033[0;32m'
@@ -338,11 +370,11 @@ derle_dosya() {
     fi
 
     local DERLEME_CIKTI DERLEME_HATA=0 HATA_OLDU=0
-    DERLEME_CIKTI=$(cd "$KLASOR" && "$MOTOR" -interaction=nonstopmode $SHELL_ESCAPE_FLAG $SYNCTEX_FLAG -output-directory="$TMPDIR" -- "$DOSYA_ADI" 2>&1) || DERLEME_HATA=$?
+    DERLEME_CIKTI=$(cd "$KLASOR" && "$MOTOR" -interaction=nonstopmode -file-line-error $SHELL_ESCAPE_FLAG $SYNCTEX_FLAG -output-directory="$TMPDIR" -- "$DOSYA_ADI" 2>&1) || DERLEME_HATA=$?
 
     if [ $DERLEME_HATA -ne 0 ]; then
         local HATALAR
-        HATALAR=$(echo "$DERLEME_CIKTI" | grep -A4 -E '^!' | grep -v '^--$' | head -60)
+        HATALAR=$(echo "$DERLEME_CIKTI" | grep -A4 -E "$HATA_DESENI" | grep -v '^--$' | head -60)
         if [ "$USE_WATCH" = true ]; then
             echo -e "${KIRMIZI}[hata] $(date +%H:%M:%S) — Derleme basarisiz:${SIFIRLA}"
         else
@@ -535,7 +567,7 @@ derle_dosya() {
         while [ "$GECIS" -lt "$MAX_GECIS" ]; do
             [ "$MINTED_VAR" = true ] && minted_pyg_bagla "$KLASOR" "$TMPDIR" "$ISIM"
             local EK_CIKTI
-            EK_CIKTI=$(cd "$KLASOR" && "$MOTOR" -interaction=nonstopmode $SHELL_ESCAPE_FLAG $SYNCTEX_FLAG -output-directory="$TMPDIR" -- "$DOSYA_ADI" 2>&1) || true
+            EK_CIKTI=$(cd "$KLASOR" && "$MOTOR" -interaction=nonstopmode -file-line-error $SHELL_ESCAPE_FLAG $SYNCTEX_FLAG -output-directory="$TMPDIR" -- "$DOSYA_ADI" 2>&1) || true
             SON_CIKTI="$EK_CIKTI"
             GECIS=$((GECIS + 1))
             echo "$SON_CIKTI" | grep -q "Rerun to get\|Label(s) may have changed" || break
@@ -545,7 +577,7 @@ derle_dosya() {
     # Hata var mı? (exit kodu VEYA çıktıda ^! hataları). PDF mesajından ÖNCE
     # belirlenmeli ki çelişkili "[basarili]" + "[hata]" çıktısı oluşmasın.
     local HATA_SATIRLARI
-    HATA_SATIRLARI=$(echo "$SON_CIKTI" | grep -A1 -E '^!' | grep -v '^--$' || true)
+    HATA_SATIRLARI=$(echo "$SON_CIKTI" | grep -A1 -E "$HATA_DESENI" | grep -v '^--$' || true)
     if [ "$DERLEME_HATA" -ne 0 ] || [ -n "$HATA_SATIRLARI" ]; then
         HATA_OLDU=1
     fi
@@ -580,7 +612,7 @@ derle_dosya() {
             echo -e "${KIRMIZI}[hata] $DOSYA_ADI — PDF olusmadi${SIFIRLA}"
         fi
         local HATALAR
-        HATALAR=$(echo "$DERLEME_CIKTI" | grep -A4 -E '^!' | grep -v '^--$' | head -60)
+        HATALAR=$(echo "$DERLEME_CIKTI" | grep -A4 -E "$HATA_DESENI" | grep -v '^--$' | head -60)
         if [ -n "$HATALAR" ]; then
             echo "$HATALAR" | while read -r line; do
                 printf "${KIRMIZI}  %s${SIFIRLA}\n" "$line"

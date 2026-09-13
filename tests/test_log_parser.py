@@ -63,6 +63,43 @@ class TestErrors:
         # File ref before error → current_file updated
         assert r.errors[0].file_path == "chapter1.tex"
 
+    # --- `-file-line-error` biçimi: dosyayı MOTOR söylüyor ---
+    #
+    # Parantez yığını yalnız motorun HAM günlüğünde işe yarıyor; `derle.sh`
+    # GUI'ye yalnız hata bloklarını bastığı için `(dosya ...)` işaretleri
+    # oraya hiç ulaşmıyordu ve `\input` ile bölünmüş belgelerde HER hata ana
+    # dosyaya atfediliyordu (ölçüldü 2026-09-13, hata bilerek belli bir
+    # dosyanın belli bir satırına konarak: on kurgunun onunda da yanlış).
+    # Motora `-file-line-error` verilince bağlamı hatanın kendisi taşıyor.
+
+    def test_DOSYA_SATIR_bicimi_dosyayi_ve_satiri_veriyor(self):
+        r = parse_output("./bolum/ch1.tex:3: Undefined control sequence.\n"
+                         "l.3 \\budur", source_file="ana.tex")
+
+        assert len(r.errors) == 1, r.errors
+        assert r.errors[0].file_path == "./bolum/ch1.tex"
+        assert r.errors[0].line_number == 3
+        assert "Undefined control sequence" in r.errors[0].message
+
+    def test_DOSYA_ADINDA_BOSLUK_olsa_da_okunuyor(self):
+        r = parse_output("./bolum/ch bir.tex:7: Missing $ inserted.",
+                         source_file="ana.tex")
+
+        assert len(r.errors) == 1, r.errors
+        assert r.errors[0].file_path == "./bolum/ch bir.tex"
+        assert r.errors[0].line_number == 7
+
+    def test_ZAMAN_damgali_satir_hata_SAYILMIYOR(self):
+        """Karşı kol: `saat:dakika:` üçlüsü hata biçimine benziyor.
+
+        Ayırt edici uzantı; olmasaydı `derle.sh`nin kendi zaman damgalı
+        satırları hata listesine girerdi.
+        """
+        r = parse_output("[derleniyor] 12:30: ana.tex baslatildi",
+                         source_file="ana.tex")
+
+        assert r.errors == [], r.errors
+
 
 # --- Uyarılar ---
 

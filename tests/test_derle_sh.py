@@ -1,6 +1,7 @@
 """derle.sh — derleme betiği testleri."""
 
 import os
+import re
 import shutil
 import signal
 import subprocess
@@ -422,6 +423,56 @@ class TestKaynakca:
             capture_output=True, text=True, cwd=str(tmp_path), timeout=120, encoding="utf-8")
         assert "Eksik paket: biber" in r.stdout
         assert "sudo apt-get install biber" in r.stdout
+
+
+class TestHataKonumu:
+    r"""Hata, HANGİ DOSYADA olduğuysa orada gösterilmeli.
+
+    `derle.sh` GUI'ye motorun ham günlüğünü değil, yalnız hata bloklarını
+    basıyor; günlükteki `(dosya ...)` işaretleri o akışta hiç yok. Bu yüzden
+    `\input` ile bölünmüş belgelerde HER hata ana dosyaya atfediliyordu ve
+    kullanıcı hataya tıklayınca ana belgenin sağlam bir satırına gidiyordu.
+
+    ÖLÇÜLDÜ (2026-09-13, hata bilerek belli bir dosyanın belli bir satırına
+    konarak): on kurgunun onunda da dosya ana belge çıkıyordu; motora
+    `-file-line-error` verilince onunda da doğru dosya çıkıyor.
+    """
+
+    ALT_TEX = "Duz satir.\nDuz satir.\n\\budurBilinmeyenKomut\nDuz satir.\n"
+
+    def _derle_ve_ayristir(self, tmp_path):
+        from core.log_parser import parse_output
+
+        (tmp_path / "bolum").mkdir()
+        (tmp_path / "bolum" / "ch1.tex").write_text(self.ALT_TEX,
+                                                    encoding="utf-8")
+        (tmp_path / "ana.tex").write_text(
+            "\\documentclass{article}\n\\begin{document}\n"
+            "\\input{bolum/ch1}\n\\end{document}\n", encoding="utf-8")
+
+        r = _run_derle([str(tmp_path / "ana.tex")], cwd=str(tmp_path),
+                       timeout=180)
+
+        # GUI de çıktıyı ANSI'den arındırıp parse_output'a veriyor
+        # (core/compiler.py'deki aynı desen).
+        temiz = re.sub(r"\x1b\[[0-9;]*m", "", r.stdout)
+        return parse_output(temiz, str(tmp_path / "ana.tex")), r
+
+    def test_ALT_DOSYADAKI_hata_o_dosyaya_atfediliyor(self, tmp_path):
+        sonuc, r = self._derle_ve_ayristir(tmp_path)
+
+        assert sonuc.errors, r.stdout[-1500:]
+        hata = sonuc.errors[0]
+        assert hata.file_path.replace("\\", "/").endswith("bolum/ch1.tex"), \
+            hata.file_path
+        assert hata.line_number == 3, hata.line_number
+
+    def test_hata_mesaji_hala_okunuyor(self, tmp_path):
+        """Karşı kol: biçim değişti, mesajın kendisi kaybolmamalı."""
+        sonuc, r = self._derle_ve_ayristir(tmp_path)
+
+        assert any("Undefined control sequence" in (h.message or "")
+                   for h in sonuc.errors), [h.message for h in sonuc.errors]
 
 
 class TestSozlukVeSimge:

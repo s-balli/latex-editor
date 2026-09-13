@@ -42,6 +42,12 @@ class CompileResult:
 
 # Hata satırı: "! Undefined control sequence." vb.
 _RE_ERROR = re.compile(r'^\s*! (.+)')
+# `-file-line-error` biçimi: "./bolum/ch1.tex:3: Undefined control sequence."
+# Dosya adı BOŞLUK taşıyabiliyor, o yüzden ada boşluk serbest; ayırt edici
+# olan `:<sayı>: ` üçlüsü. Uzantı zorunlu tutuluyor ki "Package foo: 3: ..."
+# gibi düz yazı hata sanılmasın.
+_RE_FILE_LINE_ERROR = re.compile(
+    r'^\s*(\S[^:]*\.[A-Za-z0-9]+):(\d+): (.+)')
 # Paket hatası: "! Package babel Error: ..."
 _RE_PKG_ERROR = re.compile(r'^\s*! Package (\S+) Error: (.+)')
 # Satır numarası bağlamı: "l.42 \badcommand"
@@ -175,7 +181,30 @@ def _mantiksal_satirlar(ham: list[str]) -> list[str]:
 # Dosya açılışı `(ad.uzanti`, kapanışı `)`. Her açılış yığına giriyor
 # (kapanışlar dengelensin diye), ama rapor edilen yalnız kullanıcının
 # .tex kaynağı: `.cls`/`.sty` yüklemeleri ebeveynin adını taşıyor.
-_RE_PAREN = re.compile(r'\((?:\./)?([^\s()]*\.[A-Za-z0-9]+)|(\))')
+#
+# Ad BOŞLUK taşıyabiliyor: TeX `(./bolum/ch bir.tex` diye yazıyor ve
+# boşluksuz desen adı `./bolum/ch` diye kesip eşleşmiyordu, yani dosya
+# yığına hiç girmiyor ve içindeki hata ANA BELGEYE atfediliyordu (ölçüldü
+# 2026-09-13, hata bilerek belli bir satıra konarak).
+#
+# Boşluğa izin vermenin bedeli düz yazıyı dosya sanmak. Bu yüzden boşluklu
+# aday yalnız DİSKTE VARSA kabul ediliyor (bkz. `_dosya_adayi`); boşluksuz
+# adaylarda davranış birebir eskisi gibi kalıyor.
+_RE_PAREN = re.compile(r'\((?:\./)?([^()]*?\.[A-Za-z0-9]+)(?=[\s()]|$)|(\))')
+
+
+def _dosya_adayi(ad: str, base_dir: str) -> bool:
+    """Parantez içindeki aday GERÇEKTEN bir dosya mı.
+
+    Yalnız boşluklu adlar için soruluyor; boşluksuzlar eski davranışta
+    kalsın diye. Kehanet dosya sisteminin kendisi: TeX ancak var olan bir
+    dosyayı açar.
+    """
+    if " " not in ad:
+        return True
+    if not base_dir:
+        return False
+    return os.path.isfile(os.path.join(base_dir, ad))
 
 
 def parse_output(raw: str, source_file: str = "") -> CompileResult:
@@ -191,6 +220,8 @@ def parse_output(raw: str, source_file: str = "") -> CompileResult:
     # doğrulandı: 59 şablonun 230 hatasında doğruluk %97.4'ten %98.7'ye
     # çıkıyor, gerileme yok.
     dosya_yigini: list[str] = [source_file]
+    kaynak_dizin = os.path.dirname(os.path.abspath(source_file)) \
+        if source_file else ""
 
     lines = _mantiksal_satirlar(raw.split('\n'))
     current_error: LatexError | None = None
@@ -205,6 +236,8 @@ def parse_output(raw: str, source_file: str = "") -> CompileResult:
         for pm in _RE_PAREN.finditer(line):
             if pm.group(1):
                 ad = pm.group(1)
+                if not _dosya_adayi(ad, kaynak_dizin):
+                    continue
                 kullanilabilir = (ad.endswith(".tex")
                                   and not os.path.isabs(ad))
                 dosya_yigini.append(ad if kullanilabilir else dosya_yigini[-1])
@@ -235,6 +268,20 @@ def parse_output(raw: str, source_file: str = "") -> CompileResult:
                 message=f"[{m.group(1)}] {m.group(2)}",
                 file_path=current_file,
             )
+            continue
+
+        # `-file-line-error` biçimi: "./bolum/ch1.tex:3: Undefined ..."
+        # Dosyayı ve satırı MOTORUN KENDİSİ söylüyor; parantez yığınından
+        # çıkarmaya gerek yok ve zaten derle.sh yalnız hata bloklarını
+        # bastığı için yığın oradan hiç beslenmiyordu (bkz. derle.sh'deki
+        # HATA_DESENI gerekçesi).
+        m = _RE_FILE_LINE_ERROR.match(line)
+        if m:
+            if current_error:
+                result.errors.append(current_error)
+            current_error = LatexError(message=m.group(3).strip(),
+                                       file_path=m.group(1),
+                                       line_number=int(m.group(2)))
             continue
 
         # Genel hata
