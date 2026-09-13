@@ -391,12 +391,23 @@ def test_GERCEK_akista_gercek_twocolumn_hala_figure_yildiz(gercek_ekle):
 # YOLDAKI karakterler: kacirilamaz, ama sessiz kalinmaz
 #
 # `graphicx` dosyanin birebir adini istiyor, `\%` yazmak onu bulunamaz
-# yapiyor. OLCULDU (2026-09-06, pdflatex, `\includegraphics{<ad>}`):
+# yapiyor. Uygulama satiri yine de ekliyor (kullanicinin dosyasini
+# kendiliginden yeniden adlandirmiyor) ama sebebini durum cubugunda soyluyor.
+#
+# OLCULDU (2026-09-13, her ad icin GERCEK bir dosya uretilip belge
+# pdflatex, lualatex ve xelatex ile derlendi; ucunde de ayni sonuc):
 #     %  -> "! File ended while scanning use of \Gin@ii."
 #     #  -> "! Illegal parameter number in definition of \@tempb."
-# Bosluk, `& $ ^ ~ { }` ise sorunsuz derleniyor. Uygulama satiri yine de
-# ekliyor (kullanicinin dosyasini kendiliginden yeniden adlandirmiyor) ama
-# sebebini durum cubugunda soyluyor.
+#     {  -> "! File ended while scanning ..."     (arguman kapanmiyor)
+#     }  -> "! LaTeX Error: File `sekil' not found."  (arguman erken bitiyor)
+#     "  -> "! Use of \Gin@ii doesn't match its definition."
+# Bosluk, `_ & $ ^ ~ . , [ ]` ve Turkce harfler sorunsuz derleniyor.
+#
+# Ters bolu de kiriyor ama uyari koluna HIC ulasamiyor: yol eklenmeden once
+# `replace('\\', '/')` ile ayraca cevriliyor. Onun icin kapi da yok.
+#
+# Ilk yazimda listede yalniz `%` ve `#` vardi; buradaki not `{ }` icin
+# "sorunsuz derleniyor" diyordu ve olcum bunun YANLIS oldugunu gosterdi.
 # ==========================================================================
 
 @pytest.fixture
@@ -438,7 +449,10 @@ def ekle_ve_mesaj(qapp, monkeypatch, tmp_path):
 
 
 @pytest.mark.parametrize("ad,karakter", [("kar%orani.png", "%"),
-                                         ("sekil#2.png", "#")])
+                                         ("sekil#2.png", "#"),
+                                         ("sekil{a.png", "{"),
+                                         ("sekil}a.png", "}"),
+                                         ('sekil"a.png', '"')])
 def test_YOLDAKI_kirici_karakter_KULLANICIYA_soyleniyor(ekle_ve_mesaj, ad,
                                                         karakter):
     kod, mesaj = ekle_ve_mesaj(ad)
@@ -454,7 +468,9 @@ def test_IKI_karakter_birden_ikisini_de_soyluyor(ekle_ve_mesaj):
 
 @pytest.mark.parametrize("ad", ["duz.png", "alt_cizgi.png", "ve&li.png",
                                "dolar$li.png", "supap^li.png",
-                               "bosluk li.png", "tilde~li.png"])
+                               "bosluk li.png", "tilde~li.png",
+                               "nokta.v2.png", "virgul,2.png",
+                               "koseli[1].png", "şekil.png"])
 def test_DERLENEN_adlarda_uyari_YOK(ekle_ve_mesaj, ad):
     """Asiri uyari kapisi: olculdu, bu adlarin hepsi sorunsuz derleniyor."""
     _kod, mesaj = ekle_ve_mesaj(ad)

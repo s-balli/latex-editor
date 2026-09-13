@@ -15,6 +15,30 @@ from core.latex_utils import label_key, strip_comments
 
 _ = lambda s: QCoreApplication.translate("ImageOpsMixin", s)
 
+# `\includegraphics{<yol>}` içinde belgeyi DERLENEMEZ yapan karakterler.
+#
+# ÖLÇÜLDÜ (2026-09-13, her ad için gerçek bir dosya üretilip belge pdflatex,
+# lualatex ve xelatex ile derlendi; üç motorda da sonuç aynı):
+#
+#   %   ! File ended while scanning use of \Gin@ii.
+#   #   ! Illegal parameter number in definition of \@tempb.
+#   {   ! File ended while scanning ...            (argüman kapanmıyor)
+#   }   ! LaTeX Error: File `sekil' not found.     (argüman erken bitiyor)
+#   "   ! Use of \Gin@ii doesn't match its definition.
+#
+# Boşluk, `_ & $ ^ ~ . , [ ]` ve Türkçe harfler sorunsuz derleniyor; onları
+# listeye almak çalışan adlarda sahte uyarı üretirdi.
+#
+# Liste ilk yazıldığında yalnız `%` ve `#` vardı ve kaynaktaki not `{ }`
+# için "sorunsuz derleniyor" diyordu; ölçüm bunun YANLIŞ olduğunu gösterdi.
+# `{ }` Windows'ta da dosya adında geçerli, yani ulaşılabilir bir durum;
+# `"` yalnız Linux/macOS'ta.
+#
+# TERS BÖLÜ listede YOK, çünkü buraya hiç ulaşamıyor: yol yukarıda
+# `replace('\\', '/')` ile ayraca çevriliyor. (Ölçüldü: o ad da derlemeyi
+# "! Missing \endcsname inserted." ile kırıyor, ama uyarı kolu görmüyor.)
+_YOLDA_KIRICI = ("%", "#", "{", "}", '"')
+
 # \documentclass[seçenekler]{sınıf} — grup 1 seçenekler, grup 2 sınıf adı
 _RE_DOCCLASS = re.compile(r'\\documentclass\s*(\[[^\]]*\])?\s*\{([^}]*)\}')
 
@@ -267,12 +291,9 @@ class ImageOpsMixin:
 
         # YOL kaçırılamaz: `graphicx` dosyanın birebir adını istiyor, `\%`
         # yazmak dosyayı bulunamaz yapar. Ama sessiz de kalınmamalı, çünkü
-        # bu satır derlenmiyor. Ölçüldü (2026-09-06, pdflatex): yol içinde
-        #   %  -> "! File ended while scanning use of \Gin@ii."
-        #   #  -> "! Illegal parameter number in definition of \@tempb."
-        # Boşluk, `& $ ^ ~ { }` ise sorunsuz derleniyor, o yüzden listede yok.
-        # Kullanıcı hatayı derleme kütüğünde görmeden önce sebebini öğreniyor.
-        sorunlu = [k for k in ("%", "#") if k in rel_path]
+        # bu satır derlenmiyor. Kullanıcı hatayı derleme kütüğünde görmeden
+        # önce sebebini öğreniyor.
+        sorunlu = [k for k in _YOLDA_KIRICI if k in rel_path]
         if sorunlu:
             self._status.showMessage(
                 _("Dosya adındaki {} LaTeX'te görsel yolu olarak "
