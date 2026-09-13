@@ -447,12 +447,14 @@ class TestSozlukVeSimge:
         metin = _pdf_metni(tmp_path / "ana.pdf")
         assert "ACIKLAMASI" in metin, metin[-800:]
 
+    # `ids`: belge metni test adına girince CI günlüğünde satır satır ham
+    # LaTeX görünüyor ve hangi kolun düştüğü okunamıyor.
     @pytest.mark.parametrize("tex,uyari_bekleniyor", [
         (SOZLUK_TEX, True),
         # Karşı kol: sözlüğü olmayan belgede uyarı ÇIKMAMALI. Koşulsuz
         # uyarı her derlemeye kalıcı gürültü eklerdi.
         (MINIMAL_TEX, False),
-    ])
+    ], ids=["sozluklu", "sozluksuz"])
     def test_arac_yoksa_paket_onerisi(self, tmp_path, tex, uyari_bekleniyor):
         (tmp_path / "ana.tex").write_text(tex, encoding="utf-8")
 
