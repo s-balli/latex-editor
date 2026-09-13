@@ -498,3 +498,45 @@ def test_magic_comment_TAKMA_ADLARI_tablosundan_cozuluyor():
         assert _magic_engine_from_content(icerik) == beklenen, ad
 
     assert _magic_engine_from_content("% !TEX program = kimyager\nx\n") is None
+
+
+# --- Önsöz \input ile bölünmüş olabilir (2026-09-13) ---
+
+
+class TestOnsozZinciri:
+    r"""Önsözünü ayrı dosyaya bölen belgede (`\input{paketler}`) sinyal
+    paketi ana dosyada görünmüyordu; motor yanlış seçilip PDF hiç
+    üretilmiyordu (gerçek derlemeyle ölçüldü, bkz. `_zincir_onsozu`)."""
+
+    def test_alt_dosyadaki_sinyal_goruluyor(self, tmp_path):
+        (tmp_path / "paketler.tex").write_text(
+            "\\usepackage{mathspec}\n", encoding="utf-8")
+        tex = tmp_path / "main.tex"
+        tex.write_text("\\documentclass{article}\n"
+                       "\\input{paketler}\n"
+                       "\\begin{document}x\\end{document}\n", encoding="utf-8")
+        assert detect_engine(str(tex)) == "xelatex"
+
+    def test_ana_dosya_ve_zincir_TEK_onsoz(self, tmp_path):
+        r"""Ana dosyada pdflatex sinyali, alt dosyada fontspec: önsöz bir
+        bütün olarak değerlendirilmeli. "Önce ana dosya, sonra zincir"
+        sırası burada pdflatex'te kalır ve belge derlenmez."""
+        (tmp_path / "paketler.tex").write_text(
+            "\\usepackage{fontspec}\n", encoding="utf-8")
+        tex = tmp_path / "main.tex"
+        tex.write_text("\\documentclass{article}\n"
+                       "\\usepackage[T1]{fontenc}\n"
+                       "\\input{paketler}\n"
+                       "\\begin{document}x\\end{document}\n", encoding="utf-8")
+        assert detect_engine(str(tex)) == "lualatex"
+
+    def test_torun_dosya_da_okunuyor(self, tmp_path):
+        (tmp_path / "yazitipi.tex").write_text(
+            "\\usepackage{fontspec}\n", encoding="utf-8")
+        (tmp_path / "paketler.tex").write_text(
+            "\\input{yazitipi}\n", encoding="utf-8")
+        tex = tmp_path / "main.tex"
+        tex.write_text("\\documentclass{article}\n"
+                       "\\input{paketler}\n"
+                       "\\begin{document}x\\end{document}\n", encoding="utf-8")
+        assert detect_engine(str(tex)) == "lualatex"

@@ -4,6 +4,7 @@ import os
 import re
 import logging
 
+from core.input_parser import parse_inputs
 from core.latex_utils import strip_comments
 
 _logger = logging.getLogger("latex_editor.engine_detector")
@@ -167,10 +168,51 @@ def _engine_from_tex_signals(clean: str) -> str | None:
     return None
 
 
+def _zincir_onsozu(content: str, tex_path: str) -> list[str]:
+    r"""``\input``/``\include`` zincirindeki dosyaların yorumsuz içeriği.
+
+    Önsözünü ayrı bir dosyaya bölen belge yaygın: `\input{paketler}`.
+    Sinyal paketi orada durunca ana dosyada GÖRÜNMÜYOR ve motor yanlış
+    seçiliyordu. Zinciri çözen `parse_inputs` uygulamada zaten vardı
+    (dosya ağacı ve Referans Denetimi onu kullanıyor); motor algılama ondan
+    hiç beslenmiyordu.
+
+    ÖLÇÜLDÜ (2026-09-13, tasarlanmış yer gerçeği, uygulamanın kendi boru
+    hattından yani `core/derle.sh` ile). Aynı önsöz iki biçimde yazıldı,
+    tek fark `\usepackage` satırının hangi dosyada durduğu:
+
+        \usepackage{mathspec} ALT DOSYADA  -> algı None -> lualatex -> PDF YOK
+        \usepackage{mathspec} ANA DOSYADA  -> algı xelatex         -> PDF VAR
+
+    Zincir ana dosyayla BİRLEŞTİRİLİYOR, ayrı bir aşama olarak
+    sorulmuyor: `\usepackage[T1]{fontenc}` ana dosyada, `fontspec` alt
+    dosyadayken "önce ana dosya" sırası pdflatex'te kalır ve o belge
+    pdflatex'te derlenmez (aynı çakışma kaynakta 2026-09-05'te ölçülmüş).
+    Önsöz kaç dosyaya bölünürse bölünsün TEK önsözdür.
+
+    Gerçek korpusta (39 şablonun 57 ana belgesi) bu birleşim tek bir
+    belgenin cevabını değiştiriyor (template32, önsözü `packages.tex`e
+    bölünmüş: None -> pdflatex) ve o belge yeni motorla derleniyor.
+    """
+    parcalar = []
+    yigin = parse_inputs(content, os.path.dirname(os.path.abspath(tex_path)))
+    while yigin:
+        ref = yigin.pop()
+        yigin.extend(ref.get("children") or [])
+        try:
+            with open(ref["path"], "r", encoding="utf-8",
+                      errors="replace") as f:
+                parcalar.append(strip_comments(f.read()))
+        except OSError as e:
+            _logger.warning("Motor algılama, alt dosya okunamadı: %s (%s)",
+                            ref["path"], e)
+    return parcalar
+
+
 def detect_engine(tex_path: str) -> str | None:
     """
-    .tex dosyasından ve referans verdiği .cls dosyasından
-    uygun derleme motorunu algıla.
+    .tex dosyasından, ``\\input`` zincirinden ve referans verdiği .cls
+    dosyasından uygun derleme motorunu algıla.
 
     Dönüş: 'lualatex', 'pdflatex', 'xelatex' veya None (belirsiz — pdflatex varsayılmalı)
     """
@@ -188,8 +230,9 @@ def detect_engine(tex_path: str) -> str | None:
 
     clean = strip_comments(content)
 
-    # --- 1) .tex dosyasındaki sinyaller ---
-    engine = _engine_from_tex_signals(clean)
+    # --- 1) .tex dosyasındaki VE \input zincirindeki sinyaller ---
+    engine = _engine_from_tex_signals(
+        "\n".join([clean] + _zincir_onsozu(content, tex_path)))
     if engine:
         return engine
 
