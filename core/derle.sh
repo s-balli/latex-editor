@@ -45,6 +45,18 @@ export max_print_line=1000
 # projelerde hata satırı hiç basılmıyordu (ölçüldü).
 HATA_DESENI='^!|^[^ ].*\.[A-Za-z0-9]+:[0-9]+: '
 
+# Uyarı satırı deseni. TEK KAYNAK ve ayrıştırıcının (core/log_parser.py)
+# tanıdığı sınıflarla AYNI olmak zorunda: burada süzülen bir uyarı GUI'ye
+# hiç ulaşmıyor, çünkü panelin gördüğü tek şey bu betiğin çıktısı.
+#
+# ÖLÇÜLDÜ (2026-09-13, her sınıf için küçük bir belge üretilip hem ham
+# günlük hem bu betiğin çıktısı ayrıştırılarak): "Missing character"
+# sınıfı süzgeçte YOKTU, yani ayrıştırıcının o sınıf için özel olarak
+# yazdığı toplama kolu ve `error_hints`teki ipucu HİÇ görünemiyordu.
+# Bu sınıf Türkçe için önemli: harf PDF'e hiç basılmıyor, derleme
+# BAŞARILI bitiyor ve kullanıcı ancak okurken fark ediyor.
+UYARI_DESENI='^LaTeX Warning|^Package.*Warning|^Overfull|^Underfull|^(pdfTeX|LuaTeX|XeTeX) warning|^Font .* not loadable'
+
 # Renk kodlari
 KIRMIZI='\033[0;31m'
 YESIL='\033[0;32m'
@@ -645,7 +657,16 @@ derle_dosya() {
 
     # Uyarıları göster
     local UYARI_SATIRLARI
-    UYARI_SATIRLARI=$(echo "$SON_CIKTI" | grep "^LaTeX Warning\|^Package.*Warning\|^Overfull\|^Underfull" || true)
+    UYARI_SATIRLARI=$(
+        {
+            echo "$SON_CIKTI" | grep -E "$UYARI_DESENI" || true
+            # Eksik glif satırları BENZERSİZLEŞTİRİLİYOR: aynı karakter
+            # belge boyunca yüzlerce kez geçiyor (ayrıştırıcıdaki ölçüm:
+            # bir şablonda 8226 satır). Her (karakter, yazı tipi) ikilisi
+            # bir kez bildiriliyor; hacim alfabeyle sınırlı kalıyor ve
+            # panelde tekrar yığılmıyor.
+            echo "$SON_CIKTI" | grep '^Missing character:' | sort -u || true
+        } | grep -v '^[[:space:]]*$' || true)
     local UYARI_SAYISI
     UYARI_SAYISI=$(echo "$UYARI_SATIRLARI" | grep -c . || true)
     if [ "$UYARI_SAYISI" -gt 0 ]; then

@@ -475,6 +475,80 @@ class TestHataKonumu:
                    for h in sonuc.errors), [h.message for h in sonuc.errors]
 
 
+class TestUyariSuzgeci:
+    r"""`derle.sh` süzgeci ile ayrıştırıcının bildiği sınıflar AYNI olmalı.
+
+    Panelin gördüğü tek şey bu betiğin çıktısı; burada süzülen bir uyarı
+    GUI'ye hiç ulaşmıyor. ÖLÇÜLDÜ (2026-09-13): "Missing character" sınıfı
+    süzgeçte yoktu, yani ayrıştırıcının o sınıf için yazdığı toplama kolu
+    ve `error_hints`teki ipucu HİÇ görünemiyordu.
+    """
+
+    # Her sınıf için GERÇEK bir günlük satırı. Ayrıştırıcı bunu tanıyorsa
+    # betiğin süzgeci de tanımak zorunda: iki taraf da sınanıyor.
+    SATIRLAR = [
+        "LaTeX Warning: Reference `x' on page 1 undefined on input line 4.",
+        "Package hyperref Warning: Token not allowed in a PDF string.",
+        "Overfull \\hbox (12.0pt too wide) in paragraph at lines 5--6",
+        "Underfull \\vbox (badness 10000) detected at line 20",
+        "pdfTeX warning (ext4): destination with the same identifier",
+        "Font T1/ptm/b/n/10 not loadable",
+        "Missing character: There is no ı (U+0131) in font ptmr8t!",
+    ]
+
+    @staticmethod
+    def _desenler():
+        """Betikteki `UYARI_DESENI` + eksik glif kolu."""
+        with open(SCRIPT, encoding="utf-8") as f:
+            kaynak = f.read()
+        m = re.search(r"^UYARI_DESENI='([^']*)'", kaynak, re.M)
+        assert m, "UYARI_DESENI bulunamadi"
+        # Eksik glif ayrı bir grep ile, benzersizleştirilerek toplanıyor.
+        return [m.group(1), r"^Missing character:"]
+
+    @pytest.mark.parametrize("satir", SATIRLAR)
+    def test_AYRISTIRICININ_bildigi_sinif_SUZGECTEN_geciyor(self, satir):
+        from core.log_parser import parse_output
+
+        assert parse_output(satir).warnings, satir      # ayrıştırıcı tanıyor
+        assert any(re.search(d, satir) for d in self._desenler()), satir
+
+    def test_ILGISIZ_satir_uyari_sayilmiyor(self):
+        """Karşı kol: desen her satırı yakalarsa panel çöple dolar."""
+        ilgisiz = "This is LuaHBTeX, Version 1.18.0 (TeX Live 2023)"
+
+        assert not any(re.search(d, ilgisiz) for d in self._desenler())
+
+    def test_EKSIK_GLIF_panele_ulasiyor_ve_YIGILMIYOR(self, tmp_path):
+        r"""Uçtan uca: harf PDF'e basılmıyor, derleme BAŞARILI bitiyor.
+
+        Aynı karakter belge boyunca yüzlerce kez eksik olabiliyor; betik
+        satırları benzersizleştiriyor, ayrıştırıcı da yazı tipi başına tek
+        uyarıya indiriyor. ÖLÇÜLDÜ (2026-09-13): 360 ham satır, 6 benzersiz
+        satır, panele 1 uyarı.
+        """
+        from core.log_parser import parse_output
+
+        govde = "Turkce harfler: \u0131\u015f\u011f\u0130. " * 40
+        (tmp_path / "ana.tex").write_text(
+            "\\documentclass{article}\n\\usepackage[T1]{fontenc}\n"
+            "\\usepackage{mathptmx}\n\\begin{document}\n" + govde
+            + "\n\\end{document}\n", encoding="utf-8")
+
+        r = _run_derle([str(tmp_path / "ana.tex")], cwd=str(tmp_path),
+                       timeout=180)
+
+        temiz = re.sub(r"\x1b\[[0-9;]*m", "", r.stdout)
+        sonuc = parse_output(temiz, str(tmp_path / "ana.tex"))
+        font_uyarilari = [u for u in sonuc.warnings
+                          if "Missing character" in (u.message or "")]
+        assert font_uyarilari, temiz[-1500:]
+        # Yazı tipi başına tek uyarı: yığılma yok.
+        assert len(font_uyarilari) <= 2, [u.message for u in font_uyarilari]
+        assert temiz.count("Missing character") <= 12, \
+            temiz.count("Missing character")
+
+
 class TestSozlukVeSimge:
     r"""Sözlük ve simge listesi: yardımcı araç koşmazsa bölüm BOŞ çıkıyor.
 
