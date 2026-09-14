@@ -33,6 +33,11 @@ def _hint_templates() -> dict:
         # ikame sonrası "\usepackage{amsmath}" çıkıyor. Yer tutucuyu
         # parantezsiz yazmak "\usepackageamsmath" üretirdi.
         "env_needs_package": _("Tanımsız ortam {env}: önsöze \\usepackage{{paket}} ekleyin"),
+        # {komut} ile {cmd} AYRI yer tutucular: {cmd} kendi başına parantez
+        # içine alınıyor ("Tanımsız komut (\foo):"), burada ise komut adı
+        # cümlenin öznesi ve çıplak yazılmalı.
+        "cmd_needs_package": _("Tanımsız komut {komut}: önsöze \\usepackage{{paket}} ekleyin"),
+        "cmd_needs_class": _("Tanımsız komut {komut}: article sınıfında yok, {sinif} sınıfında var"),
         "file_ended_scanning": _("Bir komut/ortam kapanmamış (eksik } veya \\end{...}); dosyanın sonuna doğru kontrol edin"),
         "emergency_stop": _("Derleyici beklenmedik durdu; genelde eksik dosya veya kapanmamış blok. Log sekmesindeki son satırlara bakın"),
         "counter_too_large": _("Sayaç sınırı aşıldı (çok sayıda dipnot/liste öğesi); enumitem paketini kullanın"),
@@ -315,6 +320,8 @@ class OutputPanel(QWidget):
         # kalıyordu. Yerine basit ikame.
         out = tmpl.replace("{cmd}", f" ({cmd})" if cmd else "")
         out = out.replace("{env}", env)
+        out = out.replace("{komut}", cmd)
+        out = out.replace("{sinif}", params.get("sinif", ""))
         out = out.replace("{paket}", params.get("paket", ""))
         # missing_glyph şablonunda literal '{fontenc}' de geçiyor. Çakışmıyor:
         # '{font}' kapanış parantezi ister, '{fontenc}' orada 'e' taşıyor.

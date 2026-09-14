@@ -228,6 +228,39 @@ def _dosya_adayi(ad: str, base_dir: str) -> bool:
     return os.path.isfile(os.path.join(base_dir, ad))
 
 
+def _tekille(hatalar: list[LatexError]) -> list[LatexError]:
+    """Aynı hatanın İKİNCİ listelenişini ele.
+
+    derle.sh hataları İKİ kez basıyor ve ikisi de aynı derlemeden geliyor:
+
+        [hata] ... derleme basarisiz:   grep -A4  (bağlam satırları DAHİL)
+        [hata] ... derleme hatalari:    grep -A1  (bağlam KESİK)
+
+    Panelde her hata İKİ satır oluyordu (ölçüldü 2026-09-14, gerçek
+    derleme: tek hatalı belgede 2 satır, üç hatalı belgede 6). Bağlam
+    okunur hâle gelince bu daha da kötüleşirdi: aynı hata bir kez komut
+    adıyla, bir kez adsız görünürdü.
+
+    Bağlamsız kopya ELENİYOR, bağlamlı olan KALIYOR. Aynı satırda İKİ ayrı
+    tanımsız komut varsa ikisi de duruyor, çünkü bağlam satırları farklı
+    (TeX kırılma noktasını hatanın olduğu yerde koyuyor).
+    """
+    sonuc: list[LatexError] = []
+    tam: set[tuple] = set()
+    baglamli: set[tuple] = set()
+    for h in hatalar:
+        kimlik = (h.file_path, h.line_number, h.message)
+        if (kimlik + (h.context,)) in tam:
+            continue
+        if not h.context and kimlik in baglamli:
+            continue
+        tam.add(kimlik + (h.context,))
+        if h.context:
+            baglamli.add(kimlik)
+        sonuc.append(h)
+    return sonuc
+
+
 def parse_output(raw: str, source_file: str = "") -> CompileResult:
     """derle.sh çıktısını parse eder."""
     result = CompileResult()
@@ -313,11 +346,24 @@ def parse_output(raw: str, source_file: str = "") -> CompileResult:
             current_error = LatexError(message=m.group(1), file_path=current_file)
             continue
 
-        # Hata satır numarası
-        if current_error and current_error.line_number == 0:
+        # Hata bağlamı: "l.42 Kume $\mathbb" satırı. Hem satır numarasını
+        # hem de hatanın geçtiği KAYNAK PARÇASINI taşıyor.
+        #
+        # Bu dal `line_number == 0` koşuluna bağlıydı ve o koşul artık HİÇ
+        # sağlanmıyor: derle.sh motora `-file-line-error` veriyor, yani her
+        # hata "./d.tex:3: ..." önekiyle geliyor ve satır numarası ZATEN
+        # dolu oluyor. Sonuç: `context` her zaman boş kalıyordu ve
+        # `error_hints`in tanımsız komudu bağlamdan çıkarmak için yazılmış
+        # kolu (135330 komut geçişinde ölçülüp "SON komut alınır" diye
+        # ayarlanmıştı) gerçek boru hattında HİÇ çalışmıyordu. Kullanıcı
+        # "Tanımsız komut: yazım hatası olabilir..." görüyor, HANGİ komut
+        # olduğunu hiç öğrenmiyordu (ölçüldü 2026-09-14, beş belge, gerçek
+        # derleme: bağlam taşıyan hata 0/6).
+        if current_error:
             m = _RE_LINE_CTX.match(line)
             if m:
-                current_error.line_number = int(m.group(1))
+                if current_error.line_number == 0:
+                    current_error.line_number = int(m.group(1))
                 current_error.context = line
                 continue
 
@@ -410,6 +456,8 @@ def parse_output(raw: str, source_file: str = "") -> CompileResult:
 
     if current_error:
         result.errors.append(current_error)
+
+    result.errors = _tekille(result.errors)
 
     # Eksik glifler: yazı tipi başına tek uyarı. Mesaj ilk GERÇEK log satırını
     # koruyor (error_hints deseni yazı tipi adını oradan çıkarıyor); tekrar

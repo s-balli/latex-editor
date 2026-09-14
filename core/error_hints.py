@@ -131,6 +131,65 @@ _RE_EKSIK_GLIF = re.compile(
     r"Missing character: There is no .+? in font ([^\s!]+)")
 
 
+# Komutu TANIMLAYAN paket. `ORTAM_PAKETI`nin komut tarafı.
+#
+# ÖLÇÜLDÜ (2026-09-14): komut tamamlamasının önerdiği 382 ayrı adın 44'ü
+# sade `\documentclass{article}` belgesinde tanımsız (TeX'in kendi
+# `\ifcsname` cevabı). 40'ının cevabı bir paket, 4'ününki belge sınıfı.
+# Hiçbir yerde olmayan, yani uygulamanın uydurduğu ad ÇIKMADI.
+#
+# Hangi paketin verdiği de ölçüldü, hatırdan yazılmadı: 27 aday paket TEK
+# TEK yüklenip 44 adın hangisinin tanımlı hâle geldiği soruldu. Sonra 18
+# paketin her biri için o paketin TÜM komutlarını GERÇEKTEN KULLANAN bir
+# belge iki kez derlendi (core/derle.sh ile): paketsiz hâli "Undefined
+# control sequence" ile düşüyor, paketli hâli geçiyor. 18'inin 18'i.
+#
+# Birden çok paket aynı komutu veriyorsa KAPSAYAN/kanonik olan seçildi:
+# `amssymb` (`amsfonts` \nexists ile \varnothing'u vermiyor), `graphicx`
+# (LaTeX2e arayüzü), `xcolor` (`color`un üst kümesi), `float` ve `caption`
+# (`minted` ile `subcaption` onları zaten yüklüyor), `iftex` (hyperref,
+# biblatex ve minted onu yüklüyor).
+KOMUT_PAKETI = {
+    "dfrac": "amsmath", "eqref": "amsmath", "iiint": "amsmath",
+    "iint": "amsmath", "overset": "amsmath", "tfrac": "amsmath",
+    "underset": "amsmath",
+    "lozenge": "amssymb", "mathbb": "amssymb", "mathfrak": "amssymb",
+    "nexists": "amssymb", "square": "amssymb", "varnothing": "amssymb",
+    "theoremstyle": "amsthm",
+    "includegraphics": "graphicx",
+    "colorbox": "xcolor", "fcolorbox": "xcolor", "pagecolor": "xcolor",
+    "textcolor": "xcolor",
+    "href": "hyperref",
+    "url": "url",
+    "bottomrule": "booktabs", "midrule": "booktabs", "toprule": "booktabs",
+    "multirow": "multirow",
+    "captionof": "caption",
+    "floatname": "float", "floatstyle": "float", "listof": "float",
+    "newfloat": "float",
+    "lstinputlisting": "listings",
+    "verbatiminput": "verbatim",
+    "citep": "natbib", "citet": "natbib",
+    "addbibresource": "biblatex",
+    "mathscr": "mathrsfs",
+    "mint": "minted",
+    "ifluatex": "iftex", "ifpdftex": "iftex", "ifxetex": "iftex",
+}
+
+# Cevabı paket DEĞİL, belge SINIFI olan dört komut (aynı ölçüm, gerçek
+# derleme): `\chapter` book ve report'ta geçiyor, `article`da tanımsız;
+# ön/ana/arka madde komutları YALNIZ book'ta (report'ta da tanımsız).
+#
+# Türkçe tez yazan biri `\documentclass{article}` ile başlayıp `\chapter`
+# yazınca tam bu duvara toslar ve "paketi yüklenmemiş" ipucu onu olmayan
+# bir paketin peşine yollar.
+# Değer SUNUM KATMANINA gidiyor ve çevrilmiyor, o yüzden dilden bağımsız
+# yazılıyor: "book ve report" İngilizce arayüzde Türkçe bağlaç bırakırdı.
+KOMUT_SINIFI = {
+    "chapter": "book, report",
+    "frontmatter": "book", "mainmatter": "book", "backmatter": "book",
+}
+
+
 def get_hint(message: str, context: str = "") -> tuple[str, dict[str, str]] | None:
     """Hata/uyarı mesajı için (ipucu_kimliği, parametreler); tanınmazsa None.
 
@@ -157,5 +216,14 @@ def get_hint(message: str, context: str = "") -> tuple[str, dict[str, str]] | No
                     komutlar = _RE_KOMUT.findall(sm.group(1))
                     if komutlar:
                         params["cmd"] = komutlar[-1]
+                        ad = komutlar[-1].lstrip("\\")
+                        if ad in KOMUT_PAKETI:
+                            return "cmd_needs_package", {
+                                "cmd": komutlar[-1],
+                                "paket": KOMUT_PAKETI[ad]}
+                        if ad in KOMUT_SINIFI:
+                            return "cmd_needs_class", {
+                                "cmd": komutlar[-1],
+                                "sinif": KOMUT_SINIFI[ad]}
             return hint_id, params
     return None

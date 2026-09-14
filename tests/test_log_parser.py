@@ -691,3 +691,72 @@ def test_NOKTAYLA_biten_hata_BAGLAM_satirini_YUTMUYOR():
     r = parse_output(ham, "b.tex")
     assert r.errors[0].message == "Missing $ inserted."
     assert r.errors[0].line_number == 3
+
+
+# =====================================================================
+# Hata bağlamı ve ikinci listeleme (2026-09-14)
+# =====================================================================
+
+
+class TestBaglamVeIkizListeleme:
+    r"""derle.sh'nin GERÇEK çıktısı üzerinden.
+
+    Depodaki eski bağlam testleri `! Hata\nl.42 \komut` biçimini
+    kullanıyor; o biçimde satır numarası bilinmiyor. Gerçek çıktı öyle
+    değil: derle.sh motora `-file-line-error` veriyor, yani satır numarası
+    ZATEN dolu geliyor ve eski kapılar tam bu yüzden kusuru görmüyordu.
+
+    Başlık satırındaki uzun tire burada yazılmadı; ayrıştırıcı başlığı
+    iki nokta ile bitmesinden tanıyor, tireye bakmıyor.
+    """
+
+    HAM = (
+        "[bilgi] lualatex modu\n"
+        "[derleniyor] d.tex (lualatex) ...\n"
+        "[hata] d.tex derleme basarisiz:\n"
+        "  /tmp/p/d.tex:3: Undefined control sequence.\n"
+        "  <recently read> \\mathbb\n"
+        "  \n"
+        "  l.3 Kume $\\mathbb\n"
+        "  {R}$ icinde.\n"
+        "[uyari] d.pdf uretildi (kismi)\n"
+        "[hata] d.tex derleme hatalari:\n"
+        "  /tmp/p/d.tex:3: Undefined control sequence.\n"
+        "  <recently read> \\mathbb\n"
+    )
+
+    def test_SATIR_NUMARASI_BILINSE_DE_baglam_okunuyor(self):
+        r"""Bağlam `line_number == 0` koşuluna bağlıydı ve
+        `-file-line-error` yüzünden o koşul hiç sağlanmıyordu; sonuçta
+        `error_hints` tanımsız komudu hiç adlandıramıyordu."""
+        r = parse_output(self.HAM)
+        assert len(r.errors) == 1
+        assert r.errors[0].line_number == 3
+        assert "\\mathbb" in r.errors[0].context
+
+    def test_AYNI_hata_IKI_blokta_basilsa_da_TEK_satir(self):
+        """derle.sh aynı hatayı iki kez basıyor; panelde bir kez görünmeli."""
+        assert len(parse_output(self.HAM).errors) == 1
+
+    def test_AYNI_SATIRDAKI_IKI_AYRI_komut_ikisi_de_duruyor(self):
+        """Karşı yön: ayıklama gerçek iki hatayı birleştirmemeli.
+
+        TeX kırılma noktasını hatanın olduğu yere koyuyor, yani iki
+        komudun bağlam satırı farklı."""
+        ham = (
+            "[hata] d.tex derleme basarisiz:\n"
+            "  /tmp/p/d.tex:5: Undefined control sequence.\n"
+            "  l.5 Uc \\bilinmeyen\n"
+            "  /tmp/p/d.tex:5: Undefined control sequence.\n"
+            "  l.5 Uc \\bilinmeyen \\baskabilinmeyen\n"
+        )
+        r = parse_output(ham)
+        assert len(r.errors) == 2
+        assert r.errors[0].context != r.errors[1].context
+
+    def test_baglam_IPUCUNA_ulasiyor(self):
+        """Uçtan uca: ayrıştırıcının bağlamı ipucunu besliyor mu."""
+        r = parse_output(self.HAM)
+        h = get_hint(r.errors[0].message, r.errors[0].context)
+        assert h == ("cmd_needs_package",
+                     {"cmd": "\\mathbb", "paket": "amssymb"})

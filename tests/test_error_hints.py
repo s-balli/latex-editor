@@ -504,3 +504,87 @@ def test_PAKETI_BILINMEYEN_ortamda_genel_ipucu_duruyor():
     uydurulmamalı."""
     h = get_hint("LaTeX Error: Environment benimkutum undefined.")
     assert h == ("env_undefined", {"env": "benimkutum"})
+
+
+# =====================================================================
+# Tanımsız KOMUT -> hangi paket / hangi sınıf (2026-09-14)
+# =====================================================================
+
+# Komut tamamlamasının önerdiği 382 ayrı addan sade
+# `\documentclass{article}` belgesinde TANIMSIZ çıkanlar. ÖLÇÜLDÜ
+# (2026-09-14): ölçüt TeX'in kendi `\ifcsname` cevabı; hangi paketin
+# verdiği de 27 aday paket tek tek yüklenerek bulundu, sonra 18 paketin
+# her biri için o paketin tüm komutlarını GERÇEKTEN KULLANAN bir belge
+# `core/derle.sh` ile iki kez derlendi (paketsiz düşüyor, paketli
+# geçiyor). Hiçbir yerde olmayan, yani uydurulmuş ad çıkmadı.
+_SADE_BELGEDE_TANIMSIZ_KOMUT = {
+    "addbibresource", "backmatter", "bottomrule", "captionof", "chapter",
+    "citep", "citet", "colorbox", "dfrac", "eqref", "fcolorbox",
+    "floatname", "floatstyle", "frontmatter", "href", "ifluatex",
+    "ifpdftex", "ifxetex", "iiint", "iint", "includegraphics", "listof",
+    "lozenge", "lstinputlisting", "mainmatter", "mathbb", "mathfrak",
+    "mathscr", "midrule", "mint", "multirow", "newfloat", "nexists",
+    "overset", "pagecolor", "square", "textcolor", "tfrac", "theoremstyle",
+    "toprule", "underset", "url", "varnothing", "verbatiminput",
+}
+
+
+def test_TAMAMLAMANIN_onerdigi_TANIMSIZ_komudun_cevabi_biliniyor(qapp):
+    r"""Uygulama komudu önerip derlenemediğinde çaresiz bırakmasın.
+
+    Kullanıcı listeden `\eqref` seçiyor, derliyor ve "Undefined control
+    sequence" alıyor. Cevap tek kelime: amsmath.
+
+    Üç yön birden: ölçülen 44 adın hepsi sınıflandırılmış olmalı,
+    haritalarda ölçüme girmemiş ad OLMAMALI, ve 44 adın hepsi hâlâ
+    öneriliyor olmalı (biri listeden çıkarsa harita da temizlensin).
+    """
+    import re as _re
+
+    from core.error_hints import KOMUT_PAKETI, KOMUT_SINIFI
+    from gui.editor import _LATEX_COMMANDS
+
+    onerilen = {m.group(1) for m
+                in (_re.match(r"\\([A-Za-z]+)", c) for c in _LATEX_COMMANDS)
+                if m}
+    siniflanmis = set(KOMUT_PAKETI) | set(KOMUT_SINIFI)
+
+    assert not (_SADE_BELGEDE_TANIMSIZ_KOMUT - siniflanmis), \
+        "cevabi bilinmeyen komut: %s" % sorted(
+            _SADE_BELGEDE_TANIMSIZ_KOMUT - siniflanmis)
+    assert not (siniflanmis - _SADE_BELGEDE_TANIMSIZ_KOMUT), \
+        "olculmemis harita girdisi: %s" % sorted(
+            siniflanmis - _SADE_BELGEDE_TANIMSIZ_KOMUT)
+    assert not (_SADE_BELGEDE_TANIMSIZ_KOMUT - onerilen), \
+        "artik onerilmeyen komut haritada duruyor: %s" % sorted(
+            _SADE_BELGEDE_TANIMSIZ_KOMUT - onerilen)
+
+
+def test_TANIMSIZ_KOMUT_ipucu_PAKET_ADINI_soyluyor(qapp):
+    """Kullanıcının gördüğü metin gerçekten paketi yazıyor mu."""
+    from gui.output_panel import OutputPanel
+
+    h = get_hint("Undefined control sequence.", "l.3 Kume $\\mathbb")
+    assert h == ("cmd_needs_package", {"cmd": "\\mathbb",
+                                       "paket": "amssymb"})
+    metin = OutputPanel._hint_text(h)
+    assert "\\usepackage{amssymb}" in metin
+    assert "\\mathbb" in metin
+
+
+def test_SINIF_komutunda_PAKET_DEGIL_SINIF_soyleniyor(qapp):
+    r"""`\chapter` article sınıfında yok ve bunu veren bir paket de yok;
+    Türkçe tez yazan biri tam buraya toslar."""
+    from gui.output_panel import OutputPanel
+
+    h = get_hint("Undefined control sequence.", "l.3 \\chapter")
+    assert h == ("cmd_needs_class", {"cmd": "\\chapter",
+                                     "sinif": "book, report"})
+    metin = OutputPanel._hint_text(h)
+    assert "book" in metin and "usepackage" not in metin
+
+
+def test_HARITADA_OLMAYAN_komutta_genel_ipucu_duruyor():
+    """Karşı yön: kullanıcının kendi komutu için paket uydurulmamalı."""
+    h = get_hint("Undefined control sequence.", "l.3 metin \\benimkomutum")
+    assert h == ("undefined_control", {"cmd": "\\benimkomutum"})
