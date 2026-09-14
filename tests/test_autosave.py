@@ -277,6 +277,12 @@ def test_KODLAMAYA_SIGMAYAN_karakterde_dosya_BOZULMUYOR(ana_pencere,
     kutular = []
     monkeypatch.setattr(QMessageBox, "critical",
                         staticmethod(lambda *a, **k: kutular.append(a)))
+    # `question` da sayılıyor: kaydetme artık kodlama yetersizse UTF-8'e
+    # dönüştürmeyi SORUYOR (bkz. editor._utf8e_donustur) ve o soru
+    # zamanlayıcıdan ASLA çıkmamalı. Yamanmazsa gerçek modal açılıyor ve
+    # koşu sonsuza kadar bekliyor (ölçüldü: 33 dakika asılı kaldı).
+    monkeypatch.setattr(QMessageBox, "question",
+                        staticmethod(lambda *a, **k: kutular.append(a)))
 
     p = ana_pencere()
     p._dis_yolu_ac(str(yol), "kapi")
@@ -288,7 +294,7 @@ def test_KODLAMAYA_SIGMAYAN_karakterde_dosya_BOZULMUYOR(ana_pencere,
 
     assert yol.read_bytes() == ham, "dosya bozuldu"
     assert ed.isModified() is True, "iş kayboldu"
-    assert kutular == [], "zamanlayıcıdan modal açıldı"
+    assert kutular == [], "zamanlayıcıdan modal açıldı (kutu ya da soru)"
     assert "kaydedilemedi" in p._status.currentMessage()
 
 

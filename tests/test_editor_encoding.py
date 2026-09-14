@@ -209,3 +209,59 @@ class TestCozucuTekKaynak:
         assert bib_coz(ham) == (metin, kodlama)
         assert editor_coz(ham) == (metin, kodlama)
         assert arama_coz(ham) == metin
+
+
+# --- Kodlamanın karşılamadığı karakter (2026-09-14) ---
+
+
+class TestKodlamaYetersiz:
+    r"""Eski Türkçe kodlamalı belgeye o kodlamada OLMAYAN bir karakter
+    girince kaydetme TAMAMEN düşüyor ve kullanıcı ham Python istisnasını
+    görüyordu ('charmap' codec can't encode character 'α'). Belge hiç
+    kaydedilemiyor, otomatik kaydetme de her turda sessizce düşüyor.
+
+    ÖLÇÜLDÜ (2026-09-14, gerçek editör nesnesiyle): uzun çizgi ve akıllı
+    tırnak cp1254'te VAR ve kaydediliyor; Yunan harfi, matematik sembolü ve
+    emoji kaydettirmiyor.
+    """
+
+    TOHUM = "Başlangıç metni.\n"      # ASCII OLMAMALI, yoksa dosya utf-8
+                                      # çözülür ve cp1254 yolu hiç çalışmaz
+
+    def _cp1254_editor(self, tmp_path, monkeypatch):
+        monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: None)
+        # `critical` de susturuluyor: kaydetme düşerse eski kol GERÇEK bir
+        # modal kutu açıyor ve koşu sonsuza kadar bekliyor (mutasyon
+        # denemesinde 33 dakika asılı kaldı, CPU boştu).
+        monkeypatch.setattr(QMessageBox, "critical", lambda *a, **k: None)
+        p = tmp_path / "tez.tex"
+        _write_raw(p, self.TOHUM.encode("cp1254"))
+        ed = _editor()
+        assert ed.open_file(str(p)) is True
+        assert ed._encoding == "cp1254"        # önkoşul
+        ed.setText(self.TOHUM + "Ek: α\n")
+        return ed, p
+
+    def test_ONAY_verilince_utf8e_donusup_kaydediyor(self, qapp, tmp_path,
+                                                     monkeypatch):
+        ed, p = self._cp1254_editor(tmp_path, monkeypatch)
+        monkeypatch.setattr(QMessageBox, "question",
+                            lambda *a, **k: QMessageBox.StandardButton.Yes)
+        assert ed.save_file() is True
+        assert ed._encoding == "utf-8"
+        with open(p, "rb") as f:
+            assert f.read().decode("utf-8").endswith("Ek: α\n")
+
+    def test_REDDEDILINCE_dosya_DOKUNULMADAN_kaliyor(self, qapp, tmp_path,
+                                                     monkeypatch):
+        ed, p = self._cp1254_editor(tmp_path, monkeypatch)
+        monkeypatch.setattr(QMessageBox, "question",
+                            lambda *a, **k: QMessageBox.StandardButton.No)
+        assert ed.save_file() is False
+        assert ed._encoding == "cp1254"
+        with open(p, "rb") as f:
+            assert f.read() == self.TOHUM.encode("cp1254")
+
+    # Sessiz yolun (otomatik kaydetme) kapısı BURADA DEĞİL: uçtan uca hâli
+    # `test_autosave.py::test_KODLAMAYA_SIGMAYAN_karakterde_dosya_BOZULMUYOR`
+    # ve orası soru kutusunun zamanlayıcıdan çıkmadığını da sabitliyor.

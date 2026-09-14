@@ -943,6 +943,48 @@ class EditorWidget(QsciScintilla):
                 pass
             raise
 
+    def _utf8e_donustur(self, e: UnicodeEncodeError, sessiz: bool) -> bool:
+        """Dosyanın kodlaması metni karşılayamıyor: UTF-8'e çevrilsin mi.
+
+        Eski Türkçe kodlamalı (cp1254/iso-8859-9) bir belgeye o kodlamada
+        OLMAYAN bir karakter girince kaydetme TAMAMEN düşüyordu ve kullanıcı
+        ham Python istisnasını görüyordu:
+
+            Dosya kaydedilemedi: .../tez.tex
+            'charmap' codec can't encode character '\\u03b1' in position 21
+
+        ÖLÇÜLDÜ (2026-09-14, gerçek editör nesnesiyle, cp1254 bir dosyaya
+        altı karakter tek tek eklenerek): uzun çizgi ve akıllı tırnak
+        cp1254'te VAR, kaydediliyor; Yunan harfi (α), matematik sembolü (≤)
+        ve emoji kaydettirmiyor. Yani `\\alpha` yerine `α` yazan ya da DOI'den
+        gelen bir başlıkta böyle bir karakter olan kullanıcı belgesini HİÇ
+        kaydedemiyor; otomatik kaydetme de her turda sessizce düşüyor.
+
+        Çözüm dosyayı UTF-8'e çevirmek; uygulama bunu açılışta zaten
+        öneriyor ("Sorunsuz derleme için UTF-8'e dönüştürmeniz önerilir").
+        Sessiz yolda (otomatik kaydetme) SORULMADAN çevrilmiyor: kodlama
+        değişimi kullanıcının kararı, ve çağıran durumu zaten durum
+        çubuğunda söylüyor.
+        """
+        karakter = e.object[e.start:e.end]
+        _logger.warning("%s kodlaması %r karakterini karşılamıyor: %s",
+                        self._encoding, karakter, self._file_path)
+        if sessiz:
+            return False
+        yanit = QMessageBox.question(
+            self, _("Kodlama Yetersiz"),
+            _("Bu dosya {enc} kodlamasında ve {ch} karakteri o kodlamada yok, "
+              "bu yüzden kaydedilemiyor.\n\n"
+              "Dosya UTF-8'e dönüştürülsün mü? (önerilen)").format(
+                  enc=self._encoding, ch=repr(karakter)),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes,
+        )
+        if yanit != QMessageBox.StandardButton.Yes:
+            return False
+        self._encoding = "utf-8"
+        return True
+
     def save_file(self, sessiz: bool = False) -> bool:
         """Arabelleği dosyaya yaz.
 
@@ -963,7 +1005,12 @@ class EditorWidget(QsciScintilla):
             content = lf_ye_indir(self.text())
             if self._newline == "crlf":
                 content = content.replace("\n", "\r\n")
-            self._write_atomic(self._file_path, content, self._encoding)
+            try:
+                self._write_atomic(self._file_path, content, self._encoding)
+            except UnicodeEncodeError as e:
+                if not self._utf8e_donustur(e, sessiz):
+                    return False
+                self._write_atomic(self._file_path, content, self._encoding)
             self.setModified(False)
             return True
         except Exception as e:
