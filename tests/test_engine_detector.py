@@ -500,6 +500,48 @@ def test_magic_comment_TAKMA_ADLARI_tablosundan_cozuluyor():
     assert _magic_engine_from_content("% !TEX program = kimyager\nx\n") is None
 
 
+# --- Sürücü seçeneği ve pdfTeX primitifi (2026-09-14) ---
+
+
+class TestSurucuVePrimitif:
+    r"""Paket listesi tek sinyal değil: yazar sürücüyü `\documentclass`
+    seçeneğinde söyleyebiliyor, ya da pdfTeX'e özgü bir primitif
+    kullanıyor. İkisi de gerçek korpusta lualatex'te DERLENMEYEN belge
+    üretiyordu (template27 ve template16/doc/elsdoc-cas)."""
+
+    def test_documentclass_surucu_secenegi(self):
+        assert detect_engine_from_content(
+            "\\documentclass[apajournal,submit,pdftex]{mdpi}\n") == "pdflatex"
+
+    def test_TANIMSIZ_surucu_yoksayiliyor(self):
+        """Karşı durum: her seçenek motor adı değil."""
+        assert detect_engine_from_content(
+            "\\documentclass[dvips,a4paper,12pt]{article}\n") is None
+
+    def test_pdftex_primitifi(self):
+        assert detect_engine_from_content(
+            "\\documentclass{article}\n\\input{glyphtounicode}\n"
+            "\\pdfgentounicode=1\n") == "pdflatex"
+
+    def test_fontspec_SURUCU_secenegini_yeniyor(self):
+        r"""Çeliştikleri tek durum ölçüldü: `[pdftex]` + `fontspec` belgesi
+        pdflatex'te PDF ÜRETMİYOR, lualatex ve xelatex'te üretiyor. Paket
+        daha güçlü kısıt; sürücü seçeneği çoğu zaman eski alışkanlık."""
+        assert detect_engine_from_content(
+            "\\documentclass[pdftex]{article}\n"
+            "\\usepackage{fontspec}\n") == "lualatex"
+        assert detect_engine_from_content(
+            "\\documentclass{article}\n\\usepackage{fontspec}\n"
+            "\\pdfgentounicode=1\n") == "lualatex"
+
+    def test_hyperref_SECENEGI_primitif_sayilmiyor(self):
+        r"""`pdftitle` komut değil, hyperref seçeneği: "adı `\pdf` ile
+        başlayan her şey pdflatex ister" kuralı yanlış olurdu."""
+        assert detect_engine_from_content(
+            "\\documentclass{article}\n"
+            "\\hypersetup{pdftitle={Tez}, pdfauthor={Ad}}\n") is None
+
+
 # --- Önsöz \input ile bölünmüş olabilir (2026-09-13) ---
 
 

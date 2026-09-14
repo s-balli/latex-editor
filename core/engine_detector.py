@@ -116,6 +116,32 @@ def detect_root_from_head(head: str, tex_path: str) -> str:
     return ""
 
 
+# `\documentclass[...,pdftex,...]{...}`: yazar sürücüyü AÇIKÇA söylüyor ve
+# sınıf onu grafik/renk paketlerine geçiriyor. ÖLÇÜLDÜ (2026-09-14):
+# `template27` (mdpi sınıfı) lualatex'te HİÇ PDF üretmiyor, pdflatex'te
+# üretiyor; günlükteki hata `\pdfcolorstack` (xcolor'un pdftex sürücüsü,
+# LuaTeX'te o primitif yok). Ad tablosu `MOTOR_TAKMA_ADLARI`dan geliyor,
+# ayrıca yazılmıyor. `dvips` gibi tanınmayan sürücüler yok sayılıyor.
+_RE_SINIF_SECENEKLERI = re.compile(r'\\documentclass\s*\[([^\]]*)\]')
+
+# pdfTeX'e ÖZGÜ primitifler: belge bunları kullanıyorsa lualatex/xelatex'te
+# "Undefined control sequence" ile düşüyor.
+#
+# "Adı `\pdf` ile başlayan her şey" KURALI YANLIŞ olurdu: korpusta geçen
+# `pdftitle`, `pdfauthor`, `pdfkeywords`, `pdfborder` hyperref SEÇENEĞİ,
+# komut değil. Liste üç motorun kendisine sorularak çıkarıldı (2026-09-14,
+# `\csname <ad>\endcsname` `\relax` mı): korpustaki üç `\pdf...` komutunun
+# üçü de yalnız pdflatex'te tanımlı.
+#
+# `\pdfoutput` BİLEREK dışarıda: yaygın kullanımı `\ifdefined\pdfoutput
+# \pdfoutput=1 \fi` biçiminde KORUNMUŞ ve o hâliyle lualatex'te de zararsız,
+# yani motor gereksinimi anlamına gelmiyor. Korpustaki tek geçişi de yorum
+# satırında. Kalan ikisi `template16/doc/elsdoc-cas.tex`te korumasız
+# kullanılıyor ve belge lualatex'te derlenmiyor.
+_PDFLATEX_PRIMITIFLERI = ("pdfgentounicode", "pdfglyphtounicode")
+_RE_PDFLATEX_PRIMITIF = re.compile(
+    r'\\(?:' + '|'.join(_PDFLATEX_PRIMITIFLERI) + r')(?![a-zA-Z])')
+
 _LUALATEX_PAKETLERI = ("fontspec", "unicode-math", "polyglossia")
 # XeLaTeX'e özgü paketler: mathspec/xeCJK LuaLaTeX'te çalışmaz. fontspec/
 # polyglossia her ikisinde de çalıştığından lualatex tarafında kalır.
@@ -149,11 +175,34 @@ def _yuklenen_paketler(clean: str) -> set[str]:
     return adlar
 
 
+def _surucu_secenegi(clean: str) -> str | None:
+    r"""``\documentclass`` seçenekleri arasındaki sürücü adından motor."""
+    for m in _RE_SINIF_SECENEKLERI.finditer(clean):
+        for secenek in m.group(1).split(","):
+            motor = MOTOR_TAKMA_ADLARI.get(secenek.strip().lower())
+            if motor:
+                return motor
+    return None
+
+
 def _engine_from_tex_signals(clean: str) -> str | None:
-    """Yorumları temizlenmiş .tex içeriğindeki paket sinyallerinden motor döndür.
+    r"""Yorumları temizlenmiş .tex içeriğindeki sinyallerden motor döndür.
 
     magic comment ve .cls sinyalleri burada ele alınmaz.
     Dönüş: 'lualatex', 'pdflatex', 'xelatex' veya None.
+
+    SIRA ÖLÇÜLDÜ (2026-09-14, gerçek derlemeyle). Sürücü seçeneği ve
+    pdfTeX primitifi ilk başta en öne konmuştu ("yazar açıkça söylüyor")
+    ama çeliştikleri tek durumda YANILIYORLAR:
+
+        \documentclass[pdftex]{article} + \usepackage{fontspec}
+            -> lualatex ve xelatex PDF üretiyor, pdflatex ÜRETMİYOR
+        \pdfgentounicode=1 + \usepackage{fontspec}
+            -> aynı sonuç
+
+    Yani fontspec/mathspec gibi paketler DAHA GÜÇLÜ kısıt: onlar
+    olmayanı yapamaz, sürücü seçeneği ise çoğu zaman eski bir alışkanlık.
+    İkisi de pdflatex katmanında, ama onun paket listesinden önce.
     """
     paketler = _yuklenen_paketler(clean)
     for ad in _XELATEX_PAKETLERI:
@@ -162,6 +211,11 @@ def _engine_from_tex_signals(clean: str) -> str | None:
     for ad in _LUALATEX_PAKETLERI:
         if ad in paketler:
             return "lualatex"
+    motor = _surucu_secenegi(clean)
+    if motor:
+        return motor
+    if _RE_PDFLATEX_PRIMITIF.search(clean):
+        return "pdflatex"
     for ad in _PDFLATEX_PAKETLERI:
         if ad in paketler:
             return "pdflatex"
