@@ -10,6 +10,8 @@ import re
 import unicodedata
 from dataclasses import dataclass
 
+from core.latex_utils import LABEL_YASAK
+
 # --- Tablo ortamları ---
 
 # Tablo ortamlarının BAŞLIK BİÇİMİ. TEK KAYNAK.
@@ -77,14 +79,11 @@ def escape_cell(text: str) -> str:
 
 # `\label` argümanı dizgiye YAZILMIYOR ama kod olarak okunuyor: yorum işareti
 # satırı kesiyor, süslü parantez dengeyi bozuyor, ters eğik çizgi komut
-# başlatıyor. ÖLÇÜLDÜ (2026-09-07, gerçek pdflatex): denenen altı karakterden
-# BEŞİ belgeyi derlenemez yapıyor (`%`, `}`, `{`, `\`, `#`); yalnız boşluk
-# geçiyor.
-# Denetim karakterleri de eleniyor: panodan ya da `extract_caption_label`
-# ile gelen metinde bulunabiliyor ve LaTeX onlarda da düşüyor (ölçüldü:
-# `tab:a\x08b` derlenmiyor). Türkçe harfler ELENMİYOR, `tab:sonuç` gerçek
-# pdflatex'te derleniyor (aynı ölçüm).
-_LABEL_YASAK = re.compile(r"[%\\{}#&$~^\x00-\x1f\x7f]")
+# başlatıyor. Kural ve ölçümü `core.latex_utils.LABEL_YASAK`ta; TEK KAYNAK
+# çünkü F2 yeniden adlandırmanın doğrulaması da aynı soruyu soruyor ve
+# ayrı yazılıyken buranın ÜRETTİĞİ Türkçe etiketi reddediyordu.
+# Türkçe harfler ELENMİYOR, `tab:sonuç` gerçek pdflatex'te derleniyor.
+_LABEL_YASAK = LABEL_YASAK
 
 
 def guvenli_label(text: str) -> str:

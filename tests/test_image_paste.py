@@ -217,6 +217,13 @@ def test_DUZ_ad_gereksiz_yere_bozulmuyor():
     ("kar%orani.png", "fig:kar-orani"),         # yuzde derlemeyi kiriyordu
     ("maliyet#2.png", "fig:maliyet-2"),         # kare de kiriyordu
     ("sekil 1.png", "fig:sekil-1"),
+    # TÜRKÇE HARF KORUNUYOR: eskiden ASCII beyaz listesi vardı ve
+    # "Ölçüm Değerleri.png" -> `fig:l-m-De-erleri` gibi anlaşılmaz bir
+    # anahtar üretiliyordu. Türkçe harfli etiket üç motorda da derleniyor
+    # ve `\ref` çözülüyor (ölçüldü 2026-09-14); tablo sihirbazı da zaten
+    # bırakıyordu.
+    ("Ölçüm Değerleri.png", "fig:Ölçüm-Değerleri"),
+    ("şekil çıktı.png", "fig:şekil-çıktı"),
 ])
 def test_ETIKET_varsayilani_SADELESTIRILIYOR(dosya, beklenen):
     """Etiket KACIRILMAMALI: `fig:sonuc\\_grafik` anahtari degistirirdi."""

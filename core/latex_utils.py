@@ -4,7 +4,42 @@ import re
 
 # Etiket anahtarında GÜVENLİ sayılan karakterler. Harf/rakamın yanında
 # `_ - . :` duruyor; `fig:sonuc_grafik` LaTeX'te yaygın ve doğru bir anahtar.
-_ETIKET_GUVENSIZ = re.compile(r"[^A-Za-z0-9_\-.:]+")
+#
+# HARF Unicode harfidir, ASCII değil. Burada `A-Za-z` yazıyordu ve Türkçe
+# harfler ELENİYORDU; bu uygulamanın birincil kitlesinde sıradan bir ad
+# anlaşılmaz bir anahtara dönüyordu (ÖLÇÜLDÜ 2026-09-14):
+#
+#   "Ölçüm Değerleri" -> l-m-De-erleri
+#   "Giriş"           -> Giri
+#   "şekil çıktı"     -> ekil-kt
+#
+# Oysa Türkçe harfli etiket GERÇEKTEN derleniyor. Aynı ölçümde beş alfabe
+# (Türkçe, Latin ek, Yunan, Kiril, CJK) üç motorda da (pdflatex, lualatex,
+# xelatex) hem derlendi hem `\ref` çözüldü, yani `\w` güvenli sınır.
+# Tablo sihirbazı zaten Türkçe harf bırakıyordu (`guvenli_label`), yani
+# uygulama aynı soruya iki ayrı cevap veriyordu.
+_ETIKET_GUVENSIZ = re.compile(r"[^\w\-.:]+")
+
+# `\label` içine YAZILDIĞINDA derlemeyi kıran karakterler. TEK KAYNAK:
+# `core.latex_tables.guvenli_label` (üretim) ve F2 yeniden adlandırmanın
+# doğrulaması (gui/mixins/edit_ops) buradan besleniyor; ikisi ayrı
+# yazılıyken F2, tablo sihirbazının KENDİ ÜRETTİĞİ Türkçe etiketi
+# reddediyordu.
+#
+# ÖLÇÜLDÜ (2026-09-07, gerçek pdflatex): denenen altı karakterden BEŞİ
+# belgeyi derlenemez yapıyor (`%`, `}`, `{`, `\`, `#`). Denetim
+# karakterleri de eleniyor (`tab:a\x08b` derlenmiyor).
+LABEL_YASAK = re.compile(r"[%\\{}#&$~^\x00-\x1f\x7f]")
+
+
+def label_gecerli_mi(key: str) -> bool:
+    r"""`key` doğrudan `\label{...}` içine yazılabilir mi.
+
+    Boşluk da eleniyor: LaTeX kabul ediyor ama `\ref` yazmayı zorlaştırıyor
+    ve uygulamanın ürettiği anahtarlarda hiç bulunmuyor.
+    """
+    return bool(key) and not LABEL_YASAK.search(key) and not re.search(
+        r"\s", key)
 
 
 # Sözel ortamlar: içerikleri LaTeX kodu DEĞİL, gösterilen düz metin. TEK

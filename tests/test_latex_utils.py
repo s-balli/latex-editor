@@ -1,6 +1,7 @@
 """latex_utils.py — strip_comments doğrudan testleri."""
 
-from core.latex_utils import strip_comments
+from core.latex_utils import (label_gecerli_mi, label_key,
+                              strip_comments)
 
 
 class TestStripCommentsBasic:
@@ -64,3 +65,38 @@ class TestEdgeCases:
 
     def test_multiple_escaped_percents(self):
         assert strip_comments(r"\%10\%20 % yorum") == r"\%10\%20 "
+
+
+# --- Etiket anahtarı geçerliliği: TEK KAYNAK (2026-09-14) ---
+
+
+class TestLabelGecerliMi:
+    r"""Aynı soru ("bu anahtar `\label` içine yazılabilir mi") ÜÇ ayrı
+    yerde ÜÇ farklı cevap alıyordu: görsel ekleme ASCII dışını siliyor,
+    tablo sihirbazı Türkçe'yi bırakıyor, F2 yeniden adlandırma ise
+    reddediyordu. Kullanıcı uygulamanın KENDİ ürettiği `tab:Sonuç-Tablosu`
+    etiketini yeniden adlandıramıyordu.
+
+    ÖLÇÜLDÜ (2026-09-14, gerçek derleme): Türkçe harfli etiket pdflatex,
+    lualatex ve xelatex'te derleniyor ve `\ref` çözülüyor. Aynı ölçümde
+    Latin ek, Yunan, Kiril ve CJK de üç motorda geçti.
+    """
+
+    def test_TURKCE_ve_diger_alfabeler_kabul(self):
+        for anahtar in ("tab:sonuç-çıktı", "fig:Ölçüm_Değerleri",
+                        "sec:Giriş", "tab:café", "eq:αβ", "fig:日本"):
+            assert label_gecerli_mi(anahtar), anahtar
+
+    def test_DERLEMEYI_KIRANLAR_reddediliyor(self):
+        """Karşı yön: ölçülen beş kırıcı ve boşluk geçmemeli."""
+        for anahtar in ("tab:a%b", "tab:a{b", "tab:a}b", "tab:a\\b",
+                        "tab:a#b", "tab:a b", "tab:a\x08b", ""):
+            assert not label_gecerli_mi(anahtar), repr(anahtar)
+
+    def test_label_key_ile_TUTARLI(self):
+        """Üretilen anahtar doğrulamadan GEÇMELİ; ayrışırlarsa kullanıcı
+        uygulamanın kendi etiketini yeniden adlandıramaz."""
+        for ad in ("Ölçüm Değerleri", "şekil çıktı", "kar%orani",
+                   "AT&T logo", "duz-ad"):
+            uretilen = label_key(ad)
+            assert label_gecerli_mi(uretilen), (ad, uretilen)

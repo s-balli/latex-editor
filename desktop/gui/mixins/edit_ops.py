@@ -1,11 +1,11 @@
 """Düzenleme işlemleri mixin — geri al, yinele, bul, değiştir, yorum, satıra git, F2 etiket rename."""
 
 import os
-import re
 
 from PyQt6.QtWidgets import QDialog, QInputDialog, QApplication, QMessageBox
 from PyQt6.QtCore import QCoreApplication
 
+from core.latex_utils import label_gecerli_mi
 from core.log import get_logger
 
 _ = lambda s: QCoreApplication.translate("EditOpsMixin", s)
@@ -666,7 +666,13 @@ class EditOpsMixin:
     # taşıyordu: editörü bul, yeni adı sor, boş/aynı/geçersiz olanı ele.
     # Kopya olması yalnız uzunluk sorunu değildi — anahtar karakter kümesi
     # ÜÇ ayrı regex'te duruyordu, biri değişirse diğerleri sessizce ayrışırdı.
-    _GECERLI_ANAHTAR = re.compile(r'[A-Za-z0-9_:.-]+')
+    #
+    # Geçerlilik kuralı ARTIK BURADA DEĞİL: `core.latex_utils`ten geliyor ve
+    # ÖLÇÜME dayanıyor. Burada `[A-Za-z0-9_:.-]+` yazıyordu, yani Türkçe
+    # harfli her anahtar reddediliyordu; oysa tablo sihirbazı `tab:Sonuç`
+    # gibi anahtarları KENDİSİ üretiyor ve o anahtar üç motorda da
+    # derleniyor (ölçüldü 2026-09-14). Kullanıcı uygulamanın kendi
+    # ürettiği etiketi yeniden adlandıramıyordu.
 
     def _rename_ister(self, key: str, baslik: str, gecersiz_msg: str,
                       gosterim: str = ""):
@@ -692,7 +698,7 @@ class EditOpsMixin:
         yeni = yeni.strip()
         if not yeni or yeni == key:
             return None, ""
-        if not self._GECERLI_ANAHTAR.fullmatch(yeni):
+        if not label_gecerli_mi(yeni):
             self._status.showMessage(gecersiz_msg)
             return None, ""
         return ed, yeni
