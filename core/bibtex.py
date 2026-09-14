@@ -397,6 +397,31 @@ def benzersiz_anahtar(istenen: str, mevcut) -> str:
     return istenen + str(ek)
 
 
+# DOI'den gelen alan değerinde LaTeX'in özel karakterleri. ÖLÇÜLDÜ
+# (2026-09-14), her karakter için küçük bir belge + `.bib` üretilip
+# uygulamanın KENDİ boru hattından (bibtex dahil) geçirilerek ve basılan
+# kaynakça `pdftotext` ile okunarak:
+#
+#   95% guven araligi     -> PDF'te yalnız "95"; SESSİZ, derleme hatası YOK
+#   spam_filtresi uzerine -> derleme hatası, "spamf iltresiuzerine"
+#   C# ile gelistirme     -> derleme hatası, "#" kayıp
+#   x^2 buyumesi          -> derleme hatası, "x2"
+#   Bilim & Teknoloji     -> DOĞRU (`&` zaten kaçırılıyordu)
+#
+# `%`in sessiz olması en kötüsü: kullanıcı DOI yapıştırıyor, kaynak
+# eklendi sanıyor ve kaynakçasının yarısı yok.
+#
+# MATEMATİĞE DOKUNULMUYOR: Crossref başlıklarda TeX döndürüyor ve
+# `$x_1$ degiskeni` bugün DOĞRU basılıyor (ölçüldü); `_`i körlemesine
+# kaçırmak onu bozardı. `%` istisna, matematik içinde de yorum başlatıyor.
+#
+# `$`, `~` ve `\` BİLEREK dışarıda: `$` matematik açıyor, `~` bağlayıcı
+# boşluk basıyor (yanlış ama derleme durmuyor), `\` zaten kaçış.
+_RE_MATEMATIK = re.compile(r"(\$[^$]*\$)")
+_RE_METIN_OZEL = re.compile(r"(?<!\\)([#_^])")
+_METIN_KACIS = {"#": r"\#", "_": r"\_", "^": r"\^{}"}
+
+
 def _deger_duzelt(ad: str, deger: str) -> str:
     """Alan değerinin ölçülen kusurlarını gider."""
     if ad == "pages":
@@ -407,7 +432,13 @@ def _deger_duzelt(ad: str, deger: str) -> str:
         deger = deger.replace("–", "--").replace("—", "--")
     # LaTeX'te `&` kaçışsız kullanılamaz; kaçışlı olanlara dokunma.
     deger = re.sub(r"(?<!\\)&", r"\\&", deger)
-    return deger
+    # `%` HER YERDE kaçırılıyor, matematik içinde bile: yorum başlatıyor.
+    deger = re.sub(r"(?<!\\)%", r"\\%", deger)
+    # `# _ ^` yalnız MATEMATİK DIŞINDA kaçırılıyor; `$...$` bölgesi
+    # dokunulmadan geçiyor (gerekçe aşağıda).
+    return "".join(p if p.startswith("$") else _RE_METIN_OZEL.sub(
+        lambda m: _METIN_KACIS[m.group(1)], p)
+        for p in _RE_MATEMATIK.split(deger))
 
 
 def normallestir(ham: str, *, mevcut_anahtarlar=()) -> tuple[str, str]:

@@ -10,6 +10,8 @@ kural (şablon corpusunda 71 yerde geçiyor), regex ilk `}` ile durup değeri
 yarıda kesiyor.
 """
 
+import re
+
 import pytest
 
 from core.bibtex import (
@@ -329,6 +331,39 @@ class TestNormallestir:
         """`month = {jun}` metin olur ve bibtex 'jun' diye basar, 'June' değil."""
         metin, _a = normallestir(IEEE_HAM)
         assert "month = {" not in metin
+
+    def test_OZEL_KARAKTERLER_kaciriliyor_MATEMATIK_korunuyor(self):
+        r"""DOI'den gelen başlıkta LaTeX'in özel karakterleri kaynakçayı
+        bozuyordu. ÖLÇÜLDÜ (2026-09-14), her karakter için `.bib` + belge
+        üretilip uygulamanın KENDİ boru hattından (bibtex dahil) geçirilerek
+        ve basılan kaynakça `pdftotext` ile okunarak:
+
+            95% guven araligi     -> PDF'te yalnız "95"; SESSİZ, hata YOK
+            spam_filtresi uzerine -> derleme hatası
+            C# ile gelistirme     -> derleme hatası
+            x^2 buyumesi          -> derleme hatası
+
+        `%`in sessiz olması en kötüsü: kullanıcı kaynağı ekledi sanıyor.
+
+        MATEMATİK KORUNUYOR (karşı yön): Crossref başlıklarda TeX
+        döndürüyor ve `$x_1$` bugün doğru basılıyor; `_`i körlemesine
+        kaçırmak onu bozardı. `%` istisna, matematikte de yorum başlatıyor.
+        """
+        def baslik(t):
+            m, _a = normallestir("@article{k, title={%s}, year={2020}}" % t)
+            return re.search(r"title = \{(.*)\}", m).group(1)
+
+        assert baslik("95% guven") == r"95\% guven"
+        assert baslik("spam_filtresi") == r"spam\_filtresi"
+        assert baslik("C# dili") == r"C\# dili"
+        assert baslik("x^2 artis") == r"x\^{}2 artis"
+        assert baslik("Bilim & Teknoloji") == r"Bilim \& Teknoloji"
+        # Zaten kaçışlı olana DOKUNULMUYOR (iki kez kaçırmak metni bozar)
+        assert baslik(r"90\% oran") == r"90\% oran"
+        # Matematik bölgesi dokunulmadan geçiyor
+        assert baslik("$x_1$ degiskeni") == "$x_1$ degiskeni"
+        # `%` matematikte DE kaçırılıyor
+        assert baslik("$50%$ deger") == r"$50\%$ deger"
 
     def test_sayfa_araligi_cift_tire(self):
         """plain.bst aralığı `--` ile tanıyor; orta tirede 'page' (tekil) yazıyor."""
