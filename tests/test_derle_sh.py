@@ -997,3 +997,91 @@ class TestTekrarSayisiBorusu:
         metin = "LaTeX Font Warning: Font shape undefined\n" * 2
         cikti = self._kos(metin)
         assert cikti[0].startswith("LaTeX Font Warning:"), cikti
+
+
+class TestKaynakcaAraciSuzgeci:
+    r"""bibtex/biber'in KENDİ tanısı kullanıcıya ulaşıyor mu.
+
+    Betiğin süzgeci `error|warn` idi; bibtex ise ölümcül sorunları başka
+    kelimelerle bildiriyor. ÖLÇÜLDÜ (2026-09-15, gerçek bibtex, dört bozuk
+    kurulum): dördünde de derleme 0 ile bitti, PDF açıldı ve kaynakça BOŞ
+    kaldı; `.bib` sözdizimi bozuk olanda panele HİÇ satır ulaşmadı.
+
+    İki taraf da sınanıyor: satır betiğin süzgecinden geçmeli VE
+    ayrıştırıcı onu tanımalı. Biri eksikse satır kullanıcıya ulaşmaz.
+    """
+
+    # Gerçek bibtex/biber çıktısından alınan satırlar.
+    SATIRLAR = [
+        "I couldn't open style file yokboylestil.bst",
+        "I found no style file---while reading file d.aux",
+        "I couldn't open database file kaynak.bib",
+        "I found no database files---while reading file d.aux",
+        "Illegal end of database file---line 2 of file kaynak.bib",
+        'Warning--I didn\'t find a database entry for "ali2020"',
+        "Warning--empty author in ali2020",
+        "(There were 2 error messages)",
+        "ERROR - Cannot find 'refs.bib'!",
+    ]
+
+    # Karşı kol: bunlar bibtex'in SIRADAN satırları, panele girmemeli.
+    SIRADAN = [
+        "This is BibTeX, Version 0.99d (TeX Live 2023/Debian)",
+        "The top-level auxiliary file: d.aux",
+        "The style file: plain.bst",
+        "Database file #1: kaynak.bib",
+    ]
+
+    @staticmethod
+    def _desen():
+        """Süzgeç betikten OKUNUYOR, teste kopyalanmıyor."""
+        with open(SCRIPT, encoding="utf-8") as f:
+            kaynak = f.read()
+        m = re.search(r"^BIB_DESENI='([^']*)'", kaynak, re.M)
+        assert m, "BIB_DESENI bulunamadi"
+        return m.group(1)
+
+    @pytest.mark.parametrize("satir", SATIRLAR)
+    def test_ARAC_TANISI_suzgecten_geciyor_ve_taniniyor(self, satir):
+        from core.log_parser import parse_output
+
+        assert re.search(self._desen(), satir, re.I), satir
+        uyarilar = parse_output(satir).warnings
+        assert uyarilar, satir
+        assert uyarilar[0].warning_type == "BibTeX", uyarilar[0]
+
+    @pytest.mark.parametrize("satir", SIRADAN)
+    def test_SIRADAN_satir_panele_girmiyor(self, satir):
+        """Süzgeç her satırı geçirirse panel bibtex'in banner'ıyla dolar."""
+        from core.log_parser import parse_output
+
+        assert not re.search(self._desen(), satir, re.I), satir
+        assert not parse_output(satir).warnings, satir
+
+    def test_STIL_DOSYASI_YOKKEN_sebep_panele_ulasiyor(self, tmp_path):
+        r"""Uçtan uca: derleme BAŞARILI bitiyor, PDF açılıyor, kaynakça boş.
+
+        Eskiden panelde yalnız LaTeX'in "Citation undefined" uyarısı
+        vardı ve onun ipucu "tekrar derleyin, iki geçe gerekir" diyordu;
+        eksik `.bst` ile bu asla düzelmez.
+        """
+        from core.log_parser import parse_output
+
+        if not shutil.which("bibtex"):
+            pytest.skip("bibtex kurulu degil")
+        (tmp_path / "kaynak.bib").write_text(
+            "@article{ali2020, author={Ali Veli}, title={Baslik},\n"
+            "  journal={Dergi}, year={2020}}\n", encoding="utf-8")
+        (tmp_path / "d.tex").write_text(
+            "\\documentclass{article}\n\\begin{document}\n"
+            "Atif \\cite{ali2020}.\n"
+            "\\bibliographystyle{yokboylestil}\n\\bibliography{kaynak}\n"
+            "\\end{document}\n", encoding="utf-8")
+
+        r = _run_derle([str(tmp_path / "d.tex")], cwd=str(tmp_path),
+                       timeout=180)
+        temiz = re.sub(r"\x1b\[[0-9;]*m", "", r.stdout)
+        sonuc = parse_output(temiz, "d.tex")
+        bib = [u.message for u in sonuc.warnings
+               if u.warning_type == "BibTeX"]
+        assert any("couldn't open style file" in m for m in bib), temiz[-1200:]

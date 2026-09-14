@@ -87,6 +87,25 @@ UYARI_DESENI='^LaTeX Warning|^Package.*Warning|^Overfull|^Underfull|^(pdfTeX|Lua
 # bulamamıştı: yalnızca akla gelen sınıfları sınıyordu.
 TEKRARLAYAN_UYARI='^Missing character:|^LaTeX Font Warning:|^warning +\('
 
+# Kaynakça aracının (bibtex/biber) çıktı süzgeci. TEK KAYNAK: iki kol da
+# buradan okuyor; eskiden biber kolu 'error|warn', bibtex kolu
+# 'error\|warning' yazıyordu, yani aynı niyet iki ayrı yazımdı.
+#
+# "error" ve "warn" YETMİYOR: bibtex ölümcül sorunları BAŞKA kelimelerle
+# bildiriyor ve o satırlar süzgece takılmıyordu. ÖLÇÜLDÜ (2026-09-15,
+# gerçek bibtex, dört bozuk kurulum):
+#
+#   I couldn't open style file yokboylestil.bst      süzgeçte YOK
+#   I found no style file---while reading file d.aux süzgeçte YOK
+#   I couldn't open database file kaynak.bib         süzgeçte YOK
+#   Illegal end of database file---line 2 of ...     süzgeçte YOK
+#   (There were 2 error messages)                    geçiyordu
+#
+# Yani kullanıcı "2 hata mesajı vardı" satırını görüyor, MESAJLARI
+# görmüyordu. Derleme 0 ile bitiyor, PDF açılıyor, kaynakça BOŞ.
+# Kesme işareti tek tırnaklı dizgede sorun olduğu için `couldn.t`.
+BIB_DESENI='error|warn|^I couldn.t open|^I found no|^Illegal |^Repeated entry|^Sorry'
+
 # Renk kodlari
 KIRMIZI='\033[0;31m'
 YESIL='\033[0;32m'
@@ -452,7 +471,7 @@ derle_dosya() {
             local BIB_CIKTI
             BIB_CIKTI=$(cd "$TMPDIR" && biber "${ISIM}" 2>&1) || true
             local BIB_HATALAR
-            BIB_HATALAR=$(echo "$BIB_CIKTI" | grep -iE "error|warn" || true)
+            BIB_HATALAR=$(echo "$BIB_CIKTI" | grep -iE "$BIB_DESENI" || true)
             if [ -n "$BIB_HATALAR" ]; then
                 if [ "$USE_WATCH" = true ]; then
                     echo -e "${SARI}[biber] $(date +%H:%M:%S): biber uyarilari:${SIFIRLA}"
@@ -493,7 +512,7 @@ derle_dosya() {
                 BIB_CIKTI+=$'\n'
             done < <(grep -l '\\bibdata' "$TMPDIR/"*.aux 2>/dev/null || true)
             local BIB_HATALAR
-            BIB_HATALAR=$(echo "$BIB_CIKTI" | grep -i "error\|warning" || true)
+            BIB_HATALAR=$(echo "$BIB_CIKTI" | grep -iE "$BIB_DESENI" || true)
             if [ -n "$BIB_HATALAR" ]; then
                 if [ "$USE_WATCH" = true ]; then
                     echo -e "${SARI}[bibtex] $(date +%H:%M:%S): bibtex uyarilari:${SIFIRLA}"

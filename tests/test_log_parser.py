@@ -812,3 +812,19 @@ class TestTekrarSayisiEki:
         assert len(r.warnings) == 1
         assert r.warnings[0].warning_type == "Font"
         assert r.warnings[0].line_number == 7
+
+
+def test_BIB_SATIRI_dosya_yiginini_bozmuyor():
+    r"""`(There were 2 error messages)` satırındaki kapanış parantezi.
+
+    Ayrıştırıcı `(ad.tex` ile yığına giriyor, `)` ile çıkıyor. bibtex'in
+    özet satırı da bir `)` taşıyor; kaynakça kolu dosya takibinden SONRA
+    çalışsaydı o parantez yığından bir dosya düşürür ve ardından gelen
+    hata YANLIŞ dosyaya atfedilirdi. Kol bu yüzden en başta duruyor.
+    """
+    ham = ("(./bolum.tex\n"
+           "(There were 2 error messages)\n"
+           "! Undefined control sequence.\n")
+    r = parse_output(ham, "ana.tex")
+    assert r.errors, ham
+    assert r.errors[0].file_path == "bolum.tex", r.errors[0].file_path

@@ -127,6 +127,23 @@ _RE_ENGINE_REQ = re.compile(
 # döndürüyordu — kullanıcıya sebebi söyleyen tek satır kayıptı.
 _RE_SCRIPT_ERROR = re.compile(r'^\s*\[hata\]\s*(.+?)\s*$')
 
+# Kaynakça aracının (bibtex/biber) KENDİ satırları. Bunlar LaTeX günlüğü
+# değil, derle.sh'nin bastığı ayrı bir blok ve yukarıdaki desenlerin
+# hiçbiri onları görmüyordu: kaynakça çökse bile panelde tek satır
+# çıkmıyor, derleme 0 ile bitiyor ve PDF'te kaynakça BOŞ kalıyordu.
+#
+# ÖLÇÜLDÜ (2026-09-15, gerçek bibtex, dört bozuk kurulum: stil dosyası yok,
+# .bib yok, .bib sözdizimi bozuk, anahtar yok): dördünde de PDF üretildi ve
+# kaynakça boştu; `.bib` sözdizimi bozuk olanda panele HİÇ satır ulaşmadı
+# (0 hata, 0 uyarı).
+#
+# Desenler bibtex/biber'e özgü: LaTeX günlüğünde `Warning--` (çift tire),
+# `I couldn't open`, `(There were N error messages)` biçimleri geçmiyor.
+_RE_BIB_ARAC = re.compile(
+    r"^\s*(?:I couldn't open |I found no |Illegal |Repeated entry"
+    r"|Sorry|Warning--|\(There (?:was|were) \d+ error messages?\)"
+    r"|(?:ERROR|WARN) - )")
+
 # TeX log'u SABİT GENİŞLİKTE sarıyor (`max_print_line`, ölçüldü: 59 gerçek
 # şablon logunda 70426 satırın 4147'si tam 79 sütun). Uyarılar da sarıyor ve
 # devam satırı hiçbir desene uymadığı için düşüyordu:
@@ -296,6 +313,18 @@ def parse_output(raw: str, source_file: str = "") -> CompileResult:
     eksik_glif: dict[str, list] = {}
 
     for line in lines:
+        # Kaynakça aracının (bibtex/biber) kendi satırı. EN BAŞTA, çünkü
+        # `(There were 2 error messages)` satırındaki kapanış parantezi
+        # aşağıdaki dosya yığınından bir dosya düşürürdü.
+        m = _RE_BIB_ARAC.match(line)
+        if m:
+            result.warnings.append(LatexWarning(
+                message=line.strip(),
+                warning_type="BibTeX",
+                file_path=source_file,
+            ))
+            continue
+
         # Dosya takibi: yalnız kullanıcının .tex kaynağı raporlanır.
         # .cls/.sty/.bib yüklemeleri de yığına girer ki `)` sayısı tutsun, ama
         # ebeveynin adını taşırlar; yoksa hatalar epstopdf-base.sty gibi
