@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
     QApplication, QDialog, QLineEdit, QListWidget, QListWidgetItem, QVBoxLayout,
 )
 
-from core.project_search import SKIP_DIRS as _SKIP_DIRS
+from core.project_search import SKIP_DIRS as _SKIP_DIRS, kucult
 
 _ = lambda s: QCoreApplication.translate("QuickOpenDialog", s)
 
@@ -77,11 +77,20 @@ def fuzzy_score(query: str, path: str) -> int | None:
 
     Tek düzeydeki projelerde (dizin yok) davranış birebir aynı: dosya adı
     zaten yolun tamamı.
+
+    Harf katlaması `core.project_search.kucult`tan geliyor, KOPYASI
+    TUTULMUYOR: burada düz `str.lower()` vardı ve Türkçe noktalı İ'yi
+    `i` + BİRLEŞEN NOKTA (U+0307) yapıyordu. Alt dizi eşleşmesi yoldaki
+    fazla karakteri atlayabiliyor ama SORGUDAKİ fazla karakter eşleşmeyi
+    düşürüyor. ÖLÇÜLDÜ (2026-09-14): kullanıcı `İstanbul` yazınca
+    `istanbul.tex` ve `ISTANBUL.tex` HİÇ BULUNMUYORDU; `kucult` ile ikisi
+    de bulunuyor. Türkçe'de İ ile başlayan ad sıradan (İçindekiler,
+    İstanbul, İşlem) ve kullanıcı adını doğru büyük harfle yazıyor.
     """
     if not query:
         return 0
-    q = query.lower()
-    p = path.lower()
+    q = kucult(query)
+    p = kucult(path)
     base_start = p.rfind('/') + 1
     aralik = _aralik(q, p, base_start)
     if aralik is not None:

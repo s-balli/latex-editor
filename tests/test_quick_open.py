@@ -83,6 +83,28 @@ def test_fuzzy_case_insensitive():
     assert fuzzy_score("MT", "main.tex") is not None
 
 
+def test_fuzzy_TURKCE_NOKTALI_I_ile_aranan_dosya_bulunuyor():
+    r"""Düz `str.lower()` noktalı İ'yi `i` + BİRLEŞEN NOKTA (U+0307)
+    yapıyor. Alt dizi eşleşmesi YOLdaki fazla karakteri atlayabiliyor ama
+    SORGUDAKİ fazla karakter eşleşmeyi düşürüyor.
+
+    ÖLÇÜLDÜ (2026-09-14): kullanıcı `İstanbul` yazınca `istanbul.tex` ve
+    `ISTANBUL.tex` HİÇ bulunmuyordu. Katlama artık tek kaynaktan
+    (`core.project_search.kucult`). Türkçe'de İ ile başlayan dosya adı
+    sıradan ve kullanıcı adı doğru büyük harfle yazıyor.
+    """
+    assert fuzzy_score("İstanbul", "istanbul.tex") is not None
+    assert fuzzy_score("İstanbul", "ISTANBUL.tex") is not None
+    assert fuzzy_score("İÇİNDEKİLER", "bolumler/içindekiler.tex") is not None
+    # YOL tarafı da aynı kaynaktan katlanıyor: birleşen nokta aralığı
+    # genişletip Türkçe adlı dosyayı rakibinin ARKASINA düşürüyordu ve
+    # Enter listenin İLK ögesini açıyor.
+    assert fuzzy_score("isi", "İsi.tex") == fuzzy_score("isi", "isi.tex")
+    # ı/i AYRIMI korunuyor (kucult'un ölçülmüş kuralı): ayrı harfler.
+    # Vaka YALNIZ bu harfte ayrılmalı, yoksa sav ayırt etmez.
+    assert fuzzy_score("ısı", "isi.tex") is None
+
+
 def test_fuzzy_no_match():
     assert fuzzy_score("zzz", "main.tex") is None
 
