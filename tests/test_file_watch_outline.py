@@ -563,6 +563,47 @@ class TestAnahatBaslikGosterimi:
             qapp.processEvents()
 
 
+# --- İçindekiler satırı: \addcontentsline (2026-09-14) ---
+
+
+class TestIcindekilerSatiri:
+    r"""Tez ön/arka maddesi (ÖZET, ABSTRACT, KAYNAKLAR, EKLER) şablonlarda
+    bölüm komutuyla değil `\addcontentsline` ile bildiriliyor; anahatta hiç
+    görünmüyordu. Kehanet LaTeX'in kendi `.toc`u: 20 belgenin 602 girdisinin
+    48'i anahatta yoktu."""
+
+    def test_bolum_komutu_OLMADAN_bildirilen_baslik_goruluyor(self):
+        from gui.outline import anahat_girdileri
+
+        girdiler = anahat_girdileri(
+            "\\phantomsection\n"
+            "\\addcontentsline{toc}{section}{ÖZET}\n"
+            "Metin\n")
+        assert [(s, e) for _l, s, e in girdiler] == [(2, "ÖZET")], girdiler
+
+    def test_YANINDAKI_bolum_komutuyla_ayni_baslik_IKI_KEZ_cikmiyor(self):
+        r"""Yaygın kalıp ikisini birden yazıyor; depodaki 92 çağrının 61'i
+        böyle (ortanca uzaklık 27 karakter)."""
+        from gui.outline import anahat_girdileri
+
+        girdiler = anahat_girdileri(
+            "\\section*{Kaynakça}\n"
+            "\\addcontentsline{toc}{section}{Kaynakça}\n")
+        assert [e for _l, _s, e in girdiler] == ["Kaynakça"], girdiler
+
+    def test_BOLUM_OLMAYAN_seviye_ve_hedef_sayilmiyor(self):
+        r"""İki ayrı koşul: hedef `toc` olmalı ve seviye bir bölüm seviyesi
+        olmalı. `lof`/`lot` şekil ve çizelge listesine yazıyor, anahat
+        başlığı değil; `figure` de bölüm seviyesi değil. Üçüncü satır
+        ikisini AYIRIYOR: seviyesi geçerli ama hedefi `toc` değil."""
+        from gui.outline import anahat_girdileri
+
+        assert anahat_girdileri(
+            "\\addcontentsline{lof}{figure}{Şekil 1}\n"
+            "\\addcontentsline{toc}{figure}{Şekil 2}\n"
+            "\\addcontentsline{lof}{section}{Şekil Listesi}\n") == []
+
+
 # --- Yeniden yükledikten sonra kaydedilen hash (2026-09-12) ---
 
 

@@ -23,9 +23,23 @@ _ = lambda s: QCoreApplication.translate("OutlinePanel", s)
 #                        biçimlerde (`\section[\appendixname~\thesection]{}`)
 #                        görünen metin odur. Yakalanmazken anahatta BOŞ satır
 #                        çıkıyordu (ölçüldü 2026-09-09, template27'de üç kez).
+#   \addcontentsline{toc}{<seviye>}{<başlık>}: kaynakta bölüm komutu YOK
+#                       ama içindekiler tablosuna GİRİYOR. Tez ön/arka
+#                       maddesi (ÖZET, ABSTRACT, TEŞEKKÜR, İÇİNDEKİLER,
+#                       ŞEKİL LİSTESİ, KAYNAKLAR, EKLER) şablonlarda böyle
+#                       yazılıyor ve anahatta HİÇ görünmüyordu; yani tezin
+#                       ön maddesine panelden gidilemiyordu.
+#
+# ÖLÇÜLDÜ (2026-09-14), kehanet LaTeX'in KENDİ ürettiği `.toc` dosyası:
+# `\tableofcontents` üreten 20 belgenin 602 `\contentsline` girdisinden
+# 48'i anahatta yoktu ve hepsi bu yolla yazılmıştı.
+#
+# İki dal AYNI desende: eşleşme her iki biçimde de `{` ile bitiyor, yani
+# başlık aynı `_baslik_oku` ile okunuyor ve döngü tek kalıyor.
 _RE_SECTION_BAS = re.compile(
-    r'\\(part|chapter|section|subsection|subsubsection|paragraph|subparagraph)'
-    r'\*?\s*(?:\[(?P<kisa>[^\]]*)\])?\s*\{'
+    r'\\(?P<cmd>part|chapter|section|subsection|subsubsection|paragraph'
+    r'|subparagraph)\*?\s*(?:\[(?P<kisa>[^\]]*)\])?\s*\{'
+    r'|\\addcontentsline\s*\{\s*toc\s*\}\s*\{\s*(?P<acl>[a-zA-Z]+)\s*\}\s*\{'
 )
 
 # Yerleşim/aralık komutları: başlıkta GÖRÜNEN metin üretmiyorlar, argümanıyla
@@ -186,6 +200,77 @@ _PREFIX = {
 }
 
 
+def anahat_girdileri(text: str) -> list[tuple[int, int, str]]:
+    """Metindeki başlıklar: (satır, seviye, etiket) listesi. Qt'süz.
+
+    `update_outline` ağacı bundan kuruyor; ayrı durmasının iki sebebi var:
+    `\\addcontentsline` elemesi tüm listeyi görmeyi gerektiriyor, ve
+    ayrıştırma Qt olmadan sınanabiliyor.
+    """
+    # Sözel bölgeler BOŞLUĞA çevrilmiş metin üzerinde taranıyor: uzunluk
+    # korunduğu için satır numaraları ve başlık okuma aynı offsetlerle
+    # çalışıyor (bkz. yukarıdaki not).
+    tarama = sozel_soy(text)
+    ham_girdiler = []
+    # Satır numaraları artımlı sayılır: her eşleşme için metnin başından
+    # yeniden saymak (text[:m.start()].count) bölüm sayısıyla çarpılan
+    # kare maliyet üretiyordu; burada imleç konumundan devam edilir.
+    line = 0
+    line_pos = 0  # `line` numaralı satırın başlangıç offseti
+    for match in _RE_SECTION_BAS.finditer(tarama):
+        # Yorum içinde mi kontrol et
+        line_start = tarama.rfind('\n', 0, match.start()) + 1
+        line_text = tarama[line_start:match.start()]
+        if _yorum_var_mi(line_text):
+            continue
+
+        cmd = match.group('cmd') or match.group('acl')
+        if cmd not in _LEVEL:
+            # `\addcontentsline{toc}{figure}{...}` gibi bölüm olmayan
+            # seviyeler: içindekilerde satır açıyor ama anahat başlığı değil.
+            continue
+
+        ham_baslik = _baslik_oku(tarama, match.end())
+        if ham_baslik is None:
+            continue                # küme kapanmamış
+
+        line += tarama.count('\n', line_pos, match.start())
+        line_pos = match.start()
+
+        title = _baslik_goster(ham_baslik)
+        if not title:
+            # Zorunlu argüman boş: görünen metin KISA başlıktır
+            # (`\section[\appendixname~\thesection]{}`).
+            title = _baslik_goster(match.group('kisa') or '')
+        if not title:
+            # Gerçekten başlıksız bölüm (`\section{}`): şablonlarda
+            # yazarın dolduracağı yer. Boş satır tıklanabilir ama
+            # GÖRÜNMEZ; ölçüldü, altı satır böyleydi.
+            title = _("(başlıksız)")
+
+        ham_girdiler.append((line, cmd, title,
+                             match.group('acl') is not None))
+
+    # `\addcontentsline` KOPYA ELEMESİ. Yaygın kalıp komutu ve bildirimi
+    # yan yana yazıyor:
+    #     \section*{Kaynakça}
+    #     \addcontentsline{toc}{section}{Kaynakça}
+    # ÖLÇÜLDÜ: depodaki 92 `\addcontentsline{toc}` çağrısının 61'inin
+    # yanında AYNI başlıklı bir bölüm komutu var (ortanca uzaklık 27
+    # karakter, en çok 83), yani körlemesine eklemek panelde kopya
+    # üretirdi. Kalan 31'i panelde hiç görünmüyordu.
+    girdiler = []
+    for i, (line, cmd, title, acl) in enumerate(ham_girdiler):
+        if acl and any(ham_girdiler[j][2] == title
+                       for j in (i - 1, i + 1)
+                       if 0 <= j < len(ham_girdiler)):
+            continue
+        prefix = _PREFIX.get(cmd, '')
+        girdiler.append((line, _LEVEL[cmd],
+                         f"{prefix}: {title}" if prefix else title))
+    return girdiler
+
+
 class OutlinePanel(QWidget):
     goto_line_requested = pyqtSignal(int)
 
@@ -265,46 +350,8 @@ class OutlinePanel(QWidget):
         self._tree.clear()
         self._items = []
 
-        # Sözel bölgeler BOŞLUĞA çevrilmiş metin üzerinde taranıyor: uzunluk
-        # korunduğu için satır numaraları ve başlık okuma aynı offsetlerle
-        # çalışıyor (bkz. yukarıdaki not).
-        tarama = sozel_soy(text)
         stack = []
-        # Satır numaraları artımlı sayılır: her eşleşme için metnin başından
-        # yeniden saymak (text[:m.start()].count) bölüm sayısıyla çarpılan
-        # kare maliyet üretiyordu; burada imleç konumundan devam edilir.
-        line = 0
-        line_pos = 0  # `line` numaralı satırın başlangıç offseti
-        for match in _RE_SECTION_BAS.finditer(tarama):
-            # Yorum içinde mi kontrol et
-            line_start = tarama.rfind('\n', 0, match.start()) + 1
-            line_text = tarama[line_start:match.start()]
-            if _yorum_var_mi(line_text):
-                continue
-
-            ham_baslik = _baslik_oku(tarama, match.end())
-            if ham_baslik is None:
-                continue                # küme kapanmamış
-
-            line += tarama.count('\n', line_pos, match.start())
-            line_pos = match.start()
-
-            cmd = match.group(1)
-            title = _baslik_goster(ham_baslik)
-            if not title:
-                # Zorunlu argüman boş: görünen metin KISA başlıktır
-                # (`\section[\appendixname~\thesection]{}`).
-                title = _baslik_goster(match.group('kisa') or '')
-            if not title:
-                # Gerçekten başlıksız bölüm (`\section{}`): şablonlarda
-                # yazarın dolduracağı yer. Boş satır tıklanabilir ama
-                # GÖRÜNMEZ; ölçüldü, altı satır böyleydi.
-                title = _("(başlıksız)")
-            level = _LEVEL[cmd]
-
-            prefix = _PREFIX.get(cmd, '')
-            label = f"{prefix}: {title}" if prefix else title
-
+        for line, level, label in anahat_girdileri(text):
             item = QTreeWidgetItem([label])
             item.setData(0, Qt.ItemDataRole.UserRole, line)
             item.setData(0, Qt.ItemDataRole.UserRole + 1, level)
