@@ -29,6 +29,10 @@ def _hint_templates() -> dict:
         "brace_mismatch": _("Eksik/fazla süslü parantez; bu satırdan geriye doğru { } eşleşmesini kontrol edin"),
         "double_subscript": _("Aynı terimde iki alt/üst simge; a_{bc} gibi gruplayın"),
         "env_undefined": _("Tanımsız ortam {env}: \\newenvironment ile tanımlanmamış ya da paketi yüklenmemiş"),
+        # Dıştaki süslü parantezler LİTERAL, içteki {paket} yer tutucu:
+        # ikame sonrası "\usepackage{amsmath}" çıkıyor. Yer tutucuyu
+        # parantezsiz yazmak "\usepackageamsmath" üretirdi.
+        "env_needs_package": _("Tanımsız ortam {env}: önsöze \\usepackage{{paket}} ekleyin"),
         "file_ended_scanning": _("Bir komut/ortam kapanmamış (eksik } veya \\end{...}); dosyanın sonuna doğru kontrol edin"),
         "emergency_stop": _("Derleyici beklenmedik durdu; genelde eksik dosya veya kapanmamış blok. Log sekmesindeki son satırlara bakın"),
         "counter_too_large": _("Sayaç sınırı aşıldı (çok sayıda dipnot/liste öğesi); enumitem paketini kullanın"),
@@ -311,6 +315,7 @@ class OutputPanel(QWidget):
         # kalıyordu. Yerine basit ikame.
         out = tmpl.replace("{cmd}", f" ({cmd})" if cmd else "")
         out = out.replace("{env}", env)
+        out = out.replace("{paket}", params.get("paket", ""))
         # missing_glyph şablonunda literal '{fontenc}' de geçiyor. Çakışmıyor:
         # '{font}' kapanış parantezi ister, '{fontenc}' orada 'e' taşıyor.
         # Yine de yer tutucuyu değiştirecek olan bunu akılda tutsun.

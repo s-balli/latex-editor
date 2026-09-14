@@ -70,6 +70,51 @@ _PATTERNS: list[tuple[re.Pattern, str]] = [
 
 _RE_ENV_UNDEFINED = re.compile(r"Environment (\S+) undefined")
 
+# Ortamı TANIMLAYAN paket.
+#
+# NEDEN BURADA: uygulama bu ortamları KENDİSİ öneriyor ya da KENDİSİ yazıyor.
+# `\begin{` tamamlaması 62 ortam adı sayıyor, tablo sihirbazı `tabularx` ve
+# `longtable` yazabiliyor, yazım denetimi ile anahat `tikzpicture`,
+# `algorithm`, `Verbatim` gibi adları zaten tanıyor. Uygulamanın "Yeni
+# Dosya" belgesi ise sade `\documentclass{article}`: hiç paket yüklemiyor.
+#
+# ÖLÇÜLDÜ (2026-09-14, gerçek derleme, core/derle.sh ile): uygulamanın
+# bildiği 79 ortam adının 43'ü o belgede TANIMSIZ. Kullanıcı tamamlamadan
+# `align` seçiyor, derliyor ve "Environment align undefined" alıyordu;
+# ipucu ise yalnız "paketi yüklenmemiş" diyor, HANGİ paket olduğunu
+# söylemiyordu.
+#
+# Her satır İKİ YÖNLÜ doğrulandı: paketsiz hâli "Environment X undefined"
+# ile düşüyor, `\usepackage{...}` eklenince GEÇİYOR. Yanlış ad kullanıcıyı
+# boşuna uğraştırır; nitekim ölçüm iki iddiayı ELEDİ: `amsthm` yedi teorem
+# ortamını TANIMLAMIYOR (doğru cevap `\newtheorem`) ve `subfig`
+# `subfigure` ORTAMINI vermiyor (doğru cevap `subcaption`).
+ORTAM_PAKETI = {
+    "align": "amsmath", "align*": "amsmath",
+    "gather": "amsmath", "gather*": "amsmath",
+    "multline": "amsmath", "multline*": "amsmath",
+    "equation*": "amsmath", "split": "amsmath",
+    "bmatrix": "amsmath", "vmatrix": "amsmath", "Vmatrix": "amsmath",
+    "proof": "amsthm",
+    "alltt": "alltt",
+    "comment": "comment",
+    "lstlisting": "listings",
+    "minted": "minted", "listing": "minted",
+    "wrapfigure": "wrapfig", "wraptable": "wrapfig",
+    "subfigure": "subcaption", "subtable": "subcaption",
+    "tabularx": "tabularx",
+    "longtable": "longtable",
+    "tikzpicture": "tikz",
+    "pgfpicture": "pgf",
+    "Verbatim": "fancyvrb", "BVerbatim": "fancyvrb", "LVerbatim": "fancyvrb",
+    "algorithm": "algorithm",
+    "algorithmic": "algorithmic",
+    "multicols": "multicol",
+    "threeparttable": "threeparttable",
+    "sidewaystable": "rotating", "sideways": "rotating",
+    "adjustbox": "adjustbox",
+}
+
 # "Missing character: There is no ş (U+015F) in font ec-lmr10!"
 #
 # Bu SESSIZ bir kayıp: derleme başarılı biter, PDF açılır, harf yoktur.
@@ -96,6 +141,9 @@ def get_hint(message: str, context: str = "") -> tuple[str, dict[str, str]] | No
         return None
     m = _RE_ENV_UNDEFINED.search(message)
     if m:
+        paket = ORTAM_PAKETI.get(m.group(1))
+        if paket:
+            return "env_needs_package", {"env": m.group(1), "paket": paket}
         return "env_undefined", {"env": m.group(1)}
     m = _RE_EKSIK_GLIF.search(message)
     if m:

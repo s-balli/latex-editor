@@ -43,8 +43,10 @@ def test_double_subscript():
 
 
 def test_env_undefined():
-    h = get_hint("LaTeX Error: Environment tikzpicture undefined.")
-    assert h == ("env_undefined", {"env": "tikzpicture"})
+    # `tikzpicture` yazıyordu; artık paketi biliniyor ve ipucu paket adını
+    # veriyor (bkz. test_TANIMSIZ_ortam_ipucu_PAKET_ADINI_soyluyor).
+    h = get_hint("LaTeX Error: Environment sunum undefined.")
+    assert h == ("env_undefined", {"env": "sunum"})
 
 
 def test_file_ended_scanning():
@@ -204,7 +206,8 @@ def test_her_ipucu_kimliginin_sablonu_var(qapp):
     from gui.output_panel import OutputPanel, _hint_templates
 
     kimlikler = {hid for _pat, hid in error_hints._PATTERNS}
-    kimlikler |= {"env_undefined", "missing_glyph"}  # parametreli olanlar
+    kimlikler |= {"env_undefined", "env_needs_package",
+                  "missing_glyph"}  # parametreli olanlar
     sablonlar = set(_hint_templates())
     eksik = kimlikler - sablonlar
     assert not eksik, "sablonu olmayan ipucu kimligi: %s" % sorted(eksik)
@@ -419,3 +422,85 @@ class TestTanimsizKomutSonBelirtec:
         """Diğer ipuçlarına yanlışlıkla cmd sızmamalı."""
         h = get_hint("Missing $ inserted.", r"l.3 \textbf{x} \foo")
         assert h == ("missing_math", {})
+
+
+# =====================================================================
+# Tanımsız ortam -> HANGİ paket (2026-09-14)
+# =====================================================================
+
+# Uygulamanın "Yeni Dosya" belgesi sade `\documentclass{article}`: hiç
+# paket yüklemiyor. Buna karşılık uygulama 79 ortam adı biliyor; `\begin{`
+# tamamlaması 62'sini ÖNERİYOR, tablo sihirbazı `tabularx`/`longtable`
+# YAZABİLİYOR, yazım denetimi ile anahat `tikzpicture`, `algorithm`,
+# `Verbatim` gibi adları tanıyor.
+#
+# ÖLÇÜLDÜ (2026-09-14, gerçek derleme, core/derle.sh ile, 79 ortamın her
+# biri ayrı belgede): 36'sı sade belgede tanımlı, 43'ü DEĞİL. Ölçüt çıkış
+# kodu değil, günlükteki "Environment X undefined" satırı; gövdesi boş
+# belge PDF üretmediği için çıkış kodu tek başına yanıltıyor (`centering`
+# ve `titlepage` öyle "düşmüş" görünüyordu, metin eklenince ikisi de
+# geçti).
+_SADE_BELGEDE_TANIMLI = {
+    "abstract", "array", "cases", "center", "centering", "description",
+    "displaymath", "document", "enumerate", "eqnarray", "equation",
+    "figure", "figure*", "flushleft", "flushright", "itemize", "list",
+    "math", "matrix", "minipage", "picture", "pmatrix", "quotation",
+    "quote", "tabbing", "table", "table*", "tabular", "tabular*",
+    "thebibliography", "theindex", "titlepage", "trivlist", "verbatim",
+    "verbatim*", "verse",
+}
+
+# Tanımsız olup cevabı PAKET OLMAYAN sekiz ortam (aynı ölçüm): yedi teorem
+# ortamı `\usepackage{amsthm}` ile de tanımsız kalıyor, doğru cevap
+# `\newtheorem{theorem}{...}` (denendi, geçti). `frontmatter` ise sınıfa
+# bağlı: `book`ta derleniyor, `article` ve `report`ta tanımsız.
+_PAKET_DEGIL = {
+    "theorem", "lemma", "corollary", "definition", "proposition",
+    "remark", "example", "frontmatter",
+}
+
+
+def test_UYGULAMANIN_bildigi_her_ortam_siniflandirilmis(qapp):
+    r"""Uygulama bir ortamı önerip derlenemediğinde çaresiz bırakmasın.
+
+    Kullanıcı `\begin{ali` yazıp tamamlamadan `align` seçiyor, derliyor ve
+    "Environment align undefined" alıyor. İpucu "paketi yüklenmemiş"
+    diyordu ama HANGİ paket olduğunu söylemiyordu; oysa cevap tek kelime:
+    amsmath.
+
+    Kapı LİSTELERİ BİRBİRİNE BAĞLIYOR: tamamlamaya (ya da sihirbazın,
+    yazım denetiminin bildiği listelere) yeni bir ortam eklendiğinde ya
+    ölçülmüş "sade belgede tanımlı" kümesinde olmalı, ya bir paketi
+    bilinmeli, ya da paketle çözülmediği ölçülmüş olmalı. Üçü de değilse
+    sınıflandırılmamış demektir ve kullanıcı yine çaresiz kalır.
+    """
+    from core.error_hints import ORTAM_PAKETI
+    from core.latex_tables import TABLO_ORTAMLARI
+    from core.latex_utils import CIZIM_ENVS, VERB_ENVS
+    from core.yazim import _BELIRTECLI_ORTAM, _MATEMATIK_ORTAM
+    from gui.editor import _LATEX_ENVIRONMENTS
+
+    bilinen = (set(_LATEX_ENVIRONMENTS) | set(TABLO_ORTAMLARI)
+               | set(CIZIM_ENVS) | set(VERB_ENVS)
+               | set(_BELIRTECLI_ORTAM) | set(_MATEMATIK_ORTAM))
+    siniflanmis = _SADE_BELGEDE_TANIMLI | set(ORTAM_PAKETI) | _PAKET_DEGIL
+    assert not (bilinen - siniflanmis), \
+        "sinifllandirilmamis ortam: %s" % sorted(bilinen - siniflanmis)
+
+
+def test_TANIMSIZ_ortam_ipucu_PAKET_ADINI_soyluyor(qapp):
+    """Kullanıcının gördüğü metin gerçekten paketi yazıyor mu."""
+    from gui.output_panel import OutputPanel
+
+    h = get_hint("LaTeX Error: Environment align undefined.")
+    assert h == ("env_needs_package", {"env": "align", "paket": "amsmath"})
+    metin = OutputPanel._hint_text(h)
+    assert "\\usepackage{amsmath}" in metin
+    assert "align" in metin
+
+
+def test_PAKETI_BILINMEYEN_ortamda_genel_ipucu_duruyor():
+    r"""Karşı yön: kullanıcının kendi `\newenvironment`ı için paket
+    uydurulmamalı."""
+    h = get_hint("LaTeX Error: Environment benimkutum undefined.")
+    assert h == ("env_undefined", {"env": "benimkutum"})
