@@ -1576,3 +1576,47 @@ class TestBosluklkuAnahtar:
         9 tane, ölçüldü); tanım deseni onları görmüyor ve bu AYRIM bilerek."""
         icerik, yol = self._yaz(tmp_path, "\\label{}\n\\label{gercek}\n")
         assert latex_refs.collect_labels(icerik, yol) == ["gercek"]
+
+
+# --- harvard paketi: \harvarditem (2026-09-14) ---
+
+
+class TestHarvarditem:
+    r"""`harvard` paketi `\bibitem` yerine
+    `\harvarditem{uzun}{yıl}{anahtar}` yazdırıyor ve anahtar ÜÇÜNCÜ argüman.
+    Biçim üç ayrı desende yazılıyken hiçbiri onu bilmiyordu.
+
+    ÖLÇÜLDÜ (2026-09-14), kehanet derlemenin ürettiği `.aux` (`\bibcite`):
+    kaynakçası olan 33 belgede 452 anahtar var, 40'ı "Tanımsız \cite" diye
+    bildiriliyordu ve kırkı da tek belgenin kaynakçasının TAMAMI.
+    """
+
+    KAYNAKCA = ("\\cite{Ahmed:2020} metin.\n"
+                "\\begin{thebibliography}{agsm}\n"
+                "\\harvarditem{Ahmed \\textit{et al.}}{2020}{Ahmed:2020}"
+                " Ahmed, N. (2020). Bir makale.\n"
+                "\\end{thebibliography}\n")
+
+    def _yaz(self, tmp_path):
+        yol = tmp_path / "ana.tex"
+        yol.write_text(self.KAYNAKCA, encoding="utf-8")
+        return self.KAYNAKCA, str(yol)
+
+    def test_anahtar_TANIMSIZ_sayilmiyor(self, tmp_path):
+        icerik, yol = self._yaz(tmp_path)
+        assert latex_refs.audit_references(icerik, yol).undefined_cites == []
+
+    def test_tamamlamaya_ve_TANIMA_GIT_e_giriyor(self, tmp_path):
+        icerik, yol = self._yaz(tmp_path)
+        assert latex_refs.collect_citable_keys(icerik, yol) == ["Ahmed:2020"]
+        assert latex_refs.find_bibitem_location(
+            icerik, yol, "Ahmed:2020") == (yol, 3)
+
+    def test_IC_ICE_suslu_argumani_asiyor(self):
+        r"""İlk argümanda `\textit{et al.}` var; iç içe süslüyü atlamayan
+        bir desen anahtarı yanlış yerden okur."""
+        satir = ("\\harvarditem{Ahmed \\textit{et al.}}{2020}{Ahmed:2020}"
+                 " govde")
+        assert [k for k, _s
+                in latex_refs.bibitem_anahtarlari_satirda(satir)] == \
+            ["Ahmed:2020"]

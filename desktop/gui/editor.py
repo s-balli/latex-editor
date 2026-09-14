@@ -14,7 +14,8 @@ from core.bibtex import RE_GIRDI_ANAHTARI
 from core.fs_ops import coz_adiyla, lf_ye_indir
 from core.log import get_logger
 from core.latex_refs import (
-    CITE_KOMUTLARI, REF_ARALIK_KOMUTLARI, REF_KOMUTLARI, collect_citable_keys,
+    CITE_KOMUTLARI, REF_ARALIK_KOMUTLARI, REF_KOMUTLARI,
+    bibitem_anahtarlari_satirda, collect_citable_keys,
     collect_image_paths, collect_input_paths, collect_labels,
     komut_alternatifi,
 )
@@ -60,8 +61,10 @@ _RE_CITE_TETIK = re.compile(
 # Desen core.bibtex'ten geliyor, kopyası TUTULMUYOR: burada kendi kopyası
 # vardı ve ikisi `@tur(...)` parantezli biçimde ayrışıyordu (bkz. oradaki not).
 _RE_BIBENTRY = RE_GIRDI_ANAHTARI
-# \bibitem{key} (thebibliography) — Alt+tık ile ters yön: makaledeki \cite yerine
-_RE_BIBITEMARG = re.compile(r'\\bibitem\s*(?:\[[^\]]*\])?\s*\{([^}]+)\}')
+# Kaynakça girdisi anahtarı (Alt+tık ile ters yön: makaledeki \cite yerine).
+# Desen core.latex_refs'ten geliyor, kopyası TUTULMUYOR: burada kendi kopyası
+# vardı ve `\harvarditem` orada görünmüyordu
+# (bkz. `bibitem_anahtarlari_satirda`).
 # \label{key} — F2 yeniden adlandırma için imleç altındaki anahtar
 _RE_LABELARG = re.compile(r'\\label\s*\{([^}]*)\}')
 
@@ -309,10 +312,9 @@ class EditorWidget(QsciScintilla):
     @staticmethod
     def _bibitem_key_at(line_text: str, col: int) -> str | None:
         """line_text'te col bir '\\bibitem{key}' girdi anahtarındaysa key'i döndür."""
-        for m in _RE_BIBITEMARG.finditer(line_text):
-            a, b = m.span(1)
+        for anahtar, (a, b) in bibitem_anahtarlari_satirda(line_text):
             if a <= col <= b:
-                return m.group(1).strip()
+                return anahtar
         return None
 
     def contextMenuEvent(self, event):
@@ -464,10 +466,9 @@ class EditorWidget(QsciScintilla):
             if a <= col <= b:
                 self.rename_label_requested.emit(m.group(1).strip())
                 return
-        for m in _RE_BIBITEMARG.finditer(line_text):
-            a, b = m.span(1)
+        for anahtar, (a, b) in bibitem_anahtarlari_satirda(line_text):
             if a <= col <= b:
-                self.rename_bibitem_requested.emit(m.group(1).strip())
+                self.rename_bibitem_requested.emit(anahtar)
                 return
         hit = self._ref_cite_key_at(line_text, col) or self._nearest_family_hit(line_text, col)
         if not hit:
@@ -485,8 +486,8 @@ class EditorWidget(QsciScintilla):
 
         Dönüş: (anahtar, 'label' | 'cite' | 'bibitem').
         """
-        for m in _RE_BIBITEMARG.finditer(line_text):
-            return (m.group(1).strip(), "bibitem")
+        for anahtar, _span in bibitem_anahtarlari_satirda(line_text):
+            return (anahtar, "bibitem")
         for m in _RE_LABELARG.finditer(line_text):
             return (self._nearest_key(m.group(1), max(0, col - m.start(1))), "label")
         for m in _RE_REFARG.finditer(line_text):

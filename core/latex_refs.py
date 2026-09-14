@@ -172,11 +172,44 @@ _bib_chain_cache: dict = {}
 _BIB_CHAIN_TTL = 2.0
 
 
-# \bibitem[etiket]{anahtar} GÖVDE ... bir sonraki \bibitem'e ya da ortamın
-# sonuna kadar. Gövde serbest metin: .bib gibi alanlara ayrılmış değil.
+# Kaynakça girdisini BİLDİREN komutlar. TEK KAYNAK: aynı bilgi ÜÇ ayrı
+# desende yazılıydı (girdi listesi, denetimin tanımlı anahtarları, "tanıma
+# git") ve üçü de yalnız `\bibitem`i biliyordu.
+#
+# `harvard` paketi `\bibitem` yerine `\harvarditem{uzun}{yıl}{anahtar}`
+# yazdırıyor ve anahtar ÜÇÜNCÜ argüman. ÖLÇÜLDÜ (2026-09-14), kehanet
+# derlemenin ürettiği `.aux` (`\bibcite` girdileri, yani LaTeX'in kaynakça
+# TANIMLADI dediği anahtarlar): kaynakçası olan 33 belgede 452 anahtar var
+# ve bunların 40'ı "Tanımsız \cite" diye bildiriliyordu. Kırkı da tek
+# belgede (template26) ve o belgenin kaynakçasının TAMAMI. Aynı belgede
+# `\cite{` tamamlaması da hiçbir anahtar önermiyor, Alt+tık da gitmiyordu.
+#
+# Argüman grubunda BİR iç içe seviyeye izin var: gerçek kullanım
+# `\harvarditem{Ahmed \textit{et al.}}{2020}{Ahmed:2020}`. Depodaki 40
+# girdinin hiçbirinde ikinci seviye yok.
+_ARG_GRUBU = r"\{(?:[^{}]|\{[^{}]*\})*\}"
+_BIBITEM_BAS = (
+    r"\\bibitem\s*(?:\[[^\]]*\])?\s*\{(?P<k1>[^}]+)\}"
+    r"|\\harvarditem\s*(?:\[[^\]]*\])?\s*" + _ARG_GRUBU + r"\s*" + _ARG_GRUBU
+    + r"\s*\{(?P<k2>[^}]+)\}"
+)
+_BIBITEM_SONU = r"(?=\\bibitem|\\harvarditem|\\end\{thebibliography\}|\Z)"
+
+
+def _bibitem_grubu(m) -> str:
+    """Eşleşen biçimin anahtar grubunun adı (`span` almak için de gerekli)."""
+    return "k1" if m.group("k1") is not None else "k2"
+
+
+def _bibitem_anahtari(m) -> str:
+    """İki biçimden hangisi eşleştiyse onun anahtarı."""
+    return (m.group(_bibitem_grubu(m)) or "").strip()
+
+
+# Bildirim + GÖVDE ... bir sonraki girdiye ya da ortamın sonuna kadar.
+# Gövde serbest metin: .bib gibi alanlara ayrılmış değil.
 _RE_BIBITEM_GOVDE = re.compile(
-    r"\\bibitem\s*(?:\[[^\]]*\])?\s*\{([^}]+)\}"
-    r"(.*?)(?=\\bibitem|\\end\{thebibliography\}|\Z)", re.DOTALL)
+    r"(?:" + _BIBITEM_BAS + r")(?P<govde>.*?)" + _BIBITEM_SONU, re.DOTALL)
 
 # Gösterim için soyulan biçim komutları. Liste DAR: tanınmayan komutu silmek
 # metni bozabilir (\& gibi kaçışlar, \TeX gibi anlam taşıyanlar).
@@ -257,12 +290,12 @@ def parse_bibitems(content: str, base_path: str) -> list[tuple[str, str, int, st
         # bir girdiden sonraki gerçek girdi 3 yerine 2 çıkıyordu).
         temiz = strip_comments(metin)
         for m in _RE_BIBITEM_GOVDE.finditer(temiz):
-            anahtar = m.group(1).strip()
+            anahtar = _bibitem_anahtari(m)
             if not anahtar or anahtar in gorulen:
                 continue
             gorulen.add(anahtar)
             cikti.append((anahtar, yol, temiz.count("\n", 0, m.start()) + 1,
-                          _bibitem_metni(m.group(2))))
+                          _bibitem_metni(m.group("govde"))))
     return cikti
 
 
@@ -551,7 +584,7 @@ def collect_citable_keys(content: str, base_path: str) -> list[str]:
     # ancak `base_path` VARSA okuyor, yani hiç kaydedilmemiş bir belgede
     # kendi `\bibitem`leri listeye girmezdi.
     keys.update(k for m in _RE_BIBITEM.finditer(content)
-                if (k := m.group(1).strip()))
+                if (k := _bibitem_anahtari(m)))
     keys.update(k for k, _yol, _satir, _metin
                 in parse_bibitems(content, base_path))
     return sorted(keys)
@@ -617,14 +650,27 @@ def find_cite_location(content: str, base_path: str, key: str) -> tuple[str, int
 
 # --- \bibitem (thebibliography, el ile kaynakça): \cite için .bib yoksa fallback ---
 
-def _bibitem_line_in(text: str, key: str) -> int | None:
-    """\\bibitem{key}'in 1-bazlı satır numarası (yorumlar strip edilmiş metinde).
+def bibitem_anahtarlari_satirda(line_text: str):
+    r"""Satırdaki kaynakça girdisi bildirimleri: (anahtar, (baş, son)) çiftleri.
 
-    \\bibitem[label]{key} opsiyonel etiketini de destekler.
+    Editör katmanı (Alt+tık ve F2) kendi desenini tutuyordu; `\harvarditem`
+    orada da görünmüyordu. Biçim bilgisi TEK KAYNAK olsun diye buradan
+    veriliyor (aynı dosyadaki `.bib` deseninin izlediği yol).
     """
-    pat = re.compile(r'\\bibitem\s*(?:\[[^\]]*\])?\s*\{\s*' + re.escape(key) + r'\s*\}')
+    for m in _RE_BIBITEM.finditer(line_text):
+        anahtar = _bibitem_anahtari(m)
+        if anahtar:
+            yield anahtar, m.span(_bibitem_grubu(m))
+
+
+def _bibitem_line_in(text: str, key: str) -> int | None:
+    """Kaynakça girdisinin 1-bazlı satır numarası (yorumsuz metinde).
+
+    Bildirim biçimi `_RE_BIBITEM`den geliyor (TEK KAYNAK); burada ayrı bir
+    desen yazılıyken `\\harvarditem` bu kolda da görünmüyordu.
+    """
     for i, ln in enumerate(strip_comments(text).split('\n'), start=1):
-        if pat.search(ln):
+        if any(_bibitem_anahtari(m) == key for m in _RE_BIBITEM.finditer(ln)):
             return i
     return None
 
@@ -845,7 +891,7 @@ def _segment_araliklari(m, old: str) -> list[tuple[int, int]]:
                 out.append((s, s + len(old)))
             off += len(part) + 1  # virgülü atla
     return out
-_RE_BIBITEM = re.compile(r'\\bibitem\s*(?:\[[^\]]*\])?\s*\{([^}]+)\}')
+_RE_BIBITEM = re.compile(_BIBITEM_BAS)
 _RE_NOCITE_ALL = re.compile(r'\\nocite\s*\{\*\}')
 
 
@@ -923,7 +969,7 @@ def audit_references(content: str, base_path: str) -> RefAudit:
     # (etiket kolundaki aynı ders için `_extract_labels`e bakın).
     bibitem_keys = {
         k for t in texts for m in _RE_BIBITEM.finditer(t)
-        if (k := m.group(1).strip())
+        if (k := _bibitem_anahtari(m))
     }
     bib_keys = set(collect_cite_keys(content, base_path))
 
@@ -1121,6 +1167,6 @@ def bibitem_rename_spans(text: str, old: str) -> list[tuple[int, int]]:
     tarama = _yeniden_adlandirma_taramasi(text)
     spans: list[tuple[int, int]] = []
     for m in _RE_BIBITEM.finditer(tarama):
-        if m.group(1).strip() == old:
-            spans.append(m.span(1))
+        if _bibitem_anahtari(m) == old:
+            spans.append(m.span(_bibitem_grubu(m)))
     return spans
