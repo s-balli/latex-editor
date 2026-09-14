@@ -838,10 +838,32 @@ _REF_TEKIL_KOMUTLARI = (
 # sanılıp "Tanımsız \ref" diye sahte bulgu üretirdi. Aralık kolu ÖNCE
 # geliyor, yani `\crefrange` iki kez eşleşmiyor; iki kez eşleşseydi F2 aynı
 # aralığı iki kez değiştirip metni bozardı.
+# ÜÇÜNCÜ KOL: etiketi KÖŞELİ argümanda alan biçim. hyperref'in belgelenmiş
+# yolu `\hyperref[sec:yontem]{Yöntem bölümü}`; anahtar köşede, süslüde
+# GÖRÜNEN METİN var.
+#
+# ÖLÇÜLDÜ (2026-09-14, tasarlanmış yer gerçeğiyle): bu biçim tanınmadığı
+# için yalnız onunla kullanılan etiket "kullanılmayan etiket" diye
+# bildiriliyor (sahte uyarı) ve olmayan bir etikete `\hyperref` yapınca
+# "Tanımsız \ref" HİÇ denmiyor (kaçırılan hata). Depodaki 39 şablonda bu
+# biçim hiç geçmiyor; gerekçe korpus değil paketin API'si, tıpkı tabloda
+# zaten duran biblatex komutları gibi (TeX Live'ın 52 paket dosyası bu
+# biçimi kullanıyor).
+#
+# Metin argümanı BİLEREK yakalanmıyor: `\hyperref[x]{Yöntem bölümü}`
+# yazımında süslüyü de anahtar sanmak "Tanımsız \ref: Yöntem bölümü" diye
+# sahte bir bulgu üretirdi.
+#
+# SINIR: editör katmanındaki "imlecin altındaki anahtar" (Alt+tık, F2)
+# süslü biçimi arıyor ve bu kola BAKMIYOR. F2 `\label`in üstünden
+# başlatılınca yeniden adlandırma buradan geçtiği için `\hyperref[...]`
+# de doğru güncelleniyor; eksik kalan yalnız köşenin İÇİNDEN başlatmak.
+_REF_KOSELI_KOMUTLARI = ("hyperref",)
 _RE_REFUSE = re.compile(
     r'\\(?:' + '|'.join(_REF_ARALIK_KOMUTLARI) + r')\*?\s*'
     r'(?:\[[^\]]*\]\s*)?\{([^}]*)\}\s*\{([^}]*)\}'
     r'|\\(?:' + '|'.join(_REF_TEKIL_KOMUTLARI) + r')\*?\s*\{([^}]*)\}'
+    r'|\\(?:' + '|'.join(_REF_KOSELI_KOMUTLARI) + r')\s*\[([^\]]*)\]'
 )
 
 

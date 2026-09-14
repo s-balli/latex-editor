@@ -1023,6 +1023,10 @@ _REF_AILESI = [
     r"\vref{fig:a}", r"\vpageref{fig:a}", r"\fullref{fig:a}",
     # çok anahtarlı ve aralık biçimleri
     r"\cref{fig:a,fig:b}", r"\crefrange{fig:a}{fig:z}",
+    # hyperref'in KÖŞELİ biçimi: anahtar köşede, süslüde GÖRÜNEN METİN.
+    # Metin argümanı anahtar sanılırsa `undefined_refs` boş kalmaz, yani
+    # aşağıdaki iki sav karşı yönü de tutuyor.
+    r"\hyperref[fig:a]{Yontem bolumu}",
 ]
 
 _CITE_AILESI = [
