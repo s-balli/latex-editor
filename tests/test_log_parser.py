@@ -760,3 +760,55 @@ class TestBaglamVeIkizListeleme:
         h = get_hint(r.errors[0].message, r.errors[0].context)
         assert h == ("cmd_needs_package",
                      {"cmd": "\\mathbb", "paket": "amssymb"})
+
+
+class TestTekrarSayisiEki:
+    r"""derle.sh tekrarlayan uyarıları tekilleştirip sayıyı satırın SONUNA
+    `(x149)` diye yazıyor.
+
+    Sayı SONA yazılıyor çünkü üç sınıfın da ayrıştırıcı deseni satır başına
+    çapalı; öne konsa hiçbiri eşleşmez ve uyarılar panelden tümüyle
+    kaybolurdu.
+    """
+
+    def test_EK_gercek_sayiyi_veriyor(self):
+        """Tekilleştirme öncesi sayı buradan geliyor; yoksa panel düşen 140
+        karakteri 4 sanıyordu."""
+        ham = ('Missing character: There is no X ("15F) in font ec-lmr10! '
+               '(x140)')
+        r = parse_output(ham)
+        assert len(r.warnings) == 1
+        assert "toplam 140 karakter" in r.warnings[0].message
+
+    def test_EKSIZ_satir_bir_kez_sayiliyor(self):
+        """Karşı kol: sayı eki yoksa satır bir geçiştir."""
+        ham = ('Missing character: There is no X ("15F) in font ec-lmr10!\n'
+               'Missing character: There is no Y ("131) in font ec-lmr10!')
+        r = parse_output(ham)
+        assert "toplam 2 karakter" in r.warnings[0].message
+
+    def test_FARKLI_HARF_sayisi_da_yaziliyor(self):
+        """Mesaj tek bir örnek satır taşıyor; okuyan 140 tane aynı harf
+        sanmasın."""
+        ham = ('Missing character: There is no X ("15F) in font ec-lmr10! (x40)\n'
+               'Missing character: There is no Y ("131) in font ec-lmr10! (x40)')
+        r = parse_output(ham)
+        assert "toplam 80 karakter" in r.warnings[0].message
+        assert "2 farklı harf" in r.warnings[0].message
+
+    def test_EK_ipucunun_YAZI_TIPI_cikarimini_bozmuyor(self):
+        r"""`error_hints` yazı tipi adını mesajdan okuyor; ek sondayken de
+        okuyabilmeli."""
+        ham = ('Missing character: There is no X ("15F) in font ec-lmr10! '
+               '(x9)')
+        h = get_hint(parse_output(ham).warnings[0].message)
+        assert h == ("missing_glyph", {"font": "ec-lmr10"})
+
+    def test_EK_DIGER_tekrarlayan_siniflari_bozmuyor(self):
+        """Aynı boru hattı `LaTeX Font Warning` ve `warning (` sınıflarına da
+        ek koyuyor; satır başı değişmediği için ikisi de tanınmalı."""
+        r = parse_output("LaTeX Font Warning: Font shape `T1/cmr/m/n' "
+                         "undefined on input line 7. (x3)")
+        assert len(r.warnings) == 1
+        assert r.warnings[0].warning_type == "Font"
+        assert r.warnings[0].line_number == 7

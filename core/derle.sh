@@ -705,7 +705,21 @@ derle_dosya() {
     UYARI_SATIRLARI=$(
         {
             echo "$SON_CIKTI" | grep -E "$UYARI_DESENI" || true
-            echo "$SON_CIKTI" | grep -E "$TEKRARLAYAN_UYARI" | sort -u || true
+            # TEKRAR SAYISI KORUNUYOR. Burada yalnizca `sort -u` vardi ve
+            # ayristiricinin "yazi tipi basina kac kez gectigini yaz" kolu
+            # bu yuzden HIC gercek sayiyi gormuyordu: sayilacak satirlar
+            # buraya gelmeden tekillesiyordu. OLCULDU (2026-09-15, 140
+            # dusen Turkce harf iceren belge, gercek derleme): motorun
+            # gunlugunde 280 satir, bu boruda 4 satir, panelde "toplam 4
+            # karakter". Kullanici PDF'inden 140 harf dusmusken 4 saniyordu.
+            #
+            # Satir BASI degismiyor, sayi SONA ekleniyor: uc sinifin da
+            # ayristirici desenleri satir basina capali (`^Missing
+            # character:`, `^LaTeX Font Warning:`, `^warning +\(`) ve
+            # onlerine sayi konsa hicbiri eslesmezdi.
+            echo "$SON_CIKTI" | grep -E "$TEKRARLAYAN_UYARI" | sort | uniq -c \
+                | sed -E 's/^ *1 (.*)$/\1/; s/^ *([0-9]+) (.*)$/\2 (x\1)/' \
+                || true
         } | grep -v '^[[:space:]]*$' || true)
     local UYARI_SAYISI
     UYARI_SAYISI=$(echo "$UYARI_SATIRLARI" | grep -c . || true)

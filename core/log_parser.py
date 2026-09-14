@@ -93,6 +93,19 @@ _RE_FONT_WARN = re.compile(r'^\s*Font .+ not loadable')
 # desen yazı tipi adını çıkarabilsin.
 _RE_MISSING_GLYPH = re.compile(
     r'^\s*Missing character: There is no .+? in font ([^\s!]+)')
+# derle.sh TEKRARLAYAN uyarı sınıflarını tekilleştirip tekrar sayısını
+# satırın SONUNA `(x149)` diye yazıyor (satır başı değişmiyor, çünkü üç
+# sınıfın da deseni satır başına çapalı). Sayı olmayan satır bir kez geçmiş
+# demektir.
+_RE_TEKRAR_SAYISI = re.compile(r'\s*\(x(\d+)\)\s*$')
+
+
+def _tekrar_ayir(satir: str) -> tuple[str, int]:
+    """`... (x149)` -> (`...`, 149); eki yoksa (satır, 1)."""
+    m = _RE_TEKRAR_SAYISI.search(satir)
+    if not m:
+        return satir, 1
+    return satir[:m.start()], int(m.group(1))
 # Öneri: ==> Eksik paketi: ... veya ==> Eksik dil paketi: ...
 _RE_SUGGESTION = re.compile(r'^==>\s*(Eksik (?:dil )?paket[ie]?): (.+)')
 # Kurulum komutu: "    sudo apt-get install ..."
@@ -436,8 +449,10 @@ def parse_output(raw: str, source_file: str = "") -> CompileResult:
         # Eksik glif: biriktir, döngü sonunda yazı tipi başına tek uyarı
         m = _RE_MISSING_GLYPH.match(line)
         if m:
-            kayit = eksik_glif.setdefault(m.group(1), [line.strip(), 0])
-            kayit[1] += 1
+            duz, tekrar = _tekrar_ayir(line.strip())
+            kayit = eksik_glif.setdefault(m.group(1), [duz, 0, 0])
+            kayit[1] += tekrar   # PDF'e yazılmayan karakter sayısı
+            kayit[2] += 1        # kaç FARKLI karakter (satır)
             continue
 
         # Öneri: eksik paketi / dil paketi
@@ -460,10 +475,20 @@ def parse_output(raw: str, source_file: str = "") -> CompileResult:
     result.errors = _tekille(result.errors)
 
     # Eksik glifler: yazı tipi başına tek uyarı. Mesaj ilk GERÇEK log satırını
-    # koruyor (error_hints deseni yazı tipi adını oradan çıkarıyor); tekrar
-    # sayısı sonuna ekleniyor.
-    for _font, (ilk_satir, adet) in eksik_glif.items():
-        mesaj = ilk_satir if adet == 1 else f"{ilk_satir} (toplam {adet} karakter)"
+    # koruyor (error_hints deseni yazı tipi adını oradan çıkarıyor); sayılar
+    # sonuna ekleniyor.
+    #
+    # FARKLI HARF SAYISI DA YAZILIYOR, çünkü satır tek bir örneği gösteriyor:
+    # `ş`, `ı`, `İ`, `ğ` düşen bir belgede mesaj yalnız birini adlandırıyor ve
+    # okuyan "140 tane ğ mi eksik" diye düşünüyordu.
+    for _font, (ilk_satir, adet, farkli) in eksik_glif.items():
+        if adet <= 1:
+            mesaj = ilk_satir
+        elif farkli > 1:
+            mesaj = (f"{ilk_satir} (toplam {adet} karakter, "
+                     f"{farkli} farklı harf)")
+        else:
+            mesaj = f"{ilk_satir} (toplam {adet} karakter)"
         result.warnings.append(LatexWarning(
             message=mesaj,
             warning_type="Font",

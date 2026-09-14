@@ -532,6 +532,12 @@ class TestUyariSuzgeci:
         satırları benzersizleştiriyor, ayrıştırıcı da yazı tipi başına tek
         uyarıya indiriyor. ÖLÇÜLDÜ (2026-09-13): 360 ham satır, 6 benzersiz
         satır, panele 1 uyarı.
+
+        SAYI DA DENETLENİYOR (2026-09-15). Betik benzersizleştirirken tekrar
+        sayısını atıyordu, yani ayrıştırıcının "kaç kez geçti" kolu gerçek
+        sayıyı HİÇ görmüyordu: bu belgede 160 harf düşerken panel "toplam 4
+        karakter" diyordu. Gövde 4 düşen harfi 40 kez yazıyor, yani yer
+        gerçeği 160 ve 4 farklı harf.
         """
         from core.log_parser import parse_output
 
@@ -553,6 +559,9 @@ class TestUyariSuzgeci:
         assert len(font_uyarilari) <= 2, [u.message for u in font_uyarilari]
         assert temiz.count("Missing character") <= 12, \
             temiz.count("Missing character")
+        mesaj = font_uyarilari[0].message
+        assert "toplam 160 karakter" in mesaj, mesaj
+        assert "4 farklı harf" in mesaj, mesaj
 
 
 class TestSozlukVeSimge:
@@ -945,3 +954,46 @@ class TestWatchModu:
                 proc.kill()
                 proc.wait()
         assert proc.returncode == 0  # INT trap'ı temiz çıkış yapar
+
+
+class TestTekrarSayisiBorusu:
+    r"""Betik tekrarlayan uyarıları tekilleştirirken SAYIYI koruyor mu.
+
+    Boru hattı betikten OKUNUYOR, teste kopyalanmıyor: kopyalansaydı test
+    kendini ölçerdi ve betikteki değişikliği hiç görmezdi.
+    """
+
+    @staticmethod
+    def _boru():
+        with open(SCRIPT, encoding="utf-8") as f:
+            kaynak = f.read()
+        m = re.search(r"\|\s*sort\s*\|\s*uniq -c\s*\\\s*\n\s*\|\s*sed -E "
+                      r"('[^']*')", kaynak)
+        assert m, "betikteki tekrar borusu bulunamadi"
+        return "sort | uniq -c | sed -E " + m.group(1)
+
+    def _kos(self, metin):
+        r = subprocess.run(
+            ["bash", "-c", 'printf "%s" "$1" | ' + self._boru(),
+             "bash", metin],
+            capture_output=True, text=True, encoding="utf-8")
+        return [s for s in r.stdout.splitlines() if s.strip()]
+
+    def test_TEKRARLAYAN_satir_sayiyi_tasiyor(self):
+        """Sayı atılırsa panel 140 düşen harfi 4 sanıyor (ölçüldü)."""
+        metin = "Missing character: There is no X in font f!\n" * 3
+        assert self._kos(metin) == [
+            "Missing character: There is no X in font f! (x3)"]
+
+    def test_TEK_GECISTE_ek_yok(self):
+        """Karşı kol: bir kez geçen satıra `(x1)` yazmak gürültü olur."""
+        metin = "Missing character: There is no X in font f!\n"
+        assert self._kos(metin) == [
+            "Missing character: There is no X in font f!"]
+
+    def test_SATIR_BASI_degismiyor(self):
+        r"""Ayrıştırıcı desenleri satır başına çapalı (`^Missing character:`);
+        sayı öne konsaydı uyarılar panelden tümüyle kaybolurdu."""
+        metin = "LaTeX Font Warning: Font shape undefined\n" * 2
+        cikti = self._kos(metin)
+        assert cikti[0].startswith("LaTeX Font Warning:"), cikti
