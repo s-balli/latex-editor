@@ -61,6 +61,34 @@ def test_addcontentsline_YAPISAL_argumanini_atlar_BASLIGI_denetler():
         ["Sayfa"]
 
 
+def test_RENK_adi_metin_degil_METIN_denetleniyor():
+    r"""Renk komutlarının renk argümanı basılmıyor, metin argümanı basılıyor.
+
+    ÖLÇÜLDÜ (2026-09-14). Kehanet PDF'in KENDİSİ: LaTeX'in hiç basmadığı
+    bir kelimeyi işaretlemek tanımı gereği yanlış. 12 Türkçe belgede 9501
+    bulgunun 40'ı PDF'te hiç geçmiyordu ve en büyük öbek renk adlarıydı
+    (`blue` 6, `green` 6, `orange` 2), hepsi gövdedeki tablo satırlarından:
+    `\rowcolor{blue!15}`, `\cellcolor{green!15}`.
+
+    İKİ YÖN BİRLİKTE: komutu topluca atlamak gürültüyü keser ama METNİ de
+    keser. Karşı ölçüm yapıldı, aynı 12 belge: taranan kelime 47292'den
+    47267'ye indi ve kaybolan 25 kelimenin hepsi yapılandırma (renk adları,
+    `2cm`, `left`, `right`); gerçek proz kaybı SIFIR.
+    """
+    # Yalnız yapılandırma: hiçbiri denetlenmemeli
+    assert sozler("\\rowcolor{blue!15}") == []
+    assert sozler("\\cellcolor{green!15}") == []
+    assert sozler("\\definecolor{layer1}{RGB}{200,220,240}") == []
+    assert sozler("\\newgeometry{left=2cm, right=3cm}") == []
+    # Renk + METİN: renk atlanır, metin KALIR
+    assert sozler("\\textcolor{blue!70!black}{Basligim burada}") == \
+        ["Basligim", "burada"]
+    assert sozler("\\colorbox{yellow}{Vurgulu metin}") == \
+        ["Vurgulu", "metin"]
+    assert sozler("\\fcolorbox{red}{white}{Cerceveli metin}") == \
+        ["Cerceveli", "metin"]
+
+
 def test_section_argumani_METINDIR():
     """Komut argümanlarının HEPSİ atılamaz: başlık gerçek metindir."""
     ks = sozler("\\section{Giris Bolumu}\\label{sec:giris}")

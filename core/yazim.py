@@ -105,7 +105,8 @@ newcommand renewcommand providecommand newenvironment renewenvironment
 DeclareMathOperator newtheorem theoremstyle
 setlength addtolength setcounter addtocounter usetikzlibrary
 bibitem printbibliography addbibresource
-lstset tikzset hypersetup geometry pagestyle thispagestyle
+lstset tikzset hypersetup geometry newgeometry pagestyle thispagestyle
+color pagecolor cellcolor rowcolor columncolor definecolor colorlet
 """.split())
 
 # İLK argümanları yapılandırma, SONRAKİ argümanı düz metin olan komutlar.
@@ -128,6 +129,20 @@ _YAPISAL_ARGUMAN = {
     # `\addtocontents{toc}{~\hfill\textbf{Sayfa}}`: ikinci argüman ham
     # LaTeX ama içinde gerçek metin OLABİLİYOR ("Sayfa"), o yüzden 1.
     "addtocontents": 1,
+    # RENK KOMUTLARI. İlk argüman(lar) renk ADI, sonraki argüman METİN.
+    # `\textcolor{blue!70!black}{Başlık}` ikisini birden taşıyor; rengi
+    # atlamak şart, metni atlamak ise gerçek prozu kaybettirir.
+    #
+    # ÖLÇÜLDÜ (2026-09-14). Kehanet PDF'in KENDİSİ: bir kelime LaTeX
+    # tarafından hiç basılmıyorsa yazım denetiminin onu işaretlemesi tanımı
+    # gereği yanlıştır. 12 Türkçe belgede 9501 bulgunun 40'ı PDF'te hiç
+    # geçmiyordu ve en büyük öbek renk adlarıydı (`blue` 6, `green` 6,
+    # `orange` 2; hepsi tablo satırlarındaki `\rowcolor{blue!15}` ve
+    # `\cellcolor{green!15}` çağrılarından). Önsöz zaten atlanıyor, bu
+    # çağrılar GÖVDEDE.
+    "textcolor": 1,
+    "colorbox": 1,
+    "fcolorbox": 2,
 }
 
 # ÖNSÖZ (\begin{document} öncesi) yapılandırmadır, düz metin değildir:
