@@ -67,6 +67,25 @@ class AutosaveOpsMixin:
 
     def _autosave_tick(self):
         """Kirli ve yolu olan sekmeleri sessizce kaydet."""
+        # DOSYA HAKKINDA BİR SORU EKRANDAYSA YAZMA. Modal `exec()` iç içe
+        # bir olay döngüsü çalıştırıyor ve QTimer'lar DURMUYOR: soru
+        # dururken bu tur ateşleniyordu.
+        #
+        # Aşağıdaki iki koruma (`_silinen_tutulanlar`, `_disk_ayristi`)
+        # ancak kullanıcı CEVAP VERİNCE doluyor, yani sorunun açık olduğu
+        # sürece ikisi de boş. ÖLÇÜLDÜ (2026-09-15, gerçek karışımlarla):
+        #
+        #   disk dışarıdan değişti      "DIŞARIDAN GELEN DEĞİŞİKLİK"
+        #   soru açıkken tur işledi     "KULLANICININ YAZDIĞI METİN"
+        #   "Diskten Yükle" ne getirdi  "KULLANICININ YAZDIĞI METİN"
+        #
+        # Yani uygulama, sorduğu şeyi sorarken yok ediyordu; hangi cevap
+        # verilirse verilsin dış değişiklik geri gelmiyor.
+        #
+        # Turu TAMAMEN atlamak kayıp değil: modal açıkken kullanıcı yazamaz,
+        # yani kaydedilecek yeni bir şey oluşmuyor. Sonraki tur devralıyor.
+        if getattr(self, "_reload_prompt_active", False):
+            return
         kaydedilen = 0
         for i in range(self._editor_tabs.count()):
             editor = self._editor_tabs.widget(i)

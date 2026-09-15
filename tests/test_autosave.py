@@ -440,3 +440,48 @@ def test_TEMIZ_arabellekte_YOKSAY_dosyayi_kalici_disi_BIRAKMIYOR(
     ed.setText("BENIM yeni yazim\n")
     p._autosave_tick()
     assert yol.read_text(encoding="utf-8") == "BENIM yeni yazim\n"
+
+
+# --- Soru EKRANDAYKEN (2026-09-15) ---
+#
+# Modal `exec()` İÇ İÇE bir olay döngüsü çalıştırıyor, yani QTimer'lar
+# DURMUYOR: otomatik kaydetme turu soru dururken ateşleniyor. Yukarıdaki
+# iki koruma (`_silinen_tutulanlar`, `_disk_ayristi`) ancak kullanıcı
+# CEVAP VERİNCE doluyor.
+#
+# Aşağıdaki iki kapı `QMessageBox.exec`i turu koşturacak biçimde
+# değiştiriyor; gerçek sıra tam olarak bu.
+
+
+def test_SORU_EKRANDAYKEN_disk_EZILMIYOR(ana_pencere, tmp_path, monkeypatch):
+    """ÖLÇÜLDÜ: soru açıkken tur diski eziyordu ve "Diskten Yükle" cevabı
+    kullanıcıya UYGULAMANIN KENDİ yazdığını getiriyordu; hangi cevap
+    verilirse verilsin dış değişiklik geri gelmiyordu."""
+    yol = _proje(tmp_path, "ortak.tex")
+    p = ana_pencere()
+    p._dis_yolu_ac(str(yol), "kapi")
+    ed = p._current_editor()
+    ed.setText("BENIM degisiklikim\n")
+    yeni_hash = _dis_degisiklik(p, yol, ed)
+
+    monkeypatch.setattr(QMessageBox, "exec", lambda self: p._autosave_tick())
+    p._prompt_reload(ed, str(yol), yeni_hash)
+
+    assert yol.read_text(encoding="utf-8") == "DISARIDAN gelen\n"
+
+
+def test_SILINDI_sorusu_EKRANDAYKEN_dosya_GERI_YAZILMIYOR(
+        ana_pencere, tmp_path, monkeypatch):
+    """Aynı kusurun ikinci biçimi: "dosya silindi" sorusu dururken tur
+    dosyayı yeniden yaratıyordu."""
+    yol = _proje(tmp_path, "silinen.tex")
+    p = ana_pencere()
+    p._dis_yolu_ac(str(yol), "kapi")
+    ed = p._current_editor()
+    ed.setText("BENIM yazim\n")
+    os.unlink(str(yol))
+
+    monkeypatch.setattr(QMessageBox, "exec", lambda self: p._autosave_tick())
+    p._handle_deleted_file(ed, os.path.normpath(str(yol)))
+
+    assert not yol.exists()
