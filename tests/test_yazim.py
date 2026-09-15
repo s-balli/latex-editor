@@ -38,6 +38,36 @@ def test_label_ve_cite_argumani_atlanir():
     assert "Bkz" in ks and "tablosu" in ks
 
 
+def test_BIBLATEX_ve_cleveref_anahtarlari_da_atlanir():
+    r"""Aile listesi `core.latex_refs`ten geliyor; kopyası AYRIŞMIŞTI.
+
+    ÖLÇÜLDÜ (2026-09-15, gerçek denetleyici ve gerçek Türkçe sözlükle,
+    biblatex + cleveref kullanan bir tez bölümünde): 23 bulgunun 21'i atıf
+    anahtarı ya da etiket parçasıydı. Ailenin 81 komutundan 67'si
+    `_ARGUMANI_ATLA`da yoktu, yani argümanları düz metin sayılıyordu.
+    """
+    ks = sozler(
+        "Kuram \\parencite{ozturkoglu-akis} ve \\textcite{kececioglu-denge}"
+        " ile verildi; \\autocites{yildirimlar-olcum}{demirkollu-alani}"
+        " genisletti. Duzenek \\cref{sek:duzenegi},"
+        " \\crefrange{tab:ilki}{tab:sonu}, \\subref{alt:govdesi} ve"
+        " \\cpageref{sek:duzenegi} icinde.")
+    for anahtar in ("ozturkoglu", "kececioglu", "yildirimlar", "demirkollu",
+                    "duzenegi", "govdesi", "olcum", "alani"):
+        assert anahtar not in ks, anahtar
+    assert "Kuram" in ks and "Duzenek" in ks and "genisletti" in ks
+
+
+def test_aile_listesi_TEK_KAYNAK():
+    """Aile burada yeniden yazılırsa kopya sessizce ayrışmaya başlar."""
+    from core.latex_refs import (CITE_KOMUTLARI, COKLU_CITE_KOMUTLARI,
+                                 REF_KOMUTLARI)
+    from core.yazim import _ARGUMANI_ATLA
+
+    aile = set(REF_KOMUTLARI) | set(CITE_KOMUTLARI) | set(COKLU_CITE_KOMUTLARI)
+    assert aile <= _ARGUMANI_ATLA, sorted(aile - _ARGUMANI_ATLA)
+
+
 def test_addcontentsline_YAPISAL_argumanini_atlar_BASLIGI_denetler():
     r"""`\addcontentsline{toc}{section}{Başlık}` üç argümanı da metin
     sayıyordu; ilk ikisi yapısal.

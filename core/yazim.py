@@ -42,6 +42,8 @@ import os
 import re
 from dataclasses import dataclass
 
+from core.latex_refs import (
+    CITE_KOMUTLARI, COKLU_CITE_KOMUTLARI, REF_KOMUTLARI)
 from core.latex_utils import CIZIM_ENVS, VERB_ENVS
 
 try:
@@ -95,9 +97,22 @@ _TEK_HARF_KOMUT = {"i": "ı", "j": "ȷ", "l": "ł", "o": "ø", "O": "Ø",
 # --------------------------------------------------------------------------
 
 # Argümanı DÜZ METİN DEĞİL: etiket, anahtar, dosya adı, paket adı, URL.
+#
+# ATIF ve REFERANS AİLELERİ BURADA YAZILI DEĞİL, `core.latex_refs`ten
+# geliyor. Kendi kopyası vardı ve AYRIŞMIŞTI: ailenin 81 komutundan 67'si
+# burada YOKTU (`\parencite`, `\textcite`, `\autocite`, `\crefrange`,
+# `\subref`, `\cpageref` ...). Tanınmayan komutun argümanı düz metin
+# sayıldığı için atıf anahtarı ve etiket gövdesi kelime gibi denetleniyordu.
+#
+# ÖLÇÜLDÜ (2026-09-15, gerçek denetleyici ve gerçek Türkçe sözlükle,
+# biblatex + cleveref kullanan bir tez bölümünde): 23 bulgunun 21'i atıf
+# anahtarı ya da etiket parçasıydı (`ozturkoglu`, `olcum`, `duzenegi`,
+# `sicaklik`, `isitici` ...). Kullanıcının düzeltebileceği bir şey değil.
+#
+# 39 şablonluk korpusta fark küçük (5 bulgu): o şablonlar eski usul
+# natbib/BibTeX kullanıyor, yani ölçü korpus değil ailenin kendisi.
 _ARGUMANI_ATLA = frozenset("""
-label ref eqref pageref autoref nameref cref Cref vref
-cite citep citet citeauthor citeyear nocite bibliography bibliographystyle
+label bibliography bibliographystyle
 input include includeonly includegraphics graphicspath
 usepackage RequirePackage documentclass LoadClass
 url href hyperref path lstinputlisting verbatiminput
@@ -107,7 +122,8 @@ setlength addtolength setcounter addtocounter usetikzlibrary
 bibitem printbibliography addbibresource
 lstset tikzset hypersetup geometry newgeometry pagestyle thispagestyle
 color pagecolor cellcolor rowcolor columncolor definecolor colorlet
-""".split())
+""".split()) | set(REF_KOMUTLARI) | set(CITE_KOMUTLARI) | set(
+    COKLU_CITE_KOMUTLARI)
 
 # İLK argümanları yapılandırma, SONRAKİ argümanı düz metin olan komutlar.
 # `_ARGUMANI_ATLA` hepsini birden atlıyor, burada sayı veriliyor:

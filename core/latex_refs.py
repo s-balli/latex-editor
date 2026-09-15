@@ -921,6 +921,8 @@ _RE_REFUSE = re.compile(
 REF_KOMUTLARI = _REF_ARALIK_KOMUTLARI + _REF_TEKIL_KOMUTLARI
 REF_ARALIK_KOMUTLARI = _REF_ARALIK_KOMUTLARI
 CITE_KOMUTLARI = _CITE_KOMUTLARI
+# Yazım denetimi de bu aileyi okuyor: argümanı anahtar, düz metin değil.
+COKLU_CITE_KOMUTLARI = _COKLU_CITE_KOMUTLARI
 
 
 def komut_alternatifi(komutlar) -> str:
