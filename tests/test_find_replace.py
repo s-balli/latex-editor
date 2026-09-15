@@ -1215,3 +1215,69 @@ def test_donusum_desenin_ANLAMINI_bozmuyor():
 
     # Nicelik harfin değil, SINIFIN üstünde kalmalı
     assert _desen_harf_katla("ş{2}").endswith("]{2}")
+
+
+# --- Desen kipinde `\b`: motorun kelime kümesi ASCII (2026-09-15) ---------
+
+
+class TestDesenKelimeSiniri:
+    r"""ÖLÇÜLDÜ: `\bçalışma` ve `Giriş\b` SIFIR eşleşme veriyordu.
+
+    std::regex `\b`yi sabit bir ASCII kelime kümesiyle değerlendiriyor.
+    Kullanıcının kaçınma yolu yok: desen kipinde "Tam kelime" kutusu
+    kapanıyor, SCFIND_WHOLEWORD bayrağı desenle birlikte yok sayılıyor.
+    39 gerçek şablonda Türkçe harfli kelimelerin %43'ü Türkçe harfle
+    başlıyor ya da bitiyor.
+    """
+
+    BELGE = "şekil ve şekiller ve şekil\nGiriş Girişi\n"
+
+    def _kur(self, bul="", degistir=""):
+        bar, ed = _bar(self.BELGE, bul, degistir)
+        _sec(bar, case=True, regex=True)
+        return bar, ed
+
+    def test_TURKCE_harfle_baslayan_kelime_bulunuyor(self, qapp):
+        bar, _ed = self._kur()
+        assert bar._say(r"\bşekil\b") == (2, False)
+
+    def test_TURKCE_harfle_biten_kelime_bulunuyor(self, qapp):
+        bar, _ed = self._kur()
+        assert bar._say(r"Giriş\b") == (1, False)
+
+    def test_gezinme_TAM_kelimeye_oturuyor(self, qapp):
+        """Sayaç doğruyu söylerken ileri tuşunun başka yere gitmesi olmaz."""
+        bar, ed = self._kur()
+        duraklar = []
+        ok = bar._find_first(r"\bşekil\b", wrap=False, line=0, col=0)
+        while ok and ed.hasSelectedText():
+            duraklar.append(ed.selectedText())
+            s2, c2 = ed.getSelection()[2:]
+            ok = bar._find_first(r"\bşekil\b", wrap=False, line=s2, col=c2)
+        assert duraklar == ["şekil", "şekil"]
+
+    def test_tumunu_degistir_TAM_kelimeyi_degistiriyor(self, qapp):
+        bar, ed = self._kur(r"\bşekil\b", "SEKIL")
+        bar._replace_all()
+        assert ed.text() == "SEKIL ve şekiller ve SEKIL\nGiriş Girişi\n"
+
+    def test_uygun_aday_yokken_sarmali_arama_DONMUYOR(self, qapp):
+        bar, ed = _bar("şekiller ve şekilli\n")
+        _sec(bar, case=True, regex=True)
+        assert bar._find_first(r"\bşekil\b", wrap=True, line=0, col=0) is False
+        assert ed.hasSelectedText() is False
+
+    def test_UST_DUZEY_almasikta_desen_DEGISMIYOR(self, qapp):
+        r"""`\bfoo|bar`da baştaki `\b` yalnız İLK kola ait; sökülemez."""
+        from gui.find_replace import _kenar_b
+
+        assert _kenar_b(r"\bşekil|Giriş") == (r"\bşekil|Giriş", False, False)
+        assert _kenar_b(r"\b(şekil|Giriş)\b") == (r"(şekil|Giriş)", True, True)
+
+    def test_KACIRILMIS_b_sinir_sayilmiyor(self, qapp):
+        r"""`\\b` ters bölü + `b`, `[\b]` sınıf içi: ikisi de sınır değil."""
+        from gui.find_replace import _kenar_b
+
+        assert _kenar_b("\\\\b") == ("\\\\b", False, False)
+        assert _kenar_b(r"[\b]") == (r"[\b]", False, False)
+        assert _kenar_b(r"\b") == (r"\b", False, False)

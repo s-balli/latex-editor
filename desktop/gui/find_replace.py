@@ -263,6 +263,134 @@ def _desen_harf_katla(desen: str) -> str:
     return "".join(parcalar)
 
 
+# ----------------------------------------------------------------------
+# Desen kipinde `\b`: motorun kelime kümesi ASCII
+# ----------------------------------------------------------------------
+#
+# `\b`yi std::regex kendi SABİT kelime kümesiyle değerlendiriyor ve o küme
+# ASCII. ÖLÇÜLDÜ (2026-09-15, gerçek editör + gerçek bul çubuğu, sayı
+# kullanıcının ekranda gördüğü sayı):
+#
+#     \bçalışma    0   (doğrusu 1)      \bbir\b    1   (doğru)
+#     Giriş\b      0   (doğrusu 1)      \w, \W, ., | hepsi doğru
+#
+# Yani sınırın Türkçe harfe DEĞDİĞİ her yerde arama sessizce "Sonuç yok"
+# diyor. 39 gerçek şablonda Türkçe harf taşıyan 20271 kelimenin 8692'si
+# (%43) Türkçe harfle başlıyor ya da bitiyor.
+#
+# Kullanıcının kaçınma yolu YOK: desen kipi açılınca "Tam kelime" kutusu
+# kapanıyor ve geriye tek yol olarak `\b` kalıyor. SCFIND_WHOLEWORD bayrağı
+# desenle birlikte yok sayılıyor (ölçüldü: desen ve desen+WHOLEWORD aynı
+# sayıyı veriyor), `\<` yalnız Scintilla'nın KENDİ motorunda çalışıyor ve o
+# motorda `|` ile `(` yok.
+#
+# Motorda düzeltilemiyor: geriye bakış desteklenmiyor (ölçüldü:
+# `(?<=\s)çalışma` 0) ve `\b`nin kelime kümesi dışarıdan verilemiyor. O
+# yüzden desenin UÇLARINDAKİ `\b` motordan alınıp burada uygulanıyor:
+# adaylar motordan geliyor, sınır denetimi Python'da yapılıyor.
+#
+# SINIR: desenin ORTASINDAKİ `\b` ve `\B` olduğu gibi motora gidiyor, yani
+# onlar hâlâ ASCII kuralıyla değerlendiriliyor.
+
+
+def _kelime_karakteri(ch: str) -> bool:
+    """Unicode kelime karakteri; boş dizge (metin ucu) değil."""
+    return bool(ch) and (ch.isalnum() or ch == "_")
+
+
+def _sinir_var(sol: str, sag: str) -> bool:
+    """İki karakter arasında kelime sınırı var mı. TEK KAYNAK.
+
+    `\\b`nin tanımı bu: bir yanı kelime karakteri, öteki yanı değil. Metnin
+    başı ve sonu boş dizgeyle temsil ediliyor, yani kelime dışı sayılıyor.
+    """
+    return _kelime_karakteri(sol) != _kelime_karakteri(sag)
+
+
+def _kenar_uygun(bas: int, bit: int, bas_b: bool, son_b: bool, kenar) -> bool:
+    """Aday eşleşme, sökülen `\\b`lerin istediği sınırlarda mı.
+
+    ``kenar(ofset)`` o ofsetin solundaki ve sağındaki karakteri veriyor;
+    çağıran karakterle de bayt dizisiyle de çalışabilsin diye dışarıdan
+    geliyor. Kural tek yerde (``_sinir_var``).
+    """
+    if bas_b and not _sinir_var(*kenar(bas)):
+        return False
+    if son_b and not _sinir_var(*kenar(bit)):
+        return False
+    return True
+
+
+def _desen_uclari(desen: str) -> tuple[bool, bool, bool]:
+    """(baştaki `\\b`, sondaki `\\b`, ÜST DÜZEY `|` var mı).
+
+    Kaçış ve karakter sınıfı durumu izleniyor: `[\\b]` sınıf içi, `\\\\b`
+    ters bölü + `b` demek, ikisi de sınır değil.
+    """
+    kacis = sinif = False
+    ust_bolu = son_b = False
+    derinlik = 0
+    n = len(desen)
+    for i, c in enumerate(desen):
+        if kacis:
+            kacis = False
+            son_b = (c == "b" and i == n - 1 and not sinif)
+            continue
+        son_b = False
+        if c == "\\":
+            kacis = True
+        elif sinif:
+            sinif = c != "]"
+        elif c == "[":
+            sinif = True
+        elif c == "(":
+            derinlik += 1
+        elif c == ")":
+            derinlik = max(0, derinlik - 1)
+        elif c == "|" and derinlik == 0:
+            ust_bolu = True
+    return desen[:2] == "\\b", son_b, ust_bolu
+
+
+def _kenar_b(desen: str) -> tuple[str, bool, bool]:
+    """(motora gidecek desen, baş sınırı istendi mi, son sınırı istendi mi).
+
+    ÜST DÜZEY `|` varsa hiç dokunulmuyor: `\\bfoo|bar` yazımında baştaki
+    `\\b` yalnız İLK kola ait, sökülürse anlam değişirdi.
+
+    Gövdesi boşalan desen (`\\b`, `\\b\\b`) de dokunulmadan geçiyor: boş
+    desen motorda her konumda eşleşir ve sayaç tavana dayanırdı.
+    """
+    bas_b, son_b, ust_bolu = _desen_uclari(desen)
+    if ust_bolu or not (bas_b or son_b):
+        return desen, False, False
+    govde = desen[2:] if bas_b else desen
+    if son_b:
+        govde = govde[:-2]
+    if not govde:
+        return desen, False, False
+    return govde, bas_b, son_b
+
+
+def _metin_kenari(metin: str):
+    return lambda o: (metin[o - 1:o] if o else "", metin[o:o + 1])
+
+
+def _bayt_kenari(ham: bytes):
+    """Bayt ofsetinin iki yanındaki KARAKTER.
+
+    Dört bayt her UTF-8 karakterine yetiyor. Soldaki pencere karakterin
+    ortasından başlayabilir; `ignore` kırık baş baytları atıyor ve SON
+    karakter yine doğru çıkıyor. Sağdaki pencere eşleşme sınırında
+    başlıyor, yani İLK karakter zaten sağlam.
+    """
+    def kenar(o: int) -> tuple[str, str]:
+        sol = ham[max(0, o - 4):o].decode("utf-8", "ignore")
+        sag = ham[o:o + 4].decode("utf-8", "ignore")
+        return (sol[-1] if sol else ""), (sag[0] if sag else "")
+    return kenar
+
+
 class FindReplaceBar(QWidget):
     # "Tümünü Değiştir" için üst sınır. Döngü normalde kendiliğinden biter
     # (arama wrap'siz ileri gider, imleç her değiştirmede ilerler); bu yalnız
@@ -568,7 +696,7 @@ class FindReplaceBar(QWidget):
 
     @staticmethod
     def _kelime_karakteri(ch: str) -> bool:
-        return bool(ch) and (ch.isalnum() or ch == "_")
+        return _kelime_karakteri(ch)
 
     def _yerler(self, metin: str, sorgu: str, tam_kelime: bool) -> list:
         yerler = list(eslesme_ofsetleri(metin, sorgu))
@@ -649,10 +777,52 @@ class FindReplaceBar(QWidget):
         if self._python_yolu(re_, cs):
             return self._python_bul(text, wrap=wrap, forward=forward,
                                     line=line, col=col, tam_kelime=wo)
-        return self._editor.findFirst(
-            self._motor_deseni(text, re_, cs),
+        desen, bas_b, son_b = _kenar_b(text) if re_ else (text, False, False)
+        # Motor aday ararken seçimi oynatıyor. Hiçbir aday sınırı tutmazsa
+        # "bulunamadı" demek yetmez, EKRANDA da bir şey değişmemeli: eski
+        # seçim/imleç geri konuyor. Konmazsa kullanıcı "Sonuç yok" derken
+        # imlecin başka bir kelimeye atladığını görürdü ve bir sonraki
+        # arama oradan başlardı (`_arama_baslangici` seçimi okuyor).
+        onceki = ((self._editor.getSelection(),
+                   self._editor.getCursorPosition())
+                  if (bas_b or son_b) else None)
+        bulundu = self._editor.findFirst(
+            self._motor_deseni(desen, re_, cs),
             re_, cs, wo, wrap, forward, line, col, True, False, re_
         )
+        if onceki is None:
+            return bulundu
+        return self._kenar_suz(bulundu, bas_b, son_b, onceki)
+
+    def _kenar_suz(self, bulundu: bool, bas_b: bool, son_b: bool,
+                   onceki) -> bool:
+        """Motorun adaylarından `\\b` sınırına UYANI seç.
+
+        Seçim kabul edilen eşleşmede bırakılıyor; "Değiştir" Scintilla'nın
+        HEDEFİNİ değiştirdiği için doğru yere yazıyor.
+
+        Görülen aralıklar tutuluyor: sarmalı açık aramada uygun aday yoksa
+        motor başa dönüp aynı adayları sonsuza dek verirdi.
+        """
+        metin = self._editor.text()
+        kenar = _metin_kenari(metin)
+        gorulen = set()
+        while bulundu and self._editor.hasSelectedText():
+            s1, c1, s2, c2 = self._editor.getSelection()
+            bas = self._ofset(metin, s1, c1)
+            bit = self._ofset(metin, s2, c2)
+            if (bas, bit) in gorulen:
+                break
+            gorulen.add((bas, bit))
+            if _kenar_uygun(bas, bit, bas_b, son_b, kenar):
+                return True
+            bulundu = self._editor.findNext()
+        sec, imlec = onceki
+        if sec[0] >= 0:
+            self._editor.setSelection(*sec)
+        else:
+            self._editor.setCursorPosition(*imlec)
+        return False
 
     def _do_find(self):
         if not self._editor:
@@ -775,7 +945,11 @@ class FindReplaceBar(QWidget):
 
         # Scintilla konumları BAYT cinsinden; belge UTF-8 olduğu için sorgu da
         # bayta çevriliyor. Sayım için karakter ofseti gerekmiyor.
-        ham = self._motor_deseni(text, re_, cs).encode("utf-8")
+        desen, bas_b, son_b = _kenar_b(text) if re_ else (text, False, False)
+        ham = self._motor_deseni(desen, re_, cs).encode("utf-8")
+        # Sınır denetimi belgeyi ister; `\b` yoksa hiç ödenmiyor.
+        kenar = _bayt_kenari(ed.text().encode("utf-8")) if (bas_b or son_b) \
+            else None
         son = ed.SendScintilla(QsciScintilla.SCI_GETLENGTH)
         konum, n = 0, 0
         while konum <= son and n < self._COUNT_LIMIT:
@@ -785,7 +959,10 @@ class FindReplaceBar(QWidget):
             if bas < 0:
                 break
             bit = ed.SendScintilla(QsciScintilla.SCI_GETTARGETEND)
-            n += 1
+            # Sayaç ARAMANIN gördüğünü saymalı: sınırı tutmayan aday
+            # aramada atlanıyor, burada da sayılmamalı.
+            if kenar is None or _kenar_uygun(bas, bit, bas_b, son_b, kenar):
+                n += 1
             # Sıfır genişlikli eşleşmede (bit == bas) bir bayt ilerle, yoksa
             # aynı konumda sonsuza kadar dönerdik.
             konum = bit if bit > bas else bas + 1
