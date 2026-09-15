@@ -638,8 +638,13 @@ class TestSozlukVeSimge:
             capture_output=True, text=True, cwd=str(tmp_path), timeout=180,
             encoding="utf-8")
 
-        assert ("Eksik paket: makeglossaries" in r.stdout) is uyari_bekleniyor
-        assert ("texlive-latex-extra" in r.stdout) is uyari_bekleniyor
+        # `==>` satırı PAKET adını taşıyor, araç adı parantez içinde.
+        # Önceden araç adı yazılıydı ve `log_parser` onu "Eksik paket:
+        # makeglossaries" diye Öneriler sekmesine koyuyordu; apt'de öyle
+        # bir paket yok (2026-09-15).
+        assert ("Eksik paket: texlive-latex-extra" in r.stdout) \
+            is uyari_bekleniyor
+        assert ("makeglossaries" in r.stdout) is uyari_bekleniyor
 
 
 class TestDizin:

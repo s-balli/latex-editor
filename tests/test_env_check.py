@@ -418,3 +418,38 @@ def test_turkce_yerellestirme_kacistan_once_calisiyor(diyalog):
     metin = _goruntulenen(diyalog, [CheckResult(
         "pdflatex", "missing", "kurulu değil (minted belgeleri için gerekli)")])
     assert "kurulu değil" in metin and "minted" in metin
+
+
+def test_ALTERNATIF_komut_araci_KURULU_sayiyor():
+    r"""`makeglossaries` Perl, `makeglossaries-lite` Lua sürümü.
+
+    İkisi de aynı apt paketinden geliyor ama Perl'siz kurulumda yalnız
+    lite sürümü çalışıyor; `core/derle.sh` de tam böyle davranıyor
+    (önce birincisi, yoksa lite). Yalnız birincisine bakan bir denetim o
+    kurulumda YANLIŞ "kurulu değil" derdi.
+    """
+    out = "\n".join([
+        "makeglossaries=YOK",
+        "makeglossaries-lite=/usr/bin/makeglossaries-lite",
+    ])
+    paths = _parse_tool_lines(out)
+    assert paths["makeglossaries"] == "/usr/bin/makeglossaries-lite", paths
+
+
+def test_IKISI_DE_YOKSA_kurulu_degil():
+    """Karşı kol: alternatif de yoksa satır eksik görünmeli."""
+    out = "makeglossaries=YOK\nmakeglossaries-lite=YOK"
+    paths = _parse_tool_lines(out)
+    assert paths["makeglossaries"] == "", paths
+
+
+def test_SESSIZ_araclar_denetim_listesinde():
+    r"""Eksikliği sessiz olan üç araç listede olmalı.
+
+    ÖLÇÜLDÜ (2026-09-15): `bibtex`, `makeindex` ve `makeglossaries`
+    `core/derle.sh` tarafından çağrılıyor ama denetimde yoktu. Üçünde de
+    eksiklik sessiz: derleme başarıyla biter, bölüm başlığı basılır, altı
+    boş kalır.
+    """
+    for arac in ("bibtex", "makeindex", "makeglossaries"):
+        assert arac in TOOLS, arac

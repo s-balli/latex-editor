@@ -547,8 +547,14 @@ derle_dosya() {
             fi
         else
             echo -e "${SARI}[uyari] Kaynakça için bibtex gerekli ama kurulu değil, atıflar çözülemeyecek.${SIFIRLA}"
-            printf "${MAVI2}==> Eksik paket: bibtex${SIFIRLA}\n"
-            printf "${MAVI2}    sudo apt-get install texlive-bibtex-extra${SIFIRLA}\n"
+            # `texlive-bibtex-extra` YAZIYORDU. O paket ek `.bst` biçemleri
+            # getiriyor; `bibtex` KOMUTU `texlive-binaries`ten geliyor
+            # (`dpkg -S /usr/bin/bibtex`, 2026-09-15). Önerilen komut yine
+            # de işe yarıyordu, çünkü `texlive-bibtex-extra` ona bağımlı;
+            # ama aynı soruya Ortam Denetimi başka cevap veriyordu. Ölçüt
+            # ikisinde de aynı: komutu HANGİ PAKET getiriyor.
+            printf "${MAVI2}==> Eksik paket: texlive-binaries (bibtex)${SIFIRLA}\n"
+            printf "${MAVI2}    sudo apt-get install texlive-binaries${SIFIRLA}\n"
         fi
     fi
 
@@ -628,7 +634,12 @@ derle_dosya() {
             fi
         else
             echo -e "${SARI}[uyari] Sözlük için makeglossaries gerekli ama kurulu değil, sözlük boş çıkacak.${SIFIRLA}"
-            printf "${MAVI2}==> Eksik paket: makeglossaries (glossaries aracı)${SIFIRLA}\n"
+            # `==>` satırı PAKET adını taşımak zorunda: `log_parser` onu
+            # "Eksik paket: X" diye Öneriler sekmesine yazıyor. Burada araç
+            # adı (`makeglossaries`) yazılıydı, yani öneri satırı bir paket
+            # adı gibi görünen ama apt'de OLMAYAN bir ad gösteriyordu;
+            # altındaki komut ise doğru paketi kuruyordu.
+            printf "${MAVI2}==> Eksik paket: texlive-latex-extra (makeglossaries)${SIFIRLA}\n"
             printf "${MAVI2}    sudo apt-get install texlive-latex-extra${SIFIRLA}\n"
         fi
     fi

@@ -14,7 +14,30 @@ import sys
 from dataclasses import dataclass
 
 # Denetlenen harici araçlar (derleme zincirinin tamamı)
-TOOLS = ("lualatex", "pdflatex", "xelatex", "biber", "pandoc", "synctex", "pygmentize")
+#
+# "Tamamı" YAZIYORDU ama değildi. ÖLÇÜLDÜ (2026-09-15, iki liste de
+# kodun kendisinden okunarak): `core/derle.sh` bu araçları `command -v`
+# ile arıyor ve yoksa kullanıcıyı uyarıyor, ama üçü bu listede YOKTU:
+#
+#   bibtex          geleneksel kaynakça          texlive-binaries
+#   makeindex       dizin (\printindex)          texlive-binaries
+#   makeglossaries  sözlük/kısaltma listesi      texlive-latex-extra
+#
+# Üçünün de eksikliği SESSİZ: derleme başarıyla biter, başlık basılır,
+# altı boş kalır. Ortam Denetimi ise "her şey tamam" der. `makeglossaries`
+# ayrıca BAĞIMSIZ olarak eksik olabiliyor: motorlar `texlive-binaries`ten
+# geliyor, o ise `texlive-latex-extra`dan (`dpkg -S` ile doğrulandı).
+TOOLS = ("lualatex", "pdflatex", "xelatex", "biber", "bibtex", "makeindex",
+         "makeglossaries", "pandoc", "synctex", "pygmentize")
+
+# Aynı işi gören ikinci komut. derle.sh de böyle davranıyor: `makeglossaries`
+# Perl, `makeglossaries-lite` Lua sürümü; ikisi de aynı apt paketinden
+# geliyor ama Perl'siz kurulumda yalnız lite sürümü çalışıyor. Yalnız
+# birincisine bakan bir denetim orada YANLIŞ "kurulu değil" derdi.
+_ALTERNATIF = {"makeglossaries": ("makeglossaries-lite",)}
+
+# Denetimde sorulacak bütün komut adları (araçlar + alternatifleri).
+_SORULAN = TOOLS + tuple(a for alt in _ALTERNATIF.values() for a in alt)
 
 # Yoksun araca karşılık gelen Ubuntu/Debian paketi. Ölçüt: aracın KOMUTUNU
 # hangi paket getiriyorsa o.
@@ -36,6 +59,9 @@ APT_HINTS = {
     "pdflatex": "texlive-latex-base",
     "xelatex": "texlive-xetex",
     "biber": "biber",
+    "bibtex": "texlive-binaries",
+    "makeindex": "texlive-binaries",
+    "makeglossaries": "texlive-latex-extra",
     "pandoc": "pandoc",
     "synctex": "texlive-binaries",
     "pygmentize": "python3-pygments",
@@ -45,11 +71,14 @@ APT_HINTS = {
 # satırın listede neden durduğu anlaşılsın.
 _TOOL_NOTES = {
     "pygmentize": "minted belgeleri için gerekli",
+    "bibtex": "geleneksel kaynakça için gerekli",
+    "makeindex": "dizin (\\printindex) için gerekli",
+    "makeglossaries": "sözlük/kısaltma listesi için gerekli",
 }
 
 # WSL içinde tek seferde tüm araçların yolu: "ad=/yol" veya "ad=YOK" satırları
 _WSL_PROBE = (
-    "for t in " + " ".join(TOOLS) + "; do "
+    "for t in " + " ".join(_SORULAN) + "; do "
     'p=$(command -v "$t" 2>/dev/null) && echo "$t=$p" || echo "$t=YOK"; done'
 )
 
@@ -114,8 +143,19 @@ def _parse_tool_lines(out: str) -> dict[str, str]:
         if "=" in line:
             name, _, val = line.partition("=")
             name, val = name.strip(), val.strip()
-            if name in TOOLS:
+            if name in _SORULAN:
                 paths[name] = "" if val == "YOK" else val
+    return _alternatifleri_uygula(paths)
+
+
+def _alternatifleri_uygula(paths: dict[str, str]) -> dict[str, str]:
+    """Araç yoksa alternatifinin yolunu onun yerine koy."""
+    for ad, adaylar in _ALTERNATIF.items():
+        if not paths.get(ad):
+            for aday in adaylar:
+                if paths.get(aday):
+                    paths[ad] = paths[aday]
+                    break
     return paths
 
 
@@ -229,7 +269,8 @@ def run_checks(runner=None) -> list[CheckResult]:
     else:
         # Yerel platformda WSL satırı yok (bilgi taşımaz); subprocess'a da
         # gerek yok: which PATH taraması yapar.
-        paths = {t: (shutil.which(t) or "") for t in TOOLS}
+        paths = _alternatifleri_uygula(
+            {t: (shutil.which(t) or "") for t in _SORULAN})
         results.extend(_tool_row(t, paths[t]) for t in TOOLS)
 
     _maybe_add_full_install_hint(results)

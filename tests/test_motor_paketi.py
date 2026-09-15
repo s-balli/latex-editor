@@ -72,3 +72,70 @@ def test_IKI_KAYNAK_ayrismiyor():
     for motor in ENGINES:
         assert esleme[motor] == APT_HINTS[motor], (motor, esleme[motor],
                                                    APT_HINTS[motor])
+
+
+# =====================================================================
+# Yardımcı araçlar: betiğin aradığı her araç Ortam Denetimi'nde de olmalı
+# =====================================================================
+
+# `dpkg -S` ile doğrulanmış eşleşmeler (2026-09-15, Ubuntu/TeX Live).
+# Ölçüt motorlarınkiyle AYNI: komutu hangi paket getiriyorsa o.
+_YARDIMCI = {
+    "biber": "biber",
+    "bibtex": "texlive-binaries",
+    "makeindex": "texlive-binaries",
+    "makeglossaries": "texlive-latex-extra",
+}
+
+# `command -v <ad>` ile varlığı sorulan araçlar; `$MOTOR` gibi değişkenler
+# elenir.
+_RE_COMMAND_V = re.compile(r"command -v ([a-z][a-z0-9-]+)\b")
+
+
+def _betik_araclari():
+    with open(_BETIK, encoding="utf-8") as f:
+        return set(_RE_COMMAND_V.findall(f.read()))
+
+
+def test_BETIGIN_ARADIGI_her_arac_ORTAM_DENETIMINDE_var():
+    r"""Eksikliği SESSİZ olan araç denetimde görünmeli.
+
+    ÖLÇÜLDÜ (2026-09-15, iki liste de kodun kendisinden okunarak):
+    `bibtex`, `makeindex` ve `makeglossaries` betikte aranıyor ama
+    denetimde YOKTU. Üçünün de eksikliği sessiz: derleme başarıyla biter,
+    başlık basılır, altı boş kalır; Ortam Denetimi "her şey tamam" der.
+    """
+    from core.env_check import _ALTERNATIF, TOOLS
+
+    kapsanan = set(TOOLS) | {a for alt in _ALTERNATIF.values() for a in alt}
+    eksik = sorted(_betik_araclari() - kapsanan)
+    assert not eksik, "denetimde olmayan arac: %s" % eksik
+
+
+@pytest.mark.parametrize("arac", sorted(_YARDIMCI))
+def test_YARDIMCI_ARAC_paketi_dogru(arac):
+    assert APT_HINTS.get(arac) == _YARDIMCI[arac], APT_HINTS.get(arac)
+
+
+def test_BETIK_ve_DENETIM_yardimci_araclarda_da_ayrismiyor():
+    r"""Betik eksik araç için `sudo apt-get install X` diyor; Ortam
+    Denetimi de aynı araç için bir paket adı veriyor. İkisi aynı olmalı.
+
+    `bibtex` için betik `texlive-bibtex-extra` diyordu, denetim
+    `texlive-binaries`. İkisi de çalışıyordu (biri ötekine bağımlı) ama
+    kullanıcı hangi pencereden baktığına göre başka paket görüyordu.
+    """
+    with open(_BETIK, encoding="utf-8") as f:
+        kaynak = f.read()
+    # "==> Eksik paket: <paket> (<arac>)" + ardından gelen kurulum komutu
+    ciftler = re.findall(
+        r'==> Eksik paket: ([a-z0-9][a-z0-9.+-]*)[^\n]*\\n"\s*\n\s*'
+        r'printf[^\n]*sudo apt-get install ([a-z0-9][a-z0-9.+-]*)',
+        kaynak)
+    assert ciftler, "betikteki kurulum onerileri okunamadi"
+    for paket, komut_paketi in ciftler:
+        assert paket == komut_paketi, (paket, komut_paketi)
+    onerilen = {p for p, _k in ciftler}
+    for arac, paket in _YARDIMCI.items():
+        if paket in onerilen or arac in onerilen:
+            assert paket in onerilen, (arac, paket, sorted(onerilen))
