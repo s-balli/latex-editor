@@ -2,6 +2,7 @@
 
 import os
 import re
+import shutil
 import subprocess
 import sys
 from unittest.mock import MagicMock, patch, mock_open
@@ -410,6 +411,63 @@ class TestFixMdImagePaths:
         _fix_md_image_paths(str(tex_file), str(md_file))
         content = md_file.read_text(encoding="utf-8")
         assert '{width="70%"}' not in content
+
+    # --- Yolunda boşluk olan görsel (2026-09-15) ---
+
+    def _bosluk_yaz(self, tmp_path, klasor_adi, gorsel_adi):
+        klasor = tmp_path / klasor_adi
+        klasor.mkdir()
+        (klasor / gorsel_adi).write_bytes(b"\x89PNG\r\n\x1a\n")
+        tex = klasor / "doc.tex"
+        tex.write_text("", encoding="utf-8")
+        md = klasor / "doc.md"
+        md.write_text("![alt](%s)" % gorsel_adi, encoding="utf-8")
+        _fix_md_image_paths(str(tex), str(md))
+        return md.read_text(encoding="utf-8")
+
+    def test_BOSLUKLU_klasor_adi_ACILI_PARANTEZE_aliniyor(self, tmp_path):
+        r"""`![a](/yol/Ölçüm Çalışması/x.png)` CommonMark'ta GÖRSEL DEĞİL:
+        satır düz metin olarak basılır. Türkçe projede boşluklu klasör adı
+        sıradan, üstelik yol MUTLAK yazıldığı için kullanıcı adını da
+        taşıyor."""
+        icerik = self._bosluk_yaz(tmp_path, "Olcum Calismasi", "sekil.png")
+        assert "](<" in icerik, icerik
+        assert icerik.rstrip().endswith(">)"), icerik
+
+    def test_BOSLUKLU_dosya_adi_da_aliniyor(self, tmp_path):
+        icerik = self._bosluk_yaz(tmp_path, "proje", "olcum sonucu.png")
+        assert "](<" in icerik, icerik
+
+    def test_BOSLUKSUZ_yola_parantez_EKLENMIYOR(self, tmp_path):
+        """Karşı kol: gereksiz `<...>` çıktıyı kirletir."""
+        icerik = self._bosluk_yaz(tmp_path, "proje", "sekil.png")
+        assert "](<" not in icerik, icerik
+        assert "sekil.png)" in icerik, icerik
+
+    @pytest.mark.skipif(not shutil.which("pandoc"),
+                        reason="pandoc kurulu değil")
+    @pytest.mark.parametrize("okuyucu", ["commonmark", "gfm"])
+    def test_URETILEN_MD_gercekten_gorsel_veriyor(self, tmp_path, okuyucu):
+        r"""Kehanet DIŞ: pandoc'un KATI okuyucuları.
+
+        Uygulamanın kendi `markdown` okuyucusu hoşgörülü ve boşluklu yolu
+        yine görsel sayıyor; kusuru gizleyen buydu. GitHub ve VS Code
+        önizlemesi `gfm`/`commonmark` gibi davranıyor.
+        """
+        klasor = tmp_path / "Olcum Calismasi"
+        klasor.mkdir()
+        (klasor / "sekil.png").write_bytes(b"\x89PNG\r\n\x1a\n")
+        tex = klasor / "doc.tex"
+        tex.write_text("", encoding="utf-8")
+        md = klasor / "doc.md"
+        md.write_text("![alt](sekil.png)", encoding="utf-8")
+        _fix_md_image_paths(str(tex), str(md))
+
+        p = subprocess.run(["pandoc", "-f", okuyucu, "-t", "html", str(md)],
+                           capture_output=True, text=True, encoding="utf-8",
+                           timeout=60)
+        assert "<img" in (p.stdout or ""), (
+            okuyucu, p.stdout, md.read_text(encoding="utf-8"))
 
 
 # --- önişleme: abstract/title -> gövdeye taşı (elsarticle fix) ---

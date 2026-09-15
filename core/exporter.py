@@ -667,6 +667,23 @@ _RE_MD_GORSEL_OLCU = re.compile(
     r'(' + _RE_MD_GORSEL_GOVDE + r')\s*\{[^}]*width[^}]*\}')
 
 
+def _md_hedef(yol: str) -> str:
+    r"""Markdown bağ hedefi; BOŞLUK varsa `<...>` ŞART.
+
+    `![a](/yol/Ölçüm Çalışması/şekil.png)` CommonMark'ta ve GitHub
+    biçiminde GÖRSEL DEĞİLDİR: satır düz metin olarak basılır. pandoc'un
+    kendi okuyucusu hoşgörülü olduğu için bu gözden kaçıyordu; ölçüm
+    pandoc'un `commonmark` ve `gfm` okuyucularıyla yapıldı (2026-09-15):
+
+        ![a](/tmp/Olcum Calismasi/sekil.png)   -> <p>![a](/tmp/Olcum ...)</p>
+        ![a](</tmp/Olcum Calismasi/sekil.png>) -> <img src="..." alt="a" />
+
+    Türkçe projede boşluklu klasör adı sıradan ("Ölçüm Çalışması", "Yeni
+    Klasör"), üstelik yol MUTLAK yazıldığı için kullanıcı adı da içinde.
+    """
+    return "<%s>" % yol if " " in yol else yol
+
+
 def _fix_md_image_paths(tex_path: str, md_path: str):
     r"""Markdown'daki göreceli resim yollarını .tex dizinine göre mutlak yap.
 
@@ -683,7 +700,7 @@ def _fix_md_image_paths(tex_path: str, md_path: str):
             alt = m.group(1)
             path = m.group(2)
             if os.path.isabs(path) or path.startswith(("http://", "https://")):
-                return f"![{alt}]({path})"
+                return f"![{alt}]({_md_hedef(path)})"
             # Adayları SIRAYLA dene ve diskte var olanı seç. Eskiden koşulsuz
             # graphics_paths[0] ekleniyordu: ikinci \graphicspath dizini hiç
             # denenmiyor, tam yol yazılmış görsel de 'media/media/logo.png'
@@ -694,12 +711,13 @@ def _fix_md_image_paths(tex_path: str, md_path: str):
                 for ek in _GORSEL_ARAMA_SIRASI:
                     tam = os.path.normpath(os.path.join(tex_dir, aday + ek))
                     if os.path.isfile(tam):
-                        return f"![{alt}]({tam.replace(os.sep, '/')})"
+                        return "![%s](%s)" % (
+                            alt, _md_hedef(tam.replace(os.sep, '/')))
             # Hiçbiri diskte yok: eski davranışa düş (pandoc uzantısız yol
             # üretebiliyor; mutlaklaştırmak yine de bağıldan iyi).
             rel = (graphics_paths[0] + path) if graphics_paths else path
             abs_path = os.path.normpath(os.path.join(tex_dir, rel)).replace(os.sep, '/')
-            return f"![{alt}]({abs_path})"
+            return f"![{alt}]({_md_hedef(abs_path)})"
 
         # pandoc'un görsel niteliğini yalnız GÖRSEL sözdizimine bağlıyken
         # kaldır. Eski desen belge genelinde 'width' geçen her küme parantezli
