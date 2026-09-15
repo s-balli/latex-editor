@@ -185,3 +185,77 @@ def label_key(text: str) -> str:
     anahtar üretiyorlar, onlar da sadeleşiyor.
     """
     return _ETIKET_GUVENSIZ.sub("-", text).strip("-") or "etiket"
+
+
+# --------------------------------------------------------------------------
+# Aksan makroları: TEK KAYNAK
+# --------------------------------------------------------------------------
+#
+# Tablolar `core/yazim.py`de yazılıydı ve orada kalırsa ikinci bir kopya
+# çıkardı: anahat paneli de aynı bilgiye muhtaç. Yazım denetimi kendi
+# tarayıcısını kullanmayı sürdürüyor (o ofset korumak zorunda), buradan
+# yalnız TABLOLARI alıyor; anahat ise aşağıdaki dizge çözücüyü kullanıyor.
+
+# Noktalama adlı aksanlar: parantezsiz de yazılabilir (\"o), çünkü hiçbir
+# komut adının öneki değiller.
+AKSAN_NOKTALAMA = {
+    ('"', "u"): "ü", ('"', "U"): "Ü", ('"', "o"): "ö", ('"', "O"): "Ö",
+    ('"', "a"): "ä", ('"', "A"): "Ä", ('"', "i"): "ï", ('"', "e"): "ë",
+    (".", "I"): "İ", (".", "i"): "İ", (".", "z"): "ż",
+    ("'", "e"): "é", ("'", "a"): "á", ("'", "i"): "í", ("'", "o"): "ó",
+    ("'", "u"): "ú", ("'", "c"): "ć", ("'", "s"): "ś",
+    ("`", "e"): "è", ("`", "a"): "à", ("`", "i"): "ì", ("`", "o"): "ò",
+    ("^", "e"): "ê", ("^", "a"): "â", ("^", "i"): "î", ("^", "o"): "ô",
+    ("^", "u"): "û", ("~", "n"): "ñ", ("~", "a"): "ã", ("~", "o"): "õ",
+}
+
+# Harf adlı aksanlar: SÜSLÜ PARANTEZ ŞART. \u ve \c aksi hâlde
+# \usepackage ve \cite ile karışıyor (ölçülmüş hata, bkz. core/yazim.py).
+AKSAN_HARF = {
+    ("c", "c"): "ç", ("c", "C"): "Ç", ("c", "s"): "ş", ("c", "S"): "Ş",
+    ("u", "g"): "ğ", ("u", "G"): "Ğ", ("u", "a"): "ă", ("u", "e"): "ĕ",
+    ("v", "s"): "š", ("v", "c"): "č", ("v", "z"): "ž", ("v", "r"): "ř",
+    ("H", "o"): "ő", ("H", "u"): "ű", ("k", "a"): "ą", ("k", "e"): "ę",
+}
+
+# \i (noktasız ı) ve \j: argümansız, tek başına harf
+TEK_HARF_KOMUT = {"i": "ı", "j": "ȷ", "l": "ł", "o": "ø", "O": "Ø",
+                  "aa": "å", "AA": "Å", "ss": "ß", "ae": "æ", "AE": "Æ"}
+
+_RE_AKSAN_NOKTALAMA = re.compile(
+    r'\\(["\'`^~.=])\s*(?:\{([A-Za-z])\}|([A-Za-z]))')
+_RE_AKSAN_HARF = re.compile(r'\\([A-Za-z]+)\s*\{([A-Za-z])\}')
+# Harf adlı komuttan SONRAKİ tek boşluk komuta aittir (TeX kuralı):
+# `Bilg\i sayar` "Bilgısayar" basıyor, "Bilgı sayar" değil (ölçüldü).
+_RE_TEK_HARF = re.compile(r'\\([A-Za-z]+)[ \t]?')
+
+
+def aksanlari_coz(metin: str) -> str:
+    r"""Aksan makrolarını BASILAN harfe çevir (gösterim için).
+
+    ÖLÇÜLDÜ (2026-09-15, lualatex ile derlenip PDF metni okunarak):
+
+        \"Olcum          -> Ölcum
+        \c{C}alisma      -> Çalisma
+        \u{g}ercek       -> ğercek
+        Bilg\i sayar     -> Bilgısayar
+
+    Anahat paneli bunları çözmüyordu; `\c{C}` "C", `\i` ise "i" oluyordu,
+    yani panelde belgede YAZMAYAN bir kelime görünüyordu.
+
+    Tanınmayan komut OLDUĞU GİBİ kalıyor (`\alpha`, `\usepackage`): bu
+    işlev yalnız tablodaki makroları çözer, komut ayıklamaz.
+    """
+    def _noktalama(m):
+        harf = m.group(2) or m.group(3)
+        return AKSAN_NOKTALAMA.get((m.group(1), harf), m.group(0))
+
+    def _harf(m):
+        return AKSAN_HARF.get((m.group(1), m.group(2)), m.group(0))
+
+    def _tek(m):
+        return TEK_HARF_KOMUT.get(m.group(1), m.group(0))
+
+    metin = _RE_AKSAN_NOKTALAMA.sub(_noktalama, metin)
+    metin = _RE_AKSAN_HARF.sub(_harf, metin)
+    return _RE_TEK_HARF.sub(_tek, metin)

@@ -44,7 +44,8 @@ from dataclasses import dataclass
 
 from core.latex_refs import (
     CITE_KOMUTLARI, COKLU_CITE_KOMUTLARI, REF_KOMUTLARI)
-from core.latex_utils import CIZIM_ENVS, VERB_ENVS
+from core.latex_utils import (
+    AKSAN_HARF, AKSAN_NOKTALAMA, CIZIM_ENVS, TEK_HARF_KOMUT, VERB_ENVS)
 
 try:
     from spylls.hunspell import Dictionary
@@ -64,32 +65,13 @@ def _require():
 # --------------------------------------------------------------------------
 # Aksan makroları
 # --------------------------------------------------------------------------
-
-# Noktalama adlı aksanlar: parantezsiz de yazılabilir (\"o), çünkü hiçbir
-# komut adının öneki değiller.
-_AKSAN_NOKTALAMA = {
-    ('"', "u"): "ü", ('"', "U"): "Ü", ('"', "o"): "ö", ('"', "O"): "Ö",
-    ('"', "a"): "ä", ('"', "A"): "Ä", ('"', "i"): "ï", ('"', "e"): "ë",
-    (".", "I"): "İ", (".", "i"): "İ", (".", "z"): "ż",
-    ("'", "e"): "é", ("'", "a"): "á", ("'", "i"): "í", ("'", "o"): "ó",
-    ("'", "u"): "ú", ("'", "c"): "ć", ("'", "s"): "ś",
-    ("`", "e"): "è", ("`", "a"): "à", ("`", "i"): "ì", ("`", "o"): "ò",
-    ("^", "e"): "ê", ("^", "a"): "â", ("^", "i"): "î", ("^", "o"): "ô",
-    ("^", "u"): "û", ("~", "n"): "ñ", ("~", "a"): "ã", ("~", "o"): "õ",
-}
-
-# Harf adlı aksanlar: SÜSLÜ PARANTEZ ŞART. \u ve \c aksi hâlde
-# \usepackage ve \cite ile karışıyor (ölçülmüş hata, bkz. modül başlığı).
-_AKSAN_HARF = {
-    ("c", "c"): "ç", ("c", "C"): "Ç", ("c", "s"): "ş", ("c", "S"): "Ş",
-    ("u", "g"): "ğ", ("u", "G"): "Ğ", ("u", "a"): "ă", ("u", "e"): "ĕ",
-    ("v", "s"): "š", ("v", "c"): "č", ("v", "z"): "ž", ("v", "r"): "ř",
-    ("H", "o"): "ő", ("H", "u"): "ű", ("k", "a"): "ą", ("k", "e"): "ę",
-}
-
-# \i (noktasız ı) ve \j: argümansız, tek başına harf
-_TEK_HARF_KOMUT = {"i": "ı", "j": "ȷ", "l": "ł", "o": "ø", "O": "Ø",
-                   "aa": "å", "AA": "Å", "ss": "ß", "ae": "æ", "AE": "Æ"}
+#
+# TABLOLAR `core.latex_utils`te (TEK KAYNAK): anahat paneli de aynı bilgiye
+# muhtaç ve kendi kopyasını tutsaydı ayrışırdı. Buradaki tarayıcı kalıyor,
+# çünkü ofset korumak zorunda; oradaki dizge çözücü gösterim için.
+_AKSAN_NOKTALAMA = AKSAN_NOKTALAMA
+_AKSAN_HARF = AKSAN_HARF
+_TEK_HARF_KOMUT = TEK_HARF_KOMUT
 
 
 # --------------------------------------------------------------------------

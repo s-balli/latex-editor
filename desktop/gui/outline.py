@@ -9,7 +9,7 @@ from PyQt6.QtWidgets import (
 
 from PyQt6.QtCore import QCoreApplication
 
-from core.latex_utils import sozel_soy
+from core.latex_utils import aksanlari_coz, sozel_soy
 
 _ = lambda s: QCoreApplication.translate("OutlinePanel", s)
 
@@ -69,7 +69,15 @@ _RE_BASLIK_YERLESIM = re.compile(
 # değil, komutu bitiren ayraç. Boş argümana izin verilince `Learning
 # \LaTeX{}` başlığı "Learning" oluyordu (ölçüldü); şimdi komut aşağıdaki
 # ad indirgemesine düşüyor ve "Learning LaTeX" çıkıyor.
-_RE_BASLIK_SARMAL = re.compile(r'\\[a-zA-Z]+\*?\s*\{([^{}]+)\}')
+#
+# BİR DÜZEY İÇ İÇE küme argümanın içinde olabiliyor: `\textbf{The {BERT}
+# Model}`. Eski desen (`[^{}]+`) orada hiç eşleşmiyor, komut döngüden
+# geçemiyor ve adı kalıyordu: "textbf The BERT Model" (ölçüldü
+# 2026-09-15; LaTeX'in bastığı "The BERT Model"). Korumalı büyük harf
+# (`{BERT}`) akademik başlıkta sıradan. Döngü dört tur döndüğü için daha
+# derin iç içe kümeler de çözülüyor.
+_RE_BASLIK_SARMAL = re.compile(
+    r'\\[a-zA-Z]+\*?\s*\{((?:[^{}]|\{[^{}]*\})+)\}')
 # Argümansız kalan komut: ADI bırakılıyor, silinmiyor. `\LaTeX{}` -> `LaTeX`
 # doğru sonucu veriyor ve `\alpha` gibi anlam taşıyan komutlarda bilgi
 # kaybetmiyor. Tersi (silmek) `\LaTeX` başlıklarını kırpardı.
@@ -99,6 +107,10 @@ def _baslik_goster(ham: str) -> str:
     t = _RE_BASLIK_YERLESIM.sub(' ', ham)
     t = _RE_BASLIK_ESC.sub(
         lambda m: chr(1 + _BASLIK_ESC.index(m.group(1))), t)
+    # Aksan makroları SARMALAYICILARDAN ÖNCE: `\c{C}` sarmalayıcı kuralına
+    # düşerse argümanına iner ve "C" kalır, yani panelde belgede YAZMAYAN
+    # bir kelime görünür (gerekçe ve ölçüm `latex_utils.aksanlari_coz`da).
+    t = aksanlari_coz(t)
     for _ in range(4):                  # iç içe sarmalayıcı; sınır bilinçli
         yeni = _RE_BASLIK_SARMAL.sub(r'\1', t)
         if yeni == t:

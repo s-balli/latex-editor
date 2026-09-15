@@ -737,3 +737,60 @@ def test_OKUMA_DUSERSE_hash_BOS_kaliyor(qapp, tmp_path, monkeypatch):
     assert stub._save_hashes[str(yol)] != hash_a, \
         "bilinmeyen durum, diyalog oncesi degerle dolduruldu"
     assert stub._save_hashes[str(yol)] == ""
+
+
+# --- Aksan makrosu ve iç içe küme (2026-09-15) ---
+
+
+class TestBaslikGorunumu:
+    r"""Anahat etiketi belgede YAZAN kelimeyi göstermeli.
+
+    Yer gerçeği lualatex ile derlenip PDF metni okunarak alındı
+    (2026-09-15):
+
+        \"Olcum       -> Ölcum          \c{C}alisma -> Çalisma
+        \u{g}ercek    -> ğercek         Bilg\i sayar -> Bilgısayar
+
+    Panel bunları çözmüyordu: `\c{C}` sarmalayıcı kuralına düşüp "C"
+    oluyor, `\i` ise "i" olup ardındaki boşluğu da bırakıyordu. 39
+    şablonun 1207 başlığında bu biçim hiç geçmiyor; gerekçe korpus değil
+    LaTeX'in kendisi, üstelik aynı korpusun gövde metninde 85 kez
+    geçiyor ve bir Türkçe tez sınıfı kendi başlığını `RES{\.I}M
+    L{\.I}STES{\.I}` diye yazıyor.
+    """
+
+    @staticmethod
+    def _etiket(kaynak):
+        from gui.outline import anahat_girdileri
+
+        girdiler = anahat_girdileri(kaynak + "\n")
+        assert girdiler, kaynak
+        return girdiler[0][2]
+
+    def test_AKSAN_makrosu_BASILAN_harfe_cevriliyor(self):
+        assert self._etiket(r"\section{\"Olcum}") == "Ölcum"
+        assert self._etiket(r"\section{\c{C}alisma}") == "Çalisma"
+        assert self._etiket(r"\section{\u{g}ercek}") == "ğercek"
+        # Harf adlı komuttan sonraki tek boşluk komuta ait (TeX kuralı)
+        assert self._etiket(r"\section{Bilg\i sayar}") == "Bilgısayar"
+
+    def test_IC_ICE_suslu_SARMALAYICIYI_bozmuyor(self):
+        r"""`{BERT}` korumalı büyük harf; akademik başlıkta sıradan.
+        Eski desen orada eşleşmiyor ve komut ADI kalıyordu."""
+        assert self._etiket(r"\section{\textbf{The {BERT} Model}}") == \
+            "The BERT Model"
+
+    def test_TANINMAYAN_komut_ADI_korunuyor(self):
+        r"""Aşırı düzeltme kapısı: çözücü yalnız TABLODAKİ makroları
+        çevirmeli. `\alpha` anlam taşıyor ve adı kalmalı (bkz.
+        `_RE_BASLIK_KOMUT` gerekçesi)."""
+        assert self._etiket(r"\subsection{$\alpha$ Olcumu}") == \
+            "alpha Olcumu"
+
+    def test_TABLOLAR_TEK_KAYNAK(self):
+        """Kopya çıkarsa yazım denetimi ile anahat ayrışmaya başlar."""
+        from core import latex_utils, yazim
+
+        assert yazim._AKSAN_HARF is latex_utils.AKSAN_HARF
+        assert yazim._AKSAN_NOKTALAMA is latex_utils.AKSAN_NOKTALAMA
+        assert yazim._TEK_HARF_KOMUT is latex_utils.TEK_HARF_KOMUT
