@@ -714,13 +714,52 @@ _CITE_KOMUTLARI = (
     # biblatex
     "parencite", "Parencite", "textcite", "Textcite", "autocite", "Autocite",
     "footcite", "Footcite", "smartcite", "Smartcite", "supercite",
-    "citetitle", "citedate", "citeurl", "fullcite",
+    "citetitle", "Citetitle", "citedate", "citeurl", "fullcite", "Cite",
+    "footcitetext", "Footcitetext", "footfullcite",
+    "notecite", "Notecite", "pnotecite", "Pnotecite", "fnotecite", "Fnotecite",
+    # `\citefield{anahtar}{alan}`: İLK süslü anahtar, ikincisi alan adı.
+    "citefield", "citelist", "citename",
 )
-# `\*?`: natbib yıldızlı biçimleri (`\citep*`) tüm yazar listesini basıyor.
-_RE_CITEUSE = re.compile(
-    r'\\(?:' + '|'.join(_CITE_KOMUTLARI) + r')\*?'
-    r'\s*(?:\[[^\]]*\]\s*)*\{([^}]*)\}'
+
+# biblatex'in ÇOKLU atıf komutları. Burada anahtarlar virgüllü TEK argümanda
+# değil, HER BİRİ AYRI süslü argümanda: `\autocites{a}{b}`. Tekil kol yalnız
+# ilk süslüyü okuduğu için bu biçim ayrı bir kol istiyor.
+#
+# Adlar kurulu biblatex'ten okundu, sonra her komut KENDİ belgesinde
+# derlenip .bcf'e hangi anahtarın girdiğine bakıldı (ÖLÇÜLDÜ 2026-09-15).
+# Tasarlanmış belgede `\autocites{a}{b}` LaTeX'e İKİ atıf yazıyor,
+# uygulama SIFIR görüyordu; sekiz .bib girdisinin SEKİZİ "Kullanılmayan
+# .bib girdisi" diye bildiriliyor, gerçekten tanımsız olan atıf ise hiç
+# bildirilmiyordu. F2 de aynı metinde dokuz anahtarın sekizini bulamıyordu.
+#
+# `\Supercites` YOK (biblatex yalnız `\supercites` tanımlıyor, ölçüldü).
+#
+# volcite ailesi (`\volcites{cilt}{anahtar}...`) BİLEREK DIŞARIDA: orada ilk
+# süslü CİLT numarası. Listeye alınsaydı cilt numarası "Tanımsız \cite: 2"
+# diye bildirilirdi.
+_COKLU_CITE_KOMUTLARI = (
+    "cites", "Cites", "parencites", "Parencites", "textcites", "Textcites",
+    "smartcites", "Smartcites", "footcites", "Footcites",
+    "footcitetexts", "Footcitetexts", "autocites", "Autocites", "supercites",
 )
+
+# Süslü argüman DİZİSİ. Aradaki köşeli notlar (`\autocites[bkz.][12]{a}`)
+# yakalanan metne giriyor ama anahtar olarak okunmuyor; `_anahtar_bolumleri`
+# yalnız süslülerin içine bakıyor.
+_COKLU_ARG = (r'((?:\[[^\]]*\]\s*)*\{[^{}]*\}'
+              r'(?:\s*(?:\[[^\]]*\]\s*)*\{[^{}]*\})*)')
+
+
+def _atif_regex(adlar, coklu) -> re.Pattern:
+    r"""Çoklu kol ÖNCE, tekil kol sonra. `\*?`: natbib yıldızlı biçimleri."""
+    return re.compile(
+        r'\\(?:' + '|'.join(coklu) + r')\*?\s*' + _COKLU_ARG
+        + r'|\\(?:' + '|'.join(adlar) + r')\*?'
+        r'\s*(?:\[[^\]]*\]\s*)*\{([^}]*)\}'
+    )
+
+
+_RE_CITEUSE = _atif_regex(_CITE_KOMUTLARI, _COKLU_CITE_KOMUTLARI)
 
 # Belgenin KENDİ tanımladığı ikinci kaynakça: natbib ve multibib'in
 # `\newcites{further}{Kaynaklar}` komutu SONEKLİ bir atıf ailesi daha
@@ -762,11 +801,10 @@ def _atif_deseni(texts) -> re.Pattern:
     # Sonekliler önce yazılıyor; sıra DAVRANIŞI değiştirmiyor (denendi:
     # ters sırayla da aynı sonuç, çünkü `cite` kolu `\citefurther`de
     # tıkanıp geri izliyor). Okurken türetilmiş ailenin önce görünmesi için.
+    # Sonek yalnız TEKİL aileye ekleniyor: `\newcites` çoklu biçim
+    # türetmiyor (multibib `\cite<sonek>` ve `\nocite<sonek>` tanımlıyor).
     adlar = [k + e for e in ekler for k in _CITE_KOMUTLARI]
-    return re.compile(
-        r'\\(?:' + '|'.join(adlar + list(_CITE_KOMUTLARI)) + r')\*?'
-        r'\s*(?:\[[^\]]*\]\s*)*\{([^}]*)\}'
-    )
+    return _atif_regex(adlar + list(_CITE_KOMUTLARI), _COKLU_CITE_KOMUTLARI)
 
 
 def find_cite_usage(bib_path: str, key: str) -> tuple[str, int] | None:
@@ -811,8 +849,10 @@ def find_cite_usage(bib_path: str, key: str) -> tuple[str, int] | None:
             desen = _atif_deseni([temiz])
             for i, ln in enumerate(temiz.split('\n'), start=1):
                 for m in desen.finditer(ln):
-                    keys = [k.strip() for k in m.group(1).split(',')]
-                    if key in keys:
+                    # `m.group(1)` DEĞİL: çoklu atıf kolu eşleşince tekil
+                    # kolun grubu None geliyor ve `\autocites{...}` içindeki
+                    # anahtar hiç görünmüyordu.
+                    if key in _kullanim_anahtarlari(m):
                         return (path, i)
     return None
 
@@ -831,6 +871,13 @@ _REF_TEKIL_KOMUTLARI = (
     "cref", "Cref", "cpageref", "Cpageref", "labelcref", "labelcpageref",
     # varioref
     "vref", "Vref", "vpageref", "Vpageref", "fullref",
+    # subcaption: alt şekle/alt tabloya başvuru. `\subref{X}` LaTeX'te
+    # `sub@X` etiketine gidiyor ama kullanıcının yazdığı ad X.
+    # ÖLÇÜLDÜ (2026-09-15, gerçek derlemeyle): iki alt şekil etiketi yalnız
+    # `\subref` ile kullanılınca ikisi de "Kullanılmayan etiket" diye
+    # bildiriliyordu; olmayan bir etikete `\subref` yapınca LaTeX
+    # "Reference `sub@sfig:yokbu' undefined" diyor, uygulama susuyordu.
+    "subref",
 )
 # İki kollu: aralık komutları İKİ etiket alıyor (`\crefrange{ilk}{son}`) ve
 # ikisi de anahtar. İkinci `{...}` yalnız o kolda aranıyor; tekil komutlarda
@@ -881,17 +928,48 @@ def komut_alternatifi(komutlar) -> str:
     return r'\\(?:' + '|'.join(komutlar) + r')\*?'
 
 
+_RE_SUSLU_ICI = re.compile(r'\{([^{}]*)\}')
+
+
+def _anahtar_bolumleri(arg: str):
+    """Yakalanan argümandaki (anahtar, argüman içindeki ofset) çiftleri.
+
+    İki biçim aynı kuraldan geçiyor:
+        `a, b`      virgüllü liste; süslünün İÇİ yakalanmış (tekil kol)
+        `{a}{b}`    çoklu atıf; süslülerin KENDİSİ yakalanmış
+
+    Çoklu kolda köşeli notlar (`\\autocites[s. 12]{a}`) yakalanan metinde
+    duruyor ama buraya girmiyor: yalnız süslülerin içi okunuyor. Not metni
+    anahtar sayılsaydı "Tanımsız \\cite: s. 12" gibi sahte bulgu üretirdi.
+
+    TEK KAYNAK: denetim, F2 ve .bib'ten Alt+tık aynı bölümlemeyi kullanıyor.
+    Üçü ayrı ayrı `split(',')` yapıyordu ve çoklu kol eklenince ayrışırdı.
+    """
+    if '{' in arg:
+        bloklar = [(m.group(1), m.start(1))
+                   for m in _RE_SUSLU_ICI.finditer(arg)]
+    else:
+        bloklar = [(arg, 0)]
+    for metin, taban in bloklar:
+        off = 0
+        for part in metin.split(','):
+            bas = taban + off + (len(part) - len(part.lstrip()))
+            yield part.strip(), bas
+            off += len(part) + 1          # virgülü atla
+
+
 def _kullanim_anahtarlari(m) -> list[str]:
     """Bir referans/atıf eşleşmesindeki BÜTÜN anahtarlar.
 
-    İki şey birleşiyor: virgüllü liste (`\\cref{a,b}`) ve iki argümanlı
-    aralık biçimi (`\\crefrange{ilk}{son}`). Eşleşmeyen kollar None geliyor.
+    Üç şey birleşiyor: virgüllü liste (`\\cref{a,b}`), iki argümanlı aralık
+    biçimi (`\\crefrange{ilk}{son}`) ve çoklu atıf (`\\autocites{a}{b}`).
+    Eşleşmeyen kollar None geliyor.
     """
     out: list[str] = []
     for arg in m.groups():
         if arg:
-            out.extend(k.strip() for k in arg.split(',')
-                       if _anahtar_olabilir(k.strip()))
+            out.extend(k for k, _o in _anahtar_bolumleri(arg)
+                       if _anahtar_olabilir(k))
     return out
 
 
@@ -906,12 +984,8 @@ def _segment_araliklari(m, old: str) -> list[tuple[int, int]]:
         if arg is None:
             continue
         arg_a = m.span(grup)[0]
-        off = 0
-        for part in arg.split(','):
-            if part.strip() == old:
-                s = arg_a + off + (len(part) - len(part.lstrip()))
-                out.append((s, s + len(old)))
-            off += len(part) + 1  # virgülü atla
+        out.extend((arg_a + o, arg_a + o + len(old))
+                   for k, o in _anahtar_bolumleri(arg) if k == old)
     return out
 _RE_BIBITEM = re.compile(_BIBITEM_BAS)
 _RE_NOCITE_ALL = re.compile(r'\\nocite\s*\{\*\}')

@@ -1624,3 +1624,91 @@ class TestHarvarditem:
         assert [k for k, _s
                 in latex_refs.bibitem_anahtarlari_satirda(satir)] == \
             ["Ahmed:2020"]
+
+
+# --- biblatex çoklu atıf ve subcaption \subref (2026-09-15) ---------------
+
+
+class TestCokluAtifAilesi:
+    r"""`\autocites{a}{b}` her anahtarı AYRI süslüde taşıyor.
+
+    ÖLÇÜLDÜ (gerçek derleme, .bcf kaydı): LaTeX iki atıf sayıyor, uygulama
+    sıfır görüyordu. Tasarlanmış belgede sekiz .bib girdisinin SEKİZİ
+    "Kullanılmayan .bib girdisi" diye bildiriliyordu.
+    """
+
+    BIB = "@article{a,}\n@article{b,}\n@article{c,}\n@article{d,}\n"
+
+    @staticmethod
+    def _kur(tmp_path, govde):
+        (tmp_path / "refs.bib").write_text(
+            TestCokluAtifAilesi.BIB, encoding="utf-8")
+        ana = tmp_path / "m.tex"
+        ana.write_text(govde + "\\bibliography{refs}\n", encoding="utf-8")
+        return ana.read_text(encoding="utf-8"), str(ana)
+
+    def test_her_suslu_argumani_anahtar_sayiliyor(self, tmp_path):
+        icerik, yol = self._kur(
+            tmp_path, "\\autocites{a}{b}\n\\parencites{c}{d}\n")
+        r = latex_refs.audit_references(icerik, yol)
+        assert r.unused_bib_keys == []
+        assert r.undefined_cites == []
+
+    def test_gercekten_TANIMSIZ_olan_bildiriliyor(self, tmp_path):
+        icerik, yol = self._kur(tmp_path, "\\cites{a}{yokanahtar}\n")
+        r = latex_refs.audit_references(icerik, yol)
+        assert r.undefined_cites == ["yokanahtar"]
+
+    def test_F2_ikinci_suslunun_anahtarini_da_buluyor(self):
+        """İkinci zarar: kullanım güncellenmezse belgede sarkan atıf kalıyor."""
+        metin = "\\autocites{sahin2020}{kaya2019}\n"
+        assert latex_refs.cite_rename_spans(metin, "kaya2019")
+        yeni = metin
+        for a, b in reversed(latex_refs.cite_rename_spans(metin, "kaya2019")):
+            yeni = yeni[:a] + "kaya2020" + yeni[b:]
+        assert yeni == "\\autocites{sahin2020}{kaya2020}\n"
+
+    def test_bibten_makaleye_ALT_TIK_buluyor(self, tmp_path):
+        """Üçüncü tüketici: .bib girdisinden atıfın yerine gitmek."""
+        _icerik, _yol = self._kur(tmp_path, "\\autocites{a}{b}\n")
+        assert latex_refs.find_cite_usage(
+            str(tmp_path / "refs.bib"), "b") == (str(tmp_path / "m.tex"), 1)
+
+    def test_KOSELI_NOT_anahtar_sayilmiyor(self, tmp_path):
+        r"""`\autocites[s. 12]{a}[][5]{b}`: notlar anahtar değil.
+
+        Not metni anahtar sayılsaydı "Tanımsız \cite: 5" diye sahte bir
+        bulgu çıkardı.
+        """
+        icerik, yol = self._kur(
+            tmp_path, "\\autocites[s. 12]{a}[][5]{b}\n\\cite{c}\n\\cite{d}\n")
+        r = latex_refs.audit_references(icerik, yol)
+        assert r.undefined_cites == []
+        assert r.unused_bib_keys == []
+
+
+class TestSubrefEtiketi:
+    r"""subcaption'ın `\subref{X}`i de etiket KULLANIMI.
+
+    ÖLÇÜLDÜ (gerçek derleme): yalnız `\subref` ile kullanılan etiket
+    "Kullanılmayan etiket" diye bildiriliyor, olmayan bir etikete
+    `\subref` yapılınca LaTeX "Reference `sub@sfig:yokbu' undefined"
+    derken uygulama susuyordu.
+    """
+
+    @staticmethod
+    def _kur(tmp_path, govde):
+        ana = tmp_path / "m.tex"
+        ana.write_text(govde, encoding="utf-8")
+        return ana.read_text(encoding="utf-8"), str(ana)
+
+    def test_subref_KULLANIM_sayiliyor(self, tmp_path):
+        icerik, yol = self._kur(
+            tmp_path, "\\label{sfig:sol}\n\\subref{sfig:sol}\n")
+        r = latex_refs.audit_references(icerik, yol)
+        assert r.unused_labels == []
+
+    def test_olmayan_etikete_subref_BILDIRILIYOR(self, tmp_path):
+        icerik, yol = self._kur(tmp_path, "\\subref{sfig:yokbu}\n")
+        r = latex_refs.audit_references(icerik, yol)
+        assert r.undefined_refs == ["sfig:yokbu"]
