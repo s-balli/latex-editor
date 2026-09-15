@@ -260,11 +260,53 @@ _RE_BABEL = re.compile(
     r"\\usepackage\s*\[([^\]]*)\]\s*\{(?:babel|polyglossia)\}")
 _RE_ANA_DIL = re.compile(r"\\setmainlanguage\s*(?:\[[^\]]*\])?\s*\{(\w+)\}")
 
-_DIL_ADI = {
-    "turkish": "tr_TR", "turkce": "tr_TR", "tr": "tr_TR", "tr_tr": "tr_TR",
-    "english": "en_US", "american": "en_US", "usenglish": "en_US",
-    "en": "en_US", "en_us": "en_US", "en_gb": "en_GB", "british": "en_GB",
-}
+# Uygulamanın TAŞIDIĞI sözlükler. TEK KAYNAK: yazım sekmesindeki dil
+# seçici de buradan doluyor ve `_DIL_ADI`nin her hedefi burada olmak
+# ZORUNDA. Ad her dilin KENDİ adı, o yüzden çevrilmiyor.
+SUNULAN_DILLER = (("tr_TR", "Türkçe"), ("en_US", "English"))
+
+# babel'in KENDİ İngilizce ad listesi (kurulu TeX Live,
+# `texmf-dist/tex/generic/babel/locale/en/`, 28 ad; tireli biçimler alt
+# çizgiye çevrilmiş hâlleriyle). HEPSİ `en_US`e gidiyor, çünkü uygulamanın
+# taşıdığı tek İngilizce sözlük o.
+#
+# Burada yalnız BEŞİ vardı; `british` ile `en_gb` ise `en_GB`ye gidiyordu
+# ve o dil için ne sözlük var ne de seçicide bir girdi. Sonuç SESSİZ:
+# `yazim_dili_ayarla` eşleşme bulamayıp hiçbir şey yapmıyor, denetim
+# SEÇİLİ dille (varsayılan: Türkçe) koşuyor.
+#
+# ÖLÇÜLDÜ (2026-09-15, üç gerçek İngilizce şablon, aynı metin iki dille):
+#
+#     tr_TR ile 4642 / 1944 / 1333 bulgu
+#     en_US ile   95 /   21 /   34 bulgu
+#
+# Yani panel "for", "reviews", "commerce" gibi sıradan kelimelerle dolup
+# kullanılamaz hâle geliyordu. `en_US` sözlüğünün İngiliz yazımına bedeli
+# ölçüldü ve KABUL EDİLDİ: denenen 15 İngiliz biçiminin 15'i işaretleniyor
+# (colour, centre, analyse...). Belge başına birkaç bulgu, 4642'nin
+# yanında önemsiz; gerçek çözüm bir `en_GB` sözlüğü taşımak olurdu.
+_INGILIZCE_ADLARI = (
+    "american", "americanenglish", "australian", "australianenglish",
+    "british", "britishenglish", "canadian", "canadianenglish", "en",
+    "english", "english_au", "english_australia", "english_ca",
+    "english_canada", "english_gb", "english_newzealand", "english_nz",
+    "english_unitedkingdom", "english_unitedstates", "english_us",
+    "newzealand", "ukenglish", "usenglish",
+    "en_au", "en_ca", "en_gb", "en_nz", "en_us",
+)
+_TURKCE_ADLARI = ("turkish", "turkce", "tr", "tr_tr")
+
+_DIL_ADI = {ad: "tr_TR" for ad in _TURKCE_ADLARI}
+_DIL_ADI.update({ad: "en_US" for ad in _INGILIZCE_ADLARI})
+
+
+def _dil_kodu(ad: str) -> str:
+    """babel/polyglossia dil adını haritanın anahtar biçimine getir.
+
+    Tire ÜÇ KOLDA DA atılıyor: babel `en-GB` yazıyor, `% !TEX spellcheck`
+    ise `en_GB`. Eskiden yalnız sihirli yorum kolu tireyi çeviriyordu.
+    """
+    return ad.strip().lower().replace("-", "_")
 
 
 def belgeden_dil(metin: str) -> str | None:
@@ -276,16 +318,14 @@ def belgeden_dil(metin: str) -> str | None:
     """
     m = _RE_TEX_DIL.search(metin)
     if m:
-        return _DIL_ADI.get(m.group(1).lower().replace("-", "_"),
-                            m.group(1))
+        return _DIL_ADI.get(_dil_kodu(m.group(1)), m.group(1))
     m = _RE_ANA_DIL.search(metin)
     if m:
-        return _DIL_ADI.get(m.group(1).lower())
+        return _DIL_ADI.get(_dil_kodu(m.group(1)))
     m = _RE_BABEL.search(metin)
     if m:
         # babel'de SON seçenek ana dildir: [english,turkish] -> turkish
-        secenekler = [s.strip().lower() for s in m.group(1).split(",")
-                      if s.strip()]
+        secenekler = [_dil_kodu(s) for s in m.group(1).split(",") if s.strip()]
         for s in reversed(secenekler):
             if s in _DIL_ADI:
                 return _DIL_ADI[s]
@@ -722,7 +762,6 @@ def kelimeleri_cikar(metin: str) -> list[Kelime]:
 _AYIRT_EDICI = {
     "tr_TR": set("çğıöşüÇĞİÖŞÜ"),
     "en_US": set(),
-    "en_GB": set(),
 }
 
 

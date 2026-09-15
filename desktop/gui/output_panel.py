@@ -11,6 +11,7 @@ from PyQt6.QtWidgets import (
 
 from core.error_hints import get_hint
 from core.log_parser import CompileResult
+from core.yazim import SUNULAN_DILLER
 from PyQt6.QtCore import QCoreApplication
 
 _ = lambda s: QCoreApplication.translate("OutputPanel", s)
@@ -228,8 +229,11 @@ class OutputPanel(QWidget):
         y_ust.setSpacing(6)
         y_ust.addWidget(QLabel(_("Dil:")))
         self._yazim_dil = QComboBox()
-        self._yazim_dil.addItem("Türkçe", "tr_TR")
-        self._yazim_dil.addItem("English", "en_US")
+        # Liste core.yazim'dan: belgeden çıkarılan dil burada KARŞILIĞI
+        # OLMAYAN bir koda düşerse `yazim_dili_ayarla` sessizce hiçbir şey
+        # yapmıyor ve denetim yanlış dille koşuyor (bkz. SUNULAN_DILLER).
+        for _kod, _ad in SUNULAN_DILLER:
+            self._yazim_dil.addItem(_ad, _kod)
         self._yazim_dil.setToolTip(
             _("Belge `% !TEX spellcheck = tr_TR` ya da babel ile dilini "
               "bildiriyorsa açılışta o seçilir"))

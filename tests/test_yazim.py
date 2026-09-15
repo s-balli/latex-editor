@@ -831,3 +831,58 @@ def test_OLAGAN_ekleme_hala_kaliciyor(tmp_path):
     satirlar = yol.read_text(encoding="utf-8").split()
     assert satirlar == sorted(_BIRIKMIS + ["yenikelime"])
     assert not [a for a in os.listdir(tmp_path) if a.endswith(".tmp")]
+
+
+# babel'in KENDİ İngilizce ad listesi (kurulu TeX Live'da
+# `texmf-dist/tex/generic/babel/locale/en/`, 2026-09-15). Uygulama
+# bunların BEŞİNİ tanıyordu; `british` ile `en-GB` sözlüğü olmayan bir
+# dile gidiyordu, kalan 21'i hiç tanınmıyordu.
+_BABEL_INGILIZCE = [
+    "american", "americanenglish", "australian", "australianenglish",
+    "british", "britishenglish", "canadian", "canadianenglish", "en",
+    "english", "english-au", "english-australia", "english-ca",
+    "english-canada", "english-gb", "english-newzealand", "english-nz",
+    "english-unitedkingdom", "english-unitedstates", "english-us",
+    "newzealand", "ukenglish", "usenglish",
+    "en-AU", "en-CA", "en-GB", "en-NZ", "en-US",
+]
+
+
+@pytest.mark.parametrize("ad", _BABEL_INGILIZCE)
+def test_BABELIN_her_ingilizce_adi_cozuluyor(ad):
+    r"""Çözülemeyen ad SESSİZ: seçici değişmez, denetim SEÇİLİ dille
+    (varsayılan Türkçe) koşar.
+
+    ÖLÇÜLDÜ (2026-09-15, üç gerçek İngilizce şablon): aynı metin tr_TR ile
+    4642/1944/1333 bulgu veriyor, en_US ile 95/21/34. Panel sıradan
+    İngilizce kelimelerle doluyordu.
+    """
+    assert belgeden_dil("\\usepackage[%s]{babel}" % ad) == "en_US", ad
+
+
+def test_TURKCE_adlari_cozuluyor():
+    """babel'in Türkçe tarafında iki ad var: `turkish` ve `tr`."""
+    for ad in ("turkish", "tr", "Turkish", "TR"):
+        assert belgeden_dil("\\usepackage[%s]{babel}" % ad) == "tr_TR", ad
+
+
+def test_HARITANIN_her_hedefi_TASINAN_bir_sozluk():
+    r"""Kusurun kökü buydu: `british` -> `en_GB` ve o dil için ne sözlük
+    vardı ne de seçicide bir girdi."""
+    from core.yazim import SUNULAN_DILLER, _DIL_ADI
+
+    sunulan = {kod for kod, _ad in SUNULAN_DILLER}
+    eksik = sorted(set(_DIL_ADI.values()) - sunulan)
+    assert not eksik, "sozlugu olmayan hedef: %s" % eksik
+
+
+def test_TANINMAYAN_dil_None_kaliyor():
+    """Karşı kol: sözlüğü olmayan dil için dil UYDURULMAMALI."""
+    assert belgeden_dil("\\usepackage[brazil]{babel}") is None
+    assert belgeden_dil("\\usepackage[ngerman]{babel}") is None
+
+
+def test_TIRE_uc_kolda_da_atiliyor():
+    """babel `en-GB` yazıyor, sihirli yorum `en_GB`; ikisi de aynı yere."""
+    assert belgeden_dil("% !TEX spellcheck = en-GB") == "en_US"
+    assert belgeden_dil("\\usepackage[en-GB]{babel}") == "en_US"
