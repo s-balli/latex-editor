@@ -414,7 +414,23 @@ _RE_SPLIT_CELLS = re.compile(r"(?<!\\)&")
 
 
 #  \\  ya da  \\[2mm]  — satır sonlandırıcı ve isteğe bağlı aralık argümanı
-_RE_ROW_END = re.compile(r"\\\\(?:\[[^\]]*\])?\s*$")
+#
+# SONDAKİ YORUM da kabul ediliyor. Desen sonlandırıcıyı satır SONUNA
+# bağlıyordu ve satır `%` ile biten bir yorum taşıyorsa eşleşmiyordu; o
+# zaman mantıksal satır BİTMİYOR ve bir SONRAKİ kaynak satırı ona
+# ekleniyordu. Hizalama ikisini tek satıra yazınca ikinci satır `%`nin
+# ARKASINA düşüyor, yani DERLEMEDE YOK OLUYORDU.
+#
+# ÖLÇÜLDÜ (2026-09-15, 39 şablonun 255 tablosu; ölçüt yorumları soyulmuş
+# metin, yani LaTeX'in gördüğü): 9 blokta "Tabloyu Hizala" belgeyi
+# değiştiriyordu ve hepsinde SATIR KAYBI vardı (mnras_guide'da `\earth`
+# satırı, InterPore'da tablo gövdesinin tamamı).
+#
+# Yorum `sonek`in içinde kalıyor: hizalanmış satırın sonunda, ait olduğu
+# satırla birlikte yazılıyor.
+_RE_ROW_END = re.compile(r"\\\\(?:\[[^\]]*\])?\s*(?:(?<!\\)%[^\n]*)?$")
+# Kaçırılmamış `%`: satırın geri kalanı yorum.
+_RE_SATIR_YORUMU = re.compile(r"(?<!\\)%")
 
 
 def _is_passthrough(s: str) -> bool:
@@ -605,6 +621,14 @@ def format_tabular(text: str, pos: int) -> str | None:
             continue
         _, cells, sonek, ham = g
         if cells == [""]:
+            out.extend(ham)
+            continue
+        # ARADA YORUM VARSA DOKUNMA. Mantıksal satır birden çok kaynak
+        # satırına yayılmışsa ve aradakilerden biri `%` ile bitiyorsa,
+        # hepsini tek satıra yazmak sonrakileri YORUMUN ARKASINA atar ve
+        # derlemede yok eder. Böyle bir satır olduğu gibi bırakılıyor:
+        # hizalama bir kolaylık, kullanıcının metnini kaybetmeye değmez.
+        if len(ham) > 1 and any(_RE_SATIR_YORUMU.search(x) for x in ham[:-1]):
             out.extend(ham)
             continue
         padded = [c.ljust(widths[i]) for i, c in enumerate(cells)]

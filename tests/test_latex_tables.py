@@ -300,6 +300,87 @@ class TestSarilmisSatir:
         sutun = [ln.index("&") for ln in satirlar]
         assert sutun[0] == sutun[1]
 
+    @staticmethod
+    def _derlenen(s):
+        r"""LaTeX'in GÖRDÜĞÜ metin: yorumlar atılmış, boşluklar silinmiş.
+
+        Hizalama YALNIZ boşluk değiştirmeli; ölçüt bu. Korpus ölçümü de
+        bu ölçütle yapıldı (255 tablonun 9'u belgeyi değiştiriyordu).
+        """
+        return re.sub(r"\s+", "", re.sub(r"(?<!\\)%[^\n]*", "", s))
+
+    @staticmethod
+    def _amper_sutunu(out, anahtar):
+        satir = next(ln for ln in out.split("\n") if anahtar in ln)
+        return satir.index("&")
+
+    def test_SATIR_SONU_YORUMU_sonraki_satiri_YUTMUYOR(self):
+        r"""ÖLÇÜLDÜ (2026-09-15, 39 şablonun 255 tablosu; ölçüt yorumları
+        soyulmuş metin): 9 blokta hizalama belgeyi değiştiriyordu ve
+        hepsinde SATIR KAYBI vardı. Sonlandırıcı deseni satır SONUNA
+        bağlıydı; `\\ % not` yazan satır bitmiş sayılmıyor, sonraki satır
+        ona ekleniyor ve tek satıra yazılınca `%`nin ARKASINA düşüyordu.
+        """
+        # Genişlikler BİLEREK farklı: dokunulmamış satırların `&`si
+        # kaynaktaki yerinde kalır, hizalanmışların aynı sütuna gelir.
+        src = (
+            "\\begin{tabular}{ll}\n"
+            "    a & bbb \\\\ % olcum notu\n"
+            "    cccc & d \\\\\n"
+            "\\end{tabular}\n"
+        )
+        out = format_tabular(src, 30)
+        assert self._derlenen(out) == self._derlenen(src), out
+        assert "% olcum notu" in out
+        # Ve satır hizalanmış olmalı: not taşıyan satır "dokunulmaz"a
+        # düşerse hizalama o satırda hiç çalışmaz.
+        assert self._amper_sutunu(out, " a ") == \
+            self._amper_sutunu(out, "cccc"), out
+
+    def test_ARADA_YORUM_varsa_satir_OLDUGU_GIBI_kaliyor(self):
+        r"""Sarılmış satırın ARASINDAKİ yorum: hizalamak içeriği yoruma
+        atardı. Böyle bir satıra hiç dokunulmuyor (hizalama kolaylık,
+        kullanıcının metnini kaybetmeye değmez)."""
+        src = (
+            "\\begin{tabular}{ll}\n"
+            "    \\rowrule%\n"
+            "    aaa & bbb \\\\\n"
+            "\\end{tabular}\n"
+        )
+        out = format_tabular(src, 30)
+        assert self._derlenen(out) == self._derlenen(src), out
+        assert "\\rowrule%\n" in out, out
+
+    def test_COK_SATIRLI_kolon_belirtimi_ICERIK_KAYBETTIRMIYOR(self):
+        r"""Belirtim birden çok satıra yayılabiliyor ve kolonları yorumla
+        açıklamak yaygın; gövdeyle karışınca içerik yoruma düşüyordu."""
+        src = (
+            "\\begin{tabular}{\n"
+            "  p{3cm}  % birinci kolon\n"
+            "  p{5cm}}\n"
+            "    aaa & bbb \\\\\n"
+            "    ccc & ddd \\\\\n"
+            "\\end{tabular}\n"
+        )
+        out = format_tabular(src, 45)
+        assert self._derlenen(out) == self._derlenen(src), out
+
+    def test_KACIRILMIS_yuzde_yorum_SAYILMIYOR(self):
+        r"""Aşırı düzeltme kapısı: hücredeki `\%` basılı bir karakter,
+        yorum değil. Yorum sanılırsa sarılmış satır boşuna
+        "dokunulmaz"a düşer ve hizalama çalışmaz."""
+        src = (
+            "\\begin{tabular}{ll}\n"
+            "    oran 15 \\%\n"
+            "      devam & bbb \\\\\n"
+            "    ccc & ddd \\\\\n"
+            "\\end{tabular}\n"
+        )
+        out = format_tabular(src, 30)
+        assert self._derlenen(out) == self._derlenen(src), out
+        assert self._amper_sutunu(out, "devam") == \
+            self._amper_sutunu(out, "ccc"), out
+
     def test_araliksiz_sonlandirici_korunuyor(self):
         r"""`\\[2mm]` gibi aralık argümanı kaybolmamalı."""
         src = (
