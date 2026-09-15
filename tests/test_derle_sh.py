@@ -664,7 +664,14 @@ class TestDizin:
 
     @_dizin_skip
     def test_TEK_dizin_hala_basiliyor(self, tmp_path):
-        """Karşı kol: döngüye geçiş klasik tek dizini bozmamalı."""
+        """Karşı kol: döngüye geçiş klasik tek dizini bozmamalı.
+
+        SAĞLIKLI KOŞUDA SESSİZ OLMALI (2026-09-15). Süzgeç `error|warn`
+        idi ve makeindex'in `...done (5 lines written, 0 warnings).`
+        satırı ona takılıyordu: her başarılı derlemede "makeindex
+        uyarilari" başlıklı bir blok çıkıyor, içinde sıfır uyarı
+        yazıyordu.
+        """
         (tmp_path / "ana.tex").write_text(DIZIN_TEK_TEX, encoding="utf-8")
 
         r = _run_derle([str(tmp_path / "ana.tex")], cwd=str(tmp_path),
@@ -672,6 +679,29 @@ class TestDizin:
 
         assert (tmp_path / "ana.pdf").exists(), r.stdout[-2000:]
         assert "KlasikGirdi" in _pdf_metni(tmp_path / "ana.pdf")
+        assert "makeindex" not in r.stdout, r.stdout[-800:]
+
+    @_dizin_skip
+    def test_REDDEDILEN_girdi_kullaniciya_soyleniyor(self, tmp_path):
+        r"""Dizinden DÜŞEN girdi sessiz kalmamalı.
+
+        makeindex ayrıştıramadığı girdiyi atıyor ama `!!` satırını
+        stdout'a basmıyor (o döküm `.ilg`ye gidiyor) ve çıkış kodu 0
+        kalıyor. Tek iz "N rejected" sayacı ve eski süzgeç onu ELİYORDU:
+        girdi dizinde yok, kullanıcıya da bir şey denmiyordu (ölçüldü,
+        üç ayrı bozuk girdi biçiminde de aynı).
+        """
+        (tmp_path / "ana.tex").write_text(
+            "\\documentclass{article}\n\\usepackage{makeidx}\n\\makeindex\n"
+            "\\begin{document}\n"
+            "Bir\\index{A!B!C!D!E}. Iki\\index{IyiGirdi}.\n"
+            "\\printindex\n\\end{document}\n", encoding="utf-8")
+
+        r = _run_derle([str(tmp_path / "ana.tex")], cwd=str(tmp_path),
+                       timeout=180)
+
+        assert (tmp_path / "ana.pdf").exists(), r.stdout[-2000:]
+        assert "rejected" in r.stdout, r.stdout[-800:]
 
 
 class TestInputInclude:
@@ -1085,3 +1115,79 @@ class TestKaynakcaAraciSuzgeci:
         bib = [u.message for u in sonuc.warnings
                if u.warning_type == "BibTeX"]
         assert any("couldn't open style file" in m for m in bib), temiz[-1200:]
+
+
+class TestYardimciAracSuzgeci:
+    r"""makeindex / makeglossaries / nomencl çıktısında hangi satır gösterilir.
+
+    Ölçüt SAYININ SIFIR OLMAMASI: sayaç taşıyan satır ancak sayı sıfırdan
+    büyükse kullanıcıya çıkar. Süzgeç TERSİNE çalışıyordu; "0 warnings"
+    geçiyor, "1 rejected" süzülüyordu.
+
+    Desenler betikten OKUNUYOR, teste kopyalanmıyor.
+    """
+
+    # Üç aracın GERÇEK çıktısından alınan satırlar (2026-09-15).
+    GOSTERILECEK = [
+        "Scanning input file d.idx....done (1 entries accepted, 1 rejected).",
+        "Scanning input file d.glo....done (1 entries accepted, 2 rejected).",
+        "Scanning input file d.nlo....done (1 entries accepted, 1 rejected).",
+        "!! Input index error (file = d.glo, line = 2):",
+        "Generating output file d.ind....done (5 lines written, 3 warnings).",
+    ]
+    SUSTURULACAK = [
+        "Scanning input file d.idx....done (1 entries accepted, 0 rejected).",
+        "Generating output file d.ind....done (5 lines written, 0 warnings).",
+        "This is makeindex, version 2.17 [TeX Live 2023] (kpathsea + Thai)",
+        "Sorting entries...done (0 comparisons).",
+        "Output written in d.ind.",
+        "Transcript written in d.ilg.",
+        "makeglossaries version 4.53 (2023-09-29)",
+    ]
+
+    @staticmethod
+    def _desenler():
+        with open(SCRIPT, encoding="utf-8") as f:
+            kaynak = f.read()
+        cikan = []
+        for ad in ("ARAC_DESENI", "ARAC_SESSIZ"):
+            m = re.search(r"^%s='([^']*)'" % ad, kaynak, re.M)
+            assert m, "%s bulunamadi" % ad
+            cikan.append(m.group(1))
+        return cikan
+
+    def _gorunur(self, satir):
+        """Satır betiğin İKİ GREP'inden geçiyor mu.
+
+        GERÇEK `grep` koşuyor, Python'un `re`si değil: desen bir POSIX
+        ERE ve iki motor her yerde aynı davranmıyor. `[[:space:]]`
+        grep'te boşluk sınıfı, Python'da ise `[ : s p a c e ]` harfleri;
+        kapı Python ile yazılıydı ve bu yüzden ANLAMCA AYNI bir yazımı
+        bozuk sanıyordu (mutasyon kontrolünde yakalandı).
+        """
+        desen, sessiz = self._desenler()
+        r = subprocess.run(
+            ["bash", "-c",
+             'printf "%s\\n" "$1" | grep -iE "$2" | grep -viE "$3" || true',
+             "bash", satir, desen, sessiz],
+            capture_output=True, text=True, encoding="utf-8")
+        return bool((r.stdout or "").strip())
+
+    @pytest.mark.parametrize("satir", GOSTERILECEK)
+    def test_SORUN_bildiren_satir_gorunuyor(self, satir):
+        assert self._gorunur(satir), satir
+
+    @pytest.mark.parametrize("satir", SUSTURULACAK)
+    def test_ZARARSIZ_satir_gorunmuyor(self, satir):
+        """Karşı kol: sağlıklı koşuda blok hiç çıkmamalı."""
+        assert not self._gorunur(satir), satir
+
+    def test_UC_KOL_DA_ayni_deseni_kullaniyor(self):
+        """Eskiden ikisi `error|warn`, biri yalnız `error` yazıyordu."""
+        with open(SCRIPT, encoding="utf-8") as f:
+            kaynak = f.read()
+        for degisken in ("IDX_HATALAR", "GLO_HATALAR", "NLO_HATALAR"):
+            m = re.search(r"%s=\$\(echo[^)]*?\)" % degisken, kaynak, re.S)
+            assert m, degisken
+            assert "$ARAC_DESENI" in m.group(0), degisken
+            assert "$ARAC_SESSIZ" in m.group(0), degisken

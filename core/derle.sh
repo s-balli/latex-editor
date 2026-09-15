@@ -106,6 +106,28 @@ TEKRARLAYAN_UYARI='^Missing character:|^LaTeX Font Warning:|^warning +\('
 # Kesme işareti tek tırnaklı dizgede sorun olduğu için `couldn.t`.
 BIB_DESENI='error|warn|^I couldn.t open|^I found no|^Illegal |^Repeated entry|^Sorry'
 
+# Dizin/sözlük/simge araçlarının (makeindex, makeglossaries, nomencl) çıktı
+# süzgeci. TEK KAYNAK: üç kol da buradan okuyor; eskiden ikisi
+# 'error|warn', biri yalnız 'error' yazıyordu.
+#
+# Süzgeç TERSİNE ÇALIŞIYORDU. ÖLÇÜLDÜ (2026-09-15, gerçek makeindex):
+#
+#   ...done (5 lines written, 0 warnings).       GEÇİYORDU  (zararsız)
+#   ...done (1 entries accepted, 1 rejected).    SÜZÜLÜYORDU (zarar)
+#
+# Yani her sağlıklı derlemede "makeindex uyarilari" başlıklı bir blok
+# çıkıyor ve içinde "0 warnings" yazıyordu; buna karşılık bir dizin
+# girdisi REDDEDİLİP dizinden düştüğünde hiçbir şey görünmüyordu.
+# makeindex reddi için `!!` satırını stdout'a basmıyor (o satır `.ilg`
+# dökümüne gidiyor) ve çıkış kodu 0 kalıyor, yani tek iz o sayaçtı.
+#
+# Ölçüt SAYININ SIFIR OLMAMASI: sayaç taşıyan satır ancak sayı sıfırdan
+# büyükse gösteriliyor. Üç araçta da (makeindex, makeglossaries, nomencl)
+# sağlam koşuda hiçbir satır kalmıyor, bozuk girdide ise tam iki satır
+# kalıyor ("1 rejected" ve makeindex'in `!!` satırı).
+ARAC_DESENI='error|warn|rejected'
+ARAC_SESSIZ='(^|[^0-9])0 (rejected|warnings?|errors?)'
+
 # Renk kodlari
 KIRMIZI='\033[0;31m'
 YESIL='\033[0;32m'
@@ -556,7 +578,8 @@ derle_dosya() {
             IDX_CIKTI+=$'\n'
         done
         local IDX_HATALAR
-        IDX_HATALAR=$(echo "$IDX_CIKTI" | grep -iE "error|warn" || true)
+        IDX_HATALAR=$(echo "$IDX_CIKTI" | grep -iE "$ARAC_DESENI" \
+            | grep -viE "$ARAC_SESSIZ" || true)
         if [ -n "$IDX_HATALAR" ]; then
             if [ "$USE_WATCH" = true ]; then
                 echo -e "${SARI}[makeindex] $(date +%H:%M:%S) — makeindex uyarilari:${SIFIRLA}"
@@ -595,7 +618,8 @@ derle_dosya() {
             local GLO_CIKTI
             GLO_CIKTI=$(cd "$TMPDIR" && "$GLO_ARAC" "${ISIM}" 2>&1 || true)
             local GLO_HATALAR
-            GLO_HATALAR=$(echo "$GLO_CIKTI" | grep -iE "error|warn" || true)
+            GLO_HATALAR=$(echo "$GLO_CIKTI" | grep -iE "$ARAC_DESENI" \
+                | grep -viE "$ARAC_SESSIZ" || true)
             if [ -n "$GLO_HATALAR" ]; then
                 echo -e "${SARI}[$GLO_ARAC] $DOSYA_ADI: sozluk uyarilari:${SIFIRLA}"
                 echo "$GLO_HATALAR" | while read -r line; do
@@ -615,7 +639,8 @@ derle_dosya() {
         NLO_CIKTI=$(cd "$TMPDIR" && makeindex -s nomencl.ist \
             "${ISIM}.nlo" -o "${ISIM}.nls" 2>&1 || true)
         local NLO_HATALAR
-        NLO_HATALAR=$(echo "$NLO_CIKTI" | grep -iE "error" || true)
+        NLO_HATALAR=$(echo "$NLO_CIKTI" | grep -iE "$ARAC_DESENI" \
+            | grep -viE "$ARAC_SESSIZ" || true)
         if [ -n "$NLO_HATALAR" ]; then
             echo -e "${SARI}[nomencl] $DOSYA_ADI: simge listesi uyarilari:${SIFIRLA}"
             echo "$NLO_HATALAR" | while read -r line; do
