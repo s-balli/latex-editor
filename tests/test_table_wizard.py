@@ -120,6 +120,57 @@ def test_dialog_load_block_edits_existing(qapp):
     assert "{lr}" in dlg.result_text()
 
 
+class TestDuzenlemedeKORUNANLAR:
+    r"""Var olan tabloyu açıp Tamam demek onu SESSİZCE değiştirmemeli.
+
+    `load_block` ortamı ve genişliği zaten taşıyordu; kural biçimi, dikey
+    çizgiler ve `p{...}` genişliği taşınmıyordu. ÖLÇÜLDÜ (2026-09-15, 39
+    şablonun 255 tablosu): 119'u `\hline` kullanıyor ve 78'i booktabs
+    YÜKLEMEYEN bir projede (gerçek pdflatex: "! Undefined control
+    sequence"), 79'unda dikey çizgi var, 26'sının `p` genişliği 3cm değil.
+    """
+
+    @staticmethod
+    def _yukle(kod):
+        from core.latex_tables import parse_first_tabular
+
+        dlg = TableWizardDialog()
+        dlg.load_block(parse_first_tabular(kod))
+        return dlg
+
+    def test_HLINE_tablosu_booktabs_a_DONMUYOR(self, qapp):
+        dlg = self._yukle(
+            "\\begin{tabular}{lr}\n\\hline\nAd & Deger \\\\\n\\hline\n"
+            "a & 1 \\\\\n\\hline\n\\end{tabular}\n")
+        uretilen = dlg.result_text()
+        assert "\\hline" in uretilen, uretilen
+        assert "\\toprule" not in uretilen, uretilen
+
+    def test_DIKEY_cizgiler_KORUNUYOR(self, qapp):
+        dlg = self._yukle(
+            "\\begin{tabular}{|l|r|}\n\\hline\nAd & Deger \\\\\n\\hline\n"
+            "\\end{tabular}\n")
+        assert "{|l|r|}" in dlg.result_text(), dlg.result_text()
+
+    def test_p_GENISLIGI_korunuyor(self, qapp):
+        dlg = self._yukle(
+            "\\begin{tabular}{p{5cm}l}\n\\hline\nAd & Deger \\\\\n"
+            "\\end{tabular}\n")
+        uretilen = dlg.result_text()
+        assert "p{5cm}" in uretilen, uretilen
+        assert "p{3cm}" not in uretilen, uretilen
+
+    def test_YENI_tabloda_varsayilanlar_DEGISMIYOR(self, qapp):
+        """Aşırı düzeltme kapısı: üretim kipi kutuların varsayılanını
+        kullanmayı sürdürmeli (booktabs açık, dikey çizgi kapalı)."""
+        dlg = TableWizardDialog()
+        dlg._grid.setItem(0, 0, QTableWidgetItem("Ad"))
+        dlg._grid.setItem(1, 0, QTableWidgetItem("a"))
+        uretilen = dlg.result_text()
+        assert "\\toprule" in uretilen, uretilen
+        assert "|" not in uretilen, uretilen
+
+
 def test_dialog_empty_preview_hint(qapp):
     dlg = TableWizardDialog()
     assert dlg.result_text() == ""

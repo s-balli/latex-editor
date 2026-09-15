@@ -6,7 +6,6 @@ yalnızca değerleri toplar ve önizler. Mevcut bir tabular bloğu düzenleniyor
 """
 
 import csv
-import re
 
 from PyQt6.QtCore import QCoreApplication, QEvent, QObject, Qt
 from PyQt6.QtWidgets import (
@@ -18,8 +17,8 @@ from PyQt6.QtWidgets import (
 
 from core.latex_tables import (
     TABLO_ORTAMLARI, VARSAYILAN_GENISLIK, TableOptions, build_tabular,
-    csv_to_rows, extract_caption_label, parse_first_tabular, suggest_label,
-    unescape_cell,
+    csv_to_rows, extract_caption_label, parse_first_tabular, spec_hizalari,
+    suggest_label, unescape_cell,
 )
 
 _ = lambda s: QCoreApplication.translate("TableWizardDialog", s)
@@ -77,6 +76,9 @@ class TableWizardDialog(QDialog):
         # Düzenlenen tablonun KENDİ genişlik argümanı (tabularx / tabular*).
         # Yeni tabloda varsayılan kalır.
         self._genislik = VARSAYILAN_GENISLIK
+        # Yüklenen tablodaki kolon sırası -> kendi `p{...}` belirteci.
+        # Üretim kipinde boş: yeni tabloda taşınacak bir genişlik yok.
+        self._p_genislikleri: dict[int, str] = {}
         # TEK süzgeç nesnesi: her kutuya ayrı nesne kurmak gereksiz, üstelik
         # dinamik kurulan hizalama kutuları için de aynısı kullanılıyor.
         self._tekerlek_suzgeci = _TekerlekSuzgeci(self)
@@ -393,7 +395,13 @@ class TableWizardDialog(QDialog):
         tokens = []
         for i in range(self._align_box.count()):
             w = self._align_box.itemAt(i).widget()
-            tokens.append(_ALIGNS[w.currentIndex()][1] if w else "c")
+            token = _ALIGNS[w.currentIndex()][1] if w else "c"
+            # Yüklenen tablonun KENDİ `p{...}` genişliği, kutu hâlâ
+            # "Paragraf"ta duruyorsa korunuyor; kullanıcı başka hizalama
+            # seçtiyse o genişliğin anlamı kalmıyor.
+            if token == "p" and i in getattr(self, "_p_genislikleri", {}):
+                token = self._p_genislikleri[i]
+            tokens.append(token)
         return tokens
 
     def options(self) -> TableOptions:
@@ -446,15 +454,36 @@ class TableWizardDialog(QDialog):
         # kalır ve 3 kolonlu dialog'a yüklenen 5 kolonlu tablo 'lllcc' üretirdi.
         self._on_cols_changed()
         # kolon spec → hizalama kutuları (p{2cm} ve X gibi belirteçler 'p'ye iner)
-        spec = (block.get("col_spec") or "").lower()
+        # Belirtimin KENDİSİ küçültülmeden okunuyor: `p{5cm}` genişliği
+        # aşağıda saklanacak ve `p{5CM}` derlemede aynı değil.
+        spec = block.get("col_spec") or ""
         aligns = []
-        for m in re.finditer(r"p\{[^{}]*\}|[lcrx]", spec):
-            token = m.group(0)
-            aligns.append("p" if token.startswith(("p", "x")) else token)
+        self._p_genislikleri = {}
+        for token in spec_hizalari(spec):
+            if token[0] in "pPmMbB":
+                # Kullanıcının KENDİ genişliği: kutu "Paragraf"ta kaldığı
+                # sürece üretimde de o yazılıyor (ölçüldü: 26 tabloda
+                # sessizce `p{3cm}` oluyordu).
+                self._p_genislikleri[len(aligns)] = token
+                aligns.append("p")
+            elif token in "xX":
+                aligns.append("p")
+            else:
+                aligns.append(token.lower())
         self._aligns_from_spec(aligns)
         if block.get("env") in _ENVS:
             self._env.setCurrentText(block["env"])
         self._genislik = block.get("width") or VARSAYILAN_GENISLIK
+        # Kural biçimi ve dikey çizgiler de BLOKTAN: kutuların varsayılanı
+        # (booktabs açık, dikey çizgi kapalı) kullanıcının tablosunu
+        # sessizce değiştiriyordu. ÖLÇÜLDÜ (2026-09-15, 39 şablonun 255
+        # tablosu): 119'u `\hline` kullanıyor ve 78'i booktabs YÜKLEMEYEN
+        # bir projede, yani Tamam demek derlemeyi kırıyordu
+        # ("! Undefined control sequence", gerçek pdflatex); 79'unda dikey
+        # çizgi var ve hepsi siliniyordu.
+        if block.get("booktabs") is not None:
+            self._cb_booktabs.setChecked(block["booktabs"])
+        self._cb_vlines.setChecked("|" in spec)
         self._update_preview()
 
     def _aligns_from_spec(self, aligns: list[str]):

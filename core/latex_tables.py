@@ -122,13 +122,49 @@ def build_col_spec(aligns: list[str], vertical_lines: bool,
     """
     tokens = []
     for a in aligns:
-        if a == "p":
+        # `p{5cm}` gibi GENİŞLİĞİ TAŞIYAN belirteç olduğu gibi geçiyor: var
+        # olan bir tabloyu düzenlerken kullanıcının kendi genişliği sabit
+        # `p{3cm}`e iniyordu (39 şablonun 26 tablosunda, ölçüldü). Aynı
+        # ders `width` alanında bir kez alınmıştı.
+        if a.startswith("p{"):
+            tokens.append("X" if environment == "tabularx" else a)
+        elif a == "p":
             tokens.append("X" if environment == "tabularx" else "p{3cm}")
         else:
             tokens.append(a)
     if vertical_lines:
         return "|" + "|".join(tokens) + "|"
     return "".join(tokens)
+
+
+# Kolon belirtiminde HİZALAMA OLMAYAN ekler: array paketinin `>{...}`
+# `<{...}` önekleri ve `@{...}` `!{...}` ayraçları. İçlerindeki metin kod,
+# kolon değil.
+_RE_SPEC_EK = re.compile(r"[><@!]\s*\{(?:[^{}]|\{[^{}]*\})*\}")
+# Belirtim satıra bölünüp kolonlar YORUMLA açıklanabiliyor; yorum metni
+# kolon değil (ölçüldü: `p{0.3\textwidth}  % Coluna 1: Categorias`).
+_RE_SPEC_YORUM = re.compile(r"(?<!\\)%[^\n]*")
+_RE_SPEC_TOKEN = re.compile(r"[pPmMbB]\{(?:[^{}]|\{[^{}]*\})*\}|[lcrxLCRX]")
+
+
+def spec_hizalari(col_spec: str) -> list[str]:
+    r"""Kolon belirtiminden hizalama belirteçleri.
+
+    `p{5cm}` GENİŞLİĞİYLE dönüyor: sihirbaz var olan tabloyu düzenlerken
+    kullanıcının kendi genişliğini koruyabilsin (`build_col_spec` böyle bir
+    belirteci olduğu gibi yazıyor).
+
+    `>{...}` önekinin İÇİ atlanıyor. ÖLÇÜLDÜ (2026-09-15, 39 şablon):
+    `>{\raggedright\arraybackslash}p{0.3\textwidth}` belirtiminde eski
+    okuma `\raggedright` ve `\arraybackslash` içindeki HARFLERİ kolon
+    sanıyordu; iki şablonda üç `p` kolonlu tablo sihirbazda `rrr` olarak
+    açılıyor, Tamam deyince hem hizalama hem genişlik değişiyordu.
+
+    SINIR: `@{}` ve `>{...}` ekleri üretilen belirtime GERİ YAZILMIYOR;
+    sihirbaz onları modellemiyor.
+    """
+    temiz = _RE_SPEC_YORUM.sub("", col_spec or "")
+    return _RE_SPEC_TOKEN.findall(_RE_SPEC_EK.sub("", temiz))
 
 
 @dataclass
@@ -499,8 +535,19 @@ def parse_tabular_at(text: str, pos: int) -> dict | None:
 
     rows = [g[1] for g in _logical_rows(text[i:end].split("\n"))
             if g[0] == "satir" and g[1] != [""]]
+    # `booktabs`: blok KENDİ kural biçimini söylüyor. Sihirbaz bunu
+    # okumayınca kutunun varsayılanı (açık) kazanıyor ve `\hline` kullanan
+    # bir tablo Tamam deyince booktabs'a dönüyordu; belge booktabs
+    # yüklemiyorsa üç kez "Undefined control sequence" (gerekçe ve ölçüm
+    # `gui/table_wizard.load_block`ta).
+    ham = text[start:end]
+    booktabs = None
+    if "\\toprule" in ham or "\\midrule" in ham or "\\bottomrule" in ham:
+        booktabs = True
+    elif "\\hline" in ham:
+        booktabs = False
     return {"start": start, "end": end, "env": env, "col_spec": col_spec,
-            "width": width, "rows": rows}
+            "width": width, "rows": rows, "booktabs": booktabs}
 
 
 def parse_first_tabular(text: str) -> dict | None:

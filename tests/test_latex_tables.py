@@ -710,3 +710,37 @@ class TestAyracSecimi:
     def test_TEK_SUTUN_metin_de_tek_sutun(self, tmp_path):
         satirlar = self._oku(tmp_path, "Ölçüm\nBirinci\nİkinci\n")
         assert satirlar == [["Ölçüm"], ["Birinci"], ["İkinci"]], satirlar
+
+
+# --- Kolon belirtimi okuma (2026-09-15) ---
+
+
+class TestSpecHizalari:
+    r"""Belirtimde hizalama OLMAYAN parçalar kolon sanılıyordu.
+
+    ÖLÇÜLDÜ (39 şablon): `>{\raggedright\arraybackslash}p{0.3\textwidth}`
+    okunurken `\raggedright` ve `\arraybackslash` içindeki harfler kolon
+    oluyor, üç `p` kolonlu tablo sihirbazda `rrr` olarak açılıyordu.
+    """
+
+    def test_ONEK_icindeki_harfler_kolon_sayilmiyor(self):
+        from core.latex_tables import spec_hizalari
+
+        assert spec_hizalari(
+            r">{\raggedright\arraybackslash}p{0.3\textwidth}"
+            r">{\raggedright\arraybackslash}p{0.65\textwidth}") == \
+            [r"p{0.3\textwidth}", r"p{0.65\textwidth}"]
+
+    def test_YORUM_metni_kolon_sayilmiyor(self):
+        from core.latex_tables import spec_hizalari
+
+        assert spec_hizalari(
+            "\n  p{3cm}  % Coluna 1: Categorias\n  l % ikinci\n") == \
+            ["p{3cm}", "l"]
+
+    def test_OLAGAN_belirtim_bozulmuyor(self):
+        from core.latex_tables import spec_hizalari
+
+        assert spec_hizalari("|l|c|r|") == ["l", "c", "r"]
+        assert spec_hizalari("lcr") == ["l", "c", "r"]
+        assert spec_hizalari("@{}lc@{}") == ["l", "c"]
