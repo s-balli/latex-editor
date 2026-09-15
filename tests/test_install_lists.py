@@ -142,6 +142,31 @@ def test_landing_page_var_olmayan_kisayol_vaat_etmiyor():
     )
 
 
+@pytest.mark.parametrize("ad", ["README.md", "README.tr.md"])
+def test_README_WINDOWSA_native_pandoc_kurdurmuyor(ad):
+    r"""README, Windows kullanıcısını pandoc.org'a yolluyordu.
+
+    Kodun kendi ölçümü tersini söylüyor: Windows'ta dışa aktarma pandoc'u
+    WSL içinde çağırıyor ve `pandoc_available()` de oraya bakıyor, yani
+    Windows'a kurulan native pandoc HİÇ kullanılmıyor (ölçüldü
+    2026-09-15: native varken WSL'de yokken dışa aktarma kapalı kalıyor).
+    Aynı README'nin başka bir satırı zaten "inside WSL" diyordu; iki satır
+    birbiriyle çelişiyordu.
+
+    Kapı dar: yalnız kurulum satırında pandoc.org'a yönlendirme aranıyor.
+    """
+    with open(os.path.join(_ROOT, ad), encoding="utf-8") as f:
+        satirlar = f.read().splitlines()
+    suclu = [s for s in satirlar
+             if "pandoc" in s.lower() and "pandoc.org/installing" in s]
+    assert not suclu, suclu
+
+    kurulum = [s for s in satirlar
+               if s.lower().startswith(("export:", "dışa aktarma:"))]
+    assert kurulum, "kurulum satırı bulunamadı, kapı boş koşuyor"
+    assert any("WSL" in s for s in kurulum), kurulum
+
+
 def test_landing_page_yeni_ozellikleri_iceriyor():
     """Son iki turun özellikleri sayfada görünmeli.
 

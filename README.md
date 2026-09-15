@@ -383,7 +383,7 @@ Result: `dist/LaTeX Editor.exe` (Windows) or `dist/LaTeX Editor` (Linux/macOS)
 pip install PyQt6 PyQt6-QScintilla pypdfium2 send2trash
 ```
 
-Export: `sudo apt-get install pandoc` (WSL/Linux) or [pandoc.org](https://pandoc.org/installing.html) (Windows)
+Export: `sudo apt-get install pandoc` inside WSL (Windows) or on the system (Linux); `brew install pandoc` (macOS). On Windows the export runs pandoc inside WSL, so a pandoc installed on Windows itself is never used.
 
 > **Note:** If using Anaconda, you need standalone Python:
 > ```

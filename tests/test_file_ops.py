@@ -824,3 +824,23 @@ def test_ACMA_DIYALOGU_kaynak_uzantilariyla_AYNI_kumeyi_gosteriyor(
     ilk_grup = yakalanan["filtre"].split(";;")[0]
     ekler = set(_re.findall(r"\*(\.\w+)", ilk_grup))
     assert ekler == set(KAYNAK_UZANTILARI), (ekler, KAYNAK_UZANTILARI)
+
+
+# --- pandoc kurulum metni (2026-09-15) ---
+
+
+@pytest.mark.parametrize("platform,wsl_diyor", [
+    ("win32", True), ("linux", False), ("darwin", False),
+])
+def test_pandoc_kurulum_metni_WINDOWSTA_nereye_diyor(monkeypatch, platform,
+                                                     wsl_diyor):
+    """ÖLÇÜLDÜ: menü ipucu ve dışa aktarma hatası "apt install pandoc"
+    diyordu; o komut Windows kabuğunda "not recognized" veriyor. Paket
+    WSL'e kurulmalı ve metin bunu SÖYLEMELİ."""
+    import core.exporter as ex
+    from gui.mixins.file_ops import FileOpsMixin
+
+    monkeypatch.setattr(ex, "PLATFORM", platform)
+    metin = FileOpsMixin._pandoc_kurulum_metni()
+    assert ("WSL" in metin) is wsl_diyor, metin
+    assert ex.pandoc_kurulum_komutu() in metin

@@ -1822,3 +1822,37 @@ class TestDisaAktarmaHataMesaji:
         assert "/mnt/" not in mesaj
         assert len(mesaj.splitlines()) == 1
         assert "line 7, column 17" in mesaj
+
+
+# --- Kurulum tavsiyesi PLATFORMA göre (2026-09-15) ---
+
+
+class TestPandocKurulumTavsiyesi:
+    """Menü ipucu ve dışa aktarma hatası "apt install pandoc" diyordu.
+
+    ÖLÇÜLDÜ (2026-09-15): o komut Windows'ta PowerShell'de de cmd'de de
+    "apt : The term 'apt' is not recognized" veriyor. Windows'ta paket
+    WSL'e kurulmalı; `pandoc_available()` de oraya bakıyor, yani native
+    pandoc VARKEN bile dışa aktarma kapalı kalıyor.
+    """
+
+    @pytest.mark.parametrize("platform,beklenen,wsl", [
+        ("win32", "sudo apt install pandoc", True),
+        ("linux", "sudo apt install pandoc", False),
+        ("darwin", "brew install pandoc", False),
+    ])
+    def test_komut_ve_YERI(self, monkeypatch, platform, beklenen, wsl):
+        import core.exporter as ex
+        monkeypatch.setattr(ex, "PLATFORM", platform)
+        assert ex.pandoc_kurulum_komutu() == beklenen
+        assert ex.pandoc_wsl_icinde() is wsl
+
+    def test_WINDOWS_hatasi_nereye_kurulacagini_SOYLUYOR(self, monkeypatch):
+        """Çekirdeğin döndürdüğü metin doğrudan kullanıcıya gidiyor."""
+        import core.exporter as ex
+        monkeypatch.setattr(ex, "PLATFORM", "win32")
+        monkeypatch.setattr(ex.subprocess, "run",
+                            MagicMock(side_effect=FileNotFoundError()))
+        ok, mesaj = ex._export_native("a.tex", "b.docx")
+        assert ok is False
+        assert "WSL içinde" in mesaj, mesaj

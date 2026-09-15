@@ -384,7 +384,7 @@ Sonuç: `dist/LaTeX Editor.exe` (Windows) veya `dist/LaTeX Editor` (Linux/macOS)
 pip install PyQt6 PyQt6-QScintilla pypdfium2 send2trash
 ```
 
-Dışa aktarma: `sudo apt-get install pandoc` (WSL/Linux) veya [pandoc.org](https://pandoc.org/installing.html) (Windows)
+Dışa aktarma: Windows'ta `sudo apt-get install pandoc` WSL İÇİNDE, Linux'ta sistemde; macOS'ta `brew install pandoc`. Windows'ta dışa aktarma pandoc'u WSL içinde çağırıyor, yani Windows'un kendisine kurulan pandoc hiç kullanılmıyor.
 
 > **Not:** Anaconda kullanıyorsanız standalone Python kullanmanız gerekir:
 > ```

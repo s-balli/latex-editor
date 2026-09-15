@@ -125,6 +125,22 @@ class UpdateCheckThread(QThread):
             self.finished_network_error.emit()
 
 
+def _pandoc_ipucu() -> str:
+    """Dışa aktarma menüsünün "pandoc yok" ipucu.
+
+    Kurulum metni dışa aktarma kutusuyla AYNI yerden
+    (`file_ops._pandoc_kurulum_metni`); ayrı yazılsalardı biri Windows'ta
+    yine "apt install pandoc" demeye başlardı.
+
+    Pencereye BAĞLI DEĞİL (modül düzeyinde): `_on_pandoc_checked` örnek
+    durumuna hiç bakmıyor ve mevcut kapısı onu sahte bir nesneyle
+    çağırıyor.
+    """
+    from gui.mixins.file_ops import FileOpsMixin
+    return _("pandoc gerekli: {komut}").format(
+        komut=FileOpsMixin._pandoc_kurulum_metni())
+
+
 def ekrana_sigan_boyut(genislik: int, yukseklik: int, alan=None):
     """İstenen ilk pencere boyutunu kullanılabilir ekran alanına sığdırır.
 
@@ -373,7 +389,7 @@ class MainWindow(
             act.triggered.connect(lambda checked, f=fmt_name, e=ext: self._export_file(f, e))
             self._export_actions.append(act)
             if not self._pandoc_available:
-                act.setToolTip(_("pandoc gerekli: apt install pandoc"))
+                act.setToolTip(_pandoc_ipucu())
         self._add_action(file_menu, _("Çıkı&ş"), self.close, "Ctrl+Q")
 
         # Düzenle menüsü
@@ -467,7 +483,7 @@ class MainWindow(
     def _on_pandoc_checked(self, available: bool):
         """Arka plan pandoc kontrolü bitti — bayrak ve dışa aktarma tooltip'leri."""
         self._pandoc_available = available
-        tip = "" if available else _("pandoc gerekli: apt install pandoc")
+        tip = "" if available else _pandoc_ipucu()
         for act in getattr(self, "_export_actions", []):
             act.setToolTip(tip)
 

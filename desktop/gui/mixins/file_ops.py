@@ -379,6 +379,19 @@ class FileOpsMixin:
         if yol:
             self._open_file_in_editor(yol)
 
+    @staticmethod
+    def _pandoc_kurulum_metni() -> str:
+        """Kurulum komutu + YERİ, çevrilmiş. TEK KAYNAK.
+
+        Komut ve "WSL içinde mi" bilgisi `core.exporter`den geliyor; komut
+        dil bağımsız, yer bilgisi burada çevriliyor. Menü ipucu da bunu
+        çağırıyor (`main_window._pandoc_ipucu`).
+        """
+        from core.exporter import pandoc_kurulum_komutu, pandoc_wsl_icinde
+        komut = pandoc_kurulum_komutu()
+        return (_("WSL içinde: {komut}").format(komut=komut)
+                if pandoc_wsl_icinde() else komut)
+
     def _export_file(self, fmt_name: str, ext: str):
         if not getattr(self, '_pandoc_available', True):
             from PyQt6.QtWidgets import QMessageBox
@@ -388,7 +401,12 @@ class FileOpsMixin:
                 # aktarma pandoc'u WSL içinde çağırıyor, Windows'a kurulan
                 # native pandoc hiç kullanılmıyor. Eski metin kullanıcıyı
                 # işe yaramayacak bir kuruluma yönlendiriyordu.
-                _("pandoc yüklü değil.\n\nKurmak için:\nLinux: sudo apt install pandoc\nWindows: WSL içinde 'sudo apt install pandoc'")
+                #
+                # Komut artık `core.exporter`den: bu doğru metnin YANINDA
+                # menü ipucu ve dışa aktarma hatası "apt install pandoc"
+                # diyordu ve Windows'ta o komut çalışmıyor.
+                _("pandoc yüklü değil.\n\nKurmak için: {komut}").format(
+                    komut=self._pandoc_kurulum_metni())
             )
             return
 

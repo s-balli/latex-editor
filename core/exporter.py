@@ -43,6 +43,35 @@ def pandoc_available() -> bool:
     return shutil.which("pandoc") is not None
 
 
+def pandoc_kurulum_komutu() -> str:
+    """pandoc BU platformda hangi komutla kurulur. TEK KAYNAK.
+
+    Üç yerde ayrı ayrı yazılıydı ve ikisi WINDOWS'TA YANLIŞTI: menü ipucu
+    ile dışa aktarma hatası "apt install pandoc" diyordu. ÖLÇÜLDÜ
+    (2026-09-15): o komut PowerShell'de de cmd'de de "apt : The term 'apt'
+    is not recognized" veriyor, yani kullanıcının çalıştırabileceği bir
+    şey değil.
+
+    Dönen değer DİL BAĞIMSIZ, çünkü sunum katmanına çevrilmeden ulaşıyor;
+    "WSL içinde" gibi yer bilgisi ayrı (`pandoc_wsl_icinde`) ve orada
+    çevriliyor.
+    """
+    return "brew install pandoc" if PLATFORM == "darwin" \
+        else "sudo apt install pandoc"
+
+
+def pandoc_wsl_icinde() -> bool:
+    """Komut WSL İÇİNDE mi çalıştırılmalı.
+
+    Windows'ta paket WSL'e kurulmalı; `pandoc_available()` da oraya
+    bakıyor. ÖLÇÜLDÜ (2026-09-15, `shutil.which` ve WSL kolu ayrı ayrı
+    canlandırılarak): native pandoc VARKEN bile (WSL'de yokken) dışa
+    aktarma kapalı kalıyor. README de Windows kullanıcısını pandoc.org'a
+    yolluyordu; o kurulum hiç kullanılmıyor.
+    """
+    return PLATFORM == "win32"
+
+
 def _wsl_pandoc_available() -> bool:
     try:
         r = subprocess.run(
@@ -854,7 +883,9 @@ def _export_native(tex_path: str, dest_path: str, bibs=()) -> tuple[bool, str]:
     except subprocess.TimeoutExpired:
         return False, "İşlem zaman aşımına uğradı"
     except FileNotFoundError:
-        return False, "pandoc bulunamadı, lütfen kurun (apt install pandoc)"
+        return False, ("pandoc bulunamadı, kurmak için: "
+                       + ("WSL içinde " if pandoc_wsl_icinde() else "")
+                       + pandoc_kurulum_komutu())
     except Exception as e:
         return False, str(e)
 
