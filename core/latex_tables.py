@@ -313,6 +313,41 @@ def _csv_metni(path: str) -> str:
     return ham.decode("latin-1", "replace")
 
 
+_AYRAC_ADAYLARI = (";", "\t", ",")
+
+
+def _geri_dusus_ayraci(ornek: str) -> str:
+    r"""`csv.Sniffer` karar veremeyince ayracı seç.
+
+    ÖLÇÜT CSV'nin TANIMLAYICI ÖZELLIĞI: gerçek ayraç her satırda bulunur.
+    Burada yalnız "en çok geçen karakter" alınıyordu ve Türkçe belgede bu
+    YANLIŞ cevap veriyor: Türkçe Windows'ta ondalık ayracı VİRGÜL, yani
+    tek sütunluk bir ölçüm listesinde virgül sayısı noktalı virgülden çok.
+
+    ÖLÇÜLDÜ (2026-09-15): `Değer / 3,14 / 2,71 / 1,41` dosyası İKİ sütun
+    okunuyordu ve her değer ikiye bölünüyordu (`3` | `14`). Başlık satırında
+    virgül YOK, veri satırlarında bir tane var; yani virgül zaten ayraç
+    OLAMAZ, dosya tek sütunludur.
+
+    Sıra: önce her satırda AYNI sayıda geçen aday (rektangüler CSV), sonra
+    her satırda EN AZ BİR kez geçen aday (satırları eşit olmayan dosya),
+    yoksa tek sütun. Tek sütunda hiç geçmeyen bir ayraç döndürülüyor ki
+    `csv.reader` satırı bölmesin.
+    """
+    satirlar = [s for s in ornek.splitlines() if s.strip()]
+    if not satirlar:
+        return ","
+    for c in _AYRAC_ADAYLARI:
+        sayilar = {s.count(c) for s in satirlar}
+        if len(sayilar) == 1 and sayilar.pop() > 0:
+            return c
+    her_satirda = [c for c in _AYRAC_ADAYLARI
+                   if all(s.count(c) for s in satirlar)]
+    if her_satirda:
+        return max(her_satirda, key=lambda c: ornek.count(c))
+    return next((c for c in _AYRAC_ADAYLARI if c not in ornek), "\t")
+
+
 def csv_to_rows(path: str) -> list[list[str]]:
     """CSV dosyasını hücre satırlarına oku (ayraç: , ; veya sekme, otomatik).
 
@@ -326,8 +361,7 @@ def csv_to_rows(path: str) -> list[list[str]]:
         try:
             delim = csv.Sniffer().sniff(sample, delimiters=",;\t").delimiter
         except csv.Error:
-            counts = {c: sample.count(c) for c in ",;\t"}
-            delim = max(counts, key=counts.get)
+            delim = _geri_dusus_ayraci(sample)
         return [row for row in csv.reader(f, delimiter=delim)
                 if any(c.strip() for c in row)]
 

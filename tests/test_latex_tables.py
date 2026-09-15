@@ -660,3 +660,53 @@ class TestBaslikBicimi:
                                              wrap_table=False))
             assert ("\\begin{%s}{ll}" % ortam) in kod, ortam
             assert "textwidth" not in kod, ortam
+
+
+# --- Ayraç seçimi: Türkçe ondalık virgülü (2026-09-15) ---
+
+
+class TestAyracSecimi:
+    r"""Türkçe Windows'ta ondalık ayracı VİRGÜL, o yüzden Excel CSV'yi
+    noktalı virgülle yazıyor. Tek sütunluk bir ölçüm listesinde ise dosyada
+    hiç noktalı virgül yok ama her satırda bir virgül var.
+
+    Ayraç seçimi `csv.Sniffer` karar veremeyince "en çok geçen karakter"e
+    düşüyordu ve bu Türkçe belgede yanlış cevap veriyor.
+    """
+
+    @staticmethod
+    def _oku(tmp_path, metin, kod="utf-8"):
+        p = tmp_path / "t.csv"
+        p.write_bytes(metin.encode(kod))
+        return csv_to_rows(str(p))
+
+    def test_TEK_SUTUN_ondalik_ikiye_bolunmuyor(self, tmp_path):
+        """ÖLÇÜLDÜ: `3,14` iki hücreye bölünüyor ve değer yok oluyordu."""
+        satirlar = self._oku(tmp_path, "Değer\n3,14\n2,71\n1,41\n")
+        assert satirlar == [["Değer"], ["3,14"], ["2,71"], ["1,41"]], satirlar
+
+    def test_TEK_SUTUN_ondalik_cp1254_de_ayni(self, tmp_path):
+        """Excel'in Türkçe varsayılan kodlaması."""
+        satirlar = self._oku(tmp_path, "Ölçüm\n3,14\n2,71\n", kod="cp1254")
+        assert satirlar == [["Ölçüm"], ["3,14"], ["2,71"]], satirlar
+
+    def test_NOKTALI_VIRGULLU_tablo_bozulmuyor(self, tmp_path):
+        """Karşı kol: gerçek ayraç her satırda, virgüller hücrelerin içinde."""
+        satirlar = self._oku(
+            tmp_path, "Ölçüm;Değer;Sapma\nBir;3,14;0,05\nIki;2,71;0,03\n",
+            kod="cp1254")
+        assert satirlar[1] == ["Bir", "3,14", "0,05"], satirlar
+
+    def test_SATIRLARI_ESIT_OLMAYAN_dosya_hala_bolunuyor(self, tmp_path):
+        """Karşı kol: sayısı sabit olmayan ama HER SATIRDA bulunan ayraç.
+
+        Kural yalnız "sabit sayı" olsaydı böyle bir dosya tek sütun
+        okunurdu.
+        """
+        satirlar = self._oku(tmp_path, "a;b;c\n1;2\n4;5;6;7\n")
+        assert satirlar == [["a", "b", "c"], ["1", "2"],
+                            ["4", "5", "6", "7"]], satirlar
+
+    def test_TEK_SUTUN_metin_de_tek_sutun(self, tmp_path):
+        satirlar = self._oku(tmp_path, "Ölçüm\nBirinci\nİkinci\n")
+        assert satirlar == [["Ölçüm"], ["Birinci"], ["İkinci"]], satirlar
