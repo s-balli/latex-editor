@@ -10,7 +10,7 @@ from pathlib import Path
 from PyQt6.QtCore import QCoreApplication, QObject, QProcess, QTimer, pyqtSignal
 
 from core.log_parser import CompileResult, LatexError, LatexSuggestion, parse_output
-from core.paths import windows_to_wsl
+from core.paths import windows_to_wsl, wsl_to_windows
 
 PLATFORM = sys.platform  # win32, linux, darwin
 
@@ -233,6 +233,7 @@ class LatexCompiler(QObject):
         self._timeout_timer.stop()
         self._flush_output()
         result = parse_output(self._output, self._tex_path)
+        self._yollari_windows_yap(result)
         result.duration = time.time() - self._start_time
 
         pdf_path = os.path.join(self._tex_dir, f"{self._tex_name}.pdf")
@@ -266,6 +267,37 @@ class LatexCompiler(QObject):
         if not self._finished_emitted:
             self._finished_emitted = True
             self.compilation_finished.emit(result)
+
+    def _yollari_windows_yap(self, result) -> None:
+        """Ayrıştırılan yolları Windows biçimine çevir (yalnız Windows'ta).
+
+        Derleme WSL içinde koşuyor ve TeX günlüğündeki dosya adları oradan
+        geliyor: `/mnt/c/Users/.../tez.tex`. Kullanıcı o yolu hiç görmedi ve
+        sekmesinde `C:\\Users\\...\\tez.tex` duruyor.
+
+        `main_window._goto_line` önce yolun AÇIK BİR SEKMEYE ait olup
+        olmadığına (normpath ile), sonra diskte bulunup bulunmadığına
+        bakıyor. WSL yolunda İKİSİ DE tutmuyor: `os.path.normpath` onu
+        `\\mnt\\c\\...` yapıyor, `os.path.isfile` False dönüyor. Sonuç:
+        derleme hatasına tıklamak "Dosya bulunamadı" diyor ve imleç hiç
+        gitmiyor.
+
+        ÖLÇÜLDÜ (2026-09-16, gerçek boru hattıyla, üç proje biçiminde:
+        boşluksuz düz proje, boşluklu klasör, `\\input` zincirli alt
+        dizin): ÜÇÜNDE DE gezinme çalışmıyor. Yani kusur kenar durumu
+        değil, Windows'ta derleme hatasına tıklamanın OLAĞAN hâli.
+
+        `ornek` verilmesi şart: proje WSL'in kendi dosya sisteminde
+        duruyorsa (`\\\\wsl.localhost\\Ubuntu\\...`) dağıtım adı ileri
+        çevrimde atılıyor ve geri çevrim onu ancak örnekten öğrenebiliyor
+        (aynı ders SyncTeX'te alınmıştı).
+        """
+        if PLATFORM != "win32":
+            return
+        for kayit in list(result.errors) + list(result.warnings):
+            if kayit.file_path:
+                kayit.file_path = wsl_to_windows(kayit.file_path,
+                                                 ornek=self._tex_path)
 
     def _on_error(self, error: QProcess.ProcessError):
         # Süreci biz öldürdüysek bu "hata" bizim işimiz: QProcess.kill()

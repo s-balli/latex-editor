@@ -549,3 +549,66 @@ class TestPdfTazelik:
             "(yalnız result.duration). Tazelik kararı duvar saatine bağlanmış "
             "olabilir — WSL/Windows saat farkı yüzünden aralıklı 'başarısız' "
             "üretir.")
+
+
+class TestWslYollariniCevirme:
+    r"""Derleme WSL'de koşuyor; TeX günlüğündeki adlar `/mnt/c/...` geliyor.
+
+    `main_window._goto_line` önce yolun AÇIK SEKMEYE ait olup olmadığına
+    (normpath ile), sonra diskte bulunup bulunmadığına bakıyor. WSL
+    yolunda ikisi de tutmuyor. ÖLÇÜLDÜ (2026-09-16, gerçek boru hattıyla,
+    üç proje biçiminde: boşluksuz düz proje, boşluklu klasör, `\input`
+    zincirli alt dizin): ÜÇÜNDE DE derleme hatasına tıklamak "Dosya
+    bulunamadı" diyor ve imleç hiç gitmiyor.
+    """
+
+    @staticmethod
+    def _cevir(yol, tex_path, platform="win32"):
+        from core.log_parser import CompileResult, LatexError, LatexWarning
+
+        sonuc = CompileResult()
+        sonuc.errors = [LatexError(file_path=yol)]
+        sonuc.warnings = [LatexWarning(file_path=yol)]
+        eski = compiler_mod.PLATFORM
+        compiler_mod.PLATFORM = platform
+        try:
+            kobay = LatexCompiler.__new__(LatexCompiler)
+            kobay._tex_path = tex_path
+            LatexCompiler._yollari_windows_yap(kobay, sonuc)
+        finally:
+            compiler_mod.PLATFORM = eski
+        assert sonuc.errors[0].file_path == sonuc.warnings[0].file_path, \
+            "hata ve uyarı kolları ayrıştı"
+        return sonuc.errors[0].file_path
+
+    def test_MNT_yolu_WINDOWS_yoluna_ceviriliyor(self):
+        assert self._cevir("/mnt/c/Users/x/tez.tex",
+                           r"C:\Users\x\tez.tex") == r"C:\Users\x\tez.tex"
+
+    def test_WSL_DOSYA_SISTEMI_dagitim_adini_ORNEKTEN_aliyor(self):
+        r"""Proje `\\wsl.localhost\Ubuntu\...` içindeyse dağıtım adı ileri
+        çevrimde atılıyor; geri çevrim onu ancak örnekten öğrenebiliyor."""
+        wsl_yolu = "\\\\wsl.localhost\\Ubuntu\\home\\s\\tez.tex"
+        assert self._cevir("/home/s/tez.tex", wsl_yolu) == wsl_yolu
+
+    @pytest.mark.parametrize("yol,tex,platform", [
+        (r"C:\Users\x\tez.tex", r"C:\Users\x\tez.tex", "win32"),
+        ("bolum/giris.tex", r"C:\Users\x\ana.tex", "win32"),
+        # Linux'ta `/mnt/c` SIRADAN bir bağlama noktası; oradaki yolu
+        # Windows biçimine çevirmek yolu bozardı.
+        ("/mnt/c/veri/tez.tex", "/mnt/c/veri/tez.tex", "linux"),
+    ])
+    def test_DOKUNULMAYANLAR(self, yol, tex, platform):
+        """Aşırı düzeltme kapısı: zaten Windows yolu, göreli yol ve
+        Windows dışı platform olduğu gibi kalmalı."""
+        assert self._cevir(yol, tex, platform) == yol
+
+    def test_ON_FINISHED_cevirimi_CAGIRIYOR(self):
+        """Çevirim yalnız `_on_finished`ten geçiyor; çağrı düşerse yukarıdaki
+        kapılar bunu göremez (işlevin kendisini çağırıyorlar)."""
+        import inspect
+
+        kaynak = inspect.getsource(LatexCompiler._on_finished)
+        kod = [s for s in kaynak.splitlines()
+               if not s.strip().startswith("#")]
+        assert any("_yollari_windows_yap" in s for s in kod), kaynak
