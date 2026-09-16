@@ -152,6 +152,54 @@ def test_collect_image_paths_basic(tmp_path):
     assert paths == ["media/fig.jpg", "media/logo.pdf", "sekil.png"]
 
 
+class TestGorselOnerisindeDerlemeCiktisi:
+    r"""`\includegraphics{` listesi BAŞKA belgelerin çıktısını önermemeli.
+
+    Eski süzgeç yalnız DÜZENLENEN belgenin kendi PDF'ini eliyordu.
+    ÖLÇÜLDÜ (2026-09-16, 39 şablonun 57 ana belgesi, 3616 öneri): 102
+    öneri derleme çıktısıydı ve 57 belgenin 27'si etkileniyordu;
+    `Etuthesis.tex`i düzenleyene kardeş `main.tex`in çıktısı `main.pdf`
+    öneriliyordu. Seçilse belgenin TAMAMI bir şekil olarak gömülürdü.
+    """
+
+    TAM = ("\\documentclass{article}\n\\begin{document}\n"
+           "Merhaba\n\\end{document}\n")
+    STANDALONE = ("\\documentclass{standalone}\n\\begin{document}\n"
+                  "cizim\n\\end{document}\n")
+
+    @staticmethod
+    def _kur(tmp_path, kardesler):
+        ana = tmp_path / "tez.tex"
+        ana.write_text(TestGorselOnerisindeDerlemeCiktisi.TAM,
+                       encoding="utf-8")
+        for ad, icerik in kardesler:
+            (tmp_path / ad).write_text(icerik, encoding="utf-8")
+            (tmp_path / (os.path.splitext(ad)[0] + ".pdf")).write_bytes(
+                b"%PDF-1.4\n")
+        return latex_refs.collect_image_paths(str(ana))
+
+    def test_KARDES_BELGENIN_ciktisi_ONERILMIYOR(self, tmp_path):
+        assert self._kur(tmp_path, [("main.tex", self.TAM)]) == []
+
+    def test_STANDALONE_sekli_ONERILIYOR(self, tmp_path):
+        r"""Karşı örnek gerçek: `cizim.tex` (`\documentclass{standalone}`)
+        derlenip `cizim.pdf` üretiliyor ve o PDF GERÇEK bir şekil."""
+        assert self._kur(
+            tmp_path, [("cizim.tex", self.STANDALONE)]) == ["cizim.pdf"]
+
+    def test_PARCA_kardes_ve_KARDESSIZ_pdf_ONERILIYOR(self, tmp_path):
+        """Şüphede eleme yok: parça dosyanın yanındaki PDF onun çıktısı
+        olmak zorunda değil, kardeşsiz PDF ise sıradan bir şekil."""
+        ana = tmp_path / "tez.tex"
+        ana.write_text(self.TAM, encoding="utf-8")
+        (tmp_path / "bolum.tex").write_text("\\section{Bolum}\n",
+                                            encoding="utf-8")
+        (tmp_path / "bolum.pdf").write_bytes(b"%PDF-1.4\n")
+        (tmp_path / "logo.pdf").write_bytes(b"%PDF-1.4\n")
+        assert latex_refs.collect_image_paths(str(ana)) == \
+            ["bolum.pdf", "logo.pdf"]
+
+
 def test_collect_image_paths_skips_hidden_dirs(tmp_path):
     main = tmp_path / "main.tex"
     main.write_text("x", encoding="utf-8")

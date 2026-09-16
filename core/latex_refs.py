@@ -507,6 +507,42 @@ def collect_input_paths(base_path: str) -> list[str]:
 IMG_EXTS = (".png", ".jpg", ".jpeg", ".pdf", ".eps")
 
 
+_RE_BELGE_SINIFI = re.compile(
+    r"\\documentclass\s*(?:\[[^\]]*\])?\s*\{([^{}]*)\}")
+
+
+def _baska_belgenin_ciktisi_mi(pdf_yolu: str) -> bool:
+    r"""Bu `.pdf` projedeki BAŞKA bir belgenin derleme çıktısı mı.
+
+    ÖLÇÜLDÜ (2026-09-16, 39 şablonun 57 ana belgesi, 3616 öneri): 102
+    öneri derleme çıktısıydı ve 57 belgenin 27'si etkileniyordu.
+    `Etuthesis.tex`i düzenleyen kullanıcıya `\includegraphics{` listesinde
+    kardeş `main.tex`in çıktısı `main.pdf` öneriliyordu; seçilse belgenin
+    TAMAMI bir şekil olarak gömülürdü.
+
+    KARŞI ÖRNEK GERÇEK: standalone şekil akışında `cizim.tex`
+    (`\documentclass{standalone}`) derlenip `cizim.pdf` üretiliyor ve o
+    PDF gerçek bir şekil. O yüzden ölçüt "yanında .tex var" DEĞİL:
+    yanındaki .tex TAM BİR BELGE olacak ve `standalone` OLMAYACAK.
+    Korpusta 102 vakanın 102'si tam belge, 0'ı standalone.
+
+    Okunamayan ya da kararsız kalınan dosyada False dönüyor: şüphede
+    öneriyi ELEMEK, var olan bir şekli gizlemek olurdu.
+    """
+    tex = os.path.splitext(pdf_yolu)[0] + ".tex"
+    try:
+        with open(tex, "r", encoding="utf-8", errors="replace") as f:
+            bas = f.read(8192)
+    except OSError:
+        return False
+    # `\begin{document}` ARANMIYOR: `\documentclass` zaten "bu bir belge"
+    # demek ve parça dosyalarda o da yok. Ek koşul denendi ve ÖLÇÜLDÜ
+    # (mutasyonla): hiçbir kapıyı değiştirmiyor, üstelik önsözü 8 KB'ı aşan
+    # bir belgede süzgeci boşa düşürüyordu.
+    m = _RE_BELGE_SINIFI.search(bas)
+    return bool(m) and m.group(1).strip() != "standalone"
+
+
 def collect_image_paths(base_path: str) -> list[str]:
     """\\includegraphics{ tamamlaması için projedeki resim dosyaları.
 
@@ -523,6 +559,11 @@ def collect_image_paths(base_path: str) -> list[str]:
         dirs[:] = [d for d in dirs if not d.startswith('.')]
         for fn in files:
             if not fn.lower().endswith(IMG_EXTS) or fn.lower() == base_pdf:
+                continue
+            # `base_pdf` yalnız DÜZENLENEN belgenin kendi çıktısını eliyor;
+            # projedeki öteki belgelerin çıktıları listede kalıyordu.
+            if fn.lower().endswith(".pdf") and _baska_belgenin_ciktisi_mi(
+                    os.path.join(root, fn)):
                 continue
             rel = os.path.relpath(os.path.join(root, fn), bdir)
             rels.append(rel.replace(os.sep, '/'))
