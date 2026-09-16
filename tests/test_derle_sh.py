@@ -242,6 +242,51 @@ class TestArgumanKontrolu:
         assert r.returncode != 0
         assert "bulunamadi" in r.stdout.lower() or r.returncode != 0
 
+    def test_BAGLANMAMIS_SURUCU_sebebi_soyluyor(self, tmp_path):
+        r"""Windows'ta her şey WSL içinde koşuyor ve WSL yalnız YEREL sabit
+        sürücüleri kendiliğinden bağlıyor. Üniversitenin ağ ev dizini
+        (H:, Z:) ya da `subst` ile türetilen bir sürücü `/mnt/<harf>`
+        altında YOK.
+
+        ÖLÇÜLDÜ (2026-09-16, `subst` ile oluşturulmuş Q: sürücüsü):
+        kullanıcı `Q:\tez.tex` dosyasını açıyor, derleyince "Dosya
+        bulunamadi: /mnt/q/tez.tex" görüyor. Dosya gözünün önünde duruyor
+        ve yol hiç görmediği bir yol; sebebi bulması mümkün değil.
+        """
+        harf = next((c for c in "qzyxwv"
+                     if not os.path.isdir("/mnt/" + c)), "")
+        if not harf:
+            pytest.skip("bağlanmamış bir /mnt/<harf> bulunamadı")
+        r = _run_derle(["/mnt/%s/tez.tex" % harf], cwd=str(tmp_path))
+        assert r.returncode != 0
+        assert "surucusu WSL icinde gorunmuyor" in r.stdout, r.stdout
+        assert harf.upper() + ":" in r.stdout, r.stdout
+
+    def test_BAGLI_surucude_ipucu_YOK(self, tmp_path):
+        """Aşırı düzeltme kapısı: sürücü bağlıysa dosya gerçekten yoktur,
+        ipucu gürültü olur."""
+        r = _run_derle([str(tmp_path / "yok.tex")], cwd=str(tmp_path))
+        assert r.returncode != 0
+        assert "bulunamadi" in r.stdout.lower()
+        assert "gorunmuyor" not in r.stdout, r.stdout
+
+        # BAĞLI bir /mnt/<harf> varsa asıl kolu da sına: ipucu yalnız
+        # bağlı OLMAYAN sürücüde çıkmalı. (Linux CI'da /mnt boş olabilir.)
+        bagli = next((c for c in "cdefgh"
+                      if os.path.isdir("/mnt/" + c)), "")
+        if bagli:
+            r = _run_derle(["/mnt/%s/yok-boyle-bir-dosya.tex" % bagli],
+                           cwd=str(tmp_path))
+            assert r.returncode != 0
+            assert "gorunmuyor" not in r.stdout, r.stdout
+
+    def test_UNC_yolunun_WSL_karsiligi_YOK_deniyor(self, tmp_path):
+        r"""`core/paths.py` UNC yolunu çeviremediği için OLDUĞU GİBİ
+        geçiriyor; kullanıcı yine "bulunamadi" görüyordu."""
+        r = _run_derle(["\\\\sunucu\\paylasim\\tez.tex"], cwd=str(tmp_path))
+        assert r.returncode != 0
+        assert "UNC" in r.stdout, r.stdout
+
     def test_klasor_tex_dosyalarini_bulur(self, tmp_path):
         (tmp_path / "a.tex").write_text(MINIMAL_TEX, encoding="utf-8")
         (tmp_path / "b.tex").write_text(MINIMAL_TEX, encoding="utf-8")

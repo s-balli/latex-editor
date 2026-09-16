@@ -321,6 +321,35 @@ for arg in "${DOSYALAR[@]}"; do
 done
 DOSYALAR=("${GENISLETILMIS[@]}")
 
+# "Dosya bulunamadi" derken SEBEBINI de soyle.
+#
+# Windows'ta her sey WSL icinde kosuyor ve WSL yalniz YEREL SABIT
+# suruculeri kendiliginden bagliyor. Universitenin ag ev dizini (H:, Z:)
+# ya da `subst` ile turetilmis bir surucu `/mnt/<harf>` altinda YOK.
+#
+# OLCULDU (2026-09-16, subst ile olusturulmus Q: surucusu): kullanici
+# `Q:\tez.tex` dosyasini aciyor, derleyince
+#     [hata] Dosya bulunamadi: /mnt/q/tez.tex
+# goruyor. Dosya gozunun onunde duruyor, yol ise hic gormedigi bir yol;
+# sebebi bulmasi mumkun degil. Ag (UNC) yolunda ayni sey: `core/paths.py`
+# onu cevirmeden geciriyor (WSL karsiligi yok) ve ayni mesaj cikiyor.
+#
+# Surucu GERCEKTEN bagliysa ipucu basilmiyor: kullanici kendi mount'unu
+# kurmus olabilir, o zaman dosya gercekten yoktur.
+yol_ipucu() {
+    local yol="$1" harf
+    if [ "${yol:0:2}" = '\\' ] || [ "${yol:0:2}" = "//" ]; then
+        printf ' (ag (UNC) yolunun WSL karsiligi yok; projeyi yerel bir diske kopyalayin)'
+        return
+    fi
+    if [ "${yol:0:5}" = "/mnt/" ] && [ "${yol:6:1}" = "/" ]; then
+        harf="${yol:5:1}"
+        if [ ! -d "/mnt/$harf" ]; then
+            printf ' (%s: surucusu WSL icinde gorunmuyor; ag surucusundeki proje derlenemiyor, yerel bir diske kopyalayin)' "${harf^^}"
+        fi
+    fi
+}
+
 if [ ${#DOSYALAR[@]} -eq 0 ]; then
     echo -e "${KIRMIZI}[hata] Derlenecek .tex dosyasi bulunamadi${SIFIRLA}"
     exit 1
@@ -328,7 +357,7 @@ fi
 
 # Watch modda dosya varlık kontrolü
 if [ "$USE_WATCH" = true ] && [ ! -f "${DOSYALAR[0]}" ]; then
-    echo -e "${KIRMIZI}[hata] Dosya bulunamadi: ${DOSYALAR[0]}${SIFIRLA}"
+    echo -e "${KIRMIZI}[hata] Dosya bulunamadi: ${DOSYALAR[0]}$(yol_ipucu "${DOSYALAR[0]}")${SIFIRLA}"
     exit 1
 fi
 
@@ -827,7 +856,7 @@ if [ "$USE_WATCH" = false ]; then
 
     for dosya in "${DOSYALAR[@]}"; do
         if [ ! -f "$dosya" ]; then
-            echo -e "${KIRMIZI}[hata] Dosya bulunamadi: $dosya${SIFIRLA}"
+            echo -e "${KIRMIZI}[hata] Dosya bulunamadi: $dosya$(yol_ipucu "$dosya")${SIFIRLA}"
             ((BASARISIZ++)) || true
             continue
         fi
