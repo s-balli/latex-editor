@@ -324,6 +324,44 @@ class TestFixMdImagePaths:
         # str(tex_file.parent) ters bölü verdiği için karşılaştırma normalize edilir.
         assert str(tex_file.parent).replace(os.sep, "/") in content
 
+    @staticmethod
+    def _coz(tmp_path, dosyalar, md_yolu="sekil"):
+        r"""`\graphicspath{{gorseller/}}` olan bir belgede `md_yolu`nun
+        çözüldüğü dosyayı döndür."""
+        (tmp_path / "gorseller").mkdir(exist_ok=True)
+        for rel in dosyalar:
+            (tmp_path / rel).write_bytes(b"%PDF-1.4\n")
+        tex_file = tmp_path / "doc.tex"
+        tex_file.write_text(r"\graphicspath{{gorseller/}}", encoding="utf-8")
+        md_file = tmp_path / "doc.md"
+        md_file.write_text("![a](%s)" % md_yolu, encoding="utf-8")
+        _fix_md_image_paths(str(tex_file), str(md_file))
+        return md_file.read_text(encoding="utf-8")
+
+    def test_UZANTI_dizinden_ONCE_deneniyor(self, tmp_path):
+        r"""Sıra LaTeX'inkiyle aynı olmak zorunda: graphicx uzantıyı DIŞTA
+        deniyor ve her uzantı için bütün yolları tarıyor.
+
+        ÖLÇÜLDÜ (2026-09-16, gerçek derleme, günlükten AÇILAN dosya):
+        `gorseller/sekil.png` ile `./sekil.pdf` birlikteyken LaTeX
+        `./sekil.pdf`i alıyor, dışa aktarma ise `gorseller/sekil.png`i
+        gömüyordu. Yani çıktıya belgenin GÖSTERDİĞİNDEN başka bir görsel
+        giriyordu.
+        """
+        icerik = self._coz(tmp_path, ["gorseller/sekil.png", "sekil.pdf"])
+        assert icerik.endswith("sekil.pdf)"), icerik
+        assert "gorseller" not in icerik, icerik
+
+    def test_AYNI_uzantida_graphicspath_ONCE(self, tmp_path):
+        """Karşı kol: uzantı eşitse graphicspath dizini kazanmalı."""
+        icerik = self._coz(tmp_path, ["gorseller/sekil.pdf", "sekil.png"])
+        assert icerik.endswith("gorseller/sekil.pdf)"), icerik
+
+    def test_TEK_aday_graphicspath_icinde_cozuluyor(self, tmp_path):
+        """Karşı kol: sıra değişimi olağan durumu bozmamalı."""
+        icerik = self._coz(tmp_path, ["gorseller/sekil.png"])
+        assert icerik.endswith("gorseller/sekil.png)"), icerik
+
     def test_BASLIKTA_koseli_parantez_yolu_ENGELLEMIYOR(self, tmp_path):
         r"""Şekil başlığında `]` olabilir: atıf, kısaltma, dipnot işareti.
 

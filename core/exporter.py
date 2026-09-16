@@ -736,8 +736,21 @@ def _fix_md_image_paths(tex_path: str, md_path: str):
             # oluyordu. Sonuç sessizce kırık bağlantıydı — yanlış yol istisna
             # üretmediği için aşağıdaki except da yakalamıyordu.
             adaylar = [gp + path for gp in graphics_paths] + [path]
-            for aday in adaylar:
-                for ek in _GORSEL_ARAMA_SIRASI:
+            # DIŞ DÖNGÜ UZANTI, iç döngü dizin. Sıra LaTeX'inkiyle aynı
+            # olmak zorunda: graphicx uzantıyı dışta deniyor ve her uzantı
+            # için bütün yolları (graphicspath dizinleri, sonra geçerli
+            # dizin) tarıyor.
+            #
+            # ÖLÇÜLDÜ (2026-09-16, gerçek derleme, günlükten AÇILAN dosya):
+            # `gorseller/sekil.png` ile `./sekil.pdf` birlikteyken
+            #     LaTeX      ./sekil.pdf
+            #     dışa aktarma  gorseller/sekil.png
+            # Yani çıktıya belgenin GÖSTERDİĞİNDEN başka bir görsel
+            # gömülüyordu. Aynı ders bir kez uzantı sırasında alınmıştı
+            # (bkz. `_GORSEL_ARAMA_SIRASI`); orada dizin ekseni gözden
+            # kaçmış.
+            for ek in _GORSEL_ARAMA_SIRASI:
+                for aday in adaylar:
                     tam = os.path.normpath(os.path.join(tex_dir, aday + ek))
                     if os.path.isfile(tam):
                         return "![%s](%s)" % (
