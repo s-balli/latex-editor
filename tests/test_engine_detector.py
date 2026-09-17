@@ -1,5 +1,7 @@
 """engine_detector modülü testleri."""
 
+import pytest
+
 from core.engine_detector import (
     detect_engine,
     detect_engine_from_content,
@@ -571,6 +573,36 @@ class TestOnsozZinciri:
                        "\\input{paketler}\n"
                        "\\begin{document}x\\end{document}\n", encoding="utf-8")
         assert detect_engine(str(tex)) == "lualatex"
+
+    @pytest.mark.parametrize("paket", [
+        "luacode", "luamplib", "lua-ul", "luatextra", "luacolor",
+        "luaotfload", "luatexbase",
+    ])
+    def test_LUA_PAKETLERI_lualatex_sectiriyor(self, tmp_path, paket):
+        r"""ÖLÇÜLDÜ (2026-09-17, her paket üç motorda da derlendi; ölçüt
+        PDF'in varlığı değil, günlükte `!` hatası bulunmaması): yedisi de
+        YALNIZ lualatex'te derleniyor.
+
+        Seçici bunlarda sessiz kalıyordu ve sessizlik "kullanıcının açılır
+        kutudaki seçimi" demek; o seçim pdflatex'teyse belge hiç
+        derlenmiyor.
+        """
+        tex = tmp_path / "main.tex"
+        tex.write_text("\\documentclass{article}\n"
+                       "\\usepackage{%s}\n" % paket
+                       + "\\begin{document}x\\end{document}\n",
+                       encoding="utf-8")
+        assert detect_engine(str(tex)) == "lualatex"
+
+    def test_LUA_OLMAYAN_belge_etkilenmiyor(self, tmp_path):
+        """Aşırı düzeltme kapısı: `lua` ile başlayan her ad sinyal değil."""
+        tex = tmp_path / "main.tex"
+        tex.write_text("\\documentclass{article}\n"
+                       "\\usepackage[T1]{fontenc}\n"
+                       "\\usepackage{luatex85}\n"
+                       "\\begin{document}x\\end{document}\n",
+                       encoding="utf-8")
+        assert detect_engine(str(tex)) == "pdflatex"
 
     def test_torun_dosya_da_okunuyor(self, tmp_path):
         (tmp_path / "yazitipi.tex").write_text(

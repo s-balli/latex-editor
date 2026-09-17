@@ -142,7 +142,29 @@ _PDFLATEX_PRIMITIFLERI = ("pdfgentounicode", "pdfglyphtounicode")
 _RE_PDFLATEX_PRIMITIF = re.compile(
     r'\\(?:' + '|'.join(_PDFLATEX_PRIMITIFLERI) + r')(?![a-zA-Z])')
 
-_LUALATEX_PAKETLERI = ("fontspec", "unicode-math", "polyglossia")
+# `lua` ile başlayan aile: adı sinyal gibi görünüyor ama liste TAHMİNLE
+# değil DERLEMEYLE kesildi. ÖLÇÜLDÜ (2026-09-17, her paket üç motorda da
+# denendi; ölçüt PDF'in varlığı değil, günlükte `!` hatası bulunmaması):
+# yedisi de YALNIZ lualatex'te derleniyor.
+#
+# Seçici bunlarda SESSİZ kalıyordu; sessizlik "kullanıcının açılır
+# kutudaki seçimi" demek ve o seçim pdflatex'teyse belge hiç derlenmiyor.
+# Varsayılan lualatex olduğu için olağan kullanıcı bunu görmüyor, başka
+# bir proje için motoru değiştirmiş olan görüyor.
+#
+# 39 şablonda bu paketlerin hiçbiri geçmiyor; gerekçe korpus değil
+# paketin kendisi. Dış işaret olarak TeX Live'da `luacode`u 41,
+# `luatexbase`i 37 paket yüklüyor (listede zaten duran `xeCJK` 9,
+# `xltxtra` 12).
+#
+# SINIR: belge paketi `\ifluatex` kolunda yüklüyorsa seçici yine
+# lualatex diyor. Aynı açıklık `fontspec` için de var ve zararsız:
+# seçilen motor belgenin ZATEN desteklediği motor.
+_LUALATEX_PAKETLERI = (
+    "fontspec", "unicode-math", "polyglossia",
+    "luacode", "luamplib", "lua-ul", "luatextra", "luacolor",
+    "luaotfload", "luatexbase",
+)
 # XeLaTeX'e özgü paketler: mathspec/xeCJK LuaLaTeX'te çalışmaz. fontspec/
 # polyglossia her ikisinde de çalıştığından lualatex tarafında kalır.
 _XELATEX_PAKETLERI = ("mathspec", "xeCJK", "xltxtra")
