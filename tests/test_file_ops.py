@@ -844,3 +844,91 @@ def test_pandoc_kurulum_metni_WINDOWSTA_nereye_diyor(monkeypatch, platform,
     metin = FileOpsMixin._pandoc_kurulum_metni()
     assert ("WSL" in metin) is wsl_diyor, metin
     assert ex.pandoc_kurulum_komutu() in metin
+
+
+# --- Motor seçimi sekme değişiminde (2026-09-17) ---
+
+
+class _MotorStub(TabOpsMixin):
+    """`_on_tab_changed` + `_on_engine_changed` için en küçük iskele."""
+
+    def __init__(self, editors):
+        from PyQt6.QtWidgets import QComboBox, QTabWidget
+
+        self._editor_tabs = QTabWidget()
+        for ed in editors:
+            self._editor_tabs.addTab(ed, "sekme")
+        self._engine_combo = QComboBox()
+        self._engine_combo.addItems(["lualatex", "pdflatex", "xelatex"])
+        self._status_engine = SimpleNamespace(setText=lambda t: None)
+        self._status_wordcount = SimpleNamespace(setText=lambda t: None)
+        self._find_bar = None
+        self._pdf_viewer = SimpleNamespace(clear=lambda: None)
+        self._wordcount_editor = None
+        self._wordcount_timer = SimpleNamespace(stop=lambda: None)
+        self._file_tree = SimpleNamespace(update_input_tree=lambda *a: None)
+        self._outline = SimpleNamespace(update_outline=lambda *a: None)
+        self._engine_combo.currentTextChanged.connect(self._motor_degisti)
+
+    def _motor_degisti(self, t):
+        from gui.main_window import MainWindow
+
+        MainWindow._on_engine_changed(self, t)
+
+    def _current_editor(self):
+        return self._editor_tabs.currentWidget()
+
+    def _update_cursor_pos(self, *a):
+        pass
+
+    def _update_wordcount(self, *a):
+        pass
+
+    def _refresh_error_markers(self, *a):
+        pass
+
+
+def _motor_stub(qapp):
+    from gui.editor import EditorWidget
+
+    ed1, ed2 = EditorWidget(), EditorWidget()
+    ed1._detected_engine = "pdflatex"
+    ed2._detected_engine = "pdflatex"
+    return _MotorStub([ed1, ed2]), ed1, ed2
+
+
+def test_ELLE_secilen_motor_sekme_degisince_DURUYOR(qapp):
+    """Motor belge başına tutuluyor ve sekme değişince açılır kutu oradan
+    geri kuruluyor; kullanıcının elle seçtiği hiçbir yere yazılmıyordu.
+
+    ÖLÇÜLDÜ (2026-09-17, gerçek açılır kutu ve gerçek `_on_tab_changed`):
+    açılışta pdflatex, kullanıcı xelatex seçti, sekme değişip geri
+    dönünce yine pdflatex. Ardından F5 yanlış motorla derliyor ve
+    hiçbir şey söylenmiyor.
+    """
+    stub, _ed1, _ed2 = _motor_stub(qapp)
+    stub._editor_tabs.setCurrentIndex(0)
+    stub._on_tab_changed(0)
+    stub._engine_combo.setCurrentText("xelatex")
+
+    stub._editor_tabs.setCurrentIndex(1)
+    stub._on_tab_changed(1)
+    stub._editor_tabs.setCurrentIndex(0)
+    stub._on_tab_changed(0)
+
+    assert stub._engine_combo.currentText() == "xelatex"
+
+
+def test_MOTOR_belge_basina_ayri(qapp):
+    """Aşırı düzeltme kapısı: bir belgenin seçimi ötekine bulaşmamalı."""
+    stub, ed1, ed2 = _motor_stub(qapp)
+    stub._editor_tabs.setCurrentIndex(0)
+    stub._on_tab_changed(0)
+    stub._engine_combo.setCurrentText("xelatex")
+
+    stub._editor_tabs.setCurrentIndex(1)
+    stub._on_tab_changed(1)
+
+    assert stub._engine_combo.currentText() == "pdflatex"
+    assert (ed1._detected_engine, ed2._detected_engine) == \
+        ("xelatex", "pdflatex")

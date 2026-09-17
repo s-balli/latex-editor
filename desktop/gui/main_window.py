@@ -629,9 +629,7 @@ class MainWindow(
 
         self._editor_tabs.currentChanged.connect(self._on_tab_changed)
 
-        self._engine_combo.currentTextChanged.connect(
-            lambda t: self._status_engine.setText(t)
-        )
+        self._engine_combo.currentTextChanged.connect(self._on_engine_changed)
 
         # QShortcut — ApplicationShortcut ile QScintilla focus problemi çözülür
         # (Ctrl+S artık Dosya menüsündeki QAction'da, app_shortcut=True ile.)
@@ -691,6 +689,31 @@ class MainWindow(
         name = self._theme_combo.itemData(index)
         if name:
             self._theme_mgr.apply(name)
+
+    def _on_engine_changed(self, motor: str):
+        """Açılır kutudaki motor değişti: durum çubuğu VE BELGENİN kaydı.
+
+        Motor belge başına tutuluyor (`editor._detected_engine`) ve sekme
+        değişince açılır kutu ORADAN geri kuruluyor. Kullanıcının elle
+        seçtiği motor hiçbir yere yazılmadığı için ilk sekme değişiminde
+        SESSİZCE geri alınıyordu. ÖLÇÜLDÜ (2026-09-17, gerçek açılır kutu
+        ve gerçek `_on_tab_changed` ile):
+
+            açılışta algılanan        pdflatex
+            kullanıcı elle seçti      xelatex
+            sekme değişip geri döndü  pdflatex      <- seçim kayboldu
+
+        Ardından F5 yanlış motorla derliyor ve hiçbir şey söylenmiyor.
+
+        `_on_tab_changed` kutuyu kurarken sinyali BLOKLUYOR, yani sekme
+        gezinmesi buraya düşmüyor; buraya yalnız kullanıcının seçimi ve
+        açılışta çalışan algılama geliyor. İkisi de "bu belgenin motoru"
+        demek.
+        """
+        self._status_engine.setText(motor)
+        editor = self._current_editor()
+        if isinstance(editor, EditorWidget) and motor:
+            editor._detected_engine = motor
 
     def _on_lang_changed(self, index: int):
         from core.i18n import set_language
