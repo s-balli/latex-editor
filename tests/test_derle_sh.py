@@ -498,6 +498,94 @@ class TestKaynakca:
         assert "sudo apt-get install biber" in r.stdout
 
 
+class TestKaynakcaAraciDuserse:
+    r"""Kaynakça aracı DÜŞTÜĞÜNDE derleme "basarili" demiyor.
+
+    Araç sıfırdan farklı dönünce `.bbl` hiç oluşmuyor: belge yine
+    derleniyor, nonstopmode PDF'i üretiyor ama kaynakça BOŞ çıkıyor.
+    Betik aracın çıkış kodunu `|| true` ile atıyor, çıktısından süzdüğü
+    satırları SARI "uyarilari" başlığıyla basıyordu.
+
+    ÖLÇÜLDÜ (2026-09-17, gerçek biber 2.19 ve bibtex 0.99d; bozuk ve
+    eksik `.bib` ile; kehanet üretilen PDF'in METNİ): dört kurulumun
+    dördünde de kaynakça boştu, ekranda `[basarili]` yazıyordu, çıkış
+    kodu 0 ve panelde 0 hata vardı.
+
+    Eşik ÖLÇÜMLE seçildi: iki araç da sağlam kurulumda 0, çözülemeyen
+    atıf anahtarında 0, kaynakça hiç kurulamadığında 2 dönüyor. Uygulama
+    ile gelen 28 kaynakçalı şablonun tamamı düzeltmeden önce ve sonra
+    aynı sonucu veriyor.
+    """
+
+    BOZUK_BIB = "@article{ornek2020,\n  author = {Yilmaz, Ayse,\n  year = {2020},\n"
+    SAGLAM_BIB = ("@article{ornek2020, author={Yilmaz, Ayse},\n"
+                  "  title={Baslik}, journal={Dergi}, year={2020}}\n")
+
+    BIBLATEX = r"""\documentclass{article}
+\usepackage[backend=biber]{biblatex}
+\addbibresource{kaynak.bib}
+\begin{document}
+Atif \cite{%s}.
+\printbibliography
+\end{document}
+"""
+
+    BIBTEX = r"""\documentclass{article}
+\begin{document}
+Atif \cite{%s}.
+\bibliographystyle{plain}
+\bibliography{kaynak}
+\end{document}
+"""
+
+    def _kos(self, tmp_path, govde, bib, anahtar="ornek2020"):
+        from core.log_parser import parse_output
+
+        (tmp_path / "tez.tex").write_text(govde % anahtar, encoding="utf-8")
+        if bib is not None:
+            (tmp_path / "kaynak.bib").write_text(bib, encoding="utf-8")
+        r = _run_derle([str(tmp_path / "tez.tex")], cwd=str(tmp_path),
+                       timeout=180)
+        temiz = re.sub(r"\x1b\[[0-9;]*m", "", r.stdout)
+        return r, temiz, parse_output(temiz, "tez.tex")
+
+    @_biber_skip
+    def test_BIBER_DUSUNCE_basarili_demiyor(self, tmp_path):
+        r, temiz, sonuc = self._kos(tmp_path, self.BIBLATEX, self.BOZUK_BIB)
+
+        assert r.returncode != 0, temiz[-1500:]
+        assert "[basarili]" not in temiz, temiz[-1500:]
+        # Panelde SAYILAN bir hata olmalı. Betiğin başlık satırı iki nokta
+        # ile biterse ayrıştırıcı onu başlık sayıp atlıyor ve sayı 0 kalıyor.
+        assert any("kaynakcasi olusturulamadi" in h.message
+                   for h in sonuc.errors), (temiz[-1500:], sonuc.errors)
+
+    def test_BIBTEX_DUSUNCE_basarili_demiyor(self, tmp_path):
+        if not shutil.which("bibtex"):
+            pytest.skip("bibtex kurulu degil")
+        r, temiz, sonuc = self._kos(tmp_path, self.BIBTEX, None)
+
+        assert r.returncode != 0, temiz[-1500:]
+        assert "[basarili]" not in temiz, temiz[-1500:]
+        assert any("kaynakcasi olusturulamadi" in h.message
+                   for h in sonuc.errors), (temiz[-1500:], sonuc.errors)
+
+    @_biber_skip
+    def test_COZULEMEYEN_ATIF_hata_sayilmiyor(self, tmp_path):
+        """Karşı kol: yazım hâlindeki belge kırmızı yanmamalı.
+
+        `\\cite{henuz-yok}` yazarken çok sık; biber bu durumda uyarıyor
+        ama 0 dönüyor. Eşik gevşetilirse her yarım belge hata verir.
+        """
+        r, temiz, sonuc = self._kos(tmp_path, self.BIBLATEX, self.SAGLAM_BIB,
+                                    anahtar="henuz-yazilmadi")
+
+        assert r.returncode == 0, temiz[-1500:]
+        assert "[basarili]" in temiz, temiz[-1500:]
+        assert not any("kaynakcasi olusturulamadi" in h.message
+                       for h in sonuc.errors), sonuc.errors
+
+
 class TestHataKonumu:
     r"""Hata, HANGİ DOSYADA olduğuysa orada gösterilmeli.
 

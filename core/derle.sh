@@ -383,6 +383,24 @@ minted_pyg_bagla() {
     ln -s "$GECICI/${ISIM}.pyg" "$KLASOR/${ISIM}.pyg" 2>/dev/null || true
 }
 
+# Kaynakça aracı (biber/bibtex) DÜŞTÜĞÜNDE çağrılır.
+#
+# Araç sıfırdan farklı dönünce `.bbl` hiç oluşmuyor: belge derlenmeye devam
+# ediyor, PDF üretiliyor ve kaynakça BOŞ çıkıyor. Eskiden aracın çıkış kodu
+# `|| true` ile atılıyordu; çıktısından süzülen satırlar SARI "uyarilari"
+# başlığıyla basılıyor, derleme `[basarili]` diyor ve 0 ile bitiyordu.
+#
+# Başlık satırı iki nokta ile BİTMEMELİ: log_parser `[hata] ...:` biçimini
+# başlık sayıp atlıyor, o yüzden panelde hata sayısı 0 kalırdı.
+kaynakca_dustu() {
+    local ARAC="$1" SATIRLAR="$2" ZAMAN=""
+    [ "$USE_WATCH" = true ] && ZAMAN="$(date +%H:%M:%S) "
+    echo -e "${KIRMIZI}[hata] ${ZAMAN}${DOSYA_ADI} kaynakcasi olusturulamadi (${ARAC}), atiflar cozulemedi${SIFIRLA}"
+    echo "$SATIRLAR" | head -20 | while read -r line; do
+        [ -n "$line" ] && printf "${KIRMIZI}  %s${SIFIRLA}\n" "$line"
+    done
+}
+
 # Tek dosya derleme fonksiyonu
 derle_dosya() {
     local DOSYA_YOLU="$1"
@@ -519,11 +537,14 @@ derle_dosya() {
     # Kaynakça — biber (biblatex) veya bibtex (geleneksel)
     if [ -f "$TMPDIR/${ISIM}.bcf" ]; then
         if command -v biber &>/dev/null; then
-            local BIB_CIKTI
-            BIB_CIKTI=$(cd "$TMPDIR" && biber "${ISIM}" 2>&1) || true
+            local BIB_CIKTI BIB_KOD=0
+            BIB_CIKTI=$(cd "$TMPDIR" && biber "${ISIM}" 2>&1) || BIB_KOD=$?
             local BIB_HATALAR
             BIB_HATALAR=$(echo "$BIB_CIKTI" | grep -iE "$BIB_DESENI" || true)
-            if [ -n "$BIB_HATALAR" ]; then
+            if [ "$BIB_KOD" -ne 0 ]; then
+                kaynakca_dustu biber "$BIB_HATALAR"
+                HATA_OLDU=1
+            elif [ -n "$BIB_HATALAR" ]; then
                 if [ "$USE_WATCH" = true ]; then
                     echo -e "${SARI}[biber] $(date +%H:%M:%S): biber uyarilari:${SIFIRLA}"
                 else
@@ -555,16 +576,21 @@ derle_dosya() {
             # altında 0 karakter vardı, dört girdinin dördü de eksikti. Her
             # `.aux` için bibtex koşunca 2375 karakter ve dördü de yerinde;
             # sayfa sayısı 32'den 33'e çıkıyor.
-            local BIB_CIKTI="" BIB_AUX
+            local BIB_CIKTI="" BIB_AUX BIB_KOD=0 BIB_TEK
             while IFS= read -r BIB_AUX; do
                 [ -n "$BIB_AUX" ] || continue
                 BIB_AUX=$(basename "$BIB_AUX" .aux)
-                BIB_CIKTI+=$(cd "$TMPDIR" && bibtex "$BIB_AUX" 2>&1 || true)
+                BIB_TEK=0
+                BIB_CIKTI+=$(cd "$TMPDIR" && bibtex "$BIB_AUX" 2>&1) || BIB_TEK=$?
+                if [ "$BIB_TEK" -ne 0 ]; then BIB_KOD=$BIB_TEK; fi
                 BIB_CIKTI+=$'\n'
             done < <(grep -l '\\bibdata' "$TMPDIR/"*.aux 2>/dev/null || true)
             local BIB_HATALAR
             BIB_HATALAR=$(echo "$BIB_CIKTI" | grep -iE "$BIB_DESENI" || true)
-            if [ -n "$BIB_HATALAR" ]; then
+            if [ "$BIB_KOD" -ne 0 ]; then
+                kaynakca_dustu bibtex "$BIB_HATALAR"
+                HATA_OLDU=1
+            elif [ -n "$BIB_HATALAR" ]; then
                 if [ "$USE_WATCH" = true ]; then
                     echo -e "${SARI}[bibtex] $(date +%H:%M:%S): bibtex uyarilari:${SIFIRLA}"
                 else
