@@ -242,6 +242,34 @@ class TestArgumanKontrolu:
         assert r.returncode != 0
         assert "bulunamadi" in r.stdout.lower() or r.returncode != 0
 
+    def test_SALT_OKUNUR_klasorde_BASARILI_demiyor(self, tmp_path):
+        """Derleme geçici dizinde koşuyor; PDF sonra proje klasörüne
+        taşınıyor. Klasör yazılamazsa taşıma düşüyordu ve betik yine de
+        `[basarili]` deyip 0 ile bitiyordu.
+
+        ÖLÇÜLDÜ (2026-09-17, klasör salt okunur yapılarak): çıkış 0,
+        proje klasöründe PDF YOK, panelde 0 hata; `cp`nin
+        "Permission denied" satırı ayrıştırıcının görmediği bir biçimde
+        geliyor. Kullanıcıya "başarılı" deniyor ve önizleme eski PDF'te
+        kalıyor.
+        """
+        proje = tmp_path / "proje"
+        proje.mkdir()
+        tex = proje / "tez.tex"
+        tex.write_text(MINIMAL_TEX, encoding="utf-8")
+        r = _run_derle([str(tex)], cwd=str(tmp_path), timeout=120)
+        assert r.returncode == 0 and (proje / "tez.pdf").exists()
+
+        (proje / "tez.pdf").unlink()
+        os.chmod(str(proje), 0o500)
+        try:
+            r = _run_derle([str(tex)], cwd=str(tmp_path), timeout=120)
+        finally:
+            os.chmod(str(proje), 0o700)
+        assert r.returncode != 0, r.stdout
+        assert "basarili" not in r.stdout.lower(), r.stdout
+        assert "salt okunur" in r.stdout, r.stdout
+
     def test_BAGLANMAMIS_SURUCU_sebebi_soyluyor(self, tmp_path):
         r"""Windows'ta her şey WSL içinde koşuyor ve WSL yalnız YEREL sabit
         sürücüleri kendiliğinden bağlıyor. Üniversitenin ağ ev dizini

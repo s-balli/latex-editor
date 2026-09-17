@@ -725,7 +725,26 @@ derle_dosya() {
 
     # PDF'i kaynak klasöre kopyala
     if [ -f "$TMPDIR/${ISIM}.pdf" ]; then
-        mv -f "$TMPDIR/${ISIM}.pdf" "$KLASOR/${CIKTI_ISIM}.pdf" 2>/dev/null || cp -f "$TMPDIR/${ISIM}.pdf" "$KLASOR/${CIKTI_ISIM}.pdf"
+        # TASIMA BASARISIZ OLABILIR ve sessiz kalmamali. Derleme gecici
+        # dizinde kosuyor; proje klasoru yazilamazsa (salt okunur ag
+        # paylasimi, baskasinin sahibi oldugu dizin) PDF hic olusmuyor.
+        #
+        # OLCULDU (2026-09-17, klasor chmod ile salt okunur yapilarak):
+        #     [basarili] tez.pdf -> /tmp/.../proje/
+        #     cp: cannot create regular file ...: Permission denied
+        #     cikis kodu 0, proje klasorunde PDF YOK
+        # Panel "0 hata" gosteriyor, kullaniciya sebep soylenmiyor ve
+        # onizleme eski PDF'te kaliyor. `cp`nin stderr satiri ayristiriciya
+        # gormedigi bir bicimde geliyor.
+        if ! mv -f "$TMPDIR/${ISIM}.pdf" "$KLASOR/${CIKTI_ISIM}.pdf" 2>/dev/null \
+           && ! cp -f "$TMPDIR/${ISIM}.pdf" "$KLASOR/${CIKTI_ISIM}.pdf" 2>/dev/null; then
+            if [ -w "$KLASOR" ]; then
+                echo -e "${KIRMIZI}[hata] ${CIKTI_ISIM}.pdf proje klasorune yazilamadi: $KLASOR${SIFIRLA}"
+            else
+                echo -e "${KIRMIZI}[hata] ${CIKTI_ISIM}.pdf yazilamadi, klasor salt okunur: $KLASOR${SIFIRLA}"
+            fi
+            return 1
+        fi
         # SyncTeX eşleştirme dosyasını kaynak klasöre kopyala
         cp -f "$TMPDIR/${ISIM}.synctex.gz" "$KLASOR/${CIKTI_ISIM}.synctex.gz" 2>/dev/null || true
         if [ "$HATA_OLDU" = 1 ]; then
