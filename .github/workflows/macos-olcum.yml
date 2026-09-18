@@ -101,3 +101,89 @@ jobs:
           tail -40 "$RUNNER_TEMP/pytest.txt"
           echo "--- dusen testler ---"
           grep '^FAILED' "$RUNNER_TEMP/pytest.txt" | head -40 || echo "(FAILED satiri yok)"
+
+  # ----------------------------------------------------------------
+  # Developer ID OLMADAN dagitim: Gatekeeper ne diyor.
+  #
+  # Notarization Developer ID istiyor (yilda 99 dolar). Onsuz uretilen
+  # .app'in indirildikten sonra acilip acilmadigi TAHMIN edilmesin diye
+  # `spctl` ile olculuyor: Gatekeeper'in kendi degerlendirme araci.
+  #
+  # Indirme taklit ediliyor: tarayicinin koydugu `com.apple.quarantine`
+  # niteligi elle yaziliyor. Karantinasiz hal, karantinali hal ve
+  # `xattr -dr` ile temizlenmis hal ayri ayri olculuyor.
+  #
+  # SINIR: kullanicinin GORDUGU pencere metni bassiz kosucuda
+  # yakalanamiyor. `spctl` hukmu Gatekeeper POLITIKASINI veriyor,
+  # Finder'in cikardigi diyalogu vermiyor.
+  # ----------------------------------------------------------------
+  imza:
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Gatekeeper durumu
+        run: |
+          sw_vers | head -2
+          echo "mimari      : $(uname -m)"
+          echo "spctl durumu: $(spctl --status 2>&1)"
+
+      # Projenin GERCEK paketleyicisi PyInstaller. Onemsiz bir betikle
+      # .app uretiliyor: Gatekeeper politikasi paketin ICINE bakmiyor,
+      # imzaya ve karantinaya bakiyor, o yuzden asgari paket yeterli ve
+      # derle.sh uyumunu beklemeye gerek yok.
+      - name: Asgari .app uret (PyInstaller, imzasiz)
+        run: |
+          python -m pip install --quiet pyinstaller
+          printf '%s\n' 'print("selam")' > "$RUNNER_TEMP/mini.py"
+          pyinstaller --windowed --name Mini --distpath "$RUNNER_TEMP/dist" \
+            --workpath "$RUNNER_TEMP/build" \
+            --specpath "$RUNNER_TEMP" "$RUNNER_TEMP/mini.py" > /dev/null
+          ls -d "$RUNNER_TEMP/dist/Mini.app"
+
+      - name: Imza ne durumda
+        run: |
+          codesign -dv --verbose=4 "$RUNNER_TEMP/dist/Mini.app" 2>&1 \
+            | grep -Ei 'Identifier|Signature|Authority|TeamIdentifier|flags' || true
+
+      - name: Gatekeeper hukmu (uc hal)
+        run: |
+          APP="$RUNNER_TEMP/dist/Mini.app"
+          hukum() {
+            printf '%-26s ' "$1"
+            if spctl --assess --type execute "$APP" 2>"$RUNNER_TEMP/e.txt"; then
+              echo "KABUL"
+            else
+              echo "RED: $(tr -d '\n' < "$RUNNER_TEMP/e.txt" | sed "s|$APP||g")"
+            fi
+          }
+          hukum "1) karantinasiz"
+          xattr -w com.apple.quarantine \
+            "0083;$(printf '%x' "$(date +%s)");Safari;$(uuidgen)" "$APP"
+          echo "   nitelik: $(xattr "$APP" | tr '\n' ' ')"
+          hukum "2) karantinali (indirilmis)"
+          xattr -dr com.apple.quarantine "$APP"
+          echo "   nitelik: $(xattr "$APP" | tr '\n' ' ' || echo yok)"
+          hukum "3) xattr -dr sonrasi"
+
+      # Kullanicinin Terminal'den `python3 main.py` ile kosturmasi
+      # Gatekeeper'a HIC ugramiyor. Karsi kol: karantinali paketin ic
+      # ikilisi dogrudan exec edilince ne oluyor.
+      - name: Dogrudan exec (karsi kol)
+        run: |
+          APP="$RUNNER_TEMP/dist/Mini.app"
+          xattr -w com.apple.quarantine \
+            "0083;$(printf '%x' "$(date +%s)");Safari;$(uuidgen)" "$APP"
+          kod=0
+          out=$("$APP/Contents/MacOS/Mini" 2>&1) || kod=$?
+          echo "karantinali ic ikili: cikis $kod | cikti: $out"
+          xattr -dr com.apple.quarantine "$APP"
+          kod=0
+          out=$("$APP/Contents/MacOS/Mini" 2>&1) || kod=$?
+          echo "karantinasiz ic ikili: cikis $kod | cikti: $out"
