@@ -412,6 +412,9 @@ jobs:
           echo "cikis kodu: $kod | Page satiri: $(grep -c '^Page:' "$d/v2.txt")"
           head -8 "$d/v2.txt"
 
+      - name: SyncTeX symlink suphesi
+        run: bash .github/scripts/macos_synctex_tani.sh
+
       - name: derle.sh test paketi (macOS)
         env:
           QT_QPA_PLATFORM: offscreen
