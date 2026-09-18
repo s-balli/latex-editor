@@ -362,3 +362,74 @@ jobs:
           echo "cikis kodu: $kod"
           tail -25 "$RUNNER_TEMP/pt.txt"
           grep '^FAILED' "$RUNNER_TEMP/pt.txt" | head -20 || echo "(FAILED yok)"
+
+  # ----------------------------------------------------------------
+  # "Eksik paket" tavsiyesi macOS'ta NE OLMALI.
+  #
+  # Betik ve env_check kosulsuz `sudo apt-get install <debian-adi>` diyor.
+  # macOS'ta apt yok; TeX Live paketleri `tlmgr` ile geliyor ve adlari
+  # DEBIAN degil CTAN adlari (`texlive-latex-extra` tlmgr'de YOK).
+  #
+  # Dogru adlar tahmin edilmiyor, TeX Live'in KENDI veritabanina
+  # soruluyor. Dosya listesi derle.sh'ten okunuyor, teste kopyalanmiyor.
+  # ----------------------------------------------------------------
+  tlmgr:
+    runs-on: macos-15
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: BasicTeX kur
+        run: |
+          brew install --cask basictex
+          echo "/Library/TeX/texbin" >> "$GITHUB_PATH"
+
+      - name: Dosya adlari -> CTAN paketi
+        run: |
+          python3 - > "$RUNNER_TEMP/adlar.txt" <<'PY'
+          import re
+          k = open("core/derle.sh", encoding="utf-8").read()
+          m = re.search(r'\npaket_ara\(\) \{\n    case "\$1" in\n(.*?)\n    esac',
+                        k, re.S)
+          for desen, _ in re.findall(
+                  r'^        (\S+)\)\n +echo "([^"]+)" ;;', m.group(1), re.M):
+              for ad in desen.split("|"):
+                  print(ad)
+          PY
+          echo "sorulacak dosya: $(wc -l < "$RUNNER_TEMP/adlar.txt")"
+          while read -r ad; do
+            p=$(tlmgr search --global --file "/$ad" 2>/dev/null \
+                | grep -E '^[a-z0-9.-]+:$' | head -1 | tr -d ':')
+            printf '%-22s %s\n' "$ad" "${p:-BULUNAMADI}"
+          done < "$RUNNER_TEMP/adlar.txt"
+
+      - name: Babel dilleri -> CTAN paketi
+        run: |
+          python3 - > "$RUNNER_TEMP/diller.txt" <<'PY'
+          import re
+          k = open("core/derle.sh", encoding="utf-8").read()
+          m = re.search(r'\nbabel_ara\(\) \{\n    case "\$1" in\n(.*?)\n    esac',
+                        k, re.S)
+          for desen, _ in re.findall(
+                  r'^        (\S+)\)\n +echo "([^"]+)" ;;', m.group(1), re.M):
+              for ad in desen.split("|"):
+                  print(ad)
+          PY
+          while read -r dil; do
+            if tlmgr info "babel-$dil" >/dev/null 2>&1; then
+              printf '%-14s babel-%s\n' "$dil" "$dil"
+            else
+              p=$(tlmgr search --global --file "/$dil.ldf" 2>/dev/null \
+                  | grep -E '^[a-z0-9.-]+:$' | head -1 | tr -d ':')
+              printf '%-14s %s\n' "$dil" "${p:-BULUNAMADI}"
+            fi
+          done < "$RUNNER_TEMP/diller.txt"
+
+      - name: Arac paketleri
+        run: |
+          for a in biber latexmk pygmentize; do
+            p=$(tlmgr search --global --file "/$a" 2>/dev/null \
+                | grep -E '^[a-z0-9.-]+:$' | head -1 | tr -d ':')
+            printf '%-12s %s\n' "$a" "${p:-BULUNAMADI}"
+          done
+          echo "pandoc (brew): $(brew info --formula pandoc 2>/dev/null | head -1)"
