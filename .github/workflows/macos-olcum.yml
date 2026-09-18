@@ -280,6 +280,20 @@ jobs:
           done
           echo "tlmgr: $(tlmgr --version 2>&1 | head -1)"
 
+      # Test paketi TAM TeX Live ve Linux font yigini varsayiyor; BasicTeX
+      # minimal. Eksikleri kurmak, kalan dusen testlerin derle.sh kusuru mu
+      # yoksa ORTAM kapsami mi oldugunu AYIRT ETMEK icin. `DejaVu Serif`
+      # macOS'ta hic yok, brew ile geliyor.
+      - name: Testlerin bekledigi TeX paketleri ve fontlar
+        run: |
+          sudo tlmgr update --self || true
+          sudo tlmgr install glossaries mfirstuc xfor datatool substr \
+            tracklang nomencl imakeidx psnfss cm-super || true
+          brew install --cask font-dejavu || true
+          echo "kurulu fontlar (DejaVu):"
+          ls ~/Library/Fonts /Library/Fonts 2>/dev/null | grep -i dejavu | head -3 \
+            || echo "  YOK"
+
       - name: derle.sh ile GERCEK derleme
         run: |
           mkdir -p "$RUNNER_TEMP/p"
