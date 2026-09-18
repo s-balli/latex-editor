@@ -655,3 +655,92 @@ jobs:
           else
             echo "uygulama kurulmadi"
           fi
+
+  # ----------------------------------------------------------------
+  # YAYINLANAN .dmg'yi KULLANICININ YAPTIGI GIBI dene.
+  #
+  # Simdiye kadarki olcumler paketi URETIP inceledi; bu is yayindan
+  # INDIRIP kuruyor ve uygulamayi GERCEKTEN ACIYOR. Boylece yayin
+  # notundaki yonergenin tamami sinaniyor: indir, karantinayi kaldir,
+  # calistir.
+  #
+  # Indirme karantinasi ELLE takiliyor: `gh release download` tarayici
+  # olmadigi icin isareti koymuyor, oysa gercek kullanicida koyuluyor
+  # ve yonergenin varlik sebebi tam olarak o.
+  # ----------------------------------------------------------------
+  yayinlanan-dmg:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Yayindan .dmg indir
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          surum="$(grep VERSION core/version.py | cut -d'"' -f2)"
+          echo "surum: $surum"
+          gh release download "v$surum" --repo "${{ github.repository }}" \
+            --pattern '*_macOS_arm64.dmg' --dir "$RUNNER_TEMP"
+          ls -lh "$RUNNER_TEMP"/*.dmg | awk '{print "indirilen:", $5, $9}'
+
+      - name: BasicTeX kur (uygulamanin TeX'i bulmasi icin)
+        run: |
+          brew install --cask basictex
+          echo "/Library/TeX/texbin" >> "$GITHUB_PATH"
+
+      - name: .dmg'yi bagla ve Applications'a kur
+        run: |
+          dmg="$(ls "$RUNNER_TEMP"/*.dmg | head -1)"
+          nokta="$(hdiutil attach "$dmg" -nobrowse -readonly | tail -1 | awk '{print $NF}')"
+          echo "baglandi: $nokta"
+          ls "$nokta"
+          cp -R "$nokta/LaTeX Editor.app" /Applications/
+          hdiutil detach "$nokta" > /dev/null
+          echo "kuruldu: $(du -sh '/Applications/LaTeX Editor.app' | cut -f1)"
+
+      # Tarayicidan inen dosyada bu isaret VAR. Yonergenin sinandigi yer.
+      - name: Karantina isaretini tak ve yonergeyi uygula
+        run: |
+          APP="/Applications/LaTeX Editor.app"
+          xattr -w com.apple.quarantine \
+            "0083;$(printf '%x' "$(date +%s)");Safari;$(uuidgen)" "$APP"
+          echo "yonergeden ONCE: $(xattr "$APP" | paste -sd' ' -)"
+          printf 'spctl ONCE: '
+          spctl --assess --type execute "$APP" 2>&1 || true
+          xattr -dr com.apple.quarantine "$APP"
+          echo "yonergeden SONRA: $(xattr "$APP" | paste -sd' ' - || echo '(nitelik yok)')"
+
+      - name: Uygulamayi GERCEKTEN ac
+        run: |
+          APP="/Applications/LaTeX Editor.app"
+          kod=0
+          open -a "$APP" > "$RUNNER_TEMP/open.log" 2>&1 || kod=$?
+          echo "open cikis: $kod"
+          cat "$RUNNER_TEMP/open.log" || true
+          sleep 20
+          if pgrep -f "LaTeX Editor" > /dev/null; then
+            echo "SONUC: uygulama CALISIYOR (pid $(pgrep -f 'LaTeX Editor' | head -1))"
+          else
+            echo "SONUC: uygulama calismiyor"
+          fi
+
+      - name: Ekran goruntusu
+        run: |
+          screencapture -x "$RUNNER_TEMP/ekran.png" 2>&1 || echo "screencapture calismadi"
+          ls -lh "$RUNNER_TEMP/ekran.png" 2>/dev/null || echo "goruntu yok"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: macos-ekran-goruntusu
+          path: ${{ runner.temp }}/ekran.png
+          if-no-files-found: warn
+
+      - name: Uygulama gunlugu ne diyor
+        if: always()
+        run: |
+          gun="$HOME/Library/Application Support/LatexEditor"
+          ls -la "$gun" 2>/dev/null || echo "gunluk dizini yok: $gun"
+          find "$HOME/Library" -name "*.log" -path "*atex*" 2>/dev/null | head -3 \
+            | while read -r f; do echo "--- $f"; tail -20 "$f"; done
