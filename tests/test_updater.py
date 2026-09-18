@@ -414,3 +414,82 @@ class TestSatiraHizaliKirpma:
             monkeypatch,
             '{"tag_name": "v99.0.0", "body": "- tek madde", "html_url": "u"}')
         assert up.check_for_update(force=True)["kirpildi"] is False
+
+
+class TestCokSatirliMaddeKirpma:
+    r"""Kirpma MADDE sinirinda bitmeli, satir sinirinda degil.
+
+    `_satira_hizali_kirp` satir sinirinda kesiyordu. Surum notundaki
+    maddeler birden cok satira SARIYOR, yani satir siniri madde siniri
+    degil ve kullanici yine yarim madde goruyordu. Islevin kendi
+    gerekcesi zaten "kullanici maddeleri yarim goruyordu" idi; ayni
+    kusur bir kat yukarida suruyordu.
+
+    Yukaridaki TestSatiraHizaliKirpma bunu goremedi: orada maddeler TEK
+    SATIRLIK, yani kapinin verisi gercek veriden basitti.
+
+    OLCULDU (2026-09-18, v1.0.27'nin GERCEK yayin govdesi, GitHub API):
+        once : 10 maddenin 4'u, son satir "...lua-only packages" (yarim)
+        sonra: 10 maddenin 3'u, son satir "...nothing said why."  (tam)
+    """
+
+    # Gercek surum notunun sekli: madde basi `- `, devami girintili.
+    NOT = (
+        "- Birinci madde tek satir.\n"
+        "- Ikinci madde iki satira sariyor ve burada\n"
+        "  devam ediyor, iste boyle.\n"
+        "- Ucuncu madde de uzun ve\n"
+        "  birkac satir suruyor.\n"
+    )
+
+    def test_YARIM_madde_gosterilmiyor(self):
+        """Kesim maddenin ortasina denk gelirse o madde TAMAMEN duser."""
+        # Ikinci maddenin ilk satirindan sonrasina denk gelen bir tavan.
+        tavan = len("- Birinci madde tek satir.\n"
+                    "- Ikinci madde iki satira sariyor ve burada\n") + 5
+        kesik, kirpildi = _satira_hizali_kirp(self.NOT, tavan)
+        assert kirpildi is True
+        assert kesik == "- Birinci madde tek satir."
+
+    def test_TAM_madde_sinirinda_geri_sarilmiyor(self):
+        """Karsi kol: kesim zaten madde sinirindaysa madde kaybolmasin."""
+        tavan = len("- Birinci madde tek satir.\n"
+                    "- Ikinci madde iki satira sariyor ve burada\n"
+                    "  devam ediyor, iste boyle.\n")
+        kesik, _ = _satira_hizali_kirp(self.NOT, tavan)
+        assert kesik.count("- ") == 2, kesik
+        assert kesik.rstrip().endswith("iste boyle."), kesik
+
+    def test_GOSTERILEN_her_madde_TAM(self):
+        """Hangi tavanda olursa olsun yarim madde kalmamali."""
+        for tavan in range(20, len(self.NOT)):
+            kesik, _ = _satira_hizali_kirp(self.NOT, tavan)
+            if not kesik:
+                continue
+            # Son madde, tam metindeki karsiligiyla ayni bitmeli.
+            son_bas = kesik.rfind("- ")
+            son_madde = kesik[son_bas:]
+            assert son_madde in self.NOT, (tavan, repr(son_madde))
+            devami = self.NOT[self.NOT.index(son_madde) + len(son_madde):]
+            assert not devami.startswith("  "), (tavan, repr(son_madde))
+
+    def test_MADDESIZ_metinde_davranis_degismiyor(self):
+        """Karsi kol: duz metinde geri sarma her seyi silmemeli.
+
+        Madde yoksa geri sarma dongusu butun satirlari tuketir; o zaman
+        satir sinirindaki kesim korunuyor.
+        """
+        metin = "birinci satir\nikinci satir\nucuncu satir"
+        kesik, kirpildi = _satira_hizali_kirp(metin, 20)
+        assert kirpildi is True
+        assert kesik == "birinci satir", kesik
+
+    @pytest.mark.parametrize("isaret", ["- ", "* ", "+ ", "1. ", "2) "])
+    def test_FARKLI_madde_isaretleri(self, isaret):
+        """GitHub notlari `-` disinda isaret de kullanabiliyor."""
+        metin = (isaret + "ilk madde\n"
+                 + isaret + "ikinci madde uzun ve\n"
+                 "  devam ediyor.\n")
+        tavan = len(isaret + "ilk madde\n" + isaret + "ikinci madde uzun ve\n") + 3
+        kesik, _ = _satira_hizali_kirp(metin, tavan)
+        assert kesik == isaret + "ilk madde", kesik

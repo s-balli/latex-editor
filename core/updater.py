@@ -33,6 +33,9 @@ CACHE_INTERVAL = 86400  # 24 saat (saniye)
 # diyalog ekrandan tasar; kirpildiginda kullaniciya soyleniyor.
 _NOT_TAVANI = 1500
 _RE_BASLIK = re.compile(r"\s*#{1,6}\s")
+# Madde başlangıcı: `- `, `* `, `+ `, `1. `, `1) `. Devam satırları
+# (girintili sarma) BİLEREK eşleşmiyor; ayrım tam olarak bu.
+_RE_MADDE = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s")
 
 # In-memory cache — process içinde tekrar tekrar API çağrısı yapma
 _cached_result: Optional[dict] = None
@@ -76,11 +79,24 @@ def _extract_changelog(body: str) -> str:
 
 
 def _satira_hizali_kirp(metin: str, tavan: int) -> Tuple[str, bool]:
-    """Tavanı aşmayan, SATIR sınırında biten parça ve kırpıldı mı bilgisi.
+    """Tavanı aşmayan, MADDE sınırında biten parça ve kırpıldı mı bilgisi.
 
     Düz `metin[:tavan]` cümlenin ortasında kesiyordu; kullanıcı 13 maddenin
     ikisini yarım görüyor ve devamı olduğunu anlamıyordu. Tek bir satır bile
     tavandan uzunsa sert kesime düşülüyor, o zaman da kırpıldığı söyleniyor.
+
+    SATIR sınırı YETMİYOR: sürüm notundaki maddeler birden çok satıra
+    sarıyor, yani satır sınırı madde sınırı değil ve kullanıcı yine yarım
+    madde görüyordu.
+
+    ÖLÇÜLDÜ (2026-09-18, v1.0.27'nin GERÇEK yayın gövdesi, GitHub API):
+    2916 karakterlik nottan 1441'i gösteriliyor ve son gösterilen satır
+    "...Documents using lua-only packages" ile, yani cümlenin ortasında
+    bitiyordu; o maddenin üçüncü satırı düşüyordu.
+
+    Kesim bir maddenin ortasına denk gelirse o madde TAMAMEN düşüyor.
+    Madde olmayan düz metinde davranış değişmiyor: geri sarma hepsini
+    silecek olursa satır sınırındaki kesim korunuyor.
     """
     if len(metin) <= tavan:
         return metin, False
@@ -88,6 +104,19 @@ def _satira_hizali_kirp(metin: str, tavan: int) -> Tuple[str, bool]:
     son = kesik.rfind("\n")
     if son > 0:
         kesik = kesik[:son]
+    # Kesimden sonraki ilk satır yeni bir madde başlatmıyorsa, kesim bir
+    # maddenin ORTASINDADIR: o maddenin başına kadar geri sarılıyor.
+    kalan = metin[len(kesik):].lstrip("\n")
+    ilk_kalan = kalan.split("\n", 1)[0] if kalan else ""
+    if ilk_kalan and not _RE_MADDE.match(ilk_kalan):
+        satirlar = kesik.split("\n")
+        while satirlar and not _RE_MADDE.match(satirlar[-1]):
+            satirlar.pop()
+        if satirlar:
+            satirlar.pop()          # maddenin kendi ilk satırı da düşsün
+        aday = "\n".join(satirlar).rstrip()
+        if aday:                    # hepsini silmediyse
+            kesik = aday
     return kesik.rstrip(), True
 
 
