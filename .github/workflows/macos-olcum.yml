@@ -209,3 +209,37 @@ jobs:
           echo "--- notarization durumu ---"
           syspolicy_check notary-submission "$APP" 2>&1 | head -10 || true
           xattr -dr com.apple.quarantine "$APP"
+
+      # Betik 153. satirda oldugu icin Darwin'de geri kalan 827 satir HIC
+      # kosmadi. Kabuk uyumundan sonra ne cikacagini gormek icin GNU'ya
+      # ozgu oldugu bilinen kalan cagrilar tek tek olculuyor.
+      #
+      # En kritigi `grep "a\|b"`: `\|` bir GNU uzantisi. BSD'de duz metin
+      # olarak eslesirse "Rerun to get" hic yakalanmaz, ikinci gecis
+      # KOSMAZ ve \ref'ler belgede ?? olarak kalir. Hata da vermez.
+      - name: Kalan GNU bagliliklari (BSD userland)
+        run: |
+          echo "realpath  : $(command -v realpath || echo YOK)"
+          [ -n "$(command -v realpath)" ] && \
+            echo "            $(realpath core/derle.sh)"
+          printf 'Rerun to get cross-references right\n' > "$RUNNER_TEMP/a.txt"
+          printf 'Label(s) may have changed\n'           > "$RUNNER_TEMP/b.txt"
+          D='Rerun to get\|Label(s) may have changed'
+          for f in a b; do
+            if grep -q "$D" "$RUNNER_TEMP/$f.txt"; then
+              echo "grep \| ($f): ESLESTI"
+            else
+              echo "grep \| ($f): ESLESMEDI  <<< ikinci gecis kosmaz"
+            fi
+          done
+          echo "--- sed 255 (babel dili) ---"
+          echo "! Package babel Error: Unknown option 'turkish'." \
+            | sed -n "s/.*Unknown option '\([^']*\)'.*/\1/p"
+          echo "--- sed 850 (uyari sayaci) ---"
+          printf '   1 ilk uyari\n   3 ikinci uyari\n' \
+            | sed -E 's/^ *1 (.*)$/\1/; s/^ *([0-9]+) (.*)$/\2 (x\1)/'
+          echo "--- mktemp -d / find -mindepth ---"
+          d=$(mktemp -d) && echo "mktemp -d : $d"
+          mkdir -p "$d/alt/derin"
+          echo "find      : $(cd "$d" && find . -mindepth 1 -type d | tr '\n' ' ')"
+          rm -rf "$d"
