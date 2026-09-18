@@ -162,6 +162,11 @@ class _StubMain(StubMain):
     def _refresh_error_markers(self):
         pass
 
+    def _kagit_uyusmazligini_bildir(self, pdf_yolu):
+        # Kağıt denetimi ayrı dosyada sınanıyor (test_kagit_uyusmazligi.py);
+        # burada yalnız çağrıldığı için arayüzde olması yeterli.
+        pass
+
 
 def test_clears_stale_pdf_on_total_failure(tmp_path, qapp):
     """Başarısız + taze PDF yok → eski PDF temizlenir."""
