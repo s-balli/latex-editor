@@ -16,6 +16,16 @@ from gui.main_window import MainWindow
 from gui.single_instance import SingleInstance
 
 
+# macOS'ta Finder'dan açılan uygulama TeX'i GÖREMİYOR: PATH launchd'den
+# geliyor ve `/Library/TeX/texbin` orada yok (gerekçe ve ölçüm
+# core/paths.py'de). EN ERKEN burada çağrılıyor, çünkü hem ortam
+# denetimi (`shutil.which`) hem derleyici (QProcess çocuğu ortamı
+# devralıyor) PATH'i sonra okuyor.
+from core.paths import macos_path_tamamla                    # noqa: E402
+
+macos_path_tamamla()
+
+
 def _register_file_association():
     """Windows: .tex dosyalarını 'Birlikte Aç' listesine ekle."""
     if not getattr(sys, 'frozen', False):

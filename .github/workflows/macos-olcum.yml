@@ -364,18 +364,18 @@ jobs:
       # Dock'tan acilan bir `.app` launchd ortamini devraliyor, yani o yolu
       # HIC gormuyor.
       #
-      # Kaynaktan calistirmada sorun degil (Terminal giris kabugu). Ama
-      # `.dmg` yayinlandigi andan itibaren gercek: kullanici MacTeX kurulu
-      # oldugu halde "pdflatex kurulu degil" gorebilir.
-      #
       # Olcum uygulamanin KENDI arama mantigiyla (`shutil.which`), Finder'in
-      # verdigi asgari PATH altinda.
+      # verdigi asgari PATH altinda. IKI KOL: duzeltme (`macos_path_tamamla`)
+      # ONCE ve SONRA. Once dordu de BULUNAMADI olmali, sonra dordu de
+      # bulunmali; ikisi ayni cikarsa olcum bir sey ayirt etmiyor demektir.
       - name: Finder'dan acilan .app MacTeX'i buluyor mu
         run: |
           echo "giris kabugunda texbin girdisi: $(echo "$PATH" | tr ':' '\n' | grep -c texbin)"
           echo "pdflatex (giris kabugu)       : $(command -v pdflatex || echo YOK)"
-          echo "--- Finder'in verdigi asgari PATH ile ---"
+          echo "--- Finder'in asgari PATH'i, DUZELTMESIZ ---"
           env -i PATH=/usr/bin:/bin:/usr/sbin:/sbin HOME="$HOME" /usr/bin/python3 -c 'import shutil; [print("  %-9s %s" % (a, shutil.which(a) or "BULUNAMADI")) for a in ("pdflatex", "lualatex", "biber", "synctex")]'
+          echo "--- ayni PATH, macos_path_tamamla() ile ---"
+          env -i PATH=/usr/bin:/bin:/usr/sbin:/sbin HOME="$HOME" PYTHONPATH="$PWD" /usr/bin/python3 -c 'import shutil; from core.paths import macos_path_tamamla; macos_path_tamamla(); [print("  %-9s %s" % (a, shutil.which(a) or "BULUNAMADI")) for a in ("pdflatex", "lualatex", "biber", "synctex")]'
 
       - name: derle.sh test paketi (macOS)
         env:

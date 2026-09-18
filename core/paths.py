@@ -21,6 +21,79 @@ def clean_child_env() -> dict:
             if k not in ("LD_LIBRARY_PATH", "LD_PRELOAD")}
 
 
+# Homebrew kendini `/etc/paths.d`e YAZMIYOR; PATH'e kullanıcının profiline
+# eklediği `brew shellenv` satırıyla giriyor ve o da yalnız kabukta koşuyor.
+# pandoc ile biber buradan geliyor. İkisi de: Apple Silicon, sonra Intel.
+_MAC_EK_YOLLAR = ("/opt/homebrew/bin", "/usr/local/bin")
+
+
+def _paths_d_girdileri(kok: str = "") -> list:
+    """`/etc/paths` ve `/etc/paths.d/*` içindeki yollar, dosya sırasıyla.
+
+    macOS'un `path_helper`ı PATH'i tam olarak bu dosyalardan kuruyor;
+    burada yapılan onun okuduğu yerleri okumak. Böylece MacTeX'e özel bir
+    ad gömülmüyor: oraya kaydolan her araç (TeX Live, MacPorts, ...)
+    kendiliğinden geliyor.
+    """
+    import glob
+    yollar = []
+    for dosya in [kok + "/etc/paths"] + sorted(
+            glob.glob(kok + "/etc/paths.d/*")):
+        try:
+            with open(dosya, encoding="utf-8", errors="replace") as f:
+                for satir in f:
+                    s = satir.strip()
+                    if s and not s.startswith("#"):
+                        yollar.append(s)
+        except OSError:
+            continue
+    return yollar
+
+
+def macos_path_tamamla(ortam=None, kok: str = "") -> str:
+    r"""macOS'ta Finder'dan açılan uygulamanın PATH'ini tamamlar.
+
+    MacTeX ikilileri `/Library/TeX/texbin`de duruyor ve o yol PATH'e
+    `/etc/paths.d/TeX` üzerinden giriyor. O dosyaları `path_helper`
+    okuyor ve path_helper YALNIZ GİRİŞ KABUKLARINDA koşuyor. Finder'dan
+    ya da Dock'tan açılan bir `.app` launchd ortamını devralıyor, yani
+    PATH `/usr/bin:/bin:/usr/sbin:/sbin` oluyor ve TeX görünmüyor.
+
+    ÖLÇÜLDÜ (2026-09-18, macos-15 + BasicTeX, uygulamanın kendi arama
+    mantığıyla `shutil.which`):
+
+        giriş kabuğu                pdflatex -> /Library/TeX/texbin/pdflatex
+        Finder'ın asgari PATH'i     pdflatex, lualatex, biber, synctex
+                                    dördü de BULUNAMADI
+
+    Kullanıcı MacTeX'i kurmuş olduğu hâlde "pdflatex kurulu değil" görüyor.
+
+    Yollar SONA ekleniyor, başa değil: kullanıcının kendi PATH'indeki bir
+    araç gölgelenmesin. Terminal'den açılışta girdiler zaten PATH'te
+    olduğu için işlev hiçbir şey değiştirmiyor.
+
+    Yalnız var olan dizinler ekleniyor: olmayan bir yol PATH'i
+    şişirmekten başka bir şey yapmaz.
+    """
+    import sys
+    ortam = os.environ if ortam is None else ortam
+    mevcut = ortam.get("PATH", "")
+    if sys.platform != "darwin":
+        return mevcut
+    var = [p for p in mevcut.split(os.pathsep) if p]
+    eklenen = []
+    for yol in _paths_d_girdileri(kok) + list(_MAC_EK_YOLLAR):
+        tam = kok + yol if kok else yol
+        if yol and yol not in var and os.path.isdir(tam):
+            var.append(yol)
+            eklenen.append(yol)
+    yeni = os.pathsep.join(var)
+    ortam["PATH"] = yeni
+    if eklenen:
+        _logger.info("macOS PATH tamamlandi: %s", ", ".join(eklenen))
+    return yeni
+
+
 # \\wsl.localhost\Ubuntu\... veya \\wsl$\Ubuntu\...  (dağıtım adı yutulur)
 _RE_WSL_UNC = re.compile(r'^\\\\wsl(?:\$|\.localhost)\\[^\\]+(\\.*)?$', re.IGNORECASE)
 
