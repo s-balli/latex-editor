@@ -436,12 +436,18 @@ jobs:
         run: |
           python -m pip install --quiet -r desktop/requirements.txt pytest
           kod=0
-          python -m pytest tests/ -q --no-header -rs \
+          # -rf SART: yalniz -rs ile dusen testin ADI hicbir yerde yazilmiyor,
+          # ozet sadece "1 failed" diyor ve gunlukte iz kalmiyor (ilk kosuda
+          # boyle oldu). -rf kisa ozete FAILED satirlarini da koyuyor.
+          python -m pytest tests/ -q --no-header -rfs \
             > "$RUNNER_TEMP/pt.txt" 2>&1 || kod=$?
           echo "cikis kodu: $kod"
           tail -5 "$RUNNER_TEMP/pt.txt"
           echo "--- dusen testler ---"
           grep '^FAILED' "$RUNNER_TEMP/pt.txt" | head -40 || echo "(FAILED yok)"
+          echo "--- dusme ayrintisi ---"
+          sed -n '/ FAILURES /,/short test summary/p' "$RUNNER_TEMP/pt.txt" \
+            | head -80 || true
           echo "--- atlama gerekceleri (sebebe gore) ---"
           grep '^SKIPPED' "$RUNNER_TEMP/pt.txt" \
             | sed -E 's/^SKIPPED \[([0-9]+)\] [^ ]+ /\1|/' \
