@@ -65,10 +65,33 @@ def main(calisma, motor):
     print("sayfa boyu : %.2f x %.2f nokta (%.1f x %.1f mm)"
           % (gen, yuk, gen * 25.4 / 72, yuk * 25.4 / 72))
     print("sayfa      :", sayfa_sayisi)
-    print("kaynak satiri:", SATIR, "| ciktida bulunan:", len(bulunan))
-    print("KAYBOLAN   :", len(eksik))
-    if eksik:
-        print("  ilk eksikler:", eksik[:12])
+    print("kaynak satiri:", SATIR, "| ciktida CIKARILABILEN:", len(bulunan))
+    print("cikarilamayan:", len(eksik))
+
+    # ASIL OLCUT BU. Metnin cikarilabilir olmasi sayfada GORUNDUGU anlamina
+    # gelmiyor: sayfa kutusunun disina cizilen metin de icerik akisinda
+    # duruyor ve `get_text_bounded` onu yine veriyor. Ilk surumde olcut
+    # "cikarilabiliyor mu" idi ve gormesi gereken kusuru goremezdi.
+    # Burada karakter kutulari sayfa kutusuyla karsilastiriliyor.
+    belge = pdfium.PdfDocument(pdf)
+    tasan = 0
+    for i in range(sayfa_sayisi):
+        sayfa = belge[i]
+        _g, y = sayfa.get_size()
+        tp = sayfa.get_textpage()
+        kutular = [tp.get_charbox(k) for k in range(tp.count_chars())]
+        kutular = [k for k in kutular if k]
+        if not kutular:
+            continue
+        alt = min(k[1] for k in kutular)
+        ust = max(k[3] for k in kutular)
+        disarida = alt < 0 or ust > y
+        if disarida:
+            tasan += 1
+        print("  sayfa %d: metin %.1f .. %.1f | sayfa 0 .. %.1f%s"
+              % (i + 1, alt, ust, y, "   <-- SAYFA DISINDA" if disarida else ""))
+    belge.close()
+    print("SAYFA DISINA TASAN SAYFA:", tasan)
     return 0
 
 

@@ -10,7 +10,11 @@ from gui.editor import EditorWidget
 from core.engine_detector import can_compile as _can_compile, detect_engine as _detect_engine, detect_root as _detect_root
 from core.log_parser import resolve_error_path
 from core.log import get_logger
+from core.latex_utils import (
+    KAGIT_ADLARI, bildirilen_kagit, kagit_adi, kagit_eslesiyor_mu,
+)
 from core.paths import dizin_altinda_mi
+from gui.pdfium_lock import pdfium_lock
 from PyQt6.QtCore import QCoreApplication
 
 _ = lambda s: QCoreApplication.translate("CompileOpsMixin", s)
@@ -529,7 +533,61 @@ class CompileOpsMixin:
             self._output_panel.show_engine_hint(current, others)
 
         self._refresh_error_markers()
+        if pdf_shown:
+            self._kagit_uyusmazligini_bildir(result.pdf_path)
         self._maybe_auto_audit()
+
+    def _kagit_uyusmazligini_bildir(self, pdf_yolu: str):
+        r"""Belge bir kağıt bildirdiyse, üretilen PDF onunla uyuşuyor mu.
+
+        NEDEN. Standart sınıfların kağıt seçeneği metin bloğunu kuruyor ama
+        FİZİKSEL sayfayı belirlemiyor; onu TeX dağıtımının öntanımı veriyor.
+        Debian/Ubuntu A4'e, MacTeX US Letter'a ayarlı. ÖLÇÜLDÜ (2026-09-19,
+        aynı kaynak, aynı motor): `\documentclass[a4paper]{article}` Linux'ta
+        A4, macOS'ta US Letter çıkıyor. Belge A4 İSTEMİŞ ve almamış; üstelik
+        metin bloğu A4'e göre kurulduğu için sayfa 17.6 mm kısa kalıyor.
+
+        `geometry` yüklüyse belge sözünü geçiriyor, o yüzden çare de o:
+        mesaj paketi adıyla söylüyor. Kapı BİLDİRİM: kağıt zorla
+        değiştirilmiyor, çünkü Letter isteyen belgeler de var (IEEE
+        şablonları öyle) ve sessizce onları bozmak aynı kusurun tersi olurdu.
+
+        Ölçüt ÜRETİLEN PDF: "geometry yüklü mü" diye kaynağa bakmak dolaylı
+        olurdu ve `geometry`nin kağıdı gerçekten geçirdiğini varsayardı.
+        """
+        kaynak = getattr(self, "_compile_target", "")
+        if not kaynak or not os.path.isfile(kaynak):
+            return
+        try:
+            with open(kaynak, "r", encoding="utf-8", errors="replace") as f:
+                secenek = bildirilen_kagit(f.read())
+        except OSError:
+            return
+        if not secenek:
+            return
+        try:
+            import pypdfium2
+            with pdfium_lock:
+                belge = pypdfium2.PdfDocument(pdf_yolu)
+                try:
+                    genislik, yukseklik = belge[0].get_size()
+                finally:
+                    belge.close()
+        except Exception as e:                      # bozuk/kilitli PDF
+            _logger.debug("Kağıt boyu okunamadı: %s", e)
+            return
+        if kagit_eslesiyor_mu(secenek, genislik, yukseklik):
+            return
+        istenen = KAGIT_ADLARI.get(secenek, secenek)
+        cikan = kagit_adi(genislik, yukseklik)
+        _logger.warning("Kağıt uyuşmazlığı: belge %s istiyor, PDF %s",
+                        istenen, cikan)
+        self._output_panel.append_audit([], [(
+            _("Belge {istenen} istiyor ama PDF {cikan} çıktı. Kağıt boyunu "
+              "belgenin belirlemesi için \\usepackage[{secenek}]{{geometry}} "
+              "ekleyin.").format(istenen=istenen, cikan=cikan,
+                                 secenek=secenek),
+            kaynak, 1)])
 
     # --- Derleme sonrası otomatik referans denetimi (Derle menüsü anahtarı) ---
 

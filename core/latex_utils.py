@@ -259,3 +259,94 @@ def aksanlari_coz(metin: str) -> str:
     metin = _RE_AKSAN_NOKTALAMA.sub(_noktalama, metin)
     metin = _RE_AKSAN_HARF.sub(_harf, metin)
     return _RE_TEK_HARF.sub(_tek, metin)
+
+
+# --------------------------------------------------------------------------
+# Kağıt boyu: belgenin İSTEDİĞİ ile PDF'te ÇIKAN
+#
+# Standart sınıfların kağıt seçeneği metin bloğunu kuruyor ama FİZİKSEL
+# sayfayı belirlemiyor; onu TeX dağıtımının öntanımı veriyor. Debian/Ubuntu
+# TeX Live A4'e, MacTeX/BasicTeX US Letter'a ayarlı. ÖLÇÜLDÜ (2026-09-19,
+# aynı kaynak, aynı motor, iki platform):
+#
+#   \documentclass{article}              Linux A4   | macOS US Letter
+#   \documentclass[a4paper]{article}     Linux A4   | macOS US Letter  <-- (*)
+#   [a4paper] + \usepackage{geometry}    Linux A4   | macOS A4
+#   [letterpaper] + geometry             Linux Letter | macOS Letter
+#
+# (*) işaretli satır kusurun kendisi: belge A4 İSTEMİŞ, macOS'ta Letter
+# almış ve kimse bunu söylememiş. `geometry` yüklendiğinde belge sözünü
+# geçiriyor, yüklenmediğinde geçmiyor.
+#
+# Buradaki iki işlev saf: dosya açmıyor, pdfium'a dokunmuyor. Karşılaştırma
+# GUI tarafında yapılıyor (compile_ops), çünkü asıl sayfa boyutu üretilen
+# PDF'ten okunuyor.
+
+# Genişlik x yükseklik, NOKTA (1/72 inç). Adlar `\documentclass`
+# seçeneklerinde geçtiği gibi.
+KAGIT_SECENEKLERI = {
+    "a4paper": (595.276, 841.890),
+    "a5paper": (419.528, 595.276),
+    "b5paper": (498.898, 708.661),
+    "letterpaper": (612.0, 792.0),
+    "legalpaper": (612.0, 1008.0),
+    "executivepaper": (540.0, 720.0),
+}
+
+# İnsan okuru için kısa adlar.
+KAGIT_ADLARI = {
+    "a4paper": "A4",
+    "a5paper": "A5",
+    "b5paper": "B5",
+    "letterpaper": "US Letter",
+    "legalpaper": "US Legal",
+    "executivepaper": "US Executive",
+}
+
+_RE_SINIF_SECENEK = re.compile(r'\\documentclass\s*\[([^\]]*)\]')
+_KAGIT_TOLERANS = 2.0           # nokta; yuvarlama payı
+
+
+def bildirilen_kagit(metin: str) -> str | None:
+    """Belgenin `\\documentclass` seçeneklerinde bildirdiği kağıt adı.
+
+    Dönüş `KAGIT_SECENEKLERI` anahtarı ya da None (bildirmemiş).
+    Yorum satırları önce ayıklanıyor: yorumdaki eski bir `\\documentclass`
+    satırı gerçek olanın yerine geçmemeli.
+    """
+    m = _RE_SINIF_SECENEK.search(strip_comments(metin))
+    if not m:
+        return None
+    for ham in m.group(1).split(","):
+        ad = ham.strip().lower()
+        if ad in KAGIT_SECENEKLERI:
+            return ad
+    return None
+
+
+def kagit_eslesiyor_mu(secenek: str, genislik: float, yukseklik: float) -> bool:
+    """Ölçülen sayfa boyu bildirilen kağıda uyuyor mu.
+
+    Yatay (landscape) belgede kenarlar yer değiştirdiği için iki yön de
+    kabul ediliyor; yoksa `\\documentclass[a4paper,landscape]` yanlışlıkla
+    uyumsuz sayılırdı.
+    """
+    beklenen = KAGIT_SECENEKLERI.get(secenek)
+    if beklenen is None:
+        return True
+    bg, by = beklenen
+    duz = abs(genislik - bg) <= _KAGIT_TOLERANS and \
+        abs(yukseklik - by) <= _KAGIT_TOLERANS
+    yatay = abs(genislik - by) <= _KAGIT_TOLERANS and \
+        abs(yukseklik - bg) <= _KAGIT_TOLERANS
+    return duz or yatay
+
+
+def kagit_adi(genislik: float, yukseklik: float) -> str:
+    """Ölçülen boyutun bilinen kağıt adı; tanınmazsa milimetre olarak."""
+    for anahtar, (g, y) in KAGIT_SECENEKLERI.items():
+        for a, b in ((g, y), (y, g)):
+            if abs(genislik - a) <= _KAGIT_TOLERANS and \
+                    abs(yukseklik - b) <= _KAGIT_TOLERANS:
+                return KAGIT_ADLARI[anahtar]
+    return "%.0f x %.0f mm" % (genislik * 25.4 / 72, yukseklik * 25.4 / 72)
