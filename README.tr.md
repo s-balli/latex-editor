@@ -374,7 +374,7 @@ UPX kurulumu:
 
 UPX yoksa bat dosyası sıkıştırma olmadan normal exe oluşturur.
 
-Sonuç: `dist/LaTeX Editor.exe` (Windows) veya `dist/LaTeX Editor` (Linux/macOS)
+Sonuç: `dist/LaTeX Editor.exe`. Bu bölümün tamamı yalnız Windows içindir (`.bat` dosyaları, UPX `upx.exe`). Linux AppImage olarak paketleniyor, aşağıdaki [Linux](#linux) bölümüne bakın. macOS için paketlenmiş bir yapı henüz yok, kaynaktan çalıştırılıyor.
 
 #### Yöntem 2: Kaynak Koddan
 

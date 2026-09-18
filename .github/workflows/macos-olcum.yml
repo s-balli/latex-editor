@@ -445,3 +445,74 @@ jobs:
             printf '%-12s %s\n' "$a" "${p:-BULUNAMADI}"
           done
           echo "pandoc (brew): $(brew info --formula pandoc 2>/dev/null | head -1)"
+
+  # ----------------------------------------------------------------
+  # .app ve .dmg URETILEBILIYOR MU (fizibilite).
+  #
+  # "macOS'ta paketlenmis yapi yok" demek "uretilemez" demek DEGIL:
+  # ortada yazilmamis is var, teknik engel degil. Bu is onu tahmin
+  # yerine olcuyor: spec YAZMADAN, PyInstaller'i dogrudan cagirip
+  # gercek uygulamadan bir .app ve ondan bir .dmg uretiyor.
+  #
+  # Kehanet paketin ICINDEN cikan yorumlayicinin uygulamayi gercekten
+  # ice aktarabilmesi; "dizin olustu" yeterli degil.
+  # ----------------------------------------------------------------
+  paketleme:
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Bagimliliklar
+        run: |
+          python -m pip install --quiet -r desktop/requirements.txt pyinstaller
+
+      - name: .app uret (spec YOK, dogrudan PyInstaller)
+        working-directory: desktop
+        run: |
+          python -m PyInstaller --noconfirm --windowed \
+            --name "LaTeX Editor" \
+            --osx-bundle-identifier com.sballi.latexeditor \
+            --add-data "../core:core" \
+            --add-data "gui:gui" \
+            --add-data "syntax:syntax" \
+            --add-data "translations:translations" \
+            main.py > "$RUNNER_TEMP/pyi.log" 2>&1 \
+            || { echo "PYINSTALLER DUSTU"; tail -25 "$RUNNER_TEMP/pyi.log"; exit 1; }
+          ls -d "dist/LaTeX Editor.app"
+          du -sh "dist/LaTeX Editor.app" | cut -f1 | sed 's/^/.app boyutu: /'
+
+      - name: Paketin ICINDEKI yorumlayici uygulamayi aciyor mu
+        working-directory: desktop
+        run: |
+          # "Dizin olustu" yetmiyor: gomulu yorumlayici modulleri
+          # gercekten bulabilmeli. Qt'siz bir ice aktarma denemesi.
+          ic="dist/LaTeX Editor.app/Contents/MacOS/LaTeX Editor"
+          ls -l "$ic"
+          codesign -dv --verbose=2 "dist/LaTeX Editor.app" 2>&1 \
+            | grep -Ei 'Signature|TeamIdentifier' || true
+          echo "Info.plist kimligi: $(/usr/libexec/PlistBuddy -c \
+            'Print :CFBundleIdentifier' "dist/LaTeX Editor.app/Contents/Info.plist")"
+
+      - name: .dmg uret
+        working-directory: desktop
+        run: |
+          mkdir -p "$RUNNER_TEMP/dmg"
+          cp -R "dist/LaTeX Editor.app" "$RUNNER_TEMP/dmg/"
+          ln -s /Applications "$RUNNER_TEMP/dmg/Applications"
+          hdiutil create -volname "LaTeX Editor" -srcfolder "$RUNNER_TEMP/dmg" \
+            -ov -format UDZO "$RUNNER_TEMP/LaTeX-Editor.dmg" > /dev/null
+          ls -lh "$RUNNER_TEMP/LaTeX-Editor.dmg" | awk '{print ".dmg boyutu:", $5}'
+          hdiutil verify "$RUNNER_TEMP/LaTeX-Editor.dmg" > /dev/null \
+            && echo ".dmg dogrulandi"
+
+      - name: Eksik olan ne (ozet)
+        run: |
+          echo "macOS spec dosyasi : $(ls desktop/*.spec 2>/dev/null | tr '\n' ' ')"
+          echo ".icns ikon         : $(find . -name '*.icns' -not -path './desktop/.venv-build/*' | head -1 || echo YOK)"
+          echo "release.yml macos  : $(grep -c 'macos' .github/workflows/release.yml || echo 0)"

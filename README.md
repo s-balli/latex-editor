@@ -373,7 +373,7 @@ UPX installation:
 
 Without UPX, the bat file creates a normal exe without compression.
 
-Result: `dist/LaTeX Editor.exe` (Windows) or `dist/LaTeX Editor` (Linux/macOS)
+Result: `dist/LaTeX Editor.exe`. This entire section is Windows only (`.bat` files, UPX `upx.exe`). Linux is packaged as an AppImage, see [Linux](#linux) below. macOS has no packaged build yet, run it from source.
 
 #### Option 2: From Source
 
