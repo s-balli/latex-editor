@@ -30,6 +30,34 @@ _logger = get_logger("project_search")
 _SECIM_SINIRI = 100
 
 
+def _ayni_agacta(yol: str, kok: str) -> bool:
+    """`yol` gerçekten `kok`un altında mı; kararı DOSYA SİSTEMİ veriyor.
+
+    Yol dizgilerini karşılaştırmak yetmiyor, çünkü aynı dizin birden çok
+    yazımla gösterilebiliyor: harf duyarsız bir birimde `TEZ` ile `tez`,
+    sembolik bağ ya da kavşak varken iki ayrı yol. `os.path.samefile`
+    bunların hepsini dosya sisteminin kendi kimliğiyle (aygıt + inode)
+    cevaplıyor, yani platform tahmini gerekmiyor.
+
+    Dosyanın dizininden köke doğru yürünüyor; kök bulunursa içeride demek.
+    """
+    try:
+        if not os.path.isdir(kok):
+            return False
+        dizin = os.path.dirname(os.path.abspath(yol))
+        onceki = None
+        while dizin and dizin != onceki:
+            try:
+                if os.path.samefile(dizin, kok):
+                    return True
+            except OSError:                 # okunamayan/silinmiş ara dizin
+                pass
+            onceki, dizin = dizin, os.path.dirname(dizin)
+    except OSError:
+        return False
+    return False
+
+
 class ProjectSearchMixin:
 
     def _init_project_search(self):
@@ -98,9 +126,18 @@ class ProjectSearchMixin:
             ortak = os.path.commonpath(
                 [os.path.normcase(os.path.abspath(yol)), mutlak_kok])
         except ValueError:      # farklı sürücü (Windows)
-            return _("açık dosya bu klasörün dışında ({ad})").format(
-                ad=os.path.basename(yol))
+            ortak = None
         if ortak == mutlak_kok:
+            return ""
+        # Dizgi karşılaştırması "dışarıda" dedi; UYARMADAN ÖNCE dosya
+        # sistemine soruluyor. `normcase` harf duyarsızlığını yalnız
+        # Windows'ta çözüyor, POSIX'te kimlik işlevi; oysa macOS'un
+        # öntanımlı APFS birimi de harf DUYARSIZ, yani orada `.../TEZ` ile
+        # `.../tez` aynı dizin olduğu hâlde fonksiyon "dışarıda" diyordu.
+        # `samefile` platformdan bağımsız: harf duyarsızlığını da, sembolik
+        # bağı ve kavşağı da dosya sisteminin kendisi cevaplıyor. Yalnız bu
+        # kolda, yani uyarı verilecekken çalışıyor.
+        if _ayni_agacta(yol, kok):
             return ""
         return _("açık dosya bu klasörün dışında ({ad})").format(
             ad=os.path.basename(yol))

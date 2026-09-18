@@ -426,10 +426,20 @@ jobs:
       - name: SyncTeX symlink suphesi
         run: bash .github/scripts/macos_synctex_tani.sh
 
+      # Bagimliliklar BURADA kuruluyor, test adiminin icinde degil: tani
+      # adimlari da PyQt6 istiyor ve testten ONCE kosuyor. (Ilk denemede
+      # harf duyarsizligi tanisi "No module named 'PyQt6'" ile dustu ve
+      # is orada durdugu icin test takimi hic kosmadi.)
+      - name: Python bagimliliklari
+        run: |
+          # python-docx: uretilen .docx acilabiliyor mu kapisi icin (bkz. ci.yml)
+          python -m pip install --quiet -r desktop/requirements.txt pytest python-docx
+
       # HARF DUYARSIZLIGI. "Klasorde Ara"nin kok denetimi harf vakalarini
       # `os.name != "nt"` ile atliyor ve gerekce "POSIX'te farkli yazim farkli
       # dosyadir" diyor. macOS POSIX ama ONTANIMLI APFS birimi harf DUYARSIZ,
-      # yani o varsayim burada gecersiz olabilir. Kolu olcup yaziyor.
+      # yani o varsayim burada gecersiz olabilir. Uc kol yaziliyor: dosya
+      # sistemi duyarsiz mi, duzeltme kapaliyken ne oluyor, acikken ne oluyor.
       - name: Dosya sistemi harf duyarsiz mi (tani)
         env:
           QT_QPA_PLATFORM: offscreen
@@ -449,8 +459,6 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: |
-          # python-docx: uretilen .docx acilabiliyor mu kapisi icin (bkz. ci.yml)
-          python -m pip install --quiet -r desktop/requirements.txt pytest python-docx
           kod=0
           # -rf SART: yalniz -rs ile dusen testin ADI hicbir yerde yazilmiyor,
           # ozet sadece "1 failed" diyor ve gunlukte iz kalmiyor (ilk kosuda

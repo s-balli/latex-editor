@@ -841,6 +841,46 @@ class TestKokDisiHarfYazimi:
         uyari = s._kok_disinda_mi(kok.upper())
         assert uyari and "x.tex" in uyari
 
+    # --- macOS koşulu: duyarsız dosya sistemi + `normcase` KİMLİK işlevi
+
+    @pytest.mark.skipif(not _harf_duyarsiz_dosya_sistemi(),
+                        reason="dosya sistemi harf duyarlı, yazım farkı gerçekten başka dosya")
+    def test_normcase_KIMLIK_iken_de_uyari_yok(self, panel, tmp_path,
+                                               monkeypatch):
+        """macOS'ta iki koşul bir arada: duyarsız birim + etkisiz `normcase`.
+
+        Windows'ta `normcase` küçük harfe indiriyor ve kusuru O gizliyor;
+        POSIX'te kimlik işlevi. macOS'un öntanımlı APFS birimi harf duyarsız
+        olduğu için orada ikisi bir arada ve düzeltme hiçbir şey yapmıyordu.
+        Burada `normcase` kısırlaştırılıp aynı koşul kuruluyor: kapı Mac
+        olmadan da koşuyor. `_ayni_agacta` devre dışı bırakılırsa düşer.
+        """
+        monkeypatch.setattr(os.path, "normcase", lambda s: s)
+        kok = str(tmp_path / "Tez")
+        os.makedirs(os.path.join(kok, "bolumler"))
+        _yaz(os.path.join(kok, "bolumler"), "a.tex", "x\n")
+        dosya = os.path.join(kok, "bolumler", "a.tex")
+
+        s = self._stub(panel, kok, dosya)
+        assert s._kok_disinda_mi(kok.upper()) == ""
+        assert s._kok_disinda_mi(kok.lower()) == ""
+
+    @pytest.mark.skipif(not _harf_duyarsiz_dosya_sistemi(),
+                        reason="dosya sistemi harf duyarlı, yazım farkı gerçekten başka dosya")
+    def test_normcase_KIMLIK_iken_GERCEKTEN_disarisi_yine_uyariyor(
+            self, panel, tmp_path, monkeypatch):
+        """Karşı kol: dosya sistemine sormak uyarıyı yutmamalı."""
+        monkeypatch.setattr(os.path, "normcase", lambda s: s)
+        kok = str(tmp_path / "Tez")
+        os.makedirs(kok)
+        disarida = str(tmp_path / "Baska" / "x.tex")
+        os.makedirs(os.path.dirname(disarida))
+        _yaz(os.path.dirname(disarida), "x.tex", "x\n")
+
+        s = self._stub(panel, kok, disarida)
+        uyari = s._kok_disinda_mi(kok.upper())
+        assert uyari and "x.tex" in uyari
+
     # --- platformdan bağımsız: düzeltme bunları bozmamalı
 
     def test_kardes_klasor_hala_disarisi_sayiliyor(self, panel, tmp_path):
