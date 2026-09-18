@@ -1,5 +1,6 @@
 """SyncTeX bridge — ileri/geri arama via synctex CLI."""
 
+import os
 import subprocess
 import sys
 from dataclasses import dataclass
@@ -199,8 +200,33 @@ def _forward_wsl(tex_path: str, line: int, col: int, pdf_path: str,
         return ARAC_YOK
 
 
+def _gercek_yol(yol: str) -> str:
+    r"""Sembolik bağları çözülmüş yol.
+
+    macOS'ta `/tmp` ve `/var` birer sembolik bağ (`/private/...`).
+    Derleyici belgeyi bir yol biçimiyle kaydediyor, `synctex` öteki
+    biçimle sorulunca ADI EŞLEŞTİREMİYOR ve BOŞ dönüyor: hata yok,
+    çıkış kodu 0, sonuç yok.
+
+    ÖLÇÜLDÜ (2026-09-18, macos-15, aynı belge aynı komutla, yalnız yol
+    biçimi değişerek):
+
+        /var/folders/.../tmp.X        Page satiri: 0   (bulamiyor)
+        /private/var/folders/.../X    Page satiri: 1   (buluyor)
+
+    Linux'ta ve Windows'ta sembolik bağ yoksa işlev hiçbir şey
+    değiştirmiyor; çözülemeyen yol olduğu gibi dönüyor.
+    """
+    try:
+        return os.path.realpath(yol)
+    except OSError:                   # pragma: no cover
+        return yol
+
+
 def _forward_native(tex_path: str, line: int, col: int, pdf_path: str,
                     synctex_dir: str = "") -> ForwardResult | None:
+    tex_path = _gercek_yol(tex_path)
+    pdf_path = _gercek_yol(pdf_path)
     cmd = ["synctex", "view",
            "-i", f"{line}:{col}:{tex_path}",
            "-o", pdf_path]
@@ -263,6 +289,7 @@ def _reverse_wsl(page: int, x: float, y: float, pdf_path: str,
 
 def _reverse_native(page: int, x: float, y: float, pdf_path: str,
                     synctex_dir: str = "") -> ReverseResult | None:
+    pdf_path = _gercek_yol(pdf_path)
     cmd = ["synctex", "edit",
            "-o", f"{page}:{x:f}:{y:f}:{pdf_path}"]
     if synctex_dir:

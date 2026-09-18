@@ -168,3 +168,74 @@ def test_AYRI_DIZIN_bayragi_olmadan_bulunamiyor(compiled):
 
     assert forward_search(tex, TARGET_LINE, 1, pdf, "") is None, \
         "-d olmadan da bulundu: bayrak yük taşımıyor ya da .gz hâlâ yanında"
+
+
+# --- Sembolik bagli yol (macOS: /var -> /private/var) ---
+
+
+class TestSembolikBagliYol:
+    r"""Proje sembolik bag altindaysa SyncTeX calismali.
+
+    macOS'ta `/tmp` ve `/var` birer sembolik bag (`/private/...`) ve
+    gecici dizinler orada duruyor. Derleyici belgeyi bir yol bicimiyle
+    kaydediyor; `synctex` oteki bicimle sorulunca ADI ESLESTIREMIYOR ve
+    BOS donuyor. Hata yok, cikis kodu 0, sonuc yok.
+
+    OLCULDU (2026-09-18, macos-15, ayni belge ayni komutla, yalniz yol
+    bicimi degiserek):
+
+        /var/folders/.../tmp.X       Page satiri: 0   (bulamiyor)
+        /private/var/folders/.../X   Page satiri: 1   (buluyor)
+
+    Bes canli SyncTeX testinin besi de macOS'ta bu yuzden dusuyordu.
+
+    Kapi Linux'ta da anlamli: kullanici projesini sembolik bag altinda
+    tutabiliyor. Burada bag ELLE kuruluyor, yani platformdan bagimsiz.
+    """
+
+    def test_BAG_altindaki_projede_ileri_arama_calisiyor(self, compiled,
+                                                         tmp_path):
+        tex, pdf, synctex_dir = compiled
+        gercek_dizin = os.path.dirname(tex)
+        bag = tmp_path / "bagli"
+        try:
+            os.symlink(gercek_dizin, bag)
+        except (OSError, NotImplementedError):
+            pytest.skip("sembolik bag kurulamiyor")
+
+        bagli_tex = os.path.join(str(bag), os.path.basename(tex))
+        bagli_pdf = os.path.join(str(bag), os.path.basename(pdf))
+        sonuc = forward_search(bagli_tex, TARGET_LINE, 1, bagli_pdf,
+                               synctex_dir)
+        assert sonuc is not None, "bagli yolda forward_search bos dondu"
+        assert sonuc.page >= 1
+
+    def test_BAGSIZ_yol_da_calismaya_devam_ediyor(self, compiled):
+        """Karsi kol: cozme, calisan yolu bozmamali."""
+        tex, pdf, synctex_dir = compiled
+        sonuc = forward_search(tex, TARGET_LINE, 1, pdf, synctex_dir)
+        assert sonuc is not None
+        assert sonuc.page >= 1
+
+    def test_COZME_ISLEVI_bagi_gercekten_aciyor(self, tmp_path):
+        """Islevin kendisi: bag verilince hedefi donmeli.
+
+        `synctex` cagirmiyor, yani TeX kurulu olmayan yerde de kosuyor.
+        """
+        from gui.synctex import _gercek_yol
+
+        hedef = tmp_path / "hedef"
+        hedef.mkdir()
+        bag = tmp_path / "bag"
+        try:
+            os.symlink(hedef, bag)
+        except (OSError, NotImplementedError):
+            pytest.skip("sembolik bag kurulamiyor")
+        assert _gercek_yol(str(bag)) == os.path.realpath(str(hedef))
+
+    def test_COZULEMEYEN_yol_oldugu_gibi_donuyor(self):
+        """Var olmayan yol istisna atmamali; synctex kendi hatasini versin."""
+        from gui.synctex import _gercek_yol
+
+        yok = os.path.join("olmayan_dizin_12345", "yok.tex")
+        assert _gercek_yol(yok)
