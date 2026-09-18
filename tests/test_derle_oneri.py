@@ -53,27 +53,44 @@ def _eksik_paket_goster(cikti: str) -> str:
     return r.stdout
 
 
+# Beklenen paket adı PLATFORMA bağlı: macOS'ta apt yok, TeX Live
+# paketleri CTAN adıyla ve Pygments pip ile geliyor. Debian adını orada
+# beklemek, kullanıcıya yanlış ad göstermeyi test etmek olurdu.
+_MAC = sys.platform == "darwin"
+
+
 def test_missing_pygments_python3_pygments_onerir():
     """minted.sty kurulu ama pygmentize yok: 'Missing Pygments output'
-    hatasına python3-pygments kurulum önerisi eşlik etmeli."""
+    hatasına Pygments kurulum önerisi eşlik etmeli."""
     out = _eksik_paket_goster(
         "! Package minted Error: Missing Pygments output; "
         "\\input{_minted-ana/default.pyg} failed.\n"
     )
-    assert "Eksik paket: python3-pygments" in out
-    assert "sudo apt-get install python3-pygments" in out
+    if _MAC:
+        assert "Eksik paket: Pygments" in out
+        assert "pip3 install Pygments" in out
+    else:
+        assert "Eksik paket: python3-pygments" in out
+        assert "sudo apt-get install python3-pygments" in out
 
 
 def test_pygments_mesaji_yoksa_oneri_cikmaz():
     out = _eksik_paket_goster("[basarili] test.pdf guncellendi\n")
-    assert "python3-pygments" not in out
+    assert "ygments" not in out
 
 
 def test_minted_sty_eksikse_harita_onerisi_calisir():
     """Ayıklama zincirinin sağlamı: mevcut .sty eksikliği yolu örnek senaryo."""
     out = _eksik_paket_goster("! LaTeX Error: File `minted.sty' not found.\n")
-    assert "Eksik paket: texlive-latex-extra" in out
-    assert "python3-pygments" in out
+    if _MAC:
+        # macOS'ta CTAN adı `minted`. Pygments gereksinimi burada değil,
+        # "Missing Pygments output" kolunda bildiriliyor (o kol gerçekten
+        # ısırdığında); Debian haritası ikisini tek dizede topluyor.
+        assert "Eksik paket: minted" in out
+        assert "sudo tlmgr install minted" in out
+    else:
+        assert "Eksik paket: texlive-latex-extra" in out
+        assert "python3-pygments" in out
 
 
 class TestPaketYoneticisiPlatforma_Gore:

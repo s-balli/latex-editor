@@ -5,6 +5,7 @@ import re
 import shutil
 import signal
 import subprocess
+import sys
 import threading
 import time
 import pytest
@@ -817,8 +818,13 @@ class TestSozlukVeSimge:
         # Önceden araç adı yazılıydı ve `log_parser` onu "Eksik paket:
         # makeglossaries" diye Öneriler sekmesine koyuyordu; apt'de öyle
         # bir paket yok (2026-09-15).
-        assert ("Eksik paket: texlive-latex-extra" in r.stdout) \
-            is uyari_bekleniyor
+        #
+        # Beklenen ad PLATFORMA bağlı: macOS'ta apt yok ve TeX Live
+        # paketi CTAN adıyla geliyor (`glossaries`). Debian adını orada
+        # beklemek, kullanıcıya yanlış ad göstermeyi test etmek olurdu.
+        paket = ("glossaries" if sys.platform == "darwin"
+                 else "texlive-latex-extra")
+        assert ("Eksik paket: %s" % paket in r.stdout) is uyari_bekleniyor
         assert ("makeglossaries" in r.stdout) is uyari_bekleniyor
 
 
