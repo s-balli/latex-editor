@@ -377,6 +377,31 @@ jobs:
           echo "--- ayni PATH, macos_path_tamamla() ile ---"
           env -i PATH=/usr/bin:/bin:/usr/sbin:/sbin HOME="$HOME" PYTHONPATH="$PWD" /usr/bin/python3 -c 'import shutil; from core.paths import macos_path_tamamla; macos_path_tamamla(); [print("  %-9s %s" % (a, shutil.which(a) or "BULUNAMADI")) for a in ("pdflatex", "lualatex", "biber", "synctex")]'
 
+      # SYNCTEX NEDEN DUSUYOR. Bes canli test de macOS'ta dustu ve
+      # `forward_search` None donuyor. Uc aday: `.synctex.gz` hic
+      # uretilmiyor, `synctex` ikilisi bulunamiyor, ya da cikti
+      # ayristirilamiyor. Uctan ucune tek tek bakiliyor.
+      - name: SyncTeX tanisi
+        run: |
+          d="$RUNNER_TEMP/sync"
+          mkdir -p "$d"
+          printf '%s\n' \
+            '\documentclass{article}' \
+            '\begin{document}' \
+            'birinci satir' \
+            '' \
+            'ikinci satir' \
+            '\end{document}' > "$d/s.tex"
+          echo "synctex ikilisi : $(command -v synctex || echo YOK)"
+          /bin/bash core/derle.sh "$d/s.tex" > "$d/derle.log" 2>&1 || true
+          echo "uretilen dosyalar:"
+          ls -la "$d" | awk '{print "   ", $5, $9}'
+          echo "--- synctex view ciktisi (ham) ---"
+          kod=0
+          synctex view -i "5:1:$d/s.tex" -o "$d/s.pdf" > "$d/view.txt" 2>&1 || kod=$?
+          echo "cikis kodu: $kod"
+          head -20 "$d/view.txt"
+
       - name: derle.sh test paketi (macOS)
         env:
           QT_QPA_PLATFORM: offscreen
