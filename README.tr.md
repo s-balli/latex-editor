@@ -598,6 +598,7 @@ Araç çubuğundaki açılır menüden motor seçilir:
 |-------|----------|
 | **lualatex** (varsayılan) | Makaleler, genel belgeler. Yüksek font kalitesi, Overleaf uyumlu |
 | **pdflatex** | ASYU/IEEE şablonları, Beamer sunumları |
+| **xelatex** | `xeCJK`, `mathspec` ya da `xltxtra` gerektiren belgeler. Uygulama bu paketlerden birini ya da `% !TEX program = xelatex` satırını görünce motoru kendiliğinden seçer |
 
 #### Ne Zaman pdflatex Kullanmalı?
 

@@ -597,6 +597,7 @@ Select engine from toolbar dropdown:
 |--------|----------|
 | **lualatex** (default) | Articles, general documents. High font quality, Overleaf-compatible |
 | **pdflatex** | ASYU/IEEE templates, Beamer presentations |
+| **xelatex** | Documents that need `xeCJK`, `mathspec` or `xltxtra`. The app selects it on its own when it sees one of those packages or a `% !TEX program = xelatex` line |
 
 #### When to Use pdflatex?
 

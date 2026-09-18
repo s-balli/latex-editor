@@ -378,3 +378,32 @@ def test_README_requirements_dosyasini_GOSTERIYOR(ad):
         f"{ad}: requirements.txt'e işaret eden {len(satirlar)} pip satırı var, "
         "dört bekleniyor (Windows, Linux, macOS, Anaconda notu)"
     )
+
+
+@pytest.mark.parametrize("ad", _READMELER)
+def test_README_motor_tablosu_ARAC_CUBUGUYLA_ayni(ad):
+    """Araç çubuğunun sunduğu her motorun README'de bir satırı olmalı.
+
+    "Motor Seçimi" tablosu "Araç çubuğundaki açılır menüden motor seçilir"
+    diyip İKİ motor sayıyordu; menüde ÜÇ var. `xelatex` v1.0.6'da üçüncü
+    motor olarak eklenmiş, sürüm notuna ve Özellikler listesine yazılmış
+    ("Triple engine support"), ama kullanıcının motor seçerken baktığı
+    tabloya girmemişti. XeLaTeX gerektiren bir belgeyle gelen kullanıcı
+    tabloya bakıp uygulamanın iki motoru olduğu sonucuna varıyordu.
+
+    Kehanet ARAÇ ÇUBUĞU: liste iki README'den değil, uygulamanın kendi
+    `addItems` satırından okunuyor. Motor eklenir de tablolar unutulursa
+    kapı düşer.
+    """
+    kaynak = os.path.join(_ROOT, "desktop", "gui", "main_window.py")
+    with open(kaynak, encoding="utf-8") as f:
+        m = re.search(r"_engine_combo\.addItems\(\[([^\]]*)\]\)", f.read())
+    assert m, "araç çubuğundaki motor listesi bulunamadı"
+    motorlar = re.findall(r'"([^"]+)"', m.group(1))
+    assert len(motorlar) >= 2, motorlar
+
+    with open(os.path.join(_ROOT, ad), encoding="utf-8") as f:
+        metin = f.read()
+    eksik = [mo for mo in motorlar if ("| **%s**" % mo) not in metin]
+    assert not eksik, (
+        f"{ad}: araç çubuğunda olan şu motorların tabloda satırı yok: {eksik}")
