@@ -689,6 +689,18 @@ jobs:
           brew install --cask basictex
           echo "/Library/TeX/texbin" >> "$GITHUB_PATH"
 
+      # BasicTeX `/etc/paths.d`ye kaydoluyor mu. `macos_path_tamamla()`
+      # tam olarak orayi okuyor; kaydolmuyorsa duzeltme BasicTeX'i
+      # bulamaz ve "PATH tamamlandi" satirinda texbin gorunmez.
+      - name: TeX kendini /etc/paths.d'ye yaziyor mu
+        run: |
+          echo "/etc/paths.d icerigi:"
+          for f in /etc/paths.d/*; do
+            [ -f "$f" ] && echo "   $(basename "$f"): $(cat "$f" | paste -sd' ' -)"
+          done
+          echo "texbin dizin mi : $([ -d /Library/TeX/texbin ] && echo EVET || echo HAYIR)"
+          echo "texbin gercek   : $(readlink /Library/TeX/texbin 2>/dev/null || echo '(baglanti degil)')"
+
       - name: .dmg'yi bagla ve Applications'a kur
         run: |
           dmg="$(ls "$RUNNER_TEMP"/*.dmg | head -1)"
