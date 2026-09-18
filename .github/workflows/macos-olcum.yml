@@ -614,14 +614,29 @@ jobs:
       # ayni cikarsa olcum bir sey ayirt etmiyor demektir. Cikti
       # BASTIRILMIYOR: onceki kosuda gizlenmisti ve adim neden dustugu
       # gorunmuyordu.
-      - name: --no-quarantine ile fark var mi (karsi kol)
+      # KARSI KOL: karantinayi kaldirmanin Homebrew ICINDE bir yolu var mi.
+      # `--no-quarantine` OLCULDU ve YOK: "invalid option". Homebrew onu
+      # kaldirmis. Burada hangi mekanizmanin kaldigi araniyor; hicbiri
+      # yoksa cask `.dmg` indirmeye gore ek bir kolaylik SAGLAMIYOR ve
+      # kullanici yine `xattr` yazmak zorunda.
+      - name: Karantinayi kaldirmanin Homebrew ici yolu var mi
         run: |
-          APP="/Applications/LaTeX Editor.app"
-          brew uninstall --cask deneme/yerel/latex-editor-deneme 2>&1 | tail -2
+          echo "brew surumu: $(brew --version | head -1)"
+          printf 'install --cask secenekleri icinde quarantine: '
+          brew install --help 2>&1 | grep -i quarantine || echo "YOK"
+          printf 'HOMEBREW_CASK_OPTS belgede: '
+          brew --env 2>&1 | grep -i cask_opts || echo "(env ciktisinda yok)"
+          echo "--- HOMEBREW_CASK_OPTS ile deneme ---"
+          brew uninstall --cask deneme/yerel/latex-editor-deneme 2>&1 | tail -1
           kod=0
-          brew install --cask --no-quarantine             deneme/yerel/latex-editor-deneme > "$RUNNER_TEMP/nq.log" 2>&1 || kod=$?
+          HOMEBREW_CASK_OPTS="--no-quarantine"             brew install --cask deneme/yerel/latex-editor-deneme             > "$RUNNER_TEMP/nq.log" 2>&1 || kod=$?
           echo "brew cikis: $kod"
-          tail -5 "$RUNNER_TEMP/nq.log"
-          echo "nitelikler (--no-quarantine): $(xattr "$APP" 2>/dev/null | tr -d '\r' | paste -sd' ' -)"
-          printf 'spctl: '
-          spctl --assess --type execute "$APP" 2>&1 || true
+          tail -3 "$RUNNER_TEMP/nq.log"
+          APP="/Applications/LaTeX Editor.app"
+          if [ -d "$APP" ]; then
+            echo "nitelikler: $(xattr "$APP" 2>/dev/null | paste -sd' ' -)"
+            printf 'spctl: '
+            spctl --assess --type execute "$APP" 2>&1 || true
+          else
+            echo "uygulama kurulmadi"
+          fi
