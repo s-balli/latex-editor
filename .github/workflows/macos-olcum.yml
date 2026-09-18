@@ -1,0 +1,103 @@
+name: macOS olcum
+
+# BILGI AMACLI OLCUM, KAPI DEGIL.
+#
+# macOS desteklenen bir hedef DEGIL: ne spec'i, ne .icns ikonu, ne release
+# isi var. Buna ragmen README macOS kurulum adimlari veriyor. Bu akis
+# "calisiyor mu" sorusunu GERCEK Apple Silicon uzerinde cevapliyor.
+#
+# Ayri bir dosyada ve elle tetiklenir: ci.yml'in dort isi (test 3.10,
+# test 3.12, test-windows, derle) her push'ta kosuyor ve YESIL kalmasi
+# gerekiyor. Bilinen kusurlari OLCEN bir is onlarin yanina kirmizi
+# olarak oturmamali.
+#
+# Neden CI: elde Mac yok. GitHub'in macos-14/15 kosucusu arm64 Apple
+# Silicon ve genel depolarda bedava, yani gercek donanimda olcum alinabilir.
+#
+# TeX KURULMUYOR (MacTeX ~5 GB). Gerek de yok: derle.sh macOS'un
+# /bin/bash'inde LaTeX'e sira gelmeden, ilk `declare -A` satirinda
+# duruyor. TeX'e bagli testler kendiliginden skip olur.
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  olcum:
+    runs-on: macos-15          # arm64 Apple Silicon (macos-13 Intel'dir)
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Tanitim sayfasi kapisi git tarihini okuyor (bkz.
+          # tests/test_install_lists.py).
+          fetch-depth: 0
+
+      - name: Ortam
+        run: |
+          sw_vers
+          echo "mimari      : $(uname -m)"
+          echo "/bin/bash   : $(/bin/bash --version | head -1)"
+          echo "PATH'teki sh: $(command -v bash)"
+          echo "pdflatex    : $(command -v pdflatex || echo YOK)"
+          echo "texbin      : $(ls -d /Library/TeX/texbin 2>/dev/null || echo YOK)"
+
+      # Docker'daki bash:3.2 imaji Alpine tabanli (musl + BusyBox), yani
+      # dil ozelliklerini olcuyor ama Darwin'in userland'ini OLCMUYOR.
+      # `stat` maddesi yalniz BSD belgesine dayanan TAHMINDI; burada
+      # olculuyor.
+      - name: Kabuk dili ve BSD araclari
+        run: |
+          printf '%s\n' \
+            'EXT=TEX' \
+            'harf=c' \
+            'if declare -A m 2>/dev/null; then echo "declare -A : CALISIYOR"; else echo "declare -A : DUSTU"; fi' \
+            'if ( eval "v=\${EXT,,}" ) 2>/dev/null; then echo "kucultme   : CALISIYOR"; else echo "kucultme   : DUSTU"; fi' \
+            'if ( eval "v=\${harf^^}" ) 2>/dev/null; then echo "buyutme    : CALISIYOR"; else echo "buyutme    : DUSTU"; fi' \
+            > "$RUNNER_TEMP/probe.sh"
+          /bin/bash "$RUNNER_TEMP/probe.sh" || true
+          echo "stat -c %Y : $(stat -c %Y core/derle.sh 2>&1 | head -1)"
+          echo "stat -f %m : $(stat -f %m core/derle.sh 2>&1 | head -1)"
+
+      - name: derle.sh macOS'un /bin/bash'i ile kosuyor mu
+        run: |
+          printf '%s\n' \
+            '\documentclass{article}' \
+            '\begin{document}' \
+            'deneme' \
+            '\end{document}' > "$RUNNER_TEMP/deneme.tex"
+          kod=0
+          /bin/bash core/derle.sh "$RUNNER_TEMP/deneme.tex" \
+            > "$RUNNER_TEMP/cikti.txt" 2>&1 || kod=$?
+          echo "cikis kodu: $kod"
+          echo "--- ciktinin ilk 20 satiri ---"
+          head -20 "$RUNNER_TEMP/cikti.txt" || true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          # release.yml'deki paketleme isleriyle AYNI surum
+          python-version: '3.12'
+
+      # arm64 tekerlekleri GERCEKTEN var mi. `pip install` basarili gorunup
+      # Qt yuklenemeyebilir (Windows isinde birebir yasandi), o yuzden
+      # import onden patlatiliyor.
+      - name: Bagimliliklar arm64'te kuruluyor mu
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r desktop/requirements.txt pytest
+          python -c "import platform; print('python mimarisi:', platform.machine())"
+          python -c "import PyQt6.QtWidgets, PyQt6.Qsci, pypdfium2, PIL, send2trash, dulwich, spylls; print('import: ok')"
+
+      - name: Testler (bilgi amacli)
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          kod=0
+          python -m pytest tests/ -q --no-header > "$RUNNER_TEMP/pytest.txt" 2>&1 || kod=$?
+          echo "pytest cikis kodu: $kod"
+          tail -40 "$RUNNER_TEMP/pytest.txt"
+          echo "--- dusen testler ---"
+          grep '^FAILED' "$RUNNER_TEMP/pytest.txt" | head -40 || echo "(FAILED satiri yok)"
