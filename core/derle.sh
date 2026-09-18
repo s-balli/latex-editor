@@ -177,6 +177,12 @@ eksik_paket_bildir() {
         printf "${MAVI2}==> Eksik paket: %s \(%s\)${SIFIRLA}\n" "$2" "$1"
         printf "${MAVI2}    sudo apt-get install %s${SIFIRLA}\n" "$2"
     fi
+    # $5 (istege bagli): paket adiyla anlatilamayan ek gereksinim.
+    # KOMUTUN DISINDA duruyor, cunku komuta karisirsa komut kirilir;
+    # minted'de tam olarak bu olmustu.
+    if [ -n "${5:-}" ]; then
+        printf "${MAVI2}    (%s)${SIFIRLA}\n" "$5"
+    fi
 }
 
 # Eksik dosya → paket eşleme tablosu
@@ -216,8 +222,37 @@ paket_ara() {
             echo "texlive-bibtex-extra" ;;
         ascmac.sty|okumacro.sty|bxjscls.cls)
             echo "texlive-lang-japanese" ;;
+    # minted IKI paket birden istiyor ve ikisi de GERCEK apt paketi.
+    #
+    # Once "texlive-latex-extra + python3-pygments + -shell-escape"
+    # yaziyordu. Bu bir paket adi degil, insana yonelik bir gereksinim
+    # listesiydi; `sudo apt-get install` ile birlesince apt komutun
+    # TAMAMINI reddediyordu ve hicbir sey kurulmuyordu.
+    #
+    # OLCULDU (2026-09-18, `apt-get -s install`, root gerekmiyor):
+    #   E: Command line option 'e' [from -shell-escape] is not
+    #      understood in combination with the other options
+    # `-shell-escape` bir paket degil, derleyici bayragi; apt onu secenek
+    # saniyor. KARSI OLCUM: haritadaki oteki 36 girdinin hepsi sorunsuz
+    # ayristiriliyordu, yani kusur minted'e ozguydu.
+    #
+    # Bayrak bilgisi kaybolmuyor, `not_ara`ya tasindi.
+    #
+    # Yorum kolun USTUNDE duruyor, ICINDE degil: tablolari kaynaktan
+    # okuyan ayristiricilar (tests/test_paket_haritasi.py, macos olcum
+    # akisi) kolu `desen)` + `echo` ikilisi olarak ariyor ve araya yorum
+    # girerse girdiyi SESSIZCE atlarlardi.
         minted.sty)
-            echo "texlive-latex-extra + python3-pygments + -shell-escape" ;;
+            echo "texlive-latex-extra python3-pygments" ;;
+    esac
+}
+
+# Paket adiyla ANLATILAMAYAN ek gereksinim. Kurulum komutuna girmiyor,
+# ayri bir satir olarak basiliyor: komutun calisir kalmasi sart.
+not_ara() {
+    case "$1" in
+        minted.sty)
+            echo "minted ayrica Pygments ve -shell-escape gerektiriyor" ;;
     esac
 }
 
@@ -327,16 +362,17 @@ eksik_paket_goster() {
             local paket
             paket=$(paket_ara "$dosya")
             [ -z "$paket" ] && continue
-            local ctan
+            local ctan not
             ctan=$(ctan_ara "$dosya")
+            not=$(not_ara "$dosya")
             if [ -n "$ctan" ]; then
                 eksik_paket_bildir "$dosya" "$paket" "$ctan" \
-                    "sudo tlmgr install $ctan"
+                    "sudo tlmgr install $ctan" "$not"
             else
                 # CTAN adi olculemedi; ad UYDURMAK yerine kullaniciya
                 # TeX Live'a nasil soracagi soyleniyor.
                 eksik_paket_bildir "$dosya" "$paket" "$dosya" \
-                    "sudo tlmgr search --global --file \"/$dosya\""
+                    "sudo tlmgr search --global --file \"/$dosya\"" "$not"
             fi
         done
     fi

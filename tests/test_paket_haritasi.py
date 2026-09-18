@@ -117,3 +117,45 @@ def test_OLMAYAN_paket_adi_onerilmiyor():
                             if p.startswith("texlive"))
     kesisim = onerilen & _OLMAYAN
     assert not kesisim, kesisim
+
+
+# Debian paket adı: küçük harf, rakam, `+`, `-`, `.`; alfanümerikle başlar.
+_RE_PAKET_ADI = re.compile(r"^[a-z0-9][a-z0-9.+-]*$")
+
+
+def test_HER_ONERI_calistirilabilir_bir_apt_komutu():
+    r"""Harita değeri `sudo apt-get install` ile birleşince KOMUT olmalı.
+
+    `minted.sty` için değer "texlive-latex-extra + python3-pygments +
+    -shell-escape" idi: bir paket adı değil, insana yönelik gereksinim
+    listesi. apt komutun TAMAMINI reddediyordu, yani kullanıcı öneriyi
+    çalıştırıyor ve hiçbir şey kurulmuyordu.
+
+    ÖLÇÜLDÜ (2026-09-18, `apt-get -s install`, root gerekmiyor):
+        E: Command line option 'e' [from -shell-escape] is not
+           understood in combination with the other options
+
+    Kapı apt ÇAĞIRMIYOR, o yüzden her platformda koşuyor: ölçüt paket
+    adı dilbilgisi. `-` ile başlayan bir belirteci apt seçenek sanıyor,
+    yalnız `+` ise hiçbir pakete karşılık gelmiyor.
+    """
+    for ad, tablo in _tablolar().items():
+        for anahtar, deger in sorted(tablo.items()):
+            belirtecler = deger.split()
+            assert belirtecler, (ad, anahtar, deger)
+            for b in belirtecler:
+                assert _RE_PAKET_ADI.match(b), (ad, anahtar, deger, b)
+
+
+def test_TABLOLAR_kaynaktan_OKUNABILIYOR():
+    """Ayrıştırıcının kapısı: tablo küçülürse sessizce geçmesin.
+
+    Tablolar betiğin kaynağından okunuyor. Bir `case` kolunun biçimi
+    değişirse (örneğin araya yorum girerse) o girdi tablodan SESSİZCE
+    düşer ve yukarıdaki kapılar daha az şey sınamış olur.
+    """
+    tablolar = _tablolar()
+    assert len(tablolar["PAKET_HARITASI"]) == 37, sorted(
+        tablolar["PAKET_HARITASI"])
+    assert len(tablolar["BABEL_HARITASI"]) == 20, sorted(
+        tablolar["BABEL_HARITASI"])

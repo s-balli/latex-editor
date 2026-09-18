@@ -5,6 +5,7 @@ derleme çıktısıyla çağrılır; gerçek derleme gerekmediğinden CI'da da k
 """
 
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -89,8 +90,13 @@ def test_minted_sty_eksikse_harita_onerisi_calisir():
         assert "Eksik paket: minted" in out
         assert "sudo tlmgr install minted" in out
     else:
-        assert "Eksik paket: texlive-latex-extra" in out
-        assert "python3-pygments" in out
+        # İki paket de gerekiyor; SIRALARI anlamsız, apt için liste sırasız.
+        # Önce "Eksik paket: texlive-latex-extra" diye başa çapalıydı ve
+        # sırayı çiviliyordu: mutasyon sınamasında sırayı değiştiren
+        # KONTROL mutasyonu bu yüzden yanıyordu.
+        baslik = next(s for s in out.splitlines() if "==>" in s)
+        assert "texlive-latex-extra" in baslik, baslik
+        assert "python3-pygments" in baslik, baslik
 
 
 class TestPaketYoneticisiPlatforma_Gore:
@@ -136,7 +142,10 @@ class TestPaketYoneticisiPlatforma_Gore:
                  "bash", parca, girdi, yonetici],
                 capture_output=True, text=True, timeout=30, encoding="utf-8")
         assert r.returncode == 0, r.stderr
-        return r.stdout.replace("\x1b", "")
+        # ANSI dizisinin TAMAMI sıyrılıyor. `\x1b` tek başına silinince
+        # satırın başında `[1;36m` kalıyor ve satır başına çapalı bir
+        # ölçüt (`startswith`) tutmuyor.
+        return re.sub(r"\x1b\[[0-9;]*m", "", r.stdout)
 
     @pytest.mark.parametrize("ad", sorted(GIRDILER))
     def test_APT_kolunda_apt_get_komutu_var(self, ad):
@@ -219,3 +228,53 @@ class TestPaketYoneticisiPlatforma_Gore:
                 capture_output=True, text=True, timeout=30, encoding="utf-8")
         assert r.returncode == 0, r.stderr
         assert r.stdout.strip() == beklenen, (r.stdout, r.stderr)
+
+
+class TestMintedOnerisiCalisirKomut:
+    r"""minted onerisi CALISTIRILABILIR bir komut vermeli.
+
+    Deger "texlive-latex-extra + python3-pygments + -shell-escape" idi ve
+    `sudo apt-get install` ile birlesince apt komutun TAMAMINI
+    reddediyordu; kullanici oneriyi kosturup hicbir sey kurmuyordu.
+
+    OLCULDU (2026-09-18, `apt-get -s install`, root gerekmiyor):
+        E: Command line option 'e' [from -shell-escape] is not
+           understood in combination with the other options
+    Karsi olcum: haritadaki oteki 36 girdi sorunsuz ayristiriliyordu.
+    """
+
+    GIRDI = "! LaTeX Error: File `minted.sty' not found.\n"
+
+    @staticmethod
+    def _komut_satiri(out):
+        for s in out.splitlines():
+            if "install" in s and "==>" not in s:
+                return s.strip()
+        return ""
+
+    def test_APT_komutunda_bayrak_ve_arti_YOK(self):
+        """`-shell-escape` ve yalniz `+`, apt'nin komutu reddetmesine yol
+        aciyordu."""
+        komut = self._komut_satiri(
+            TestPaketYoneticisiPlatforma_Gore._kos(self.GIRDI, "apt"))
+        assert komut.startswith("sudo apt-get install"), komut
+        argumanlar = komut.split()[3:]
+        assert argumanlar, komut
+        for a in argumanlar:
+            assert not a.startswith("-"), (a, komut)
+            assert a != "+", komut
+
+    def test_APT_komutu_IKI_paketi_de_kuruyor(self):
+        """Bilgi kaybolmamali: minted hem sinifi hem Pygments'i istiyor."""
+        komut = self._komut_satiri(
+            TestPaketYoneticisiPlatforma_Gore._kos(self.GIRDI, "apt"))
+        assert "texlive-latex-extra" in komut, komut
+        assert "python3-pygments" in komut, komut
+
+    @pytest.mark.parametrize("yonetici", ["apt", "tlmgr"])
+    def test_BAYRAK_bilgisi_kaybolmadi(self, yonetici):
+        """`-shell-escape` komuttan cikti ama kullaniciya hala soyleniyor."""
+        out = TestPaketYoneticisiPlatforma_Gore._kos(self.GIRDI, yonetici)
+        assert "-shell-escape" in out, out
+        # ...ve komut satirinda DEGIL, ayri bir satirda.
+        assert "-shell-escape" not in self._komut_satiri(out), out
