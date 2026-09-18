@@ -740,6 +740,65 @@ jobs:
           path: ${{ runner.temp }}/ekran.png
           if-no-files-found: warn
 
+      # PAKETLENMIS UYGULAMANIN KENDISIYLE derleme. Simdiye kadar
+      # derleme `derle.sh` ile KAYNAKTAN sinandi; uygulamanin icinden
+      # hic denenmedi.
+      #
+      # Ayrica `macos_path_tamamla()` duzeltmesinin UCTAN UCA sinandigi
+      # tek yer burasi: `open` uygulamayi launchd uzerinden baslatiyor,
+      # yani PATH Finder'daki gibi asgari geliyor ve MacTeX ancak
+      # duzeltme calisiyorsa bulunuyor.
+      #
+      # Kehanet PDF'in OLUSMASI: uygulama actigini soylese bile derleme
+      # olmadan PDF cikmaz.
+      - name: Uygulamanin KENDISIYLE derle
+        run: |
+          is="$RUNNER_TEMP/proje"
+          mkdir -p "$is"
+          printf '%s\n' \
+            '\documentclass{article}' \
+            '\begin{document}' \
+            '\section{Deneme}\label{b}' \
+            'Bkz. bolum \ref{b}.' \
+            '\end{document}' > "$is/deneme.tex"
+          rm -f "$is/deneme.pdf"
+
+          open -a "/Applications/LaTeX Editor.app" "$is/deneme.tex"
+          sleep 25
+          echo "acildi mi: $(pgrep -f 'LaTeX Editor' > /dev/null && echo EVET || echo HAYIR)"
+
+          # Derlemeyi Cmd+S ile tetikle. Erisilebilirlik izni yoksa
+          # osascript duser; o zaman da sebebi yazilsin diye cikti
+          # bastirilmiyor.
+          osascript -e 'tell application "System Events" to keystroke "s" using command down' \
+            2>&1 | head -3 || echo "(osascript dustu)"
+
+          for i in $(seq 1 12); do
+            [ -f "$is/deneme.pdf" ] && break
+            sleep 10
+          done
+
+          if [ -f "$is/deneme.pdf" ]; then
+            echo "SONUC: PDF URETILDI ($(du -h "$is/deneme.pdf" | cut -f1))"
+          else
+            echo "SONUC: PDF YOK"
+            ls -la "$is"
+          fi
+
+      - name: Derleme sonrasi ekran goruntusu
+        if: always()
+        run: |
+          screencapture -x "$RUNNER_TEMP/ekran-derleme.png" 2>&1 \
+            || echo "screencapture calismadi"
+          ls -lh "$RUNNER_TEMP/ekran-derleme.png" 2>/dev/null || echo "goruntu yok"
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: macos-derleme-goruntusu
+          path: ${{ runner.temp }}/ekran-derleme.png
+          if-no-files-found: warn
+
       - name: Uygulama gunlugu ne diyor
         if: always()
         run: |
