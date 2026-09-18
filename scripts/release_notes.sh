@@ -59,6 +59,17 @@ sed "s/__V__/${V}/g" <<'GOVDE'
    ```
 Download `LaTeX_Editor_v__V___Linux_x86_64.AppImage`, `chmod +x` and run.
 
+### macOS (Apple Silicon)
+**Install MacTeX:**
+   ```
+   brew install --cask mactex
+   ```
+Download `LaTeX_Editor_v__V___macOS_arm64.dmg`, open it and drag the app to Applications. Then remove the download quarantine once:
+   ```
+   xattr -dr com.apple.quarantine "/Applications/LaTeX Editor.app"
+   ```
+Without that command macOS refuses to open the app: the build is signed ad-hoc, not notarized, because notarization needs a paid Apple Developer ID. The command only clears the flag your browser attached to the download; it does not change the app. Intel Macs are not covered by this build.
+
 ### Minimum installation (basic compilation only)
    ```
    sudo apt-get update
@@ -99,6 +110,17 @@ Download `LaTeX_Editor_v__V___Linux_x86_64.AppImage`, `chmod +x` and run.
      texlive-humanities texlive-pstricks libxcb-cursor0 python3-pygments pandoc
    ```
 `LaTeX_Editor_v__V___Linux_x86_64.AppImage`'i indir, `chmod +x` yapip calistir.
+
+### macOS (Apple Silicon)
+**MacTeX kur:**
+   ```
+   brew install --cask mactex
+   ```
+`LaTeX_Editor_v__V___macOS_arm64.dmg` dosyasini indir, ac ve uygulamayi Applications klasorune surukle. Sonra indirme karantinasini bir kez kaldir:
+   ```
+   xattr -dr com.apple.quarantine "/Applications/LaTeX Editor.app"
+   ```
+Bu komut olmadan macOS uygulamayi acmiyor: paket ad-hoc imzali, notarization yok, cunku notarization ucretli bir Apple Developer ID istiyor. Komut yalnizca tarayicinin indirmeye taktigi isareti siliyor, uygulamayi degistirmiyor. Intel Mac'ler bu yapinin kapsaminda degil.
 
 ### Minimum kurulum (sadece temel derleme)
    ```

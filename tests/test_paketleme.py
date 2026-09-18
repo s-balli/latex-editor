@@ -276,7 +276,56 @@ class TestYayinNotu:
         # Kopya blok geri gelirse bu sayı fırlar
         assert metin.count("## Installation") == 0
 
-    def test_betik_iki_dilde_ve_iki_artefaktla_uretiyor(self):
+    def test_YAYIN_NOTU_ile_YUKLENEN_dosya_adlari_ayrismiyor(self):
+        r"""Notta yazan ad ile yayına yüklenen ad aynı olmalı.
+
+        Ayrışırsa yayın sayfası indirilemeyecek bir dosya adı gösterir:
+        kullanıcı adı arar, bulamaz. İkisi ayrı dosyada yaşıyor ve biri
+        ötekinden sessizce ayrışabilir; `.dmg` eklenirken bu risk üç
+        artefakta çıktı.
+        """
+        kabuk = _bash()
+        if kabuk is None:
+            pytest.skip("çalışan bash yok")
+        r = subprocess.run([kabuk, _NOTLAR, "9.9.9"], input="Deneme notu",
+                           capture_output=True, text=True, encoding="utf-8",
+                           cwd=_KOK)
+        assert r.returncode == 0, r.stderr
+        notlar = r.stdout
+        yml = _oku(_RELEASE_YML)
+
+        # Sürüm ifadesi ÖNCE doldurulup sonra ad ayıklanıyor: `${{ ... }}`
+        # boşluk içerdiği için `\S+` adın ortasında kesiliyordu.
+        yml = yml.replace("${{ steps.ver.outputs.VERSION }}", "9.9.9")
+        yuklenen = set(re.findall(r"desktop/dist/(LaTeX_Editor_v\S+)", yml))
+        # `.zsync` yayına ek dosya, kurulum yönergesinde adı geçmiyor.
+        yuklenen = {a for a in yuklenen if not a.endswith(".zsync")}
+        assert yuklenen, "release.yml'de yuklenen dosya bulunamadi"
+        for ad in sorted(yuklenen):
+            assert ad in notlar, (
+                f"yayına yüklenen {ad} kurulum yönergesinde geçmiyor")
+
+    def test_DMG_karantina_komutu_IKI_DILDE_var(self):
+        r"""`.dmg` çift tıklayınca AÇILMIYOR; komut olmadan not eksik.
+
+        Paket ad-hoc imzalı ve notarization yok (Developer ID ücretli).
+        ÖLÇÜLDÜ (2026-09-18, Apple'ın kendi aracı `syspolicy_check
+        distribution`): "Notary Ticket Missing, Severity: Fatal".
+        Kullanıcı indirir, çift tıklar, açılmaz ve sebebini bilmez.
+        """
+        kabuk = _bash()
+        if kabuk is None:
+            pytest.skip("çalışan bash yok")
+        r = subprocess.run([kabuk, _NOTLAR, "9.9.9"], input="x",
+                           capture_output=True, text=True, encoding="utf-8",
+                           cwd=_KOK)
+        assert r.returncode == 0, r.stderr
+        c = r.stdout
+        assert c.count("xattr -dr com.apple.quarantine") == 2, (
+            "karantina komutu iki dilde de olmalı")
+        assert c.count("### macOS") == 2, "macOS bölümü iki dilde de olmalı"
+
+    def test_betik_iki_dilde_ve_uc_artefaktla_uretiyor(self):
         kabuk = _bash()
         if kabuk is None:
             pytest.skip("çalışan bash yok")
@@ -289,6 +338,7 @@ class TestYayinNotu:
         assert "## Installation" in c and "## Kurulum" in c
         assert "LaTeX_Editor_v9.9.9_Windows.exe" in c
         assert "LaTeX_Editor_v9.9.9_Linux_x86_64.AppImage" in c
+        assert "LaTeX_Editor_v9.9.9_macOS_arm64.dmg" in c
         assert "__V__" not in c, "sürüm yer tutucusu doldurulmamış"
 
     def test_betik_tag_mesajini_HTML_kacisiyla_gomiyor(self):

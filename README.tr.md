@@ -509,6 +509,12 @@ cd desktop
 python3 main.py
 ```
 
+**.dmg ile (Apple Silicon):** bu bölüm yazıldıktan sonra çıkan sürümler `LaTeX_Editor_v*_macOS_arm64.dmg` içeriyor. Aç, uygulamayı Applications klasörüne sürükle, sonra indirme karantinasını bir kez kaldır:
+```bash
+xattr -dr com.apple.quarantine "/Applications/LaTeX Editor.app"
+```
+Bu komut olmadan macOS uygulamayı açmıyor. Paket ad-hoc imzalı ama notarization yok, çünkü notarization ücretli bir Apple Developer ID istiyor; komut yalnızca tarayıcının indirmeye taktığı işareti siliyor, uygulamayı değiştirmiyor. Intel Mac'ler bu yapının kapsamında değil, yukarıdaki kaynaktan kurulumu kullan.
+
 ---
 
 ## Web Uygulaması (Deneysel — Dağıtılmıyor)

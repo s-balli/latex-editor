@@ -508,6 +508,12 @@ cd desktop
 python3 main.py
 ```
 
+**From the .dmg (Apple Silicon):** releases built after this section was written ship `LaTeX_Editor_v*_macOS_arm64.dmg`. Open it, drag the app to Applications, then clear the download quarantine once:
+```bash
+xattr -dr com.apple.quarantine "/Applications/LaTeX Editor.app"
+```
+Without that command macOS refuses to open the app. The build is signed ad-hoc but not notarized, because notarization needs a paid Apple Developer ID; the command only clears the flag your browser attached to the download and does not change the app. Intel Macs are not covered by this build, use the source install above.
+
 ---
 
 ## Web App (Experimental — Not Distributed)
