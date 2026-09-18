@@ -610,10 +610,18 @@ jobs:
           printf 'spctl: '
           spctl --assess --type execute "$APP" 2>&1 || true
 
+      # KARSI KOL: `--no-quarantine` farki gercekten yapiyor mu. Ikisi
+      # ayni cikarsa olcum bir sey ayirt etmiyor demektir. Cikti
+      # BASTIRILMIYOR: onceki kosuda gizlenmisti ve adim neden dustugu
+      # gorunmuyordu.
       - name: --no-quarantine ile fark var mi (karsi kol)
         run: |
           APP="/Applications/LaTeX Editor.app"
-          brew uninstall --cask deneme/yerel/latex-editor-deneme > /dev/null 2>&1 || true
-          brew install --cask --no-quarantine \
-            deneme/yerel/latex-editor-deneme > /dev/null 2>&1
-          echo "nitelikler (--no-quarantine): $(xattr "$APP" | tr '\n' ' ' || echo yok)"
+          brew uninstall --cask deneme/yerel/latex-editor-deneme 2>&1 | tail -2
+          kod=0
+          brew install --cask --no-quarantine             deneme/yerel/latex-editor-deneme > "$RUNNER_TEMP/nq.log" 2>&1 || kod=$?
+          echo "brew cikis: $kod"
+          tail -5 "$RUNNER_TEMP/nq.log"
+          echo "nitelikler (--no-quarantine): $(xattr "$APP" 2>/dev/null | tr -d '\r' | paste -sd' ' -)"
+          printf 'spctl: '
+          spctl --assess --type execute "$APP" 2>&1 || true
