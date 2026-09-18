@@ -692,7 +692,10 @@ jobs:
       - name: .dmg'yi bagla ve Applications'a kur
         run: |
           dmg="$(ls "$RUNNER_TEMP"/*.dmg | head -1)"
-          nokta="$(hdiutil attach "$dmg" -nobrowse -readonly | tail -1 | awk '{print $NF}')"
+          # Sutunlar SEKME ile ayrili ve baglama noktasi BOSLUK iceriyor
+          # ("/Volumes/LaTeX Editor"). Bosluga gore bolmek yalniz "Editor"
+          # veriyordu; olcum kabinin kendi kusuruydu.
+          nokta="$(hdiutil attach "$dmg" -nobrowse -readonly | tail -1 | awk -F'\t' '{print $NF}')"
           echo "baglandi: $nokta"
           ls "$nokta"
           cp -R "$nokta/LaTeX Editor.app" /Applications/
