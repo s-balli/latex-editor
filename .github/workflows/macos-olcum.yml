@@ -390,6 +390,26 @@ jobs:
           tail -25 "$RUNNER_TEMP/pt.txt"
           grep '^FAILED' "$RUNNER_TEMP/pt.txt" | head -20 || echo "(FAILED yok)"
 
+      # ARAYUZUN KENDI derleme yolu macOS'ta PDF uretiyor mu.
+      #
+      # Derlemeyi arayuzde tetiklemek Ctrl+S ya da Derle dugmesi istiyor.
+      # Kosucuda System Events'in Erisilebilirlik izni YOK, o yuzden GUI
+      # otomasyonu calismiyor ("Can't get process ... Invalid index").
+      # Burada arayuz PROGRAMLA suruluyor: gercek MainWindow, gercek
+      # LatexCompiler, gercek derle.sh, gercek TeX.
+      #
+      # Kapsam disi: PyInstaller paketleme katmani; o ayri olculuyor.
+      - name: Arayuzun KENDI derleme yolu (asgari TeX ile)
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          kod=0
+          python .github/scripts/macos_gui_derleme.py "$RUNNER_TEMP/gui" \
+            > "$RUNNER_TEMP/gui.log" 2>&1 || kod=$?
+          echo "betik cikis: $kod"
+          grep -E "derleme bitti|basarili mi|hata sayisi|PDF var|PDF boyutu|PDF metni|atif cozuldu|^   " \
+            "$RUNNER_TEMP/gui.log" || tail -20 "$RUNNER_TEMP/gui.log"
+
   # ----------------------------------------------------------------
   # "Eksik paket" tavsiyesi macOS'ta NE OLMALI.
   #
