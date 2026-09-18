@@ -397,6 +397,11 @@ brew install --cask mactex</code></pre><button class="copy-btn" type="button"><s
               <div class="cmd"><pre><code>pip3 install -r desktop/requirements.txt
 cd desktop &amp;&amp; python3 main.py</code></pre><button class="copy-btn" type="button"><span class="tr">Kopyala</span></button></div>
             </li>
+            <li>
+              
+              <span class="tr">Bunun yerine <code>.dmg</code> ile kurduysan indirme karantinasını bir kez kaldır, yoksa macOS uygulamayı açmıyor (paket ad-hoc imzalı, notarization yok):</span>
+              <div class="cmd"><pre><code>xattr -dr com.apple.quarantine "/Applications/LaTeX Editor.app"</code></pre><button class="copy-btn" type="button"><span class="tr">Kopyala</span></button></div>
+            </li>
           </ol>
         </article>
       </div>
