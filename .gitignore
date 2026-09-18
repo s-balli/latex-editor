@@ -9,6 +9,10 @@ dist/
 
 # PDF ciktilari
 *.pdf
+# ...ama test verisi haric: PDF arama testleri aranabilir metinli, cok
+# sayfali bir PDF istiyor. Kaynagi yanindaki .tex (tests/veri/), yani
+# icerik bizim ve yeniden uretilebilir.
+!tests/veri/arama_ornegi.pdf
 
 # LaTeX yardimci dosyalar
 *.aux

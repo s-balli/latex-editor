@@ -271,6 +271,13 @@ def test_sozel_tarama_SABLONLARDA_gercekten_is_goruyor(qapp):
 
     Şablonlar değişip bu vakalar kaybolursa yukarıdaki sentetik testler
     yeşil kalır ama korpus artık hiçbir şey kanıtlamaz; burası onu söyler.
+
+    YEREL KALMASI BİLİNÇLİ. `template/` 207 MB ve .gitignore'da, yani bu
+    test CI'da koşmuyor. Kardeşleri (örnek PDF, şablon ad listesi) depoya
+    taşınabildi çünkü onların istediği şey üretilebilir ya da küçüktü;
+    burada istenen şey CANLI korpusun kendisi. Donmuş bir örneğe bağlansa
+    yukarıdaki sentetik testlerin kopyasına dönerdi ve varlık sebebi
+    kalmazdı. Şablonların durduğu makinede koşuyor, işini orada görüyor.
     """
     import pathlib
     import re

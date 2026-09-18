@@ -302,6 +302,12 @@ jobs:
           # testler macOS'ta atlanir ve kor nokta kapanmaz.
           sudo tlmgr install biber biblatex || true
           brew install pandoc || true
+          # minted (kod renklendirme) ve multibib/natbib (cok kaynakcali
+          # belge) BasicTeX'te yok; ikisinin de canli testi var ve macOS'ta
+          # atlaniyordu. minted ayrica `pygmentize` istiyor.
+          sudo tlmgr install minted multibib natbib fvextra upquote \
+            catchfile xstring framed || true
+          python -m pip install --quiet Pygments
           brew install --cask font-dejavu || true
           echo "kurulu fontlar (DejaVu):"
           ls ~/Library/Fonts /Library/Fonts 2>/dev/null | grep -i dejavu | head -3 \

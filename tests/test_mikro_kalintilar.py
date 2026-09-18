@@ -344,9 +344,19 @@ class TestSyncTexZamanAsimi:
 class TestAramaGeriYukleme:
 
     def _makale(self):
-        yol = os.path.join(_KOK, "template", "template10", "article.pdf")
-        if not os.path.exists(yol):
-            pytest.skip("örnek PDF yok")
+        """Aranabilir metinli, çok sayfalı örnek PDF.
+
+        Önceden `template/template10/article.pdf` kullanılıyordu; `template/`
+        207 MB ve .gitignore'da olduğu için bu dört test HİÇBİR CI işinde
+        koşmuyordu, yalnız geliştiricinin makinesinde koşuyordu. Testin
+        istediği şey aslında şablon değil: metni çıkarılabilen ve kaydırma
+        aralığı olacak kadar uzun bir belge. Örnek artık depoda, kaynağı
+        (`tests/veri/arama_ornegi.tex`) yanında.
+
+        Dosya yoksa ATLANMIYOR: depoda duruyor, yoksa bu gerçekten bir kusur.
+        """
+        yol = os.path.join(_KOK, "tests", "veri", "arama_ornegi.pdf")
+        assert os.path.exists(yol), "örnek PDF depodan kaybolmuş: " + yol
         return yol
 
     def test_derleme_sonrasi_acik_arama_geri_gelir(self, qapp, viewer):

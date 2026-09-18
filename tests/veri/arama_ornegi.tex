@@ -1,0 +1,51 @@
+% Test verisi: PDF arama testlerinin kaynagi.
+%
+% NEDEN VAR. `tests/test_mikro_kalintilar.py::TestAramaGeriYukleme` dort
+% testi `template/template10/article.pdf`e bagliydi. `template/` 207 MB ve
+% .gitignore'da, yani o dort test HICBIR CI isinde kosmuyordu; yalniz
+% gelistiricinin makinesinde kosuyordu.
+%
+% Testin istedigi sey aslinda sablon degil: METNI ARANABILIR, BIRDEN COK
+% SAYFALI bir PDF. ("the" araniyor ve kaydirma araligi olmasi gerekiyor.)
+% Bu dosya onu kendi icerigimizle uretiyor: ucuncu taraf icerik yok,
+% lisans sorusu yok, uretilen PDF ~20 KB.
+%
+% YENIDEN URETMEK ICIN:
+%     lualatex -output-directory=tests/veri tests/veri/arama_ornegi.tex
+% (yardimci dosyalar .gitignore'da; depoda .tex ve .pdf duruyor.)
+\documentclass[12pt]{article}
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\pagestyle{plain}
+
+\newcommand{\paragrafblogu}[1]{%
+  \paragraph{Section #1.}
+  The purpose of this page is to give the search tests a document with
+  real, extractable text. The words on the page are ordinary English so
+  that the token ``the'' appears many times on every page, which is what
+  the viewer searches for. The layout is deliberately plain: no figures,
+  no bibliography, no external packages beyond the page geometry.
+
+  The second paragraph exists so that the page has enough height for the
+  scroll range to be non zero. The viewer test moves the scroll bar to the
+  middle of the range and then checks that restoring the search results
+  does not move it back to the top. Without enough text the range would be
+  zero and the gate would run empty.
+}
+
+\begin{document}
+
+\title{Search Fixture}
+\author{latex-editor test data}
+\date{}
+\maketitle
+
+\paragrafblogu{One}
+\paragrafblogu{Two}
+\newpage
+\paragrafblogu{Three}
+\paragrafblogu{Four}
+\newpage
+\paragrafblogu{Five}
+\paragrafblogu{Six}
+
+\end{document}

@@ -1,10 +1,21 @@
 """Ctrl+P hızlı dosya açma — koleksiyon, bulanık eşleşme, dialog davranışı."""
 
+import functools
+import json
 import os
 from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
+
+
+@functools.lru_cache(maxsize=1)
+def _ad_listesi() -> dict:
+    """`template/`den üretilmiş şablon dosya adları (scripts/sablon_adlari_uret.py)."""
+    yol = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                       "veri", "sablon_dosya_adlari.json")
+    with open(yol, encoding="utf-8") as f:
+        return json.load(f)
 
 try:
     from PyQt6.QtCore import QEvent, Qt
@@ -243,27 +254,21 @@ class TestSiralamaDosyaAdiniOnceliyor:
                 < fuzzy_score("bolum", "bolumler/baslik.tex"))
 
     def test_gercek_sablonlarda_hicbir_dosya_adina_haksizlik_yok(self):
-        """Depodaki şablon ağaçlarının tamamı; ölçüt belirsizliği dışarıda bırakır.
+        """Gerçek şablon ağaçlarının tamamı; ölçüt belirsizliği dışarıda bırakır.
 
         "InterPore" yazınca InterPore.cls mi InterPore-Sample.tex mi önce
         gelmeli sorusu (ikisinin de ADI eşleşiyor) sorulmuyor; sorulan şey,
         adında HİÇ eşleşmeyen bir dosyanın öne geçip geçmediği.
-        """
-        sablon = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            "template")
-        if not os.path.isdir(sablon):
-            pytest.skip("template/ yok")
 
+        Kitle `template/`den değil, ondan ÜRETİLMİŞ ad listesinden okunuyor
+        (tests/veri/sablon_dosya_adlari.json). Sebep: `template/` 207 MB ve
+        .gitignore'da, yani bu kapı hiçbir CI işinde koşmuyordu. Testin
+        kullandığı tek şey ADLAR ve adlar 6 KB tutuyor. Listenin gerçekle
+        aynı kaldığını kardeş test denetliyor.
+        """
         toplam = 0
         kotu = []
-        for proje_ad in sorted(os.listdir(sablon)):
-            proje = os.path.join(sablon, proje_ad)
-            if not os.path.isdir(proje):
-                continue
-            dosyalar = collect_project_files(proje)
-            if len(dosyalar) < 3:
-                continue
+        for proje_ad, dosyalar in sorted(_ad_listesi().items()):
             for rel in dosyalar:
                 temel = os.path.basename(rel)
                 for sorgu in (temel, os.path.splitext(temel)[0]):
@@ -277,6 +282,34 @@ class TestSiralamaDosyaAdiniOnceliyor:
         # önkoşul: kitle gerçekten sınanmış olsun
         assert toplam > 300, "şablon kitlesi beklenenden küçük: %d" % toplam
         assert not kotu, "adında eşleşmeyen dosya öne geçti: %s" % kotu[:5]
+
+    def test_AD_LISTESI_gercek_sablonlarla_ayni(self):
+        """Üretilmiş liste bayatlamasın.
+
+        Yukarıdaki kapı artık `template/`yi değil ondan üretilmiş listeyi
+        okuyor. Şablonlar değişip liste tazelenmezse kapı eski bir dünyayı
+        sınamaya devam eder ve kimse fark etmez. Bu test yalnız şablonların
+        DURDUĞU makinede koşar (CI'da `template/` yok) ve tazelemeyi
+        unutulduğu anda söyler.
+        """
+        sablon = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "template")
+        if not os.path.isdir(sablon):
+            pytest.skip("template/ yok, liste yerelde tazelenir")
+
+        gercek = {}
+        for proje_ad in sorted(os.listdir(sablon)):
+            proje = os.path.join(sablon, proje_ad)
+            if not os.path.isdir(proje):
+                continue
+            dosyalar = collect_project_files(proje)
+            if len(dosyalar) >= 3:
+                gercek[proje_ad] = dosyalar
+
+        assert gercek == _ad_listesi(), (
+            "şablon ağacı değişmiş, ad listesi eski: "
+            "python scripts/sablon_adlari_uret.py")
 
 
 class TestSiralamaKarsiDurumlar:

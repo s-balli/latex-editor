@@ -1,0 +1,275 @@
+{
+ "template1": [
+  "Bibliography.bib",
+  "InterPore-Sample.tex",
+  "InterPore.cls"
+ ],
+ "template11": [
+  "Etuthesis.bib",
+  "Etuthesis.cls",
+  "Etuthesis.tex",
+  "main.tex"
+ ],
+ "template12": [
+  "LEGACY/mn2e.cls",
+  "example.bib",
+  "mnras.cls",
+  "mnras_guide.tex",
+  "mnras_template.tex"
+ ],
+ "template13": [
+  "Título-autores-resumo-palavras/abstract.tex",
+  "Título-autores-resumo-palavras/autores.tex",
+  "Título-autores-resumo-palavras/keywords.tex",
+  "Título-autores-resumo-palavras/palavras-chave.tex",
+  "Título-autores-resumo-palavras/resumo.tex",
+  "Título-autores-resumo-palavras/titulo.tex",
+  "edicao.tex",
+  "main.tex",
+  "pag_inical.tex",
+  "referencias.bib",
+  "secoes/apendices.tex",
+  "secoes/consideracoes_finais.tex",
+  "secoes/fund_teorica.tex",
+  "secoes/introducao.tex",
+  "secoes/metodologia.tex",
+  "secoes/resultados.tex",
+  "titulo.tex"
+ ],
+ "template14": [
+  "elektr.cls",
+  "elksty.tex",
+  "main.tex",
+  "supplementary_material.tex"
+ ],
+ "template16": [
+  "cas-common.sty",
+  "cas-dc-sample.tex",
+  "cas-dc-template.tex",
+  "cas-dc.cls",
+  "cas-refs.bib",
+  "cas-sc-sample.tex",
+  "cas-sc-template.tex",
+  "cas-sc.cls",
+  "doc/elsdoc-cas.tex",
+  "doc/glyphtounicode.tex",
+  "doc/pdfwidgets.sty",
+  "doc/rvdtx.sty"
+ ],
+ "template18": [
+  "ComSIS-typeinst.tex",
+  "comsis2.cls",
+  "empty.tex",
+  "example.bib",
+  "secdot.sty"
+ ],
+ "template19": [
+  "IEEEtran.cls",
+  "access.tex",
+  "ieeeaccess.cls"
+ ],
+ "template2": [
+  "FrontiersinFPHY_FAMS.cls",
+  "FrontiersinHarvard.cls",
+  "FrontiersinVancouver.cls",
+  "frontiers.tex",
+  "frontiers_SupplementaryMaterial.tex",
+  "frontiers_suppmat.cls",
+  "stfloats.sty",
+  "test.bib"
+ ],
+ "template20": [
+  "IEEEtran.cls",
+  "access.tex",
+  "ieeeaccess.cls",
+  "spotcolor.sty"
+ ],
+ "template21": [
+  "cvpr.sty",
+  "cvpr_eso.sty",
+  "egbib.bib",
+  "egpaper_final.tex",
+  "egpaper_for_review.tex",
+  "eso-pic.sty"
+ ],
+ "template23": [
+  "cas-common.sty",
+  "cas-dc-template.tex",
+  "cas-dc.cls",
+  "cas-refs.bib"
+ ],
+ "template25": [
+  "elektr.cls",
+  "elk-template.tex",
+  "elksty.tex"
+ ],
+ "template27": [
+  "Definitions/journalnames.tex",
+  "Definitions/mdpi.cls",
+  "Definitions/mdpi_apacite.sty",
+  "template.tex"
+ ],
+ "template28-book1": [
+  "LegrandOrangeBook.cls",
+  "main.tex",
+  "sample.bib"
+ ],
+ "template29-tez": [
+  "Appendices/AppendixA.tex",
+  "Appendices/AppendixTemplate.tex",
+  "Chapters/Chapter1.tex",
+  "Chapters/ChapterTemplate.tex",
+  "MastersDoctoralThesis.cls",
+  "example.bib",
+  "main.tex"
+ ],
+ "template3": [
+  "pasj02.cls",
+  "pasj02_template.tex",
+  "pasj02_usage.tex"
+ ],
+ "template30-sunum": [
+  "beamercolorthemefocus.sty",
+  "beamerfontthemefocus.sty",
+  "beamerinnerthemefocus.sty",
+  "beamerouterthemefocus.sty",
+  "beamerthemefocus.sty",
+  "example.bib",
+  "template.tex"
+ ],
+ "template31-tez-hacettepe": [
+  "FormalSections/00_Initialization.tex",
+  "FormalSections/01_Definitions.tex",
+  "FormalSections/02_Title.tex",
+  "FormalSections/03_Approval.tex",
+  "FormalSections/04_Ethics.tex",
+  "FormalSections/05_Statment.tex",
+  "FormalSections/06_Abstract.tex",
+  "FormalSections/07_Abstract_Turkish.tex",
+  "FormalSections/08_Acknowledgements.tex",
+  "FormalSections/09_Abbreviations.tex",
+  "FormalSections/CV.tex",
+  "MainSections/10_Introduction.tex",
+  "MainSections/11_Background.tex",
+  "MainSections/12_RelatedWork.tex",
+  "MainSections/13_Method.tex",
+  "MainSections/14_Results.tex",
+  "MainSections/15_Conclusion.tex",
+  "StyleFiles/Thesis.cls",
+  "StyleFiles/lstpatch.sty",
+  "StyleFiles/slashbox.sty",
+  "StyleFiles/tocloft.sty",
+  "StyleFiles/vector.sty",
+  "bib.bib",
+  "main.tex"
+ ],
+ "template32-deu-hacettepe": [
+  "Chapters/0.1_Acknowledgement.tex",
+  "Chapters/0.2_Abstract.tex",
+  "Chapters/0.3_Oz.tex",
+  "Chapters/1_introduction.tex",
+  "References.bib",
+  "TEZ.tex",
+  "deufbe.cls",
+  "deufbe.sty",
+  "packages.tex"
+ ],
+ "template33-tez": [
+  "0main.tex",
+  "10giris.tex",
+  "11yazilim_yontem.tex",
+  "12uygulama.tex",
+  "13ekbolum.tex",
+  "14bulgu_tartisma.tex",
+  "15sonuc_oneri.tex",
+  "16ekler.tex",
+  "17kaynaklar.tex",
+  "18ozgecmis.tex",
+  "1kapak.tex",
+  "2bildirim.tex",
+  "3imzasayfa.tex",
+  "4ozetabstract.tex",
+  "5onsoz.tex",
+  "6icindekiler.tex",
+  "7sekiller_tablosu.tex",
+  "8cizelgeler_tablosu.tex",
+  "9simge_kisaltma.tex",
+  "BUB.cls",
+  "referans.bib"
+ ],
+ "template36-ders": [
+  "bilgisayar_aglari_bolum1.tex",
+  "bilgisayar_aglari_bolum2.tex",
+  "bilgisayar_aglari_bolum3.tex",
+  "bilgisayar_aglari_bolum4.tex",
+  "bilgisayar_aglari_bolum5.tex",
+  "bilgisayar_aglari_bolum6.tex",
+  "bilgisayar_aglari_bolum7.tex",
+  "bilgisayar_aglari_bolum8.tex",
+  "bilgisayar_aglari_bolum9.tex"
+ ],
+ "template37-sunum": [
+  "beamer2thesis.tex",
+  "template/content_end.tex",
+  "template/content_initial.tex",
+  "template/helper.tex",
+  "theme/beamercolorthemeunicamth.sty",
+  "theme/beamerfontthemeunicamth.sty",
+  "theme/beamerinnerthemeunicamth.sty",
+  "theme/beamerouterthemeunicamth.sty",
+  "theme/beamerthemeUnicamTh.sty",
+  "theme/hf-tikz.sty"
+ ],
+ "template39-ytu_fbe": [
+  "Update_Report.tex",
+  "frontPages.tex",
+  "information.tex",
+  "main.tex",
+  "publications.tex",
+  "references.bib",
+  "thesisChapters/1-chapter.tex",
+  "thesisChapters/2-chapter.tex",
+  "thesisChapters/3-chapter.tex",
+  "thesisChapters/4-chapter.tex",
+  "thesisChapters/A-appendix.tex",
+  "ytuthesis.sty"
+ ],
+ "template4": [
+  "main.tex",
+  "rho-class/rho.cls",
+  "rho-class/rhobabel.sty",
+  "rho-class/rhoenvs.sty",
+  "rho.bib"
+ ],
+ "template6": [
+  "GSA-journal-template.tex",
+  "example-bibliography.bib",
+  "gsajnl.cls",
+  "styles/goi.sty",
+  "styles/gos.sty",
+  "styles/gs.sty",
+  "styles/inv.sty",
+  "styles/mp.sty"
+ ],
+ "template7": [
+  "GSA-G3-journal-template.tex",
+  "example-bibliography.bib",
+  "gsag3jnl.cls",
+  "styles/goi.sty",
+  "styles/gos.sty",
+  "styles/gs.sty",
+  "styles/inv.sty",
+  "styles/mp.sty",
+  "styles/msr.sty"
+ ],
+ "template8": [
+  "article.tex",
+  "report.bib",
+  "spieman.cls"
+ ],
+ "template9": [
+  "CSI_Press_template.tex",
+  "IEEEtran.cls",
+  "references.bib"
+ ]
+}
