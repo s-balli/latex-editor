@@ -141,6 +141,15 @@ dosya_zamani() {
     stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null
 }
 
+# Paket yoneticisi. Windows'ta bu betik WSL'in ICINDE kosuyor, orada
+# `uname -s` Linux diyor: apt dali aynen gecerli kaliyor, degisen yalniz
+# Darwin. macOS'ta apt yok ve TeX Live paketleri `tlmgr` ile geliyor.
+if [ "$(uname -s)" = "Darwin" ]; then
+    PAKET_YONETICISI=tlmgr
+else
+    PAKET_YONETICISI=apt
+fi
+
 # Renk kodlari
 KIRMIZI='\033[0;31m'
 YESIL='\033[0;32m'
@@ -148,6 +157,27 @@ SARI='\033[0;33m'
 MAVI='\033[0;34m'
 SIFIRLA='\033[0m'
 MAVI2='\033[1;36m'
+
+# Eksik paket bildirimi: baslik + kurulum komutu. IKISI TEK YERDE
+# uretiliyor, cunku ayrismalari kullaniciyi yaniltiyor (baslikta bir
+# paket adi, komutta baskasi).
+#
+#   $1 eksik olan sey (parantez icinde gosterilir: dosya/dil/arac adi)
+#   $2 apt paketi (Linux ve WSL)
+#   $3 macOS'ta GOSTERILECEK ad
+#   $4 macOS'ta kosulacak komutun tamami
+#
+# apt kolu birebir eskisi gibi kaliyor: Windows'ta bu betik WSL'in
+# icinde kosuyor ve oradaki kullanici bu kolu goruyor.
+eksik_paket_bildir() {
+    if [ "$PAKET_YONETICISI" = tlmgr ]; then
+        printf "${MAVI2}==> Eksik paket: %s \(%s\)${SIFIRLA}\n" "$3" "$1"
+        printf "${MAVI2}    %s${SIFIRLA}\n" "$4"
+    else
+        printf "${MAVI2}==> Eksik paket: %s \(%s\)${SIFIRLA}\n" "$2" "$1"
+        printf "${MAVI2}    sudo apt-get install %s${SIFIRLA}\n" "$2"
+    fi
+}
 
 # Eksik dosya → paket eşleme tablosu
 #
@@ -202,6 +232,57 @@ paket_ara() {
 # Tablodaki 27 paket adının tamamı `apt-cache policy` ile denetlendi;
 # yalnız bu beşi yoktu.
 # Ayni gerekce: bkz. paket_ara.
+# macOS karsiligi: TeX Live paketleri CTAN adlariyla geliyor, Debian
+# adlariyla degil (`texlive-latex-extra` tlmgr'de YOK).
+#
+# OLCULDU (2026-09-18, macos-15 + BasicTeX, TeX Live'in kendi
+# veritabanina soruldu: `tlmgr search --global --file "/<dosya>"`).
+# Debian eslemesi de boyle yapilmisti (`dpkg -S`, 2026-09-13); ayni
+# olcut, baska paket yoneticisi.
+#
+# Uc dosya birden cok pakette gecti; dogru olan digerinden anlasiliyor:
+#   IEEEtran.bst  confproc ieeetran   -> ieeetran (IEEEtran.cls ile ayni)
+#   IEEEtran.cls  ieeetran xtuthesis  -> ieeetran
+#   minted.sty    minted tex4ht       -> minted
+#
+# Uc dosya veritabaninda BULUNAMADI: aastex.cls, agu2018.bst,
+# bxjscls.cls. Ad UYDURULMUYOR; onlar icin kullaniciya arama komutu
+# veriliyor (bkz. eksik_paket_goster).
+ctan_ara() {
+    case "$1" in
+        phonrule.sty)               echo "phonrule" ;;
+        IEEEtran.bst|IEEEtran.cls)  echo "ieeetran" ;;
+        elsarticle.cls)             echo "elsarticle" ;;
+        revtex4-2.cls)              echo "revtex" ;;
+        revtex4-1.cls)              echo "revtex4-1" ;;
+        revtex4.cls)                echo "revtex4" ;;
+        aguplus.cls)                echo "aguplus" ;;
+        algorithm.sty|algorithmic.sty) echo "algorithms" ;;
+        algorithm2e.sty)            echo "algorithm2e" ;;
+        chemformula.sty)            echo "chemformula" ;;
+        chemmacros.sty)             echo "chemmacros" ;;
+        siunitx.sty)                echo "siunitx" ;;
+        units.sty|nicefrac.sty)     echo "units" ;;
+        cancel.sty)                 echo "cancel" ;;
+        emulateapj.cls)             echo "emulateapj" ;;
+        pstricks.sty)               echo "pstricks" ;;
+        pst-node.sty)               echo "pst-node" ;;
+        pst-text.sty)               echo "pst-text" ;;
+        pst-3d.sty)                 echo "pst-3d" ;;
+        ifsym.sty)                  echo "ifsym" ;;
+        fontawesome.sty)            echo "fontawesome" ;;
+        fontawesome5.sty)           echo "fontawesome5" ;;
+        dingbat.sty)                echo "dingbat" ;;
+        pifont.sty)                 echo "psnfss" ;;
+        plainurl.bst)               echo "urlbst" ;;
+        apacite.bst|apacite.sty)    echo "apacite" ;;
+        chicago.sty)                echo "chicago" ;;
+        ascmac.sty)                 echo "ascmac" ;;
+        okumacro.sty)               echo "jsclasses" ;;
+        minted.sty)                 echo "minted" ;;
+    esac
+}
+
 babel_ara() {
     case "$1" in
         brazil|portuguese)
@@ -246,8 +327,17 @@ eksik_paket_goster() {
             local paket
             paket=$(paket_ara "$dosya")
             [ -z "$paket" ] && continue
-            printf "${MAVI2}==> Eksik paket: %s \(%s\)${SIFIRLA}\n" "$paket" "$dosya"
-            printf "${MAVI2}    sudo apt-get install %s${SIFIRLA}\n" "$paket"
+            local ctan
+            ctan=$(ctan_ara "$dosya")
+            if [ -n "$ctan" ]; then
+                eksik_paket_bildir "$dosya" "$paket" "$ctan" \
+                    "sudo tlmgr install $ctan"
+            else
+                # CTAN adi olculemedi; ad UYDURMAK yerine kullaniciya
+                # TeX Live'a nasil soracagi soyleniyor.
+                eksik_paket_bildir "$dosya" "$paket" "$dosya" \
+                    "sudo tlmgr search --global --file \"/$dosya\""
+            fi
         done
     fi
 
@@ -260,8 +350,17 @@ eksik_paket_goster() {
             local paket
             paket=$(babel_ara "$dil")
             [ -z "$paket" ] && continue
-            printf "${MAVI2}==> Eksik dil paketi: %s \(%s\)${SIFIRLA}\n" "$paket" "$dil"
-            printf "${MAVI2}    sudo apt-get install %s${SIFIRLA}\n" "$paket"
+            # OLCULDU: 20 dilin YIRMISI de TeX Live'da `babel-<dil>`
+            # olarak duruyor, yani burada tabloya gerek yok.
+            local gosterilen="$paket"
+            [ "$PAKET_YONETICISI" = tlmgr ] && gosterilen="babel-$dil"
+            printf "${MAVI2}==> Eksik dil paketi: %s \(%s\)${SIFIRLA}\n" \
+                "$gosterilen" "$dil"
+            if [ "$PAKET_YONETICISI" = tlmgr ]; then
+                printf "${MAVI2}    sudo tlmgr install babel-%s${SIFIRLA}\n" "$dil"
+            else
+                printf "${MAVI2}    sudo apt-get install %s${SIFIRLA}\n" "$paket"
+            fi
         done
     fi
 
@@ -269,8 +368,8 @@ eksik_paket_goster() {
     #    durumdaki kesin hata işareti "Missing Pygments output"tur; minted.sty
     #    kendisi eksikse 1. kol yakalar (haritada python3-pygments geçiyor).
     if echo "$CIKTI" | grep -q "Missing Pygments"; then
-        printf "${MAVI2}==> Eksik paket: python3-pygments \(%s\)${SIFIRLA}\n" "pygmentize"
-        printf "${MAVI2}    sudo apt-get install python3-pygments${SIFIRLA}\n"
+        eksik_paket_bildir "pygmentize" "python3-pygments" "Pygments" \
+            "pip3 install Pygments"
     fi
 }
 
@@ -452,8 +551,10 @@ derle_dosya() {
     esac
     if ! command -v "$MOTOR" &>/dev/null; then
         echo -e "${KIRMIZI}[hata] $MOTOR kurulu değil — derlenemedi${SIFIRLA}"
-        printf "${MAVI2}==> Eksik paket: %s (%s)${SIFIRLA}\n" "$MOTOR_PAKET" "$MOTOR"
-        printf "${MAVI2}    sudo apt-get install %s${SIFIRLA}\n" "$MOTOR_PAKET"
+        # macOS'ta motorlarin hepsi MacTeX ile geliyor; tek tek tlmgr
+        # paketleri yok.
+        eksik_paket_bildir "$MOTOR" "$MOTOR_PAKET" "MacTeX" \
+            "brew install --cask mactex"
         return 1
     fi
 
@@ -559,8 +660,8 @@ derle_dosya() {
         else
             # biblatex .bcf üretti ama biber kurulu değil → atıflar çözülemeyecek
             echo -e "${SARI}[uyari] Kaynakça (biblatex) için biber gerekli ama kurulu değil, atıflar çözülemeyecek.${SIFIRLA}"
-            printf "${MAVI2}==> Eksik paket: biber (biblatex kaynakça aracı)${SIFIRLA}\n"
-            printf "${MAVI2}    sudo apt-get install biber${SIFIRLA}\n"
+            eksik_paket_bildir "biblatex kaynakça aracı" "biber" "biber" \
+                "sudo tlmgr install biber"
         fi
     elif [ -f "$TMPDIR/${ISIM}.aux" ] && grep -rl '\\bibdata' "$TMPDIR/"*.aux &>/dev/null; then
         if command -v bibtex &>/dev/null; then
@@ -610,8 +711,9 @@ derle_dosya() {
             # de işe yarıyordu, çünkü `texlive-bibtex-extra` ona bağımlı;
             # ama aynı soruya Ortam Denetimi başka cevap veriyordu. Ölçüt
             # ikisinde de aynı: komutu HANGİ PAKET getiriyor.
-            printf "${MAVI2}==> Eksik paket: texlive-binaries (bibtex)${SIFIRLA}\n"
-            printf "${MAVI2}    sudo apt-get install texlive-binaries${SIFIRLA}\n"
+            # bibtex ikilisi macOS'ta MacTeX ile geliyor.
+            eksik_paket_bildir "bibtex" "texlive-binaries" "MacTeX" \
+                "brew install --cask mactex"
         fi
     fi
 
@@ -696,8 +798,8 @@ derle_dosya() {
             # adı (`makeglossaries`) yazılıydı, yani öneri satırı bir paket
             # adı gibi görünen ama apt'de OLMAYAN bir ad gösteriyordu;
             # altındaki komut ise doğru paketi kuruyordu.
-            printf "${MAVI2}==> Eksik paket: texlive-latex-extra (makeglossaries)${SIFIRLA}\n"
-            printf "${MAVI2}    sudo apt-get install texlive-latex-extra${SIFIRLA}\n"
+            eksik_paket_bildir "makeglossaries" "texlive-latex-extra" \
+                "glossaries" "sudo tlmgr install glossaries"
         fi
     fi
     if [ -f "$TMPDIR/${ISIM}.nlo" ] && command -v makeindex &>/dev/null; then

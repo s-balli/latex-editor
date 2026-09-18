@@ -453,3 +453,38 @@ def test_SESSIZ_araclar_denetim_listesinde():
     """
     for arac in ("bibtex", "makeindex", "makeglossaries"):
         assert arac in TOOLS, arac
+
+
+class TestKurulumKomutuPlatforma_Gore:
+    r"""macOS'ta `sudo apt-get install` diyordu; orada apt YOK.
+
+    Motorlar ve TeX ikilileri macOS'ta MacTeX ile geliyor, TeX Live
+    paketleri `tlmgr` ile, pandoc `brew` ile, Pygments `pip3` ile.
+
+    WINDOWS BU DALA GIRMIYOR: orada bu modul WSL ICINDEKI araclari
+    yokluyor ve tavsiye de WSL icin, yani apt. Karsi kol o.
+    """
+
+    @pytest.mark.parametrize("arac", sorted(env_check.APT_HINTS))
+    def test_APT_kolu_degismedi(self, arac, monkeypatch):
+        monkeypatch.setattr(env_check.sys, "platform", "linux")
+        komut = env_check.kurulum_komutu(arac)
+        assert komut == "sudo apt-get install %s" % env_check.APT_HINTS[arac]
+
+    @pytest.mark.parametrize("arac", sorted(env_check.APT_HINTS))
+    def test_WINDOWS_da_apt_kolunda_kaliyor(self, arac, monkeypatch):
+        """Tavsiye WSL icin; Windows'ta apt disina cikmamali."""
+        monkeypatch.setattr(env_check.sys, "platform", "win32")
+        assert env_check.kurulum_komutu(arac).startswith("sudo apt-get install")
+
+    @pytest.mark.parametrize("arac", sorted(env_check.APT_HINTS))
+    def test_MACOS_ta_apt_get_HIC_gecmiyor(self, arac, monkeypatch):
+        monkeypatch.setattr(env_check.sys, "platform", "darwin")
+        komut = env_check.kurulum_komutu(arac)
+        assert "apt-get" not in komut, komut
+        assert "texlive-" not in komut, komut
+        assert komut.split()[0] in ("brew", "sudo", "pip3"), komut
+
+    def test_HER_ARAC_ICIN_macOS_karsiligi_var(self):
+        """Eksik anahtar KeyError verirdi; iki tablo ayni araclari tasimali."""
+        assert set(env_check.APT_HINTS) == set(env_check._MAC_HINTS)

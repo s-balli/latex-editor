@@ -108,8 +108,15 @@ def _tekrar_ayir(satir: str) -> tuple[str, int]:
     return satir[:m.start()], int(m.group(1))
 # Öneri: ==> Eksik paketi: ... veya ==> Eksik dil paketi: ...
 _RE_SUGGESTION = re.compile(r'^==>\s*(Eksik (?:dil )?paket[ie]?): (.+)')
-# Kurulum komutu: "    sudo apt-get install ..."
-_RE_INSTALL = re.compile(r'^\s+sudo apt-get install (.+)')
+# Kurulum komutu: "    sudo apt-get install ..." (Linux/WSL) ya da macOS
+# karşılıkları. Komut BÜTÜN olarak yakalanıp aynen taşınıyor; eskiden
+# `apt-get install` soyulup yeniden KURULUYORDU, o yüzden başka bir
+# paket yöneticisinin komutu buradan geçemezdi.
+#
+# Windows davranışı DEĞİŞMİYOR: orada derle.sh WSL'in içinde koşuyor ve
+# satır yine `sudo apt-get install ...` geliyor, yakalanan da o.
+_RE_INSTALL = re.compile(
+    r'^\s+((?:sudo )?(?:apt-get|tlmgr|brew|pip3) (?:install|search) .+)')
 # Motor gereksinimi: hata mesajında "requires LuaLaTeX" vb.
 # Alternatifler EŞLEMİN ANAHTARLARINDAN kuruluyor, elle YAZILMIYOR: ikisi ayrı
 # yazıldığında desen `pdfTeX`i yakalıyor ama eşlem tanımıyordu ve kullanıcıya
@@ -495,7 +502,7 @@ def parse_output(raw: str, source_file: str = "") -> CompileResult:
         # Kurulum komutu (öneriye eşlik eden)
         m = _RE_INSTALL.match(line)
         if m and result.suggestions:
-            result.suggestions[-1].install_command = f"sudo apt-get install {m.group(1)}"
+            result.suggestions[-1].install_command = m.group(1)
             continue
 
     if current_error:

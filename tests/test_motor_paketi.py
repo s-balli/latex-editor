@@ -127,15 +127,19 @@ def test_BETIK_ve_DENETIM_yardimci_araclarda_da_ayrismiyor():
     """
     with open(_BETIK, encoding="utf-8") as f:
         kaynak = f.read()
-    # "==> Eksik paket: <paket> (<arac>)" + ardından gelen kurulum komutu
-    ciftler = re.findall(
-        r'==> Eksik paket: ([a-z0-9][a-z0-9.+-]*)[^\n]*\\n"\s*\n\s*'
-        r'printf[^\n]*sudo apt-get install ([a-z0-9][a-z0-9.+-]*)',
-        kaynak)
-    assert ciftler, "betikteki kurulum onerileri okunamadi"
-    for paket, komut_paketi in ciftler:
-        assert paket == komut_paketi, (paket, komut_paketi)
-    onerilen = {p for p, _k in ciftler}
+    # Başlık ve komut artık AYRI AYRI yazılmıyor: ikisini de
+    # `eksik_paket_bildir` basıyor, apt paketi ikinci argümanda.
+    #
+    #     eksik_paket_bildir "<eksik şey>" "<apt paketi>" \
+    #         "<macOS adı>" "<macOS komutu>"
+    #
+    # Başlık ile komutun aynı paketi söylemesi böylece YAPISAL oldu
+    # (apt kolunda iki satır da `$2` kullanıyor); onu aşağıdaki ayrı
+    # test sabitliyor. Burada kalan iş: betiğin önerdiği apt paketleri
+    # ile Ortam Denetimi'ninkiler ayrışmasın.
+    onerilen = set(re.findall(
+        r'eksik_paket_bildir "[^"]*" "([a-z0-9][a-z0-9.+-]*)"', kaynak))
+    assert onerilen, "betikteki kurulum onerileri okunamadi"
     for arac, paket in _YARDIMCI.items():
         if paket in onerilen or arac in onerilen:
             assert paket in onerilen, (arac, paket, sorted(onerilen))

@@ -1,5 +1,7 @@
 """log_parser modülü testleri."""
 
+import pytest
+
 from core.error_hints import get_hint
 from core.log_parser import parse_output, resolve_error_path
 
@@ -828,3 +830,34 @@ def test_BIB_SATIRI_dosya_yiginini_bozmuyor():
     r = parse_output(ham, "ana.tex")
     assert r.errors, ham
     assert r.errors[0].file_path == "bolum.tex", r.errors[0].file_path
+
+
+class TestKurulumKomutuPaketYoneticisi:
+    r"""Kurulum komutu AYNEN taşınmalı, yeniden kurulmamalı.
+
+    Eskiden `sudo apt-get install ` soyulup f-string ile geri
+    ekleniyordu, yani apt dışında bir paket yöneticisinin komutu bu
+    kapıdan HİÇ geçemezdi. macOS'ta derle.sh `tlmgr`/`brew`/`pip3`
+    diyor ve panelde kurulum satırı boş kalıyordu.
+
+    Windows kolu KARŞI KOL: orada derle.sh WSL içinde koşuyor, satır
+    yine apt-get geliyor ve birebir aynı taşınmalı.
+    """
+
+    @pytest.mark.parametrize("komut", [
+        "sudo apt-get install texlive-latex-extra",
+        "sudo tlmgr install cancel",
+        "sudo tlmgr search --global --file \"/aastex.cls\"",
+        "brew install --cask mactex",
+        "pip3 install Pygments",
+    ])
+    def test_komut_aynen_tasiniyor(self, komut):
+        r = parse_output("==> Eksik paket: x\n    " + komut)
+        assert r.suggestions, komut
+        assert r.suggestions[0].install_command == komut
+
+    def test_rastgele_girintili_satir_komut_sayilmiyor(self):
+        """Karşı kol: her girintili satır kurulum komutu değil."""
+        r = parse_output("==> Eksik paket: x\n    bu bir aciklama satiri")
+        assert r.suggestions
+        assert r.suggestions[0].install_command == ""

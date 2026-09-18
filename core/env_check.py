@@ -67,6 +67,38 @@ APT_HINTS = {
     "pygmentize": "python3-pygments",
 }
 
+# macOS'ta apt YOK; TeX Live paketleri `tlmgr` ile, geri kalanı `brew`
+# ile geliyor. Motorlar ve TeX ikilileri (bibtex, makeindex, synctex)
+# tek tek kurulmuyor, MacTeX ile birlikte geliyor.
+#
+# ÖLÇÜLDÜ (2026-09-18, macos-15 + BasicTeX): araçların hangi pakette
+# durduğu TeX Live'ın kendi veritabanına soruldu.
+#
+# WINDOWS BURAYA GİRMİYOR: orada bu modül WSL içindeki araçları
+# yokluyor ve tavsiye de WSL için, yani apt. Dal yalnız darwin'de.
+_MAC_HINTS = {
+    "lualatex": "brew install --cask mactex",
+    "pdflatex": "brew install --cask mactex",
+    "xelatex": "brew install --cask mactex",
+    "biber": "sudo tlmgr install biber",
+    "bibtex": "brew install --cask mactex",
+    "makeindex": "brew install --cask mactex",
+    "makeglossaries": "sudo tlmgr install glossaries",
+    "pandoc": "brew install pandoc",
+    "synctex": "brew install --cask mactex",
+    "pygmentize": "pip3 install Pygments",
+}
+
+
+def kurulum_komutu(arac: str) -> str:
+    """Araç için platforma uygun kurulum komutu.
+
+    Windows apt kolunda kalıyor: tavsiye WSL içi kuruluma ait.
+    """
+    if sys.platform == "darwin":
+        return _MAC_HINTS[arac]
+    return f"sudo apt-get install {APT_HINTS[arac]}"
+
 # Eksikken satırda bağlam verilecek araçlar: minted kullanmayan kullanıcıya
 # satırın listede neden durduğu anlaşılsın.
 _TOOL_NOTES = {
@@ -166,7 +198,7 @@ def _tool_row(name: str, path: str) -> CheckResult:
     if name in _TOOL_NOTES:
         detail += f" ({_TOOL_NOTES[name]})"
     return CheckResult(name, "missing", detail,
-                       f"sudo apt-get install {APT_HINTS[name]}")
+                       kurulum_komutu(name))
 
 
 def _maybe_add_full_install_hint(results: list[CheckResult]) -> None:
@@ -179,11 +211,15 @@ def _maybe_add_full_install_hint(results: list[CheckResult]) -> None:
     """
     by = {r.name: r for r in results}
     if all(by.get(e) is not None and by[e].status == "missing" for e in ENGINES):
+        # macOS'ta TeX Live tek tek apt paketleriyle değil, MacTeX ile
+        # geliyor; pandoc ayrı bir brew formülü.
+        tam = ("brew install --cask mactex && brew install pandoc"
+               if sys.platform == "darwin" else _FULL_INSTALL)
         results.append(CheckResult(
             "TeX Live kurulumu", "info",
             "hiç motor kurulu değil; eksik paketleri tek tek kurmak yerine "
             "README'nin tam kurulumu önerilir",
-            _FULL_INSTALL,
+            tam,
         ))
 
 
@@ -232,7 +268,7 @@ def run_checks(runner=None) -> list[CheckResult]:
             ))
             results.extend(
                 CheckResult(t, "error", "WSL yanıt vermediğinden denetlenemedi",
-                            f"sudo apt-get install {APT_HINTS[t]}")
+                            kurulum_komutu(t))
                 for t in TOOLS)
             return results
         if rc is None:
@@ -244,7 +280,7 @@ def run_checks(runner=None) -> list[CheckResult]:
             # açıkça bilinmiyor işaretle
             results.extend(
                 CheckResult(t, "error", "WSL olmadığından denetlenemedi",
-                            f"sudo apt-get install {APT_HINTS[t]}")
+                            kurulum_komutu(t))
                 for t in TOOLS)
             _wsl_sonraki_adim(results)
             return results
@@ -259,7 +295,7 @@ def run_checks(runner=None) -> list[CheckResult]:
             ))
             results.extend(
                 CheckResult(t, "error", "WSL çalışmadığından denetlenemedi",
-                            f"sudo apt-get install {APT_HINTS[t]}")
+                            kurulum_komutu(t))
                 for t in TOOLS)
             _wsl_sonraki_adim(results)
             return results
