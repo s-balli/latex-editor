@@ -78,6 +78,28 @@ print()
 c = kol("KOL C: duzeltme ETKIN", True)
 print()
 
+# AYNI DESEN IKINCI YERDE: kabuk erisimi (minted) izninin HANGI projeye
+# yazilacagini `compile_ops._kok_kapsiyor_mu` belirliyor ve o da
+# `commonpath` + `normcase` kullaniyor. Bu kol WINDOWS'ta taklit EDILEMIYOR:
+# `ntpath.commonpath` kendi icinde harf katliyor, `posixpath.commonpath`
+# katlamiyor. Yani cevabi yalnizca macOS verebilir, olcum burada.
+from gui.mixins.compile_ops import CompileOpsMixin                # noqa: E402
+
+with tempfile.TemporaryDirectory() as d:
+    kok2 = os.path.join(d, "Tez")
+    alt2 = os.path.join(kok2, "bolumler")
+    os.makedirs(alt2)
+    print("=== KOL D: kabuk erisimi kapsami (_kok_kapsiyor_mu) ===")
+    kapsam = {}
+    for ad, k in (("ayni yazim", kok2), ("kok BUYUK", kok2.upper()),
+                  ("kok kucuk", kok2.lower())):
+        v = CompileOpsMixin._kok_kapsiyor_mu(k, alt2)
+        kapsam[ad] = v
+        print("    %-12s -> %s%s" % (ad, v, "" if v else "   <-- KAPSAMIYOR"))
+    if duyarsiz and not all(kapsam.values()):
+        print("    ^ Dosya sistemi duyarsiz, yani bu dizinler AYNI; karar YANLIS")
+print()
+
 normcase_etkisiz = os.path.normcase("/A/B") == "/A/B"
 if not duyarsiz:
     print("SONUC: bu kosucuda dosya sistemi DUYARLI, kusur burada olusmaz")
