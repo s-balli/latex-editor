@@ -187,3 +187,25 @@ jobs:
           kod=0
           out=$("$APP/Contents/MacOS/Mini" 2>&1) || kod=$?
           echo "karantinasiz ic ikili: cikis $kod | cikti: $out"
+
+      # `spctl --assess` UC HALDE DE "rejected" dedi, yani ayirt etmiyor:
+      # ad-hoc imza Gatekeeper POLITIKASINDA her zaman reddedilir, oysa
+      # yerelde uretilen paket aciliyor. Sebep, denetimin karantinaya
+      # bagli olmasi; spctl "acilir mi" sorusunun olcutu DEGIL.
+      #
+      # `syspolicy_check` macOS 14'ten beri geliyor ve tam bu soruyu
+      # cevapliyor: paket dagitima hazir mi, nesi eksik.
+      - name: syspolicy_check (Apple'in dagitim denetimi)
+        run: |
+          APP="$RUNNER_TEMP/dist/Mini.app"
+          echo "arac: $(command -v syspolicy_check || echo YOK)"
+          command -v syspolicy_check >/dev/null || exit 0
+          echo "--- karantinasiz ---"
+          syspolicy_check distribution "$APP" 2>&1 | head -20 || true
+          xattr -w com.apple.quarantine \
+            "0083;$(printf '%x' "$(date +%s)");Safari;$(uuidgen)" "$APP"
+          echo "--- karantinali ---"
+          syspolicy_check distribution "$APP" 2>&1 | head -20 || true
+          echo "--- notarization durumu ---"
+          syspolicy_check notary-submission "$APP" 2>&1 | head -10 || true
+          xattr -dr com.apple.quarantine "$APP"
