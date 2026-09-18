@@ -307,3 +307,74 @@ def test_landing_page_em_dash_kullanmiyor():
         "tanıtım sayfasında em dash (—) var; kısa cümle ya da noktalı virgül kullan"
     )
     assert "\u2013" not in sayfa, "tanıtım sayfasında en dash (–) var"
+
+
+# --- Python bağımlılıkları: README kopya liste taşımamalı ---
+
+_REQ = os.path.join(_ROOT, "desktop", "requirements.txt")
+_READMELER = ("README.md", "README.tr.md")
+
+# Satırın neresinde olursa olsun bir pip kurulum çağrısı (Anaconda notu
+# `>` ile alıntı içinde ve mutlak python yoluyla yazılı).
+_RE_PIP = re.compile(r"\bpip3? install ([^\n`]*)", re.M)
+
+
+def _uygulama_paketleri():
+    with open(_REQ, encoding="utf-8") as f:
+        return {s.split(">")[0].split("=")[0].split("<")[0].strip().lower()
+                for s in f if s.strip() and not s.startswith("#")}
+
+
+@pytest.mark.parametrize("ad", _READMELER)
+def test_README_pip_listesi_ELLE_kopyalanmiyor(ad):
+    r"""README'deki pip satırı paket adlarını tek tek saymamalı.
+
+    Sayarsa `desktop/requirements.txt` ile ayrışıyor ve ayrışma SESSİZ:
+    `dulwich` ile `spylls` isteğe bağlı içe aktarılıyor, yani uygulama
+    açılıyor ama Sürüm Geçmişi ve Yazım Denetimi hiç görünmüyor.
+
+    ÖLÇÜLDÜ (2026-09-18, temiz venv, uygulamanın kendi bayrakları):
+        README listesi     surum gecmisi: False | yazim denetimi: False
+        requirements.txt   surum gecmisi: True  | yazim denetimi: True
+    README `PyQt6 PyQt6-QScintilla pypdfium2 send2trash` diyordu;
+    `Pillow`, `dulwich` ve `spylls` listede yoktu.
+
+    Karşı kol: web arayüzünün (`fastapi uvicorn`) ve testlerin
+    (`pytest`) kendi satırları uygulama bağımlılığı değil, serbest.
+    """
+    paketler = _uygulama_paketleri()
+    with open(os.path.join(_ROOT, ad), encoding="utf-8") as f:
+        metin = f.read()
+
+    for argumanlar in _RE_PIP.findall(metin):
+        adlar = {t.strip("`'\"").lower() for t in argumanlar.split()}
+        cakisma = adlar & paketler
+        assert not cakisma, (
+            f"{ad}: pip satırı paket adını ELLE sayıyor: {sorted(cakisma)} "
+            "(desktop/requirements.txt ile ayrışır; `-r` ile göster)"
+        )
+
+
+@pytest.mark.parametrize("ad", _READMELER)
+def test_README_requirements_dosyasini_GOSTERIYOR(ad):
+    """Kapının öteki yarısı: liste kalkarken kurulum da kalkmasın.
+
+    Sayı TAM sınanıyor, "en az bir tane" değil. Kurulum yönergesi dört
+    yerde duruyor (Windows, Linux, macOS ve Anaconda notu) ve biri
+    silinse gevşek bir kapı bunu görmezdi; mutasyon sınamasında önce
+    "en az bir", sonra "en az üç" denendi, ikisi de bir satırın
+    silinmesini KAÇIRDI.
+
+    Bölüm başlığına bakmak daha doğal olurdu ama başlıklar iki dilde
+    farklı; sayı iki README'de de aynı.
+
+    Kasıtlı bir yeniden düzenlemede bu sayı elle güncellenir; kapının
+    amacı tam olarak o kararın FARK EDİLMESİ.
+    """
+    with open(os.path.join(_ROOT, ad), encoding="utf-8") as f:
+        metin = f.read()
+    satirlar = [a for a in _RE_PIP.findall(metin) if "requirements.txt" in a]
+    assert len(satirlar) == 4, (
+        f"{ad}: requirements.txt'e işaret eden {len(satirlar)} pip satırı var, "
+        "dört bekleniyor (Windows, Linux, macOS, Anaconda notu)"
+    )

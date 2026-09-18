@@ -380,14 +380,14 @@ Result: `dist/LaTeX Editor.exe` (Windows) or `dist/LaTeX Editor` (Linux/macOS)
 **Install Python packages:**
 
 ```bash
-pip install PyQt6 PyQt6-QScintilla pypdfium2 send2trash
+pip install -r desktop/requirements.txt
 ```
 
 Export: `sudo apt-get install pandoc` inside WSL (Windows) or on the system (Linux); `brew install pandoc` (macOS). On Windows the export runs pandoc inside WSL, so a pandoc installed on Windows itself is never used.
 
 > **Note:** If using Anaconda, you need standalone Python:
 > ```
-> C:\Users\<user>\AppData\Local\Programs\Python\Python312\python.exe -m pip install PyQt6 PyQt6-QScintilla pypdfium2 send2trash
+> C:\Users\<user>\AppData\Local\Programs\Python\Python312\python.exe -m pip install -r desktop/requirements.txt
 > ```
 
 **Launch the app:**
@@ -484,7 +484,7 @@ sudo apt-get install python3 python3-pip texlive-base texlive-binaries texlive-l
   texlive-fonts-extra texlive-science texlive-bibtex-extra texlive-font-utils \
   texlive-extra-utils biber texlive-publishers texlive-humanities texlive-pstricks libxcb-cursor0 python3-pygments pandoc
 
-pip install PyQt6 PyQt6-QScintilla pypdfium2 send2trash
+pip install -r desktop/requirements.txt
 ```
 
 Run:
@@ -499,7 +499,7 @@ Install Python and MacTeX:
 ```bash
 brew install python
 brew install --cask mactex
-pip3 install PyQt6 PyQt6-QScintilla pypdfium2 send2trash
+pip3 install -r desktop/requirements.txt
 ```
 
 Run:

@@ -381,14 +381,14 @@ Sonuç: `dist/LaTeX Editor.exe` (Windows) veya `dist/LaTeX Editor` (Linux/macOS)
 **Python paketlerini yükle:**
 
 ```bash
-pip install PyQt6 PyQt6-QScintilla pypdfium2 send2trash
+pip install -r desktop/requirements.txt
 ```
 
 Dışa aktarma: Windows'ta `sudo apt-get install pandoc` WSL İÇİNDE, Linux'ta sistemde; macOS'ta `brew install pandoc`. Windows'ta dışa aktarma pandoc'u WSL içinde çağırıyor, yani Windows'un kendisine kurulan pandoc hiç kullanılmıyor.
 
 > **Not:** Anaconda kullanıyorsanız standalone Python kullanmanız gerekir:
 > ```
-> C:\Users\<kullanici>\AppData\Local\Programs\Python\Python312\python.exe -m pip install PyQt6 PyQt6-QScintilla pypdfium2 send2trash
+> C:\Users\<kullanici>\AppData\Local\Programs\Python\Python312\python.exe -m pip install -r desktop/requirements.txt
 > ```
 
 **Uygulamayı başlat:**
@@ -485,7 +485,7 @@ sudo apt-get install python3 python3-pip texlive-base texlive-binaries texlive-l
   texlive-fonts-extra texlive-science texlive-bibtex-extra texlive-font-utils \
   texlive-extra-utils biber texlive-publishers texlive-humanities texlive-pstricks libxcb-cursor0 python3-pygments pandoc
 
-pip install PyQt6 PyQt6-QScintilla pypdfium2 send2trash
+pip install -r desktop/requirements.txt
 ```
 
 Çalıştır:
@@ -500,7 +500,7 @@ Python ve MacTeX kur:
 ```bash
 brew install python
 brew install --cask mactex
-pip3 install PyQt6 PyQt6-QScintilla pypdfium2 send2trash
+pip3 install -r desktop/requirements.txt
 ```
 
 Çalıştır:
