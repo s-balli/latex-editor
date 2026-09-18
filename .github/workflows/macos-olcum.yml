@@ -328,6 +328,28 @@ jobs:
           print("bolum numarasi yerinde mi:", "bolum 1" in t.replace("\u00a0", " "))
           PY
 
+      # Eksik glif kapisi macOS'ta 160 yerine 480 sayiyor (tam 3 kat).
+      # Iki aday: motor uc kez kosuyor, ya da harf UC AYRI yazi tipinde
+      # birden eksik. Ayirt edici, toplanan satirlarin kendisi: dedup
+      # anahtari (harf, yazi tipi) oldugu icin font adlari gorunur.
+      - name: Eksik glif neden 3 kat (tani)
+        run: |
+          mkdir -p "$RUNNER_TEMP/g"
+          python - > "$RUNNER_TEMP/g/ana.tex" <<'PY'
+          govde = "Turkce harfler: \u0131\u015f\u011f\u0130. " * 40
+          print("\\documentclass{article}\n\\usepackage[T1]{fontenc}\n"
+                "\\usepackage{mathptmx}\n\\begin{document}\n" + govde
+                + "\n\\end{document}")
+          PY
+          /bin/bash core/derle.sh "$RUNNER_TEMP/g/ana.tex" \
+            > "$RUNNER_TEMP/g/cikti.txt" 2>&1 || true
+          echo "--- toplanan glif satirlari ---"
+          sed 's/\x1b\[[0-9;]*m//g' "$RUNNER_TEMP/g/cikti.txt" \
+            | grep 'Missing character' | head -20
+          echo "--- motor kac kez kostu (gunluk banner) ---"
+          grep -c '^This is ' "$RUNNER_TEMP/g/ana.log" 2>/dev/null \
+            || echo "(gunluk yok, derleme basarili demektir)"
+
       - name: derle.sh test paketi (macOS)
         env:
           QT_QPA_PLATFORM: offscreen
