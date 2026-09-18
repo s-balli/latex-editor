@@ -11,8 +11,12 @@ Debian/Ubuntu A4'e, MacTeX/BasicTeX US Letter'a ayarlı. ÖLÇÜLDÜ
     [letterpaper] + geometry            Linux Letter | macOS Letter
 
 (*) işaretli satır kusurun kendisi: belge A4 İSTEMİŞ, macOS'ta Letter
-almış ve uygulama bunu söylememişti. Sayfa 17.6 mm kısa olduğu için metin
-bloğu da sayfaya sığmıyor.
+almış ve uygulama bunu söylememişti.
+
+BEDELİ ÖLÇÜLDÜ, veri kaybı DEĞİL: 200 satırlık belgede iki platformda da
+taşma yok. Metin bloğu A4 yüksekliğini koruyor ve farkı alt boşluk yutuyor
+(91.6 -> 41.7 nokta). Değişen, basılan kâğıdın boyu ve belgenin istediği
+kenar boşlukları. Kapı da bunu sınıyor: uyarı çıkıyor mu, metni doğru mu.
 
 PDF'ler TeX'SİZ üretiliyor: kapının sorusu "bu boyut bu bildirimle uyuşuyor
 mu", derleme değil. Böylece kapı üç CI işinde de koşuyor, TeX'i olmayan

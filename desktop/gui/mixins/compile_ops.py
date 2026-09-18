@@ -544,8 +544,15 @@ class CompileOpsMixin:
         FİZİKSEL sayfayı belirlemiyor; onu TeX dağıtımının öntanımı veriyor.
         Debian/Ubuntu A4'e, MacTeX US Letter'a ayarlı. ÖLÇÜLDÜ (2026-09-19,
         aynı kaynak, aynı motor): `\documentclass[a4paper]{article}` Linux'ta
-        A4, macOS'ta US Letter çıkıyor. Belge A4 İSTEMİŞ ve almamış; üstelik
-        metin bloğu A4'e göre kurulduğu için sayfa 17.6 mm kısa kalıyor.
+        A4, macOS'ta US Letter çıkıyor. Belge A4 İSTEMİŞ ve almamış.
+
+        BEDELİ NE, ÖLÇÜLDÜ. Önce "metin sayfadan taşar" sanılmıştı; 200
+        satırlık belge iki platformda da sınandı ve TAŞMA YOK: metin bloğu
+        A4 yüksekliğini koruyor (620 nokta), üstten aynı yere oturuyor
+        (~130 nokta) ve aradaki 49.9 noktayı ALT BOŞLUK yutuyor (91.6 ->
+        41.7). Yani kaybolan bir şey yok; değişen, basılan kâğıdın boyu ve
+        belgenin istediği kenar boşlukları. Mesaj da o yüzden veri kaybı
+        iddia etmiyor, yalnız olanı söylüyor.
 
         `geometry` yüklüyse belge sözünü geçiriyor, o yüzden çare de o:
         mesaj paketi adıyla söylüyor. Kapı BİLDİRİM: kağıt zorla
