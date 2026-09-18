@@ -397,10 +397,14 @@ jobs:
                   print(ad)
           PY
           echo "sorulacak dosya: $(wc -l < "$RUNNER_TEMP/adlar.txt")"
+          # BUTUN eslesmeler yazdiriliyor. `head -1` ile ilkini almak
+          # yanlisti: bir dosya birden cok pakette gecebiliyor ve ilk
+          # alfabetik eslesme dogru paket olmayabiliyor (IEEEtran.bst hem
+          # `confproc` hem `ieeetran` icinde).
           while read -r ad; do
-            p=$(tlmgr search --global --file "/$ad" 2>/dev/null \
-                | grep -E '^[a-z0-9.-]+:$' | head -1 | tr -d ':')
-            printf '%-22s %s\n' "$ad" "${p:-BULUNAMADI}"
+            hepsi=$(tlmgr search --global --file "/$ad" 2>/dev/null \
+                    | grep -E '^[a-z0-9.-]+:$' | tr -d ':' | tr '\n' ' ')
+            printf '%-22s %s\n' "$ad" "${hepsi:-BULUNAMADI}"
           done < "$RUNNER_TEMP/adlar.txt"
 
       - name: Babel dilleri -> CTAN paketi
