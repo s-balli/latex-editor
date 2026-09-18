@@ -740,17 +740,20 @@ jobs:
           path: ${{ runner.temp }}/ekran.png
           if-no-files-found: warn
 
-      # PAKETLENMIS UYGULAMANIN KENDISIYLE derleme. Simdiye kadar
-      # derleme `derle.sh` ile KAYNAKTAN sinandi; uygulamanin icinden
-      # hic denenmedi.
+      # PAKETLENMIS UYGULAMANIN KENDISIYLE derleme.
       #
       # Ayrica `macos_path_tamamla()` duzeltmesinin UCTAN UCA sinandigi
-      # tek yer burasi: `open` uygulamayi launchd uzerinden baslatiyor,
-      # yani PATH Finder'daki gibi asgari geliyor ve MacTeX ancak
-      # duzeltme calisiyorsa bulunuyor.
+      # tek yer: `open` uygulamayi launchd uzerinden baslatiyor, yani
+      # PATH Finder'daki gibi asgari geliyor ve MacTeX ancak duzeltme
+      # calisiyorsa bulunuyor.
       #
-      # Kehanet PDF'in OLUSMASI: uygulama actigini soylese bile derleme
-      # olmadan PDF cikmaz.
+      # IKI KOL: uygulama KAPALIYKEN dosyayla acmak (soguk baslangic) ve
+      # ZATEN ACIKKEN dosya gondermek. macOS ikisinde de dosyayi Apple
+      # Event ile veriyor; `sys.argv` YOLU MACOS'TA KULLANILMIYOR.
+      # Ayrim onemli, cunku Info.plist'teki `.tex` iliskilendirmesi
+      # tam olarak bu yola dayaniyor.
+      #
+      # Kehanet iki katli: pencere basliginda dosya adi VE PDF'in olusmasi.
       - name: Uygulamanin KENDISIYLE derle
         run: |
           is="$RUNNER_TEMP/proje"
@@ -763,21 +766,31 @@ jobs:
             '\end{document}' > "$is/deneme.tex"
           rm -f "$is/deneme.pdf"
 
+          baslik() {
+            osascript -e 'tell application "System Events" to get name of front window of (first process whose name is "LaTeX Editor")' 2>&1 | head -1
+          }
+
+          echo "--- KOL 1: uygulama KAPALIYKEN dosyayla ac ---"
+          osascript -e 'quit app "LaTeX Editor"' 2>&1 | head -1 || true
+          sleep 5
+          pkill -f "LaTeX Editor" 2>/dev/null || true
+          sleep 3
           open -a "/Applications/LaTeX Editor.app" "$is/deneme.tex"
           sleep 25
-          echo "acildi mi: $(pgrep -f 'LaTeX Editor' > /dev/null && echo EVET || echo HAYIR)"
+          echo "pencere basligi: $(baslik)"
+          echo "dosya acildi mi: $(baslik | grep -qi deneme && echo EVET || echo HAYIR)"
 
-          # Derlemeyi Cmd+S ile tetikle. Erisilebilirlik izni yoksa
-          # osascript duser; o zaman da sebebi yazilsin diye cikti
-          # bastirilmiyor.
-          osascript -e 'tell application "System Events" to keystroke "s" using command down' \
-            2>&1 | head -3 || echo "(osascript dustu)"
+          echo "--- KOL 2: ZATEN ACIKKEN dosya gonder ---"
+          open -a "/Applications/LaTeX Editor.app" "$is/deneme.tex"
+          sleep 12
+          echo "pencere basligi: $(baslik)"
 
+          echo "--- derlemeyi tetikle (Cmd+S) ---"
+          osascript -e 'tell application "System Events" to keystroke "s" using command down' 2>&1 | head -2 || true
           for i in $(seq 1 12); do
             [ -f "$is/deneme.pdf" ] && break
             sleep 10
           done
-
           if [ -f "$is/deneme.pdf" ]; then
             echo "SONUC: PDF URETILDI ($(du -h "$is/deneme.pdf" | cut -f1))"
           else
