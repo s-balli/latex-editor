@@ -426,6 +426,23 @@ jobs:
       - name: SyncTeX symlink suphesi
         run: bash .github/scripts/macos_synctex_tani.sh
 
+      # KAGIT BOYU. Ayni kaynak macOS'ta US Letter, Linux'ta A4 cikti
+      # (olculdu 2026-09-19): MacTeX'in ontanimi Letter, Debian'inki A4.
+      # Soru, BELGENIN kendi beyaninin bunu ezip ezmedigi. Linux haritasi:
+      #     k1 secenek yok, geometry yok        -> A4   (dagitim)
+      #     k2 [a4paper], geometry yok          -> A4
+      #     k3 [a4paper] + geometry (kenarlar)  -> A4   (template36 bicimi)
+      #     k4 [letterpaper] + geometry         -> US Letter  <-- belge kazandi
+      #     k5 [a4paper] geometry secenegiyle   -> A4
+      # k4 ayirt edici: geometry yukluyken sinif secenegi FIZIKSEL sayfaya
+      # geciyor. Ayni harita burada da alinip karsilastiriliyor.
+      - name: Kagit boyunu belge mi belirliyor (harita)
+        run: |
+          python -m pip install --quiet pypdfium2
+          bash .github/scripts/kagit_boyu_haritasi.sh "$RUNNER_TEMP/kagit" --pdflatex
+          echo "--- ayni harita lualatex ile ---"
+          bash .github/scripts/kagit_boyu_haritasi.sh "$RUNNER_TEMP/kagitlua" ""
+
       # Bagimliliklar BURADA kuruluyor, test adiminin icinde degil: tani
       # adimlari da PyQt6 istiyor ve testten ONCE kosuyor. (Ilk denemede
       # harf duyarsizligi tanisi "No module named 'PyQt6'" ile dustu ve
