@@ -28,6 +28,16 @@ import pytest
 from core import paths
 
 
+def _p(*parcalar):
+    """PATH dizesini PLATFORMUN ayiricisiyla kur.
+
+    Elle ":" yazmak kapiyi platforma bagimli yapiyordu: urun kodu
+    `os.pathsep` kullaniyor ve Windows'ta o ";", yani testin kurdugu
+    dize hic bolunmuyordu. CI'in windows isi bunu yakaladi.
+    """
+    return os.pathsep.join(parcalar)
+
+
 def _agac(tmp_path, girdiler, olusturulacak=()):
     """Sahte bir kok: /etc/paths + /etc/paths.d/* ve hedef dizinler."""
     etc = tmp_path / "etc"
@@ -51,7 +61,7 @@ class TestFinderPathTuzagi:
         """Asil kusur: Finder'in asgari PATH'ine texbin girmiyordu."""
         kok = _agac(tmp_path, {"TeX": "/Library/TeX/texbin\n"},
                     ["/Library/TeX/texbin"])
-        ortam = {"PATH": "/usr/bin:/bin:/usr/sbin:/sbin"}
+        ortam = {"PATH": _p("/usr/bin", "/bin", "/usr/sbin", "/sbin")}
         yeni = paths.macos_path_tamamla(ortam, kok=kok)
         assert "/Library/TeX/texbin" in yeni.split(os.pathsep), yeni
         assert ortam["PATH"] == yeni
@@ -82,7 +92,7 @@ class TestFinderPathTuzagi:
     def test_MEVCUT_girdi_TEKRARLANMIYOR(self, tmp_path, darwin):
         kok = _agac(tmp_path, {"TeX": "/Library/TeX/texbin\n"},
                     ["/Library/TeX/texbin"])
-        ilk = "/usr/bin:/Library/TeX/texbin"
+        ilk = _p("/usr/bin", "/Library/TeX/texbin")
         yeni = paths.macos_path_tamamla({"PATH": ilk}, kok=kok)
         assert yeni.split(os.pathsep).count("/Library/TeX/texbin") == 1, yeni
 
@@ -94,8 +104,8 @@ class TestFinderPathTuzagi:
         """
         kok = _agac(tmp_path, {"TeX": "/Library/TeX/texbin\n"},
                     ["/Library/TeX/texbin"])
-        yeni = paths.macos_path_tamamla({"PATH": "/kendi/tex/bin:/usr/bin"},
-                                        kok=kok)
+        yeni = paths.macos_path_tamamla(
+            {"PATH": _p("/kendi/tex/bin", "/usr/bin")}, kok=kok)
         parcalar = yeni.split(os.pathsep)
         assert parcalar[0] == "/kendi/tex/bin", parcalar
         assert parcalar.index("/Library/TeX/texbin") > parcalar.index("/usr/bin")
@@ -109,7 +119,7 @@ class TestOTEKI_PLATFORMLAR:
         monkeypatch.setattr("sys.platform", platform)
         kok = _agac(tmp_path, {"TeX": "/Library/TeX/texbin\n"},
                     ["/Library/TeX/texbin"])
-        ilk = "/usr/bin:/bin"
+        ilk = _p("/usr/bin", "/bin")
         ortam = {"PATH": ilk}
         yeni = paths.macos_path_tamamla(ortam, kok=kok)
         assert yeni == ilk, yeni
