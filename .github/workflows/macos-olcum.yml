@@ -98,9 +98,17 @@ jobs:
           kod=0
           python -m pytest tests/ -q --no-header -rs > "$RUNNER_TEMP/pytest.txt" 2>&1 || kod=$?
           echo "pytest cikis kodu: $kod"
-          tail -40 "$RUNNER_TEMP/pytest.txt"
+          tail -5 "$RUNNER_TEMP/pytest.txt"
           echo "--- dusen testler ---"
           grep '^FAILED' "$RUNNER_TEMP/pytest.txt" | head -40 || echo "(FAILED satiri yok)"
+          # Atlanan testlerin GEREKCE DAGILIMI. `tail` ile bakmak yetmiyordu:
+          # ozet 40 satiri asiyor ve sayilarin toplami test sayisini
+          # tutmuyordu. Burada hepsi sebebe gore toplaniyor.
+          echo "--- atlama gerekceleri (sebebe gore) ---"
+          grep '^SKIPPED' "$RUNNER_TEMP/pytest.txt" \
+            | sed -E 's/^SKIPPED \[([0-9]+)\] [^ ]+ /\1|/' \
+            | awk -F'|' '{a[$2]+=$1; t+=$1} END {for (k in a) printf "%5d  %s\n", a[k], k; printf "%5d  TOPLAM\n", t}' \
+            | sort -rn
 
   # ----------------------------------------------------------------
   # Developer ID OLMADAN dagitim: Gatekeeper ne diyor.
