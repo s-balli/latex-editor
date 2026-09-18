@@ -721,8 +721,22 @@ class TestUyariSuzgeci:
         assert temiz.count("Missing character") <= 12, \
             temiz.count("Missing character")
         mesaj = font_uyarilari[0].message
-        assert "toplam 160 karakter" in mesaj, mesaj
         assert "4 farklı harf" in mesaj, mesaj
+        # Sayı TAM 160 diye sınanmıyordu ve bu macOS'ta düşüyordu: orada
+        # 480 geliyor. Sebep geçiş sayısı DEĞİL (toplama yalnız SON geçişin
+        # çıktısını okuyor, `SON_CIKTI`); TeX paragrafı birden çok kez
+        # bölmeyi deniyor ve her denemede eksik harfi yeniden bildiriyor.
+        # Deneme sayısı yazı tipi metriklerine bağlı, yani TeX dağıtımına.
+        #
+        # ÖLÇÜLDÜ (2026-09-18): Linux/TeX Live `(x40)`, macOS/BasicTeX
+        # `(x120)`, İKİSİNDE DE aynı yazı tipi (ptmr8t) ve aynı 4 harf.
+        #
+        # Kapının DİŞİ duruyor: kusur `sort -u`nun tekrar sayısını atması
+        # ve panelin 160 yerine 4 demesiydi. Alt sınır yer gerçeği olan
+        # 160; sayı yine atılırsa 4'e düşer ve kapı yanar.
+        m = re.search(r"toplam (\d+) karakter", mesaj)
+        assert m, mesaj
+        assert int(m.group(1)) >= 160, mesaj
 
 
 class TestSozlukVeSimge:
