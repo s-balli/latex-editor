@@ -10,13 +10,29 @@ import threading
 import time
 import pytest
 
+from tests.kabuk import calisan_bash
+
 SCRIPT = os.path.join(os.path.dirname(__file__), "..", "core", "derle.sh")
 
-# CI'da TeX Live olmayabilir — lualatex yoksa tüm derle.sh testleri skip
-pytestmark = pytest.mark.skipif(
-    not shutil.which("lualatex"),
-    reason="lualatex kurulu değil — TeX Live gerektirir",
-)
+# Kabuk düz "bash" ile çağrılıyordu ve Windows'ta bu WSL shim'ine gidip
+# `C:\...` yolunu açamıyordu (ölçüm ve sebep tests/kabuk.py'de).
+BASH = calisan_bash()
+
+# WINDOWS'TA NEDEN KOŞMUYOR. Ürün bu betiği Windows'ta WSL'in İÇİNDE
+# çalıştırıyor, her zaman (`compiler._start_windows`): yerli bir TeX kurulumu
+# (MiKTeX) ürünün kullanmadığı bir yapılandırmadır. MiKTeX kurulu bir
+# makinede modül atlanmıyordu ve 57 test düşüyordu; ÖLÇÜLDÜ (2026-09-18):
+# 51'i düz "bash"in WSL shim'ine gitmesinden, kalan 6'sı MiKTeX'in TeX
+# Live'dan farkından (biblatex, fontspec fontları) ve Windows'ta salt okunur
+# KLASÖRÜN yazmayı engellememesinden geliyordu. Hiçbiri ürün kusuru değildi.
+# Aynı testlerin tamamı WSL ve Linux CI'da zaten koşuyor.
+_ATLAMA = (
+    "çalışan bash yok" if not BASH
+    else "Windows'ta ürün derle.sh'i WSL'in içinde koşuyor, yerli TeX ölçüm dışı"
+    if sys.platform == "win32"
+    else "" if shutil.which("lualatex")
+    else "lualatex kurulu değil, TeX Live gerektirir")
+pytestmark = pytest.mark.skipif(bool(_ATLAMA), reason=_ATLAMA)
 
 # Kaynakça testleri için biber + biblatex
 HAS_BIBER = bool(shutil.which("biber"))
@@ -227,7 +243,7 @@ _multibib_skip = pytest.mark.skipif(
 
 def _run_derle(args, cwd, timeout=30):
     result = subprocess.run(
-        ["bash", SCRIPT] + args,
+        [BASH, SCRIPT] + args,
         capture_output=True, text=True, timeout=timeout, cwd=cwd, encoding="utf-8")
     return result
 
@@ -399,7 +415,7 @@ class TestHataDeseni:
     def _grep(snippet):
         # derle.sh'in hata ayıklama deseniyle aynı davranış (gerçek '!' + bağlamı)
         r = subprocess.run(
-            ["bash", "-c", "printf '%s' \"$1\" | grep -A4 -E '^!' | grep -v '^--$' || true",
+            [BASH, "-c", "printf '%s' \"$1\" | grep -A4 -E '^!' | grep -v '^--$' || true",
              "bash", snippet],
             capture_output=True, text=True, encoding="utf-8")
         return r.stdout
@@ -493,10 +509,18 @@ class TestKaynakca:
             'builtin command "$@"; }; export -f command; bash "$0" "$@"'
         )
         r = subprocess.run(
-            ["bash", "-c", cmd, SCRIPT, str(tmp_path / "main.tex")],
+            [BASH, "-c", cmd, SCRIPT, str(tmp_path / "main.tex")],
             capture_output=True, text=True, cwd=str(tmp_path), timeout=120, encoding="utf-8")
         assert "Eksik paket: biber" in r.stdout
-        assert "sudo apt-get install biber" in r.stdout
+        # Kurulum komutu PLATFORMA bağlı: macOS'ta apt yok, `derle.sh`
+        # `sudo tlmgr install biber` öneriyor (bkz. eksik_paket_bildir).
+        # Bu satır Debian biçimini KOŞULSUZ bekliyordu ve macOS'ta düştü;
+        # kusur betikte değil, kapının varsayımındaydı. Kapı macOS'ta İLK
+        # KEZ koştuğu için (tam takım oraya yeni eklendi) bugüne dek
+        # görünmedi.
+        komut = ("sudo tlmgr install biber" if sys.platform == "darwin"
+                 else "sudo apt-get install biber")
+        assert komut in r.stdout
 
 
 class TestKaynakcaAraciDuserse:
@@ -784,7 +808,7 @@ class TestSozlukVeSimge:
         (tmp_path / "ana.tex").write_text(SOZLUK_TEX, encoding="utf-8")
 
         subprocess.run(
-            ["bash", "-c", _komutu_gizle("makeglossaries"), SCRIPT,
+            [BASH, "-c", _komutu_gizle("makeglossaries"), SCRIPT,
              str(tmp_path / "ana.tex")],
             capture_output=True, text=True, cwd=str(tmp_path), timeout=180,
             encoding="utf-8")
@@ -808,7 +832,7 @@ class TestSozlukVeSimge:
         (tmp_path / "ana.tex").write_text(tex, encoding="utf-8")
 
         r = subprocess.run(
-            ["bash", "-c",
+            [BASH, "-c",
              _komutu_gizle("makeglossaries", "makeglossaries-lite"),
              SCRIPT, str(tmp_path / "ana.tex")],
             capture_output=True, text=True, cwd=str(tmp_path), timeout=180,
@@ -1083,7 +1107,7 @@ class TestXelatexModu:
         tex = tmp_path / "test.tex"
         tex.write_text(MINIMAL_TEX, encoding="utf-8")
         r = subprocess.run(
-            ["bash", SCRIPT, str(tex), "--xelatex"],
+            [BASH, SCRIPT, str(tex), "--xelatex"],
             capture_output=True, text=True, timeout=90,
             env={**os.environ, "LD_LIBRARY_PATH": str(libdir)},
             cwd=str(tmp_path), encoding="utf-8")
@@ -1100,7 +1124,7 @@ class TestXelatexModu:
         for tool in ("bash", "dirname", "realpath", "basename"):
             os.symlink(shutil.which(tool), sandbox / tool)
         r = subprocess.run(
-            ["bash", SCRIPT, str(tex), "--xelatex"],
+            [BASH, SCRIPT, str(tex), "--xelatex"],
             capture_output=True, text=True, timeout=30,
             env={"PATH": str(sandbox)},
             cwd=str(tmp_path), encoding="utf-8")
@@ -1136,7 +1160,7 @@ class TestWatchModu:
         tex = tmp_path / "w.tex"
         tex.write_text(MINIMAL_TEX_ERROR, encoding="utf-8")
         proc = subprocess.Popen(
-            ["bash", SCRIPT, str(tex), "--watch"],
+            [BASH, SCRIPT, str(tex), "--watch"],
             cwd=str(tmp_path), text=True,
             stdout=subprocess.PIPE, stderr=subprocess.STDOUT, encoding="utf-8")
         out = []
@@ -1190,7 +1214,7 @@ class TestTekrarSayisiBorusu:
 
     def _kos(self, metin):
         r = subprocess.run(
-            ["bash", "-c", 'printf "%s" "$1" | ' + self._boru(),
+            [BASH, "-c", 'printf "%s" "$1" | ' + self._boru(),
              "bash", metin],
             capture_output=True, text=True, encoding="utf-8")
         return [s for s in r.stdout.splitlines() if s.strip()]
@@ -1353,7 +1377,7 @@ class TestYardimciAracSuzgeci:
         """
         desen, sessiz = self._desenler()
         r = subprocess.run(
-            ["bash", "-c",
+            [BASH, "-c",
              'printf "%s\\n" "$1" | grep -iE "$2" | grep -viE "$3" || true',
              "bash", satir, desen, sessiz],
             capture_output=True, text=True, encoding="utf-8")

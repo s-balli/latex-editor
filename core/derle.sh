@@ -169,12 +169,18 @@ MAVI2='\033[1;36m'
 #
 # apt kolu birebir eskisi gibi kaliyor: Windows'ta bu betik WSL'in
 # icinde kosuyor ve oradaki kullanici bu kolu goruyor.
+# PARANTEZ TERS BOLUSUZ. `printf` bicim dizgisinde `\(` diye bir kacis
+# yok: bash onu OLDUGU GIBI basiyor ve kullanici
+#     ==> Eksik paket: biber \(biblatex kaynakca araci\)
+# goruyordu. Satir arayuzun Oneriler sekmesine de aynen gidiyor
+# (log_parser `(.+)` yakalayip mesaja koyuyor), yani ters boluler orada
+# da gorunuyordu. Asagidaki $5 satiri zaten duz parantez kullaniyordu.
 eksik_paket_bildir() {
     if [ "$PAKET_YONETICISI" = tlmgr ]; then
-        printf "${MAVI2}==> Eksik paket: %s \(%s\)${SIFIRLA}\n" "$3" "$1"
+        printf "${MAVI2}==> Eksik paket: %s (%s)${SIFIRLA}\n" "$3" "$1"
         printf "${MAVI2}    %s${SIFIRLA}\n" "$4"
     else
-        printf "${MAVI2}==> Eksik paket: %s \(%s\)${SIFIRLA}\n" "$2" "$1"
+        printf "${MAVI2}==> Eksik paket: %s (%s)${SIFIRLA}\n" "$2" "$1"
         printf "${MAVI2}    sudo apt-get install %s${SIFIRLA}\n" "$2"
     fi
     # $5 (istege bagli): paket adiyla anlatilamayan ek gereksinim.
@@ -390,7 +396,7 @@ eksik_paket_goster() {
             # olarak duruyor, yani burada tabloya gerek yok.
             local gosterilen="$paket"
             [ "$PAKET_YONETICISI" = tlmgr ] && gosterilen="babel-$dil"
-            printf "${MAVI2}==> Eksik dil paketi: %s \(%s\)${SIFIRLA}\n" \
+            printf "${MAVI2}==> Eksik dil paketi: %s (%s)${SIFIRLA}\n" \
                 "$gosterilen" "$dil"
             if [ "$PAKET_YONETICISI" = tlmgr ]; then
                 printf "${MAVI2}    sudo tlmgr install babel-%s${SIFIRLA}\n" "$dil"

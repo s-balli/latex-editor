@@ -178,6 +178,13 @@ def reverse_search(page: int, x: float, y: float, pdf_path: str,
 
 def _forward_wsl(tex_path: str, line: int, col: int, pdf_path: str,
                 synctex_dir: str = "") -> ForwardResult | None:
+    # Bağ çözme YERLİ kolda vardı, burada YOKTU. Windows'ta da gerekli:
+    # dizin bağlantısı (junction) altındaki bir projede derleme gerçek yolu
+    # kaydeder, sorgu ise bağ yolunu taşır ve adlar eşleşmez. Kusur macOS'ta
+    # `/private/var` ile görülmüştü; aynı kusur bu kolda duruyordu ve
+    # Windows'ta hiçbir canlı test koşmadığı için görünmüyordu.
+    tex_path = _gercek_yol(tex_path)
+    pdf_path = _gercek_yol(pdf_path)
     cmd = ["wsl", "-e", "synctex", "view",
            "-i", f"{line}:{col}:{windows_to_wsl(tex_path)}",
            "-o", windows_to_wsl(pdf_path)]
@@ -216,8 +223,17 @@ def _gercek_yol(yol: str) -> str:
 
     Linux'ta ve Windows'ta sembolik bağ yoksa işlev hiçbir şey
     değiştirmiyor; çözülemeyen yol olduğu gibi dönüyor.
+
+    VAR OLMAYAN yola dokunulmuyor. `os.path.realpath` yolu mutlaklaştırıyor
+    da: POSIX'te `C:\Users\...` GÖRECELİ sayılıp başına çalışma dizini
+    ekleniyor. Üründe bu yollar her zaman var (derleme onları yeni üretti),
+    ama WSL kolunu POSIX'te taklit eden birim testleri sahte Windows yolları
+    veriyor ve çeviri bozuluyordu (üç test düştü). Var olmayan yolda çözecek
+    bir bağ da yok, yani kısıt bedava.
     """
     try:
+        if not os.path.exists(yol):
+            return yol
         return os.path.realpath(yol)
     except OSError:                   # pragma: no cover
         return yol
@@ -258,6 +274,7 @@ def _forward_native(tex_path: str, line: int, col: int, pdf_path: str,
 # yönlü ve bedeli yok: synctex kesirli koordinatı zaten kabul ediyor.
 def _reverse_wsl(page: int, x: float, y: float, pdf_path: str,
                 synctex_dir: str = "") -> ReverseResult | None:
+    pdf_path = _gercek_yol(pdf_path)      # bkz. _forward_wsl'deki gerekçe
     wsl_pdf = windows_to_wsl(pdf_path)
     cmd = ["wsl", "-e", "synctex", "edit",
            "-o", f"{page}:{x:f}:{y:f}:{wsl_pdf}"]

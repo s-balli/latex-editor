@@ -434,7 +434,8 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: |
-          python -m pip install --quiet -r desktop/requirements.txt pytest
+          # python-docx: uretilen .docx acilabiliyor mu kapisi icin (bkz. ci.yml)
+          python -m pip install --quiet -r desktop/requirements.txt pytest python-docx
           kod=0
           # -rf SART: yalniz -rs ile dusen testin ADI hicbir yerde yazilmiyor,
           # ozet sadece "1 failed" diyor ve gunlukte iz kalmiyor (ilk kosuda

@@ -13,15 +13,43 @@ synctex CLI, koordinat→piksel, highlight, reverse round-trip) test eder ama ne
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 
 import pytest
 
-# lualatex + synctex yoksa tüm modül skip
-pytestmark = pytest.mark.skipif(
-    not (shutil.which("lualatex") and shutil.which("synctex")),
-    reason="lualatex + synctex kurulu değil — TeX Live gerektirir",
-)
+from tests.kabuk import calisan_bash
+
+# Derleme `bash` ile yapılıyor; Windows'ta düz "bash" WSL shim'ine gidip
+# `C:\...` yolunu açamıyor ve bu dosya 7 HATA veriyordu (tests/kabuk.py).
+BASH = calisan_bash()
+
+
+def _wsl_araclari_var() -> bool:
+    """WSL'de lualatex ve synctex var mı (Windows kolu oradan koşuyor)."""
+    if not shutil.which("wsl"):
+        return False
+    try:
+        r = subprocess.run(
+            ["wsl", "-e", "bash", "-lc",
+             "command -v lualatex >/dev/null && command -v synctex >/dev/null"],
+            capture_output=True, timeout=60)
+    except (OSError, subprocess.TimeoutExpired):
+        return False
+    return r.returncode == 0
+
+
+# Araçlar hangi tarafta aranacak PLATFORMA bağlı: Windows'ta uygulama hem
+# derlemeyi hem `synctex`i WSL'in içinde çalıştırıyor, yerli MiKTeX'in
+# varlığı bu testler için bir şey söylemiyor.
+if sys.platform == "win32":
+    _ATLAMA = ("" if _wsl_araclari_var()
+               else "WSL'de lualatex + synctex yok, Windows kolu oradan koşuyor")
+else:
+    _ATLAMA = ("çalışan bash yok" if not BASH
+               else "" if (shutil.which("lualatex") and shutil.which("synctex"))
+               else "lualatex + synctex kurulu değil, TeX Live gerektirir")
+pytestmark = pytest.mark.skipif(bool(_ATLAMA), reason=_ATLAMA)
 
 try:
     from PyQt6.QtWidgets import QApplication
@@ -54,6 +82,27 @@ SAMPLE_TEX = "\n".join([
 TARGET_LINE = 7  # "Here we describe the methodology used in this study in detail."
 
 
+def _derleme_komutu(tex: str) -> list:
+    r"""Belgeyi UYGULAMANIN o platformda kullandigi yoldan derleyen komut.
+
+    Windows'ta uygulama `derle.sh`i WSL'in ICINDE kosturuyor
+    (`compiler._start_windows`) ve `gui.synctex` de `wsl -e synctex`
+    cagiriyor. Test ise Git Bash + yerli MiKTeX ile derliyordu: `.synctex.gz`
+    Windows yollariyla yaziliyor, sorgu ise `/mnt/c/...` ile geliyordu ve
+    adlar eslesmedigi icin `forward_search` BOS donuyordu (yedi test).
+
+    Kusur urunde degil, olcumun kurdugu KARMA takimda: uygulama hicbir zaman
+    Git Bash + MiKTeX ile derlemiyor. Komut artik uygulamayla ayni koldan
+    gidiyor; boylece SyncTeX'in Windows kolu (yol cevirisi dahil) ilk kez
+    gercekten olculuyor.
+    """
+    if sys.platform == "win32":
+        from core.paths import windows_to_wsl
+        return ["wsl", "-e", "bash", windows_to_wsl(_SCRIPT),
+                windows_to_wsl(tex)]
+    return [BASH, _SCRIPT, tex]
+
+
 @pytest.fixture(scope="module")
 def qapp():
     app = QApplication.instance() or QApplication([])
@@ -71,7 +120,8 @@ def compiled():
     tex = os.path.join(d, "doc.tex")
     with open(tex, "w", encoding="utf-8") as f:
         f.write(SAMPLE_TEX)
-    r = subprocess.run(["bash", _SCRIPT, tex], capture_output=True, text=True, timeout=90, encoding="utf-8")
+    r = subprocess.run(_derleme_komutu(tex), capture_output=True, text=True,
+                       timeout=180, encoding="utf-8")
     assert r.returncode == 0, f"derleme başarısız (exit {r.returncode}):\n{r.stdout[-400:]}"
     pdf = tex[:-4] + ".pdf"
     assert os.path.exists(pdf), "PDF üretilmedi"

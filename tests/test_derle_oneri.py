@@ -193,6 +193,30 @@ class TestPaketYoneticisiPlatforma_Gore:
         assert beklenen in baslik[0], baslik
         assert beklenen in komut[0], komut
 
+    @pytest.mark.parametrize("ad", sorted(GIRDILER))
+    @pytest.mark.parametrize("yonetici", ["apt", "tlmgr"])
+    def test_ONERI_satirinda_TERS_BOLU_yok(self, ad, yonetici):
+        r"""Kullaniciya gosterilen satirda kacis karakteri kalmamali.
+
+        `printf` bicim dizgisinde `\(` diye bir kacis YOK; bash onu oldugu
+        gibi basiyordu ve kullanici
+
+            ==> Eksik paket: biber \(biblatex kaynakca araci\)
+
+        goruyordu. Satir arayuze de aynen gidiyor: `log_parser` iki nokta
+        ustunden sonrasini `(.+)` ile aliyor ve Oneriler sekmesindeki
+        mesaja koyuyor, yani ters boluler orada da duruyordu.
+
+        Uc yazdirma yerinde ayni kusur vardi, dorduncusu ($5 notu) dogru
+        yazilmisti; bu yuzden kapi TEK satira degil, `==>` ile baslayan
+        her satira bakiyor.
+        """
+        out = self._kos(self.GIRDILER[ad], yonetici)
+        satirlar = [s for s in out.splitlines() if s.startswith("==>")]
+        assert satirlar, out
+        for s in satirlar:
+            assert "\\" not in s, s
+
     @pytest.mark.parametrize("uname_ciktisi,beklenen",
                              [("Darwin", "tlmgr"), ("Linux", "apt")])
     def test_PAKET_YONETICISI_uname_den_seciliyor(self, uname_ciktisi,

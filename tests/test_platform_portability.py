@@ -209,17 +209,23 @@ def test_tex_gerektiren_testler_ci_derle_jobunda_kosuyor():
     (B1 vurgu zehirlenmesi, E1 Türkçe yol) kırıldığı hâlde CI sessiz kaldı.
     """
     import re
-    # Modül düzeyi atlama koşulunda lualatex geçiyor mu? (Düz metin araması
-    # bu dosyanın kendisini de yakalardı — koşul pytestmark'a bağlı.)
-    mark_deseni = re.compile(r"pytestmark\s*=\s*pytest\.mark\.skipif\(.*?\)", re.S)
+    # Ölçüt: dosyada MODÜL DÜZEYİNDE bir `pytestmark` var VE dosya lualatex'ten
+    # söz ediyor. (Düz metin araması tek başına bu dosyanın kendisini de
+    # yakalardı; `pytestmark` koşulu onu eliyor.)
+    #
+    # Eskiden koşul `pytest.mark.skipif(...)` çağrısının İÇİNDE aranıyordu ve
+    # bu varsayım fazla dardı: atlama sebebi bir değişkene alınınca (Windows'ta
+    # "çalışan bash yok" ile "lualatex yok" ayrı sebepler) desen hiçbir şey
+    # bulamadı ve kapı KENDİ boşa düşme kontrolüne takıldı. İyi haber, sessizce
+    # geçmedi; yine de ölçüt yazım biçimine değil, olguya bağlanmalı.
+    mark_deseni = re.compile(r"^pytestmark\s*=", re.M)
     tex_bagimli = []
     for y in _test_dosyalari():
         if not y.name.startswith("test_"):
             continue
-        for m in mark_deseni.findall(y.read_text(encoding="utf-8")):
-            if "lualatex" in m:
-                tex_bagimli.append(y.name)
-                break
+        kaynak = y.read_text(encoding="utf-8")
+        if mark_deseni.search(kaynak) and "lualatex" in kaynak:
+            tex_bagimli.append(y.name)
     tex_bagimli.sort()
     assert tex_bagimli, "lualatex'e bağlı test bulunamadı — kapı boşa düşmesin"
 
