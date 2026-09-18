@@ -6,7 +6,7 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _HERE)
 sys.path.insert(0, os.path.join(_HERE, '..'))
 
-from PyQt6.QtCore import QStandardPaths
+from PyQt6.QtCore import QEvent, QStandardPaths
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from core.i18n import init as init_i18n
@@ -24,6 +24,48 @@ from gui.single_instance import SingleInstance
 from core.paths import macos_path_tamamla                    # noqa: E402
 
 macos_path_tamamla()
+
+
+class _Uygulama(QApplication):
+    r"""macOS'un dosya açma olayını (`QFileOpenEvent`) karşılayan uygulama.
+
+    macOS açılan belgeyi `sys.argv`de VERMİYOR: LaunchServices uygulamaya
+    bir Apple Event gönderiyor, Qt de onu `QEvent.Type.FileOpen` olarak
+    iletiyor. Uygulama yalnız `sys.argv` okuyordu, yani Info.plist'teki
+    `.tex` ilişkilendirmesi HİÇBİR ŞEY yapmıyordu.
+
+    ÖLÇÜLDÜ (2026-09-18, macos-15, yayınlanan `.dmg` kurulup
+    `open -a "LaTeX Editor" deneme.tex` ile): uygulama açılıyor ama
+    düzenleyici BOŞ kalıyor; ekran görüntüsünde dosya listesi de boş.
+
+    Olay pencere KURULMADAN ÖNCE gelebiliyor (açılışta dosyaya çift
+    tıklamak tam olarak bu), o yüzden bekleyenler kuyruğa alınıp alıcı
+    bağlanınca iletiliyor. Tek örnek kanalı aynı boşluğu aynı şekilde
+    çözüyor (bkz. `single_instance.dinleyiciye_bagla`).
+    """
+
+    def __init__(self, argv):
+        super().__init__(argv)
+        self._bekleyen = []
+        self._alici = None
+
+    def event(self, olay):
+        if olay.type() == QEvent.Type.FileOpen:
+            yol = olay.file()
+            if yol:
+                if self._alici is not None:
+                    self._alici(yol)
+                else:
+                    self._bekleyen.append(yol)
+                return True
+        return super().event(olay)
+
+    def aliciyi_bagla(self, alici):
+        """Pencere hazır: bekleyen dosyalar da iletilsin."""
+        self._alici = alici
+        bekleyen, self._bekleyen = self._bekleyen, []
+        for yol in bekleyen:
+            alici(yol)
 
 
 def _register_file_association():
@@ -206,7 +248,7 @@ def main():
         sys.__excepthook__(exc_type, exc_value, exc_tb)
     sys.excepthook = _handle_exception
 
-    app = QApplication(sys.argv)
+    app = _Uygulama(sys.argv)
     app.setApplicationName("LaTeX Editor")
 
     init_i18n(app)
@@ -241,6 +283,9 @@ def main():
     # Duz `connect` o boslukta gelen dosyayi sessizce dusuruyordu
     # (bkz. single_instance._ilet).
     single.dinleyiciye_bagla(window.open_from_other_instance)
+    # macOS dosya açma olayı da AYNI alıcıya gidiyor: iki kanal da
+    # "çalışan pencereye bir yol ilet" işini yapıyor.
+    app.aliciyi_bagla(window.open_from_other_instance)
 
     exit_code = app.exec()
     single.stop()
