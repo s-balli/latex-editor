@@ -462,6 +462,32 @@ def test_kok_altindayken_ANAHTAR_BICIMI_degismedi(tmp_path):
     assert stub._shell_escape_kok() == os.path.normpath(str(proje))
 
 
+@gui
+@pytest.mark.parametrize("bicim", [str.upper, str.lower])
+def test_kok_kapsami_YAZIM_FARKINA_takilmiyor(tmp_path, bicim):
+    """Kök başka yazımla gelirse kapsam kararı bozulmamalı.
+
+    KEHANET PLATFORM DEĞİL DOSYA SİSTEMİ: beklenen değeri `samefile`
+    söylüyor. Harf duyarsız bir birimde (Windows, macOS'un öntanımlı APFS)
+    iki yazım AYNI dizindir ve karar True olmalı; duyarlı bir birimde
+    (çoğu Linux) gerçekten başka bir yol, orada False doğru cevap.
+
+    Ölçüldü (2026-09-18, macos-15): dosya sistemi "aynı dizin" derken işlev
+    "kapsamıyor" diyordu. Karar, kabuk erişimi izninin hangi anahtara
+    yazılacağını belirlediği için sonucu ya izin sorusunun her klasörde
+    yeniden sorulması ya da minted taramasının yanlış kökte koşup derlemeyi
+    düşürmesi. `normcase` bunu yalnız Windows'ta çözüyordu, o yüzden kusur
+    Windows'ta ÜRETİLEMİYOR: bu kapının kırmızı yandığı yer macOS.
+    """
+    kok = tmp_path / "Tez"
+    alt = kok / "bolumler"
+    alt.mkdir(parents=True)
+    k = bicim(str(kok))
+
+    ayni_dizin = os.path.isdir(k) and os.path.samefile(k, str(kok))
+    assert CompileOpsMixin._kok_kapsiyor_mu(k, str(alt)) is ayni_dizin
+
+
 # ------------------------------------------------------------- derle.sh
 
 def test_derle_sh_no_shell_escape_bayragini_taniyor():

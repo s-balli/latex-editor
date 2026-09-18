@@ -10,6 +10,7 @@ from gui.editor import EditorWidget
 from core.engine_detector import can_compile as _can_compile, detect_engine as _detect_engine, detect_root as _detect_root
 from core.log_parser import resolve_error_path
 from core.log import get_logger
+from core.paths import dizin_altinda_mi
 from PyQt6.QtCore import QCoreApplication
 
 _ = lambda s: QCoreApplication.translate("CompileOpsMixin", s)
@@ -158,15 +159,30 @@ class CompileOpsMixin:
 
     @staticmethod
     def _kok_kapsiyor_mu(kok: str, dizin: str) -> bool:
-        """``dizin``, ``kok``un altında mı (kökün kendisi de sayılır)."""
+        """``dizin``, ``kok``un altında mı (kökün kendisi de sayılır).
+
+        Dizgi karşılaştırması "hayır" derse UYGULAMADAN ÖNCE dosya sistemine
+        soruluyor. `normcase` harf duyarsızlığını yalnız Windows'ta çözüyor,
+        POSIX'te kimlik işlevi; macOS'un öntanımlı APFS birimi ise harf
+        DUYARSIZ. ÖLÇÜLDÜ (2026-09-18, macos-15): `.../Tez` ile `.../TEZ`
+        aynı dizin olduğu hâlde bu işlev "kapsamıyor" diyordu.
+
+        Buradaki cevap kabuk erişimi (minted) izninin HANGİ ANAHTARA
+        yazılacağını belirliyor. Yanlış "kapsamıyor" iki sonuç veriyor:
+        izin proje yerine alt klasör başına kaydediliyor (kullanıcıya her
+        klasörde yeniden soruluyor) ve `minted_kullaniliyor` taraması yanlış
+        kökte koşup bayrağı hiç göndermiyor, derleme düşüyor.
+        """
         try:
             ortak = os.path.commonpath(
                 [os.path.normcase(os.path.abspath(kok)),
                  os.path.normcase(os.path.abspath(dizin))])
         except ValueError:
-            # Windows'ta ayrı sürücüler: ortak yol yok, kapsamıyor demektir.
-            return False
-        return ortak == os.path.normcase(os.path.abspath(kok))
+            # Windows'ta ayrı sürücüler: ortak yol yok.
+            ortak = None
+        if ortak == os.path.normcase(os.path.abspath(kok)):
+            return True
+        return dizin_altinda_mi(dizin, kok)
 
     def _shell_escape_kok(self, hedef: str = "") -> str:
         """Kabuk erişimi kararının YAZILDIĞI/OKUNDUĞU anahtar.

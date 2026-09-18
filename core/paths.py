@@ -21,6 +21,47 @@ def clean_child_env() -> dict:
             if k not in ("LD_LIBRARY_PATH", "LD_PRELOAD")}
 
 
+def dizin_altinda_mi(dizin: str, kok: str) -> bool:
+    r"""``dizin`` gerçekten ``kok``un altında mı; kararı DOSYA SİSTEMİ verir.
+
+    Yol dizgilerini karşılaştırmak yetmiyor: aynı dizin birden çok yazımla
+    gösterilebiliyor. Harf duyarsız bir birimde ``TEZ`` ile ``tez``, sembolik
+    bağ ya da kavşak varken de iki ayrı yol AYNI dizindir.
+
+    NEDEN PLATFORM ADINA BAKILMIYOR. Standart çözüm ``os.path.normcase``
+    ama o harfi YALNIZ Windows'ta indiriyor, POSIX'te kimlik işlevi. macOS
+    POSIX olduğu hâlde öntanımlı APFS birimi harf DUYARSIZ, yani
+    ``commonpath`` karşılaştırması orada yanlış cevap veriyor. ÖLÇÜLDÜ
+    (2026-09-18, macos-15 koşucusu; iki ayrı çağrı yerinde birden):
+
+        dosya sistemi harf duyarsız mı : True
+        kök BÜYÜK yazımla sorulunca    : "kapsamıyor"  (oysa AYNI dizin)
+
+    ``os.path.samefile`` aygıt + inode karşılaştırıyor, yani cevabı dosya
+    sisteminin kendisi veriyor ve tahmine gerek kalmıyor. Dizinden köke
+    doğru yürünüyor; kök bulunursa içeride demektir.
+
+    İKİ ÇAĞRI YERİ VAR ve ikisi de aynı kusuru taşıyordu: "Klasörde Ara"nın
+    kök uyarısı ve kabuk erişimi (minted) izninin yazıldığı anahtar. Ortak
+    yer burası, çünkü iki kopya tutulsa biri düzeltilip öbürü unutulurdu.
+    """
+    try:
+        if not os.path.isdir(kok):
+            return False
+        gecerli = os.path.abspath(dizin)
+        onceki = None
+        while gecerli and gecerli != onceki:
+            try:
+                if os.path.samefile(gecerli, kok):
+                    return True
+            except OSError:                 # okunamayan/silinmiş ara dizin
+                pass
+            onceki, gecerli = gecerli, os.path.dirname(gecerli)
+    except OSError:
+        return False
+    return False
+
+
 # Homebrew kendini `/etc/paths.d`e YAZMIYOR; PATH'e kullanıcının profiline
 # eklediği `brew shellenv` satırıyla giriyor ve o da yalnız kabukta koşuyor.
 # pandoc ile biber buradan geliyor. İkisi de: Apple Silicon, sonra Intel.
