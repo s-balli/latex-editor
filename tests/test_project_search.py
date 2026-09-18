@@ -853,7 +853,8 @@ class TestKokDisiHarfYazimi:
         POSIX'te kimlik işlevi. macOS'un öntanımlı APFS birimi harf duyarsız
         olduğu için orada ikisi bir arada ve düzeltme hiçbir şey yapmıyordu.
         Burada `normcase` kısırlaştırılıp aynı koşul kuruluyor: kapı Mac
-        olmadan da koşuyor. `_ayni_agacta` devre dışı bırakılırsa düşer.
+        olmadan da koşuyor. `core.paths.dizin_altinda_mi` devre dışı
+        bırakılırsa düşer.
         """
         monkeypatch.setattr(os.path, "normcase", lambda s: s)
         kok = str(tmp_path / "Tez")
