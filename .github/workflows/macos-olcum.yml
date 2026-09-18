@@ -297,6 +297,11 @@ jobs:
           sudo tlmgr update --self || true
           sudo tlmgr install glossaries mfirstuc xfor datatool substr \
             tracklang nomencl imakeidx psnfss cm-super || true
+          # biber/biblatex ve pandoc BasicTeX'te yok; ikisi de tam takimda
+          # canli testi olan yollar (kaynakca ve disa aktarma). Kurulmazsa o
+          # testler macOS'ta atlanir ve kor nokta kapanmaz.
+          sudo tlmgr install biber biblatex || true
+          brew install pandoc || true
           brew install --cask font-dejavu || true
           echo "kurulu fontlar (DejaVu):"
           ls ~/Library/Fonts /Library/Fonts 2>/dev/null | grep -i dejavu | head -3 \
@@ -415,19 +420,33 @@ jobs:
       - name: SyncTeX symlink suphesi
         run: bash .github/scripts/macos_synctex_tani.sh
 
-      - name: derle.sh test paketi (macOS)
+      # TAM TAKIM, TeX KURULUYKEN.
+      #
+      # Burasi dort dosya kosturuyordu. `olcum` isi tam takimi kosturuyor ama
+      # orada TeX YOK: son kosuda TeX'e bagli 153 test atlandi. Burada ise TeX
+      # VAR (BasicTeX pdflatex/lualatex/xelatex/bibtex/makeindex/synctex
+      # getiriyor) ama takim kosmuyordu. Ikisinin arasindaki bu delikte
+      # macOS'a ozgu bir kusur SESSIZCE yasayabiliyor: SyncTeX'in
+      # `/private/var` kusuru tam olarak orada durdu ve ancak canli testler
+      # buraya eklenince goruldu (bkz. fbb6482). Ayni kor nokta kalan TeX
+      # testleri icin de acikti; artik tam takim TeX'li ortamda kosuyor.
+      - name: Tam test takimi (TeX kurulu macOS)
         env:
           QT_QPA_PLATFORM: offscreen
         run: |
           python -m pip install --quiet -r desktop/requirements.txt pytest
           kod=0
-          python -m pytest tests/test_derle_sh.py tests/test_derle_oneri.py \
-            tests/test_paket_haritasi.py tests/test_synctex_live.py \
-            -q --no-header \
+          python -m pytest tests/ -q --no-header -rs \
             > "$RUNNER_TEMP/pt.txt" 2>&1 || kod=$?
           echo "cikis kodu: $kod"
-          tail -25 "$RUNNER_TEMP/pt.txt"
-          grep '^FAILED' "$RUNNER_TEMP/pt.txt" | head -20 || echo "(FAILED yok)"
+          tail -5 "$RUNNER_TEMP/pt.txt"
+          echo "--- dusen testler ---"
+          grep '^FAILED' "$RUNNER_TEMP/pt.txt" | head -40 || echo "(FAILED yok)"
+          echo "--- atlama gerekceleri (sebebe gore) ---"
+          grep '^SKIPPED' "$RUNNER_TEMP/pt.txt" \
+            | sed -E 's/^SKIPPED \[([0-9]+)\] [^ ]+ /\1|/' \
+            | awk -F'|' '{a[$2]+=$1; t+=$1} END {for (k in a) printf "%5d  %s\n", a[k], k; printf "%5d  TOPLAM\n", t}' \
+            | sort -rn
 
       # ARAYUZUN KENDI derleme yolu macOS'ta PDF uretiyor mu.
       #
