@@ -170,6 +170,7 @@ p { margin: 0 0 1em; }
 /* ===== Card grids ===== */
 .card-grid { display: grid; gap: 16px; margin-top: 28px; }
 .grid-4 { grid-template-columns: repeat(4, 1fr); }
+.grid-3 { grid-template-columns: repeat(3, 1fr); }
 .grid-2 { grid-template-columns: repeat(2, 1fr); }
 .grid-auto { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
 .card {
@@ -302,7 +303,7 @@ p { margin: 0 0 1em; }
   .spotlight { grid-template-columns: 1fr; }
 }
 @media (max-width: 560px) {
-  .grid-4, .grid-2 { grid-template-columns: 1fr; }
+  .grid-4, .grid-3, .grid-2 { grid-template-columns: 1fr; }
   .nav { flex-wrap: wrap; }
   .nav-actions { width: 100%; justify-content: flex-end; }
   /* Dar ekranda rozet gizleniyor: bar zaten TR + GitHub + Indir tasiyor,

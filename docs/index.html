@@ -363,7 +363,7 @@
     <section class="section">
       <h2 class="section-title"><span class="en">Setup</span><span class="tr">Kurulum</span></h2>
       <p class="section-sub"><span class="en">The download is the GUI only: LaTeX compilation needs TeX Live. One-time setup:</span><span class="tr">İndirme yalnızca arayüzü içerir: LaTeX derlemesi için TeX Live gerekir. Tek seferlik kurulum:</span></p>
-      <div class="card-grid grid-2 setup">
+      <div class="card-grid grid-3 setup">
         <article class="card setup-col">
           <h3>🪟 <span class="en">Windows (via WSL)</span><span class="tr">Windows (WSL ile)</span></h3>
           <ol class="steps">
@@ -399,6 +399,23 @@ sudo apt-get install texlive-base texlive-binaries texlive-latex-base \
               <span class="en">Make the downloaded AppImage executable:</span>
               <span class="tr">İndirdiğin AppImage'ı çalıştırılabilir yap:</span>
               <div class="cmd"><pre><code>chmod +x LaTeX_Editor_v*_Linux_x86_64.AppImage</code></pre><button class="copy-btn" type="button"><span class="en">Copy</span><span class="tr">Kopyala</span></button></div>
+            </li>
+          </ol>
+        </article>
+        <article class="card setup-col">
+          <h3>🍎 <span class="en">macOS (from source)</span><span class="tr">macOS (kaynaktan)</span></h3>
+          <ol class="steps">
+            <li>
+              <span class="en">Install MacTeX and Python (large download, several GB):</span>
+              <span class="tr">MacTeX ve Python'u kur (büyük indirme, birkaç GB):</span>
+              <div class="cmd"><pre><code>brew install python
+brew install --cask mactex</code></pre><button class="copy-btn" type="button"><span class="en">Copy</span><span class="tr">Kopyala</span></button></div>
+            </li>
+            <li>
+              <span class="en">Clone the repository, install the Python packages and run:</span>
+              <span class="tr">Depoyu klonla, Python paketlerini kur ve çalıştır:</span>
+              <div class="cmd"><pre><code>pip3 install -r desktop/requirements.txt
+cd desktop &amp;&amp; python3 main.py</code></pre><button class="copy-btn" type="button"><span class="en">Copy</span><span class="tr">Kopyala</span></button></div>
             </li>
           </ol>
         </article>
