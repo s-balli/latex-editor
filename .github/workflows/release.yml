@@ -357,6 +357,119 @@ jobs:
         with:
           subject-path: desktop/dist/LaTeX_Editor_v${{ steps.ver.outputs.VERSION }}_Linux_x86_64.AppImage
 
+  # macOS .app ve .dmg. Once yoktu: tag atilinca Windows exe'si ve Linux
+  # AppImage'i cikiyor, macOS icin hicbir sey cikmiyordu.
+  #
+  # KOSUCU macos-15 (arm64 Apple Silicon). macos-13 Intel'dir; Intel
+  # Mac'ler icin AYRI bir yapi gerekir, bu is onu URETMIYOR.
+  #
+  # DAGITIM SINIRI: paket ad-hoc imzali, Developer ID yok. Olculdu
+  # (2026-09-18, Apple'in kendi araci): `syspolicy_check distribution`
+  # "Notary Ticket Missing, Severity: Fatal" diyor, yani indirilen .dmg
+  # Finder'da dogrudan acilmiyor. Kullanici ya Homebrew cask ile kurar
+  # (karantinayi Homebrew kaldiriyor) ya da `xattr -dr
+  # com.apple.quarantine` calistirir. Notarization Developer ID istiyor.
+  build-macos:
+    needs: test
+    permissions:
+      contents: write
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      # Windows ve Linux isleriyle AYNI surum: paket hangi yorumlayiciyla
+      # uretiliyorsa testler de onunla kosuyor.
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Get version
+        shell: bash
+        id: ver
+        run: echo "VERSION=$(grep VERSION core/version.py | cut -d'"' -f2)" >> $GITHUB_OUTPUT
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r desktop/requirements.txt pyinstaller
+
+      # Ikon depoda ikili olarak DURMUYOR, kaynak PNG'den uretiliyor;
+      # gerekce betigin basinda. Spec ikon yoksa durmuyor ama yayina
+      # ikonsuz paket cikmasin diye burada kapi var.
+      - name: Paket ikonunu uret (.icns)
+        run: |
+          bash desktop/macos_ikon_uret.sh
+          test -f desktop/linux/latex-editor.icns
+
+      - name: Build .app
+        working-directory: desktop
+        run: |
+          python -m PyInstaller --noconfirm latex-editor-macos.spec
+          test -d "dist/LaTeX Editor.app"
+          du -sh "dist/LaTeX Editor.app" | sed 's/^/.app boyutu: /'
+
+      # Windows ve Linux'taki ayni kapi; gerekcesi orada yazili. Paketin
+      # ICINE bakiyor: sozluk girdi mi, `.ts` kaynaklari disarida mi.
+      - name: Yazim denetimi pakete girdi mi
+        working-directory: desktop
+        run: python3 ../scripts/paket_dogrula.py "dist/LaTeX Editor.app"
+
+      # arm64'te imzasiz ikili CEKIRDEK TARAFINDAN calistirilmiyor.
+      # PyInstaller ad-hoc imzaliyor; imzanin GERCEKTEN gecerli oldugu
+      # burada denetleniyor, yoksa kullanici paketi hic acamaz.
+      - name: Imza gecerli mi
+        working-directory: desktop
+        run: |
+          codesign --verify --deep --strict --verbose=2 "dist/LaTeX Editor.app"
+          codesign -dv --verbose=2 "dist/LaTeX Editor.app" 2>&1 \
+            | grep -E 'Signature|Identifier' || true
+
+      # Paketin ICINDEKI yorumlayici uygulamayi gercekten ice aktarabiliyor
+      # mu. "Dizin olustu" yetmiyor; Windows isinde `import` onden
+      # patlatiliyor, buradaki karsiligi bu.
+      - name: Paket kendi kendine yetiyor mu
+        working-directory: desktop
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          plist="dist/LaTeX Editor.app/Contents/Info.plist"
+          echo "kimlik : $(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$plist")"
+          echo "surum  : $(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$plist")"
+          echo "tex ili: $(/usr/libexec/PlistBuddy -c 'Print :CFBundleDocumentTypes:0:CFBundleTypeExtensions:0' "$plist")"
+          test -f "dist/LaTeX Editor.app/Contents/Resources/latex-editor.icns" \
+            || test -f "dist/LaTeX Editor.app/Contents/Resources/icon-windowed.icns"
+
+      - name: Build .dmg
+        working-directory: desktop
+        run: |
+          ad="LaTeX_Editor_v${{ steps.ver.outputs.VERSION }}_macOS_arm64"
+          mkdir -p "$RUNNER_TEMP/dmg"
+          cp -R "dist/LaTeX Editor.app" "$RUNNER_TEMP/dmg/"
+          # Surukle birak kurulum: kullanici .app'i Applications'a atiyor.
+          ln -s /Applications "$RUNNER_TEMP/dmg/Applications"
+          hdiutil create -volname "LaTeX Editor" \
+            -srcfolder "$RUNNER_TEMP/dmg" -ov -format UDZO \
+            "dist/$ad.dmg" > /dev/null
+          hdiutil verify "dist/$ad.dmg" > /dev/null
+          ls -lh "dist/$ad.dmg" | awk '{print ".dmg boyutu:", $5}'
+
+      - name: Generate release notes
+        shell: bash
+        run: |
+          git fetch --no-tags --force origin "+refs/tags/${{ github.ref_name }}:refs/tags/${{ github.ref_name }}"
+          git tag -l --format='%(contents)' "${{ github.ref_name }}" \
+            | bash scripts/release_notes.sh "${{ steps.ver.outputs.VERSION }}" \
+            > release-notes.md
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: desktop/dist/LaTeX_Editor_v${{ steps.ver.outputs.VERSION }}_macOS_arm64.dmg
+          name: LaTeX Editor v${{ steps.ver.outputs.VERSION }}
+          body_path: release-notes.md
+          fail_on_unmatched_files: true
+
   # Yayin cikinca winget-pkgs'e surum yukseltme PR'i ac. Ilk surum (1.0.19)
   # ELLE gonderildi (microsoft/winget-pkgs#429063); bu eylem yalniz var olan
   # bir paketi guncelleyebiliyor, paket yoksa hata verip duruyor.

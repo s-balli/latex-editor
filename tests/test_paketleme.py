@@ -264,9 +264,14 @@ class TestYayinNotu:
         assert "} > release-notes.md" not in metin, (
             "yayın notu gövdesi release.yml'e geri gömülmüş"
         )
+        # Sayı yapı job'ı sayısına bağlı: Windows, Linux ve macOS. Üçü de
+        # yayın notunu AYNI betikten üretmeli; biri gövdeyi kendi içine
+        # kopyalarsa notlar sürümler arasında ayrışır.
+        yapim_isleri = re.findall(r'(?m)^  build-[a-z]+:', metin)
         cagrilar = re.findall(r'(?m)^\s*\|\s*bash scripts/release_notes\.sh\b', metin)
-        assert len(cagrilar) == 2, (
-            f"iki yapı job'ı da betiği çağırmalı, bulunan: {len(cagrilar)}"
+        assert len(cagrilar) == len(yapim_isleri), (
+            f"{len(yapim_isleri)} yapı job'ı var ama betiği çağıran "
+            f"{len(cagrilar)} tane: {yapim_isleri}"
         )
         # Kopya blok geri gelirse bu sayı fırlar
         assert metin.count("## Installation") == 0

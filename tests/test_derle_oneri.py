@@ -85,8 +85,8 @@ def test_minted_sty_eksikse_harita_onerisi_calisir():
     out = _eksik_paket_goster("! LaTeX Error: File `minted.sty' not found.\n")
     if _MAC:
         # macOS'ta CTAN adı `minted`. Pygments gereksinimi burada değil,
-        # "Missing Pygments output" kolunda bildiriliyor (o kol gerçekten
-        # ısırdığında); Debian haritası ikisini tek dizede topluyor.
+        # "Missing Pygments output" kolunda bildiriliyor (o hata gerçekten
+        # çıktığında); Debian haritası ikisini tek dizede topluyor.
         assert "Eksik paket: minted" in out
         assert "sudo tlmgr install minted" in out
     else:

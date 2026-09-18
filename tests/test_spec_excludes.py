@@ -25,6 +25,7 @@ KOK = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SPECLER = [
     os.path.join(KOK, "desktop", "LaTeX Editor.spec"),
     os.path.join(KOK, "desktop", "latex-editor-linux.spec"),
+    os.path.join(KOK, "desktop", "latex-editor-macos.spec"),
 ]
 
 # Pakete GIREN kaynak. tests/ ve scripts/ haric: onlar exe'ye girmiyor,
@@ -92,14 +93,21 @@ def test_haric_tutulan_modul_KULLANILMIYOR(spec):
                                            sorted(catisma)))
 
 
-def test_IKI_SPEC_ayni_excludes_listesine_sahip():
-    """Windows ve Linux paketleri ayni sey olmali.
+def test_BUTUN_SPECLER_ayni_excludes_listesine_sahip():
+    """Windows, Linux ve macOS paketleri ayni sey olmali.
 
-    Ayrisirsa bir platformda acilan exe otekinde acilmaz ve bu yalniz
+    Ayrisirsa bir platformda acilan paket otekinde acilmaz ve bu yalniz
     yayindan sonra fark edilir.
+
+    Ikiyken "IKI_SPEC" adiyla duruyordu; macOS spec'i eklenince ad da
+    listeyle birlikte guncellendi, yoksa test adi kendi kapsamini
+    yanlis soylerdi.
     """
-    a, b = (_excludes(s) for s in SPECLER)
-    assert a == b, "excludes listeleri ayrismis: %s" % sorted(a ^ b)
+    listeler = [(os.path.basename(s), _excludes(s)) for s in SPECLER]
+    ilk_ad, ilk = listeler[0]
+    for ad, liste in listeler[1:]:
+        assert liste == ilk, "excludes ayrismis (%s vs %s): %s" % (
+            ilk_ad, ad, sorted(liste ^ ilk))
 
 
 def test_tarama_GERCEKTEN_calisiyor():
