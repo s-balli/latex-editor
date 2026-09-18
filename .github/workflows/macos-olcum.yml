@@ -384,7 +384,8 @@ jobs:
           python -m pip install --quiet -r desktop/requirements.txt pytest
           kod=0
           python -m pytest tests/test_derle_sh.py tests/test_derle_oneri.py \
-            tests/test_paket_haritasi.py -q --no-header \
+            tests/test_paket_haritasi.py tests/test_synctex_live.py \
+            -q --no-header \
             > "$RUNNER_TEMP/pt.txt" 2>&1 || kod=$?
           echo "cikis kodu: $kod"
           tail -25 "$RUNNER_TEMP/pt.txt"
