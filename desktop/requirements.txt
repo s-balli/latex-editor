@@ -1,6 +1,25 @@
 PyQt6>=6.6,<7
 PyQt6-QScintilla>=2.14,<3
 pypdfium2>=4.20,<5
+# ZORUNLU, istege bagli DEGIL: PDF onizlemenin render yolu Pillow'a
+# dayaniyor. `desktop/gui/pdf_render.py` sayfayi `bitmap.to_pil()` ile
+# QImage'e ceviriyor ve o cagri KORUMASIZ; Pillow yoksa uygulama acilir,
+# belge derlenir ama onizleme "No module named 'PIL'" ile duser.
+#
+# UYGULAMA KODUNDA `import PIL` GECMIYOR: kullanim pypdfium2'nin Pillow
+# koprusu uzerinden, yani dolayli. Kaynakta arayip bulamayip "kullanilmiyor"
+# sonucuna varmak kolay; bu satir tam olarak onu onlemek icin.
+#
+# OLCULDU (2026-09-18, temiz venv, gercek bir PDF render edilerek):
+#     Pillow YOK   cikis 1 | ModuleNotFoundError: No module named 'PIL'
+#     Pillow VAR   cikis 0 | RENDER TAMAM 596 x 842
+#
+# Silinirse CI yakalar (ayni gun olculdu): Pillow'suz venv'de
+# tests/test_pdfium_lock.py::test_render_gercekten_kilit_altinda_calisiyor
+# dusuyor. O yuzden ayrica bir kapi eklenmedi.
+#
+# Disa aktarmaya GEREKMIYOR: core/exporter.py pandoc cagiriyor ve
+# gorsellerle yaptigi is yalnizca YOLLARI metin olarak duzeltmek.
 Pillow>=10.0,<12
 send2trash>=1.8,<2
 dulwich>=1.0,<2
