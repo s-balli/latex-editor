@@ -931,10 +931,26 @@ jobs:
           done
           if [ -f "$is/deneme.pdf" ]; then
             echo "SONUC: PDF URETILDI ($(du -h "$is/deneme.pdf" | cut -f1))"
+            echo "sha256: $(shasum -a 256 "$is/deneme.pdf" | cut -d' ' -f1)"
+            python .github/scripts/pdf_ozet.py "$is/deneme.pdf" "macOS" || true
           else
             echo "SONUC: PDF YOK"
             ls -la "$is"
           fi
+
+      # URETILEN PDF'I INDIRILEBILIR YAP. Simdiye kadar yalniz "PDF URETILDI"
+      # satiri vardi; dosyanin KENDISI hicbir yere gitmiyordu, yani ne
+      # bakilabiliyor ne de baska bir platformun ciktisiyla
+      # karsilastirilabiliyordu. Kaynak .tex de yaniyor gidiyor, cunku
+      # karsilastirma ancak AYNI kaynakla anlamli.
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: macos-uretilen-pdf
+          path: |
+            ${{ runner.temp }}/proje/deneme.pdf
+            ${{ runner.temp }}/proje/deneme.tex
+          if-no-files-found: warn
 
       - name: Derleme sonrasi ekran goruntusu
         if: always()
@@ -955,5 +971,11 @@ jobs:
         run: |
           gun="$HOME/Library/Application Support/LatexEditor"
           ls -la "$gun" 2>/dev/null || echo "gunluk dizini yok: $gun"
+          # HANGI MOTOR kostu: karsilastirma ancak ayni motorla anlamli,
+          # o yuzden satir ayrica suzuluyor.
+          echo "--- motor satirlari ---"
+          find "$HOME/Library" -name "*.log" -path "*atex*" 2>/dev/null | head -3 \
+            | while read -r f; do grep -h 'Derleme ba\|Motor' "$f" | tail -5; done \
+            || echo "(motor satiri bulunamadi)"
           find "$HOME/Library" -name "*.log" -path "*atex*" 2>/dev/null | head -3 \
             | while read -r f; do echo "--- $f"; tail -20 "$f"; done
