@@ -45,10 +45,10 @@ TR_ACIKLAMA = (
     "Açık kaynak masaüstü LaTeX editörü (GPL-3.0): canlı PDF önizleme, "
     "SyncTeX, lualatex/pdflatex/xelatex, 7 tema, Türkçe/İngilizce arayüz. "
     "IEEE/ASYU şablonlarındaki Türkçe karakter sorunlarını ve Overleaf'ten "
-    "aktarılan projeleri düzeltir. Windows + Linux.")
+    "aktarılan projeleri düzeltir. Windows, Linux ve macOS.")
 TR_OG_ACIKLAMA = (
     "Canlı PDF önizleme, SyncTeX, üç motor, 7 tema, Türkçe ve İngilizce "
-    "arayüz. Windows ve Linux için ücretsiz ve açık kaynak (GPL-3.0).")
+    "arayüz. Windows, Linux ve macOS için ücretsiz ve açık kaynak (GPL-3.0).")
 TR_GORSEL_ALT = ("LaTeX Editor ana penceresi: solda kaynak, sağda canlı "
                  "PDF önizleme")
 
