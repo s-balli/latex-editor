@@ -532,3 +532,84 @@ jobs:
           hdiutil create -volname "LaTeX Editor" -srcfolder "$RUNNER_TEMP/dmg"             -ov -format UDZO "$RUNNER_TEMP/deneme.dmg" > /dev/null
           hdiutil verify "$RUNNER_TEMP/deneme.dmg" > /dev/null && echo ".dmg dogrulandi"
           ls -lh "$RUNNER_TEMP/deneme.dmg" | awk '{print ".dmg boyutu:", $5}'
+
+  # ----------------------------------------------------------------
+  # HOMEBREW CASK gercekten karantinayi kaldiriyor mu.
+  #
+  # Yaygin kani "cask ile kurunca Gatekeeper sorunu olmaz". Homebrew
+  # ise indirdigi cask'a karantinayi VARSAYILAN OLARAK EKLIYOR;
+  # `--no-quarantine` ayri bir bayrak. Dogruysa cask tek basina
+  # imzasiz paketin sorununu COZMUYOR ve kullaniciya yine bir sey
+  # yazdirmak gerekiyor.
+  #
+  # Iddia edilmiyor: gercek bir .dmg uretilip gercek bir cask'la
+  # kuruluyor ve kurulan .app'in niteliklerine bakiliyor.
+  # ----------------------------------------------------------------
+  cask:
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Bagimliliklar
+        run: python -m pip install --quiet -r desktop/requirements.txt pyinstaller
+
+      - name: .app ve .dmg uret
+        working-directory: desktop
+        run: |
+          bash macos_ikon_uret.sh
+          python -m PyInstaller --noconfirm latex-editor-macos.spec > /dev/null 2>&1
+          mkdir -p "$RUNNER_TEMP/dmg"
+          cp -R "dist/LaTeX Editor.app" "$RUNNER_TEMP/dmg/"
+          ln -s /Applications "$RUNNER_TEMP/dmg/Applications"
+          hdiutil create -volname "LaTeX Editor" -srcfolder "$RUNNER_TEMP/dmg" \
+            -ov -format UDZO "$RUNNER_TEMP/le.dmg" > /dev/null
+          ls -lh "$RUNNER_TEMP/le.dmg" | awk '{print ".dmg:", $5}'
+
+      - name: Yerel cask yaz ve kur
+        run: |
+          mkdir -p "$RUNNER_TEMP/tap/Casks"
+          cat > "$RUNNER_TEMP/tap/Casks/latex-editor-deneme.rb" <<'RB'
+          cask "latex-editor-deneme" do
+            version "9.9.9"
+            sha256 :no_check
+
+            url "file://#{ENV["RUNNER_TEMP"]}/le.dmg"
+            name "LaTeX Editor"
+            desc "Desktop LaTeX editor with live PDF preview"
+            homepage "https://github.com/s-balli/latex-editor"
+
+            depends_on arch: :arm64
+
+            app "LaTeX Editor.app"
+          end
+          RB
+          brew install --cask "$RUNNER_TEMP/tap/Casks/latex-editor-deneme.rb" \
+            > "$RUNNER_TEMP/brew.log" 2>&1 \
+            || { echo "BREW DUSTU"; tail -20 "$RUNNER_TEMP/brew.log"; exit 1; }
+          echo "kuruldu: $(ls -d '/Applications/LaTeX Editor.app')"
+
+      - name: Kurulan .app karantinali mi
+        run: |
+          APP="/Applications/LaTeX Editor.app"
+          echo "nitelikler: $(xattr "$APP" | tr '\n' ' ')"
+          if xattr "$APP" | grep -q com.apple.quarantine; then
+            echo "SONUC: cask KARANTINA EKLIYOR, kullaniciya yine komut gerekiyor"
+          else
+            echo "SONUC: cask karantina EKLEMIYOR, komut gerekmiyor"
+          fi
+          printf 'spctl: '
+          spctl --assess --type execute "$APP" 2>&1 || true
+
+      - name: --no-quarantine ile fark var mi (karsi kol)
+        run: |
+          APP="/Applications/LaTeX Editor.app"
+          brew uninstall --cask latex-editor-deneme > /dev/null 2>&1 || true
+          brew install --cask --no-quarantine \
+            "$RUNNER_TEMP/tap/Casks/latex-editor-deneme.rb" > /dev/null 2>&1
+          echo "nitelikler (--no-quarantine): $(xattr "$APP" | tr '\n' ' ' || echo yok)"
