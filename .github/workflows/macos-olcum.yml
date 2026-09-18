@@ -443,6 +443,18 @@ jobs:
           echo "--- ayni harita lualatex ile ---"
           bash .github/scripts/kagit_boyu_haritasi.sh "$RUNNER_TEMP/kagitlua" ""
 
+      # TASMA. Harita k2'de belgenin A4 istedigini ve macOS'ta Letter
+      # aldigini gosterdi. Bedeli ne: TeX sayfayi A4'e gore hesaplanmis
+      # `\textheight` kadar dolduruyor, cikti sayfasi 17.6 mm daha kisa.
+      # Iki ihtimal, satirlar sonraki sayfaya ITILIYOR ya da sayfanin
+      # DISINA cizilip KAYBOLUYOR. Olcut: kaynaktaki 200 numarali satirin
+      # kaci ciktidan cikarilabiliyor. Linux'ta (A4, tutarli) kayip 0.
+      - name: Kisa sayfada metin kayboluyor mu (tani)
+        run: |
+          python .github/scripts/kagit_tasma_olcumu.py "$RUNNER_TEMP/tasma" --pdflatex
+          echo "--- ayni olcum lualatex ile ---"
+          python .github/scripts/kagit_tasma_olcumu.py "$RUNNER_TEMP/tasmalua" ""
+
       # Bagimliliklar BURADA kuruluyor, test adiminin icinde degil: tani
       # adimlari da PyQt6 istiyor ve testten ONCE kosuyor. (Ilk denemede
       # harf duyarsizligi tanisi "No module named 'PyQt6'" ile dustu ve
