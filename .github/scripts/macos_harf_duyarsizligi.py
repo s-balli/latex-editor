@@ -42,9 +42,12 @@ class _Sahte(pso.ProjectSearchMixin):
 
 
 def kol(etiket, duzeltme_acik):
-    gercek = pso._ayni_agacta
+    # Yardimci `core.paths`ta yasiyor ama modullere `from ... import` ile
+    # girdigi icin ORADA yamalamak yetmiyor: yamanmasi gereken, cagiran
+    # modulun kendi adi.
+    gercek = pso.dizin_altinda_mi
     if not duzeltme_acik:
-        pso._ayni_agacta = lambda yol, kok: False
+        pso.dizin_altinda_mi = lambda dizin, kok: False
     try:
         with tempfile.TemporaryDirectory() as d:
             kok = os.path.join(d, "Tez")
@@ -59,7 +62,7 @@ def kol(etiket, duzeltme_acik):
                 "kok kucuk": s._kok_disinda_mi(kok.lower()),
             }
     finally:
-        pso._ayni_agacta = gercek
+        pso.dizin_altinda_mi = gercek
     print("=== " + etiket + " ===")
     for ad, u in sonuc.items():
         print("    %-12s -> %s" % (ad, u if u else "(uyari yok)"))
@@ -83,21 +86,35 @@ print()
 # `commonpath` + `normcase` kullaniyor. Bu kol WINDOWS'ta taklit EDILEMIYOR:
 # `ntpath.commonpath` kendi icinde harf katliyor, `posixpath.commonpath`
 # katlamiyor. Yani cevabi yalnizca macOS verebilir, olcum burada.
-from gui.mixins.compile_ops import CompileOpsMixin                # noqa: E402
+import gui.mixins.compile_ops as co                               # noqa: E402
 
-with tempfile.TemporaryDirectory() as d:
-    kok2 = os.path.join(d, "Tez")
-    alt2 = os.path.join(kok2, "bolumler")
-    os.makedirs(alt2)
-    print("=== KOL D: kabuk erisimi kapsami (_kok_kapsiyor_mu) ===")
-    kapsam = {}
-    for ad, k in (("ayni yazim", kok2), ("kok BUYUK", kok2.upper()),
-                  ("kok kucuk", kok2.lower())):
-        v = CompileOpsMixin._kok_kapsiyor_mu(k, alt2)
-        kapsam[ad] = v
+
+def kapsam_kolu(etiket, duzeltme_acik):
+    gercek = co.dizin_altinda_mi
+    if not duzeltme_acik:
+        co.dizin_altinda_mi = lambda dizin, kok: False
+    try:
+        with tempfile.TemporaryDirectory() as d:
+            kok2 = os.path.join(d, "Tez")
+            alt2 = os.path.join(kok2, "bolumler")
+            os.makedirs(alt2)
+            sonuc = {}
+            for ad, k in (("ayni yazim", kok2), ("kok BUYUK", kok2.upper()),
+                          ("kok kucuk", kok2.lower())):
+                sonuc[ad] = co.CompileOpsMixin._kok_kapsiyor_mu(k, alt2)
+    finally:
+        co.dizin_altinda_mi = gercek
+    print("=== " + etiket + " ===")
+    for ad, v in sonuc.items():
         print("    %-12s -> %s%s" % (ad, v, "" if v else "   <-- KAPSAMIYOR"))
-    if duyarsiz and not all(kapsam.values()):
+    if duyarsiz and not all(sonuc.values()):
         print("    ^ Dosya sistemi duyarsiz, yani bu dizinler AYNI; karar YANLIS")
+    return sonuc
+
+
+dd = kapsam_kolu("KOL D: kabuk erisimi kapsami, duzeltme DEVRE DISI", False)
+print()
+de = kapsam_kolu("KOL E: kabuk erisimi kapsami, duzeltme ETKIN", True)
 print()
 
 normcase_etkisiz = os.path.normcase("/A/B") == "/A/B"
@@ -111,7 +128,12 @@ elif not normcase_etkisiz:
 else:
     kusur = bool(b["kok BUYUK"]) and bool(b["kok kucuk"])
     temiz = not (c["kok BUYUK"] or c["kok kucuk"] or c["ayni yazim"])
-    print("kusur uretildi mi (B):", kusur)
-    print("duzeltme tuttu mu (C):", temiz)
-    print("SONUC:", "KUSUR DOGRULANDI VE DUZELTME TUTUYOR"
-          if (kusur and temiz) else "BEKLENMEYEN DURUM")
+    kapsam_kusur = not (dd["kok BUYUK"] and dd["kok kucuk"])
+    kapsam_temiz = all(de.values())
+    print("Klasorde Ara    : kusur uretildi mi (B):", kusur,
+          "| duzeltme tuttu mu (C):", temiz)
+    print("Kabuk erisimi   : kusur uretildi mi (D):", kapsam_kusur,
+          "| duzeltme tuttu mu (E):", kapsam_temiz)
+    print("SONUC:", "IKI YERDE DE KUSUR DOGRULANDI VE DUZELTME TUTUYOR"
+          if (kusur and temiz and kapsam_kusur and kapsam_temiz)
+          else "BEKLENMEYEN DURUM")
