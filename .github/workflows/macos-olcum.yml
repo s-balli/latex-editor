@@ -96,7 +96,7 @@ jobs:
           QT_QPA_PLATFORM: offscreen
         run: |
           kod=0
-          python -m pytest tests/ -q --no-header > "$RUNNER_TEMP/pytest.txt" 2>&1 || kod=$?
+          python -m pytest tests/ -q --no-header -rs > "$RUNNER_TEMP/pytest.txt" 2>&1 || kod=$?
           echo "pytest cikis kodu: $kod"
           tail -40 "$RUNNER_TEMP/pytest.txt"
           echo "--- dusen testler ---"
