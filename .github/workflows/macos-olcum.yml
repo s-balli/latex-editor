@@ -358,6 +358,25 @@ jobs:
           grep -c '^This is ' "$RUNNER_TEMP/g/ana.log" 2>/dev/null \
             || echo "(gunluk yok, derleme basarili demektir)"
 
+      # FINDER TUZAGI. MacTeX ikililerini `/Library/TeX/texbin`e koyuyor ve
+      # o yolu `/etc/paths.d/TeX` ile bildiriyor; orayi `path_helper` okuyor
+      # ve path_helper YALNIZ giris kabuklarinda kosuyor. Finder'dan ya da
+      # Dock'tan acilan bir `.app` launchd ortamini devraliyor, yani o yolu
+      # HIC gormuyor.
+      #
+      # Kaynaktan calistirmada sorun degil (Terminal giris kabugu). Ama
+      # `.dmg` yayinlandigi andan itibaren gercek: kullanici MacTeX kurulu
+      # oldugu halde "pdflatex kurulu degil" gorebilir.
+      #
+      # Olcum uygulamanin KENDI arama mantigiyla (`shutil.which`), Finder'in
+      # verdigi asgari PATH altinda.
+      - name: Finder'dan acilan .app MacTeX'i buluyor mu
+        run: |
+          echo "giris kabugunda texbin girdisi: $(echo "$PATH" | tr ':' '\n' | grep -c texbin)"
+          echo "pdflatex (giris kabugu)       : $(command -v pdflatex || echo YOK)"
+          echo "--- Finder'in verdigi asgari PATH ile ---"
+          env -i PATH=/usr/bin:/bin:/usr/sbin:/sbin HOME="$HOME" /usr/bin/python3 -c 'import shutil; [print("  %-9s %s" % (a, shutil.which(a) or "BULUNAMADI")) for a in ("pdflatex", "lualatex", "biber", "synctex")]'
+
       - name: derle.sh test paketi (macOS)
         env:
           QT_QPA_PLATFORM: offscreen
