@@ -571,15 +571,21 @@ jobs:
             -ov -format UDZO "$RUNNER_TEMP/le.dmg" > /dev/null
           ls -lh "$RUNNER_TEMP/le.dmg" | awk '{print ".dmg:", $5}'
 
-      - name: Yerel cask yaz ve kur
+      # Homebrew cask'in GERCEK BIR TAP icinde olmasini sart kosuyor:
+      # dosyayi dogrudan vermek "Homebrew requires casks to be in a tap"
+      # ile reddediliyor. Bu, asil teslimat icin de belirleyici: cask
+      # bu depoda duramaz, ayri bir tap deposu gerekiyor.
+      - name: Yerel tap kur ve cask'i yerlestir
         run: |
-          mkdir -p "$RUNNER_TEMP/tap/Casks"
-          cat > "$RUNNER_TEMP/tap/Casks/latex-editor-deneme.rb" <<'RB'
+          brew tap-new deneme/yerel --no-git > /dev/null
+          tap="$(brew --repository deneme/yerel)"
+          mkdir -p "$tap/Casks"
+          cat > "$tap/Casks/latex-editor-deneme.rb" <<RB
           cask "latex-editor-deneme" do
             version "9.9.9"
             sha256 :no_check
 
-            url "file://#{ENV["RUNNER_TEMP"]}/le.dmg"
+            url "file://$RUNNER_TEMP/le.dmg"
             name "LaTeX Editor"
             desc "Desktop LaTeX editor with live PDF preview"
             homepage "https://github.com/s-balli/latex-editor"
@@ -589,9 +595,7 @@ jobs:
             app "LaTeX Editor.app"
           end
           RB
-          brew install --cask "$RUNNER_TEMP/tap/Casks/latex-editor-deneme.rb" \
-            > "$RUNNER_TEMP/brew.log" 2>&1 \
-            || { echo "BREW DUSTU"; tail -20 "$RUNNER_TEMP/brew.log"; exit 1; }
+          brew install --cask deneme/yerel/latex-editor-deneme             > "$RUNNER_TEMP/brew.log" 2>&1             || { echo "BREW DUSTU"; tail -25 "$RUNNER_TEMP/brew.log"; exit 1; }
           echo "kuruldu: $(ls -d '/Applications/LaTeX Editor.app')"
 
       - name: Kurulan .app karantinali mi
@@ -609,7 +613,7 @@ jobs:
       - name: --no-quarantine ile fark var mi (karsi kol)
         run: |
           APP="/Applications/LaTeX Editor.app"
-          brew uninstall --cask latex-editor-deneme > /dev/null 2>&1 || true
+          brew uninstall --cask deneme/yerel/latex-editor-deneme > /dev/null 2>&1 || true
           brew install --cask --no-quarantine \
-            "$RUNNER_TEMP/tap/Casks/latex-editor-deneme.rb" > /dev/null 2>&1
+            deneme/yerel/latex-editor-deneme > /dev/null 2>&1
           echo "nitelikler (--no-quarantine): $(xattr "$APP" | tr '\n' ' ' || echo yok)"
