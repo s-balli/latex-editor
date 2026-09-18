@@ -396,11 +396,21 @@ jobs:
           /bin/bash core/derle.sh "$d/s.tex" > "$d/derle.log" 2>&1 || true
           echo "uretilen dosyalar:"
           ls -la "$d" | awk '{print "   ", $5, $9}'
-          echo "--- synctex view ciktisi (ham) ---"
+          echo "--- KOL 1: -d YOK (.gz pdf'in yaninda) ---"
           kod=0
-          synctex view -i "5:1:$d/s.tex" -o "$d/s.pdf" > "$d/view.txt" 2>&1 || kod=$?
-          echo "cikis kodu: $kod"
-          head -20 "$d/view.txt"
+          synctex view -i "5:1:$d/s.tex" -o "$d/s.pdf" > "$d/v1.txt" 2>&1 || kod=$?
+          echo "cikis kodu: $kod | Page satiri: $(grep -c '^Page:' "$d/v1.txt")"
+          head -8 "$d/v1.txt"
+          # KOL 2: testin yaptigi gibi .gz AYRI dizine tasinip `-d` veriliyor.
+          # Uygulama da boyle cagiriyor (derleme gecici dizinde kosuyor, .gz
+          # ayri tutuluyor). Fark buradaysa kusur `-d` yolunda.
+          echo "--- KOL 2: .gz ayri dizinde, -d ile ---"
+          mkdir -p "$d/gz"
+          mv "$d/s.synctex.gz" "$d/gz/s.synctex.gz"
+          kod=0
+          synctex view -i "5:1:$d/s.tex" -o "$d/s.pdf" -d "$d/gz"             > "$d/v2.txt" 2>&1 || kod=$?
+          echo "cikis kodu: $kod | Page satiri: $(grep -c '^Page:' "$d/v2.txt")"
+          head -8 "$d/v2.txt"
 
       - name: derle.sh test paketi (macOS)
         env:
