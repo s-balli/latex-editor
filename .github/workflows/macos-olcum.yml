@@ -890,6 +890,21 @@ jobs:
             osascript -e 'tell application "System Events" to get name of front window of (first process whose name is "LaTeX Editor")' 2>&1 | head -1
           }
 
+          # OLCULEMEDI ile HAYIR AYRI SEYLER. Kosucuda System Events'in
+          # Erisilebilirlik izni yok ve `baslik` "execution error ...
+          # Invalid index (-1719)" donuyor. Onceki bicim bunu dogrudan
+          # HAYIR yaziyordu, yani "olcemedim"i "olmadi" diye bildiriyordu:
+          # ayni kosuda uygulama ACILMIS ve PDF URETMISTI (2026-09-18,
+          # v1.0.29 dmg'si). Kapida arananin tersi bir kusur sinifi.
+          yargi() {
+            local b="$1"
+            case "$b" in
+              *"execution error"*|"") echo "OLCULEMEDI (Erisilebilirlik izni yok)";;
+              *deneme*) echo "EVET";;
+              *) echo "HAYIR";;
+            esac
+          }
+
           echo "--- KOL 1: uygulama KAPALIYKEN dosyayla ac ---"
           osascript -e 'quit app "LaTeX Editor"' 2>&1 | head -1 || true
           sleep 5
@@ -897,13 +912,16 @@ jobs:
           sleep 3
           open -a "/Applications/LaTeX Editor.app" "$is/deneme.tex"
           sleep 25
-          echo "pencere basligi: $(baslik)"
-          echo "dosya acildi mi: $(baslik | grep -qi deneme && echo EVET || echo HAYIR)"
+          b1="$(baslik)"
+          echo "pencere basligi: $b1"
+          echo "dosya acildi mi: $(yargi "$b1")"
 
           echo "--- KOL 2: ZATEN ACIKKEN dosya gonder ---"
           open -a "/Applications/LaTeX Editor.app" "$is/deneme.tex"
           sleep 12
-          echo "pencere basligi: $(baslik)"
+          b2="$(baslik)"
+          echo "pencere basligi: $b2"
+          echo "dosya acildi mi: $(yargi "$b2")"
 
           echo "--- derlemeyi tetikle (Cmd+S) ---"
           osascript -e 'tell application "System Events" to keystroke "s" using command down' 2>&1 | head -2 || true
