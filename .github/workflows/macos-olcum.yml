@@ -426,6 +426,15 @@ jobs:
       - name: SyncTeX symlink suphesi
         run: bash .github/scripts/macos_synctex_tani.sh
 
+      # HARF DUYARSIZLIGI. "Klasorde Ara"nin kok denetimi harf vakalarini
+      # `os.name != "nt"` ile atliyor ve gerekce "POSIX'te farkli yazim farkli
+      # dosyadir" diyor. macOS POSIX ama ONTANIMLI APFS birimi harf DUYARSIZ,
+      # yani o varsayim burada gecersiz olabilir. Kolu olcup yaziyor.
+      - name: Dosya sistemi harf duyarsiz mi (tani)
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: python .github/scripts/macos_harf_duyarsizligi.py
+
       # TAM TAKIM, TeX KURULUYKEN.
       #
       # Burasi dort dosya kosturuyordu. `olcum` isi tam takimi kosturuyor ama

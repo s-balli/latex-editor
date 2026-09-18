@@ -5,7 +5,9 @@ SEKMEDE, PDF araması derlenmiş PDF'te, Ctrl+P dosya ADLARINDA arar. Burada
 aranan, sekmede açık olmayanlar dâhil tüm kaynak dosyalarının İÇERİĞİ.
 """
 
+import functools
 import os
+import tempfile
 import time
 from types import SimpleNamespace
 
@@ -14,6 +16,21 @@ import pytest
 from core.project_search import (
     Bulgu, SKIP_DIRS, coz, iter_project_files, search_project,
 )
+
+
+@functools.lru_cache(maxsize=1)
+def _harf_duyarsiz_dosya_sistemi() -> bool:
+    """Geçici dizin harf DUYARSIZ mı; tahmin değil, ölçüm.
+
+    Platform adına bakmak yanlış cevap veriyor: macOS POSIX ama öntanımlı
+    APFS birimi harf duyarsız, üstelik duyarlı da biçimlendirilebiliyor.
+    Soru "hangi işletim sistemi" değil, "bu dosya sisteminde iki yazım aynı
+    dosya mı"; o da ancak sorulunca bilinir.
+    """
+    with tempfile.TemporaryDirectory() as d:
+        with open(os.path.join(d, "SondaDosyasi"), "w", encoding="utf-8") as f:
+            f.write("x")
+        return os.path.exists(os.path.join(d, "sondadosyasi"))
 
 
 def _yaz(kok, rel, icerik, encoding="utf-8"):
@@ -765,7 +782,7 @@ class TestKokDegisince:
 
 
 class TestKokDisiHarfYazimi:
-    """Windows'ta harf yazımı uyarıyı bozmamalı.
+    """Harf duyarsız dosya sisteminde yazım farkı uyarıyı bozmamalı.
 
     Dosya sistemi harf DUYARSIZ ama `os.path.commonpath` karşılaştırması
     duyarlı. Kök `...\\TEZ`, açık dosya `...\\tez\\a.tex` iken fonksiyon
@@ -773,13 +790,13 @@ class TestKokDisiHarfYazimi:
     içinde. Bu satırın var olma sebebi tam tersiydi: yanıltıcı bir
     "bulunamadı" mesajını AÇIKLAMAK.
 
-    POSIX'te farklı yazım FARKLI dosyadır, yani harf vakaları orada anlamsız
-    ve atlanıyor. `normcase` POSIX'te kimlik işlevi olduğu için düzeltme
-    orada hiçbir şeyi değiştirmiyor; aşağıdaki platformdan bağımsız testler
-    bunu da sabitliyor.
+    KOŞUL PLATFORM DEĞİL, DOSYA SİSTEMİ. Önce `os.name != "nt"` ile
+    atlanıyordu ve gerekçe "POSIX'te farklı yazım farklı dosyadır" diyordu.
+    macOS POSIX ama öntanımlı APFS birimi harf DUYARSIZ, yani orada da iki
+    yazım aynı dosya; üstelik `normcase` POSIX'te kimlik işlevi olduğu için
+    düzeltme macOS'ta hiçbir şey yapmıyordu. Kapı artık işletim sistemine
+    değil, ölçülen dosya sistemi davranışına bakıyor.
     """
-
-    _WIN = os.name == "nt"
 
     def _stub(self, panel, kok, dosya_yolu):
         from gui.mixins.project_search_ops import ProjectSearchMixin
@@ -791,8 +808,8 @@ class TestKokDisiHarfYazimi:
 
         return S(panel, kok)
 
-    @pytest.mark.skipif(os.name != "nt",
-                        reason="POSIX'te farklı yazım farklı dosyadır")
+    @pytest.mark.skipif(not _harf_duyarsiz_dosya_sistemi(),
+                        reason="dosya sistemi harf duyarlı, yazım farkı gerçekten başka dosya")
     @pytest.mark.parametrize("kok_bicim,dosya_bicim", [
         (str.upper, str),          # kök BÜYÜK
         (str.lower, str),          # kök küçük
@@ -809,8 +826,8 @@ class TestKokDisiHarfYazimi:
         s = self._stub(panel, kok_bicim(kok), dosya_bicim(dosya))
         assert s._kok_disinda_mi(kok_bicim(kok)) == ""
 
-    @pytest.mark.skipif(os.name != "nt",
-                        reason="POSIX'te farklı yazım farklı dosyadır")
+    @pytest.mark.skipif(not _harf_duyarsiz_dosya_sistemi(),
+                        reason="dosya sistemi harf duyarlı, yazım farkı gerçekten başka dosya")
     def test_harf_ayrissa_bile_GERCEKTEN_disarisi_uyari_veriyor(self, panel,
                                                                 tmp_path):
         """Karşı yön: normcase karşılaştırmayı gevşetmemeli."""
