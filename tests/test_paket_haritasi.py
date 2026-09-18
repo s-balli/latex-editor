@@ -27,15 +27,32 @@ import pytest
 
 _BETIK = os.path.join(os.path.dirname(__file__), "..", "core", "derle.sh")
 
-_RE_TABLO = re.compile(r"declare -A (\w+)=\((.*?)\n\)", re.S)
-_RE_GIRDI = re.compile(r'\["([^"]+)"\]="([^"]+)"')
+# Tablolar `declare -A` İDİ; macOS'un /bin/bash'i (3.2.57) birleşik dizi
+# tanımadığı için `case`e çevrildi. Sözleşme değişmedi: hangi dosya hangi
+# pakete gidiyor. Ayrıştırıcı da `case` kollarını okuyor; bir kol birden
+# çok anahtar taşıyabiliyor (`a.sty|b.sty)`).
+_RE_TABLO = re.compile(r'\n(\w+)\(\) \{\n    case "\$1" in\n(.*?)\n    esac',
+                       re.S)
+_RE_KOL = re.compile(r'^        (\S+)\)\n +echo "([^"]+)" ;;', re.M)
+
+# `declare -A` adları testin sözlüğünde yaşamaya devam ediyor; işlev
+# adlarıyla eşlemesi burada.
+_ADLAR = {"paket_ara": "PAKET_HARITASI", "babel_ara": "BABEL_HARITASI"}
 
 
 def _tablolar():
     with open(_BETIK, encoding="utf-8") as f:
         kaynak = f.read()
-    return {ad: dict(_RE_GIRDI.findall(govde))
-            for ad, govde in _RE_TABLO.findall(kaynak)}
+    tablolar = {}
+    for islev, govde in _RE_TABLO.findall(kaynak):
+        if islev not in _ADLAR:
+            continue
+        tablo = {}
+        for desen, paket in _RE_KOL.findall(govde):
+            for anahtar in desen.split("|"):
+                tablo[anahtar] = paket
+        tablolar[_ADLAR[islev]] = tablo
+    return tablolar
 
 
 # `dpkg -S` ile DOĞRULANMIŞ eşleşmeler. İlk beşi düzeltilenler, kalanı

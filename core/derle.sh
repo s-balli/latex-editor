@@ -128,6 +128,19 @@ BIB_DESENI='error|warn|^I couldn.t open|^I found no|^Illegal |^Repeated entry|^S
 ARAC_DESENI='error|warn|rejected'
 ARAC_SESSIZ='(^|[^0-9])0 (rejected|warnings?|errors?)'
 
+# macOS'un /bin/bash'i 3.2.57 (Apple bash 4 GPLv3'e gecince orada dondurdu)
+# ve `${v,,}` / `${v^^}` bicimlerini TANIMIYOR: "bad substitution" verip
+# duser. `tr` iki tarafta da var.
+kucult() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]'; }
+buyut()  { printf '%s' "$1" | tr '[:lower:]' '[:upper:]'; }
+
+# Dosyanin degisme zamani. `stat -c` GNU'ya ozgu; BSD (macOS) `-f` istiyor
+# ve GNU bayragini "illegal option" diye reddediyor. Once GNU denenip
+# dusunce BSD'ye gecmek iki tarafta da tek satirda calisiyor.
+dosya_zamani() {
+    stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null
+}
+
 # Renk kodlari
 KIRMIZI='\033[0;31m'
 YESIL='\033[0;32m'
@@ -150,55 +163,33 @@ MAVI2='\033[1;36m'
 #
 # Kalan 5 girdi bu kurulumda yüklü olmadığı için denetlenemedi; paket
 # ADLARININ apt'de var olduğu ayrıca doğrulandı.
-declare -A PAKET_HARITASI=(
-    # texlive-humanities
-    ["phonrule.sty"]="texlive-humanities"
-    # texlive-publishers
-    ["IEEEtran.bst"]="texlive-publishers"
-    ["IEEEtran.cls"]="texlive-publishers"
-    ["elsarticle.cls"]="texlive-publishers"
-    ["revtex4-2.cls"]="texlive-publishers"
-    ["revtex4-1.cls"]="texlive-publishers"
-    ["revtex4.cls"]="texlive-publishers"
-    ["aastex.cls"]="texlive-publishers"
-    ["aguplus.cls"]="texlive-publishers"
-    ["agu2018.bst"]="texlive-publishers"
-    # texlive-science
-    ["algorithm.sty"]="texlive-science"
-    ["algorithmic.sty"]="texlive-science"
-    ["algorithm2e.sty"]="texlive-science"
-    ["chemformula.sty"]="texlive-science"
-    ["chemmacros.sty"]="texlive-science"
-    ["siunitx.sty"]="texlive-science"
-    # texlive-latex-extra (dpkg ile doğrulandı; üçü de science sanılıyordu)
-    ["units.sty"]="texlive-latex-extra"
-    ["nicefrac.sty"]="texlive-latex-extra"
-    ["cancel.sty"]="texlive-latex-extra"
-    ["emulateapj.cls"]="texlive-latex-extra"
-    # texlive-pstricks
-    ["pstricks.sty"]="texlive-pstricks"
-    ["pst-node.sty"]="texlive-pstricks"
-    ["pst-text.sty"]="texlive-pstricks"
-    ["pst-3d.sty"]="texlive-pstricks"
-    # texlive-fonts-extra
-    ["ifsym.sty"]="texlive-fonts-extra"
-    ["fontawesome.sty"]="texlive-fonts-extra"
-    ["fontawesome5.sty"]="texlive-fonts-extra"
-    ["dingbat.sty"]="texlive-fonts-extra"
-    # texlive-latex-base (pifont temel kurulumda; dpkg ile doğrulandı)
-    ["pifont.sty"]="texlive-latex-base"
-    # texlive-bibtex-extra
-    ["plainurl.bst"]="texlive-bibtex-extra"
-    ["apacite.bst"]="texlive-bibtex-extra"
-    ["apacite.sty"]="texlive-bibtex-extra"
-    ["chicago.sty"]="texlive-bibtex-extra"
-    # texlive-lang-japanese
-    ["ascmac.sty"]="texlive-lang-japanese"
-    ["okumacro.sty"]="texlive-lang-japanese"
-    ["bxjscls.cls"]="texlive-lang-japanese"
-    # python3-pygments (minted gereksinimi)
-    ["minted.sty"]="texlive-latex-extra + python3-pygments + -shell-escape"
-)
+# bash 3.2 (macOS'un /bin/bash'i) birlesik dizi (`declare -A`)
+# TANIMIYOR; `case` iki surumde de calisiyor. Girdiler pakete gore
+# gruplandi, icerik birebir ayni (tests/test_paket_haritasi.py).
+paket_ara() {
+    case "$1" in
+        phonrule.sty)
+            echo "texlive-humanities" ;;
+        IEEEtran.bst|IEEEtran.cls|elsarticle.cls|revtex4-2.cls|revtex4-1.cls|revtex4.cls|aastex.cls|aguplus.cls|agu2018.bst)
+            echo "texlive-publishers" ;;
+        algorithm.sty|algorithmic.sty|algorithm2e.sty|chemformula.sty|chemmacros.sty|siunitx.sty)
+            echo "texlive-science" ;;
+        units.sty|nicefrac.sty|cancel.sty|emulateapj.cls)
+            echo "texlive-latex-extra" ;;
+        pstricks.sty|pst-node.sty|pst-text.sty|pst-3d.sty)
+            echo "texlive-pstricks" ;;
+        ifsym.sty|fontawesome.sty|fontawesome5.sty|dingbat.sty)
+            echo "texlive-fonts-extra" ;;
+        pifont.sty)
+            echo "texlive-latex-base" ;;
+        plainurl.bst|apacite.bst|apacite.sty|chicago.sty)
+            echo "texlive-bibtex-extra" ;;
+        ascmac.sty|okumacro.sty|bxjscls.cls)
+            echo "texlive-lang-japanese" ;;
+        minted.sty)
+            echo "texlive-latex-extra + python3-pygments + -shell-escape" ;;
+    esac
+}
 
 # Babel dil → paket eşleme tablosu
 #
@@ -210,28 +201,37 @@ declare -A PAKET_HARITASI=(
 #
 # Tablodaki 27 paket adının tamamı `apt-cache policy` ile denetlendi;
 # yalnız bu beşi yoktu.
-declare -A BABEL_HARITASI=(
-    ["brazil"]="texlive-lang-portuguese"
-    ["portuguese"]="texlive-lang-portuguese"
-    ["spanish"]="texlive-lang-spanish"
-    ["french"]="texlive-lang-french"
-    ["german"]="texlive-lang-german"
-    ["italian"]="texlive-lang-italian"
-    ["dutch"]="texlive-lang-european"
-    ["polish"]="texlive-lang-polish"
-    ["czech"]="texlive-lang-czechslovak"
-    ["slovak"]="texlive-lang-czechslovak"
-    ["russian"]="texlive-lang-cyrillic"
-    ["ukrainian"]="texlive-lang-cyrillic"
-    ["greek"]="texlive-lang-greek"
-    ["chinese"]="texlive-lang-chinese"
-    ["korean"]="texlive-lang-korean"
-    ["arabic"]="texlive-lang-arabic"
-    ["finnish"]="texlive-lang-european"
-    ["swedish"]="texlive-lang-european"
-    ["norwegian"]="texlive-lang-european"
-    ["danish"]="texlive-lang-european"
-)
+# Ayni gerekce: bkz. paket_ara.
+babel_ara() {
+    case "$1" in
+        brazil|portuguese)
+            echo "texlive-lang-portuguese" ;;
+        spanish)
+            echo "texlive-lang-spanish" ;;
+        french)
+            echo "texlive-lang-french" ;;
+        german)
+            echo "texlive-lang-german" ;;
+        italian)
+            echo "texlive-lang-italian" ;;
+        dutch|finnish|swedish|norwegian|danish)
+            echo "texlive-lang-european" ;;
+        polish)
+            echo "texlive-lang-polish" ;;
+        czech|slovak)
+            echo "texlive-lang-czechslovak" ;;
+        russian|ukrainian)
+            echo "texlive-lang-cyrillic" ;;
+        greek)
+            echo "texlive-lang-greek" ;;
+        chinese)
+            echo "texlive-lang-chinese" ;;
+        korean)
+            echo "texlive-lang-korean" ;;
+        arabic)
+            echo "texlive-lang-arabic" ;;
+    esac
+}
 
 # Eksik paket tespiti
 eksik_paket_goster() {
@@ -243,7 +243,8 @@ eksik_paket_goster() {
     if [ -n "$EKSIKLER" ]; then
         echo "$EKSIKLER" | while IFS= read -r dosya; do
             [ -z "$dosya" ] && continue
-            local paket="${PAKET_HARITASI[$dosya]:-}"
+            local paket
+            paket=$(paket_ara "$dosya")
             [ -z "$paket" ] && continue
             printf "${MAVI2}==> Eksik paket: %s \(%s\)${SIFIRLA}\n" "$paket" "$dosya"
             printf "${MAVI2}    sudo apt-get install %s${SIFIRLA}\n" "$paket"
@@ -256,7 +257,8 @@ eksik_paket_goster() {
     if [ -n "$DILLER" ]; then
         echo "$DILLER" | while IFS= read -r dil; do
             [ -z "$dil" ] && continue
-            local paket="${BABEL_HARITASI[$dil]:-}"
+            local paket
+            paket=$(babel_ara "$dil")
             [ -z "$paket" ] && continue
             printf "${MAVI2}==> Eksik dil paketi: %s \(%s\)${SIFIRLA}\n" "$paket" "$dil"
             printf "${MAVI2}    sudo apt-get install %s${SIFIRLA}\n" "$paket"
@@ -345,7 +347,7 @@ yol_ipucu() {
     if [ "${yol:0:5}" = "/mnt/" ] && [ "${yol:6:1}" = "/" ]; then
         harf="${yol:5:1}"
         if [ ! -d "/mnt/$harf" ]; then
-            printf ' (%s: surucusu WSL icinde gorunmuyor; ag surucusundeki proje derlenemiyor, yerel bir diske kopyalayin)' "${harf^^}"
+            printf ' (%s: surucusu WSL icinde gorunmuyor; ag surucusundeki proje derlenemiyor, yerel bir diske kopyalayin)' "$(buyut "$harf")"
         fi
     fi
 }
@@ -411,7 +413,7 @@ derle_dosya() {
     # Büyük harf uzantıyı küçült (.TEX → .tex)
     local EXT="${DOSYA_ADI##*.}"
     local ISIM="${DOSYA_ADI%.*}"
-    if [ "${EXT,,}" != "tex" ]; then
+    if [ "$(kucult "$EXT")" != "tex" ]; then
         ISIM="$DOSYA_ADI"
     fi
 
@@ -965,11 +967,11 @@ trap 'rm -rf "$WATCH_TMPDIR" 2>/dev/null; echo -e "\n${MAVI}[durduruldu] Watch m
 derle_dosya "$DOSYA_YOLU" || true
 
 # mtime takibi
-SON_MOD=$(stat -c %Y "$DOSYA_YOLU" 2>/dev/null || echo "0")
+SON_MOD=$(dosya_zamani "$DOSYA_YOLU" || echo "0")
 
 while true; do
     sleep 2
-    YENI_MOD=$(stat -c %Y "$DOSYA_YOLU" 2>/dev/null || echo "$SON_MOD")
+    YENI_MOD=$(dosya_zamani "$DOSYA_YOLU" || echo "$SON_MOD")
 
     if [ "$YENI_MOD" != "$SON_MOD" ]; then
         SON_MOD="$YENI_MOD"

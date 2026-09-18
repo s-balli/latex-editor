@@ -243,3 +243,86 @@ jobs:
           mkdir -p "$d/alt/derin"
           echo "find      : $(cd "$d" && find . -mindepth 1 -type d | tr '\n' ' ')"
           rm -rf "$d"
+
+  # ----------------------------------------------------------------
+  # GERCEK TeX ile derleme. Kabuk uyumu yapildiktan SONRA anlamli:
+  # oncesinde betik 153. satirda oluyordu ve TeX'in varligi hicbir sey
+  # soylemiyordu.
+  #
+  # BasicTeX (~100 MB) seciliyor, MacTeX (~5 GB) degil: soru "bu belge
+  # derleniyor mu" degil, "derle.sh macOS'ta ISLIYOR mu". Eksik paket
+  # cikarsa o TeX Live'in kapsami, betigin kusuru degil; ayirt edilebilsin
+  # diye once araclarin varligi yazdiriliyor.
+  # ----------------------------------------------------------------
+  tex:
+    runs-on: macos-15
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: BasicTeX kur
+        run: |
+          brew install --cask basictex
+          eval "$(/usr/libexec/path_helper)"
+          echo "/Library/TeX/texbin" >> "$GITHUB_PATH"
+
+      - name: Hangi araclar var
+        run: |
+          for a in pdflatex xelatex lualatex biber bibtex makeindex synctex; do
+            printf '%-12s %s\n' "$a" "$(command -v $a || echo YOK)"
+          done
+          echo "tlmgr: $(tlmgr --version 2>&1 | head -1)"
+
+      - name: derle.sh ile GERCEK derleme
+        run: |
+          mkdir -p "$RUNNER_TEMP/p"
+          printf '%s\n' \
+            '\documentclass{article}' \
+            '\begin{document}' \
+            '\section{Birinci}\label{b}' \
+            'Bkz. bolum \ref{b}.' \
+            '\end{document}' > "$RUNNER_TEMP/p/tez.tex"
+          kod=0
+          /bin/bash core/derle.sh --pdflatex "$RUNNER_TEMP/p/tez.tex" \
+            > "$RUNNER_TEMP/derle.txt" 2>&1 || kod=$?
+          echo "cikis kodu: $kod"
+          cat "$RUNNER_TEMP/derle.txt"
+          echo "--- PDF ---"
+          ls -la "$RUNNER_TEMP/p/tez.pdf" 2>&1 || echo "PDF YOK"
+
+      # Ikinci gecis KOSTU mu: \ref cozulmezse PDF'te "??" kalir. Kehanet
+      # PDF'in METNI, "PDF var mi" degil.
+      - name: Ikinci gecis calisti mi (PDF metni)
+        run: |
+          python -m pip install --quiet pypdfium2
+          python - "$RUNNER_TEMP/p/tez.pdf" <<'PY'
+          import sys
+          import pypdfium2 as pdfium
+          d = pdfium.PdfDocument(sys.argv[1])
+          t = "\n".join(d[i].get_textpage().get_text_bounded()
+                        for i in range(len(d)))
+          d.close()
+          print("PDF metni: %r" % t.strip()[:120])
+          print("cozulmemis atif (??) var mi:", "??" in t)
+          print("bolum numarasi yerinde mi:", "bolum 1" in t.replace("\u00a0", " "))
+          PY
+
+      - name: derle.sh test paketi (macOS)
+        env:
+          QT_QPA_PLATFORM: offscreen
+        run: |
+          python -m pip install --quiet -r desktop/requirements.txt pytest
+          kod=0
+          python -m pytest tests/test_derle_sh.py tests/test_derle_oneri.py \
+            tests/test_paket_haritasi.py -q --no-header \
+            > "$RUNNER_TEMP/pt.txt" 2>&1 || kod=$?
+          echo "cikis kodu: $kod"
+          tail -25 "$RUNNER_TEMP/pt.txt"
+          grep '^FAILED' "$RUNNER_TEMP/pt.txt" | head -20 || echo "(FAILED yok)"
