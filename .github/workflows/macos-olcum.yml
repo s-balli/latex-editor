@@ -534,16 +534,31 @@ jobs:
           ls -lh "$RUNNER_TEMP/deneme.dmg" | awk '{print ".dmg boyutu:", $5}'
 
   # ----------------------------------------------------------------
-  # HOMEBREW CASK gercekten karantinayi kaldiriyor mu.
+  # HOMEBREW CASK KARANTINAYI KALDIRMIYOR. Olculdu, sonuc asagida.
   #
-  # Yaygin kani "cask ile kurunca Gatekeeper sorunu olmaz". Homebrew
-  # ise indirdigi cask'a karantinayi VARSAYILAN OLARAK EKLIYOR;
-  # `--no-quarantine` ayri bir bayrak. Dogruysa cask tek basina
-  # imzasiz paketin sorununu COZMUYOR ve kullaniciya yine bir sey
-  # yazdirmak gerekiyor.
+  # Yaygin kani "cask ile kurunca Gatekeeper sorunu olmaz". YANLIS;
+  # bu depoda da iki kez yanlis hatirlandi, bu is onun kaydi.
   #
-  # Iddia edilmiyor: gercek bir .dmg uretilip gercek bir cask'la
-  # kuruluyor ve kurulan .app'in niteliklerine bakiliyor.
+  # OLCULDU (2026-09-18, Homebrew 6.0.22, macos-15, gercek bir .dmg
+  # gercek bir cask'la kurulup .app'in nitelikleri okunarak):
+  #
+  #   brew install --cask               nitelik: com.apple.quarantine
+  #                                     spctl  : rejected
+  #   brew install --cask --no-quarantine
+  #                                     invalid option (Homebrew kaldirmis)
+  #   brew install --help               quarantine secenegi YOK
+  #   HOMEBREW_CASK_OPTS=--no-quarantine
+  #                                     cikis 0 ama nitelik yine
+  #                                     com.apple.quarantine, spctl rejected
+  #
+  # Yani cask kullanicisi da `xattr -dr com.apple.quarantine` yazmak
+  # zorunda. Cask'in kalan degeri kurulum/yukseltme kolayligi, Gatekeeper
+  # sorununu COZMEK degil. Bir kisit daha: Homebrew cask'in gercek bir
+  # tap icinde olmasini sart kosuyor, yani cask bu depoda duramaz.
+  #
+  # KARAR (2026-09-18): cask YAPILMADI. Asil gerekcesi cikmadi, `.dmg`
+  # ve yayin notundaki talimat zaten calisiyor. Bu is olcumu tekrar
+  # alinabilir tutuyor; Homebrew davranisi degisirse burada gorunur.
   # ----------------------------------------------------------------
   cask:
     runs-on: macos-15
