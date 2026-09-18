@@ -50,6 +50,28 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 
 ## Sürüm Geçmişi
 
+### v1.0.29: Kimsenin Bakmadığı Yer
+
+- **macOS'ta iki yol denetimi yanlıştı ve hiçbir şeyin bunu yakalama imkânı yoktu.** İkisi de yolları metin olarak karşılaştırıyor ve harf farkını `os.path.normcase` ile eritmeye çalışıyordu. O işlev harfi yalnız Windows'ta indiriyor, POSIX'te kimlik işlevi. macOS POSIX ama öntanımlı APFS birimi harf **duyarsız**, yani `.../TEZ` ile `.../tez` aynı dizinken karşılaştırma onları ayrı sayıyordu. Sonuç: Klasörde Ara, klasörün içindeki bir dosya için "açık dosya bu klasörün dışında" diyordu; kabuk erişimi (minted) izni ise yanlış anahtara yazılıyordu, ki bu ya her alt klasörde yeniden sormak ya da minted taramasını yanlış kökte koşturup derlemeyi düşürmek demek. Gerçek bir Apple Silicon koşucusunda, düzeltme kapalı ve açıkken ayrı ayrı ölçüldü. Karşılaştırma artık "hayır" dediği anda dosya sistemine soruyor (`os.path.samefile`), böylece sembolik bağ ve kavşak da aynı anda çözülüyor; kapının beklediği değer de işletim sisteminin adından değil dosya sisteminden geliyor
+- **SyncTeX'in Windows kolu sembolik bağı hiç çözmüyordu.** v1.0.28 bunu yerli kol için düzeltmişti (macOS `/var` ile `/private/var` arasında boş dönüyordu); Windows'un kullandığı WSL kolu geride kalmıştı, yani dizin bağlantısı altındaki bir proje aynı duvara tosluyordu
+- **Eksik paket önerisinde başıboş ters bölüler vardı.** `printf` biçim dizgisinde `\(` diye bir kaçış yok, satır `Eksik paket: biber \(biblatex kaynakça aracı\)` olarak çıkıyordu; hem terminalde hem de satırı olduğu gibi alan Öneriler sekmesinde. Üç yazdırma yerinde bu kusur vardı, dördüncüsünde yoktu
+- **Tüm test takımı artık macOS'ta gerçek bir TeX kurulumuyla koşuyor.** İki iş vardı ve arasında delik kalıyordu: biri her testi koşturuyordu ama TeX yoktu, 153 test atlanıyordu; öteki TeX'liydi ama dört dosya koşuyordu. Son iki sürümün macOS kusurlarının hepsi o delikte durmuştu. Delik kapandı
+- **Var olup hiçbir yerde koşmayan beş kapı.** Dördü örnek bir PDF, biri şablon ağacı istiyordu; ikisi de depo dışındaydı. Artık testlerle birlikte gelen bir kaynaktan üretilmiş 15 KB'lik PDF ve 6 KB'lik dosya adı listesi kullanılıyor. Altıncısı bilerek yerelde kalıyor: o kapı canlı şablon korpusunun denetlediği vakaları hâlâ içerip içermediğini soruyor ve donmuş bir örneğe bağlansa yanındaki sentetik testlerin kopyasına dönerdi
+- **4181 test** (v1.0.26'da 3923). Bu sürümdeki hiçbir şey bir hata bildiriminden gelmedi. Hangi vaatlerin hiç ölçülmediğini sormaktan geldi: uygulamanın duyurduğu her kısayol gerçek pencereyle karşılaştırıldı, her menü öğesi gerçek belgede tetiklendi ve atlanan testler tek tek okunup hangisinin gerekçesinin artık doğru olmadığına bakıldı
+
+### v1.0.28: İlişkilendirmenin Öteki Yarısı
+
+- **`.tex` dosyasına çift tıklayınca artık açılıyor.** v1.0.27 uygulamayı `.tex` için işleyici olarak kaydetmişti ama kimse buna göre davranmıyordu: macOS açılan belgeyi `sys.argv` ile geçirmiyor, uygulamaya bir olay gönderiyor ve yalnız `sys.argv` okunuyordu. İlişkilendirme vardı ve hiçbir şey yapmıyordu, uygulama boş editörle açılıyordu. Yayınlanan `.dmg` ile gerçek bir Apple Silicon makinede ölçüldü
+- **Güncelleme penceresi sürüm notunu ortasından kesmiyor.** Notları satır sınırında kırpıyordu, oysa bir sürüm notundaki maddeler birkaç satıra yayılıyor, yani gördüğünüz son madde cümlenin ortasında bitiyordu. Artık madde sınırında kırpıyor
+
+### v1.0.27: Başarılı Diyen Derlemeler
+
+- **macOS destekleniyor.** Uygulama Apple Silicon'da çalışıyor ve yayınla birlikte bir `.dmg` geliyor. Derleme betiği orada daha ilk satırında ölüyordu: macOS hâlâ bash 3.2 taşıyor ve betik bash 4 sözdizimi kullanıyordu. Uygulama Finder'dan açılınca MacTeX'i de bulamıyordu, çünkü Finder bir uygulamaya `/Library/TeX/texbin`i içermeyen asgari bir PATH veriyor
+- **Düşen kaynakça artık başarılı demiyor.** biber ya da bibtex kaynakçayı kuramadığında derleme çıkış kodu 0 ile bitiyor, panel "0 hata" diyor ve PDF boş kaynakçayla çıkıyordu; aracın çıkış kodu atılıyordu. Salt okunur proje klasörü de aynı biçimdeydi: PDF geçici dizinde üretilip geri kopyalanıyor ve kopyalama düştüğünde betik yine "başarılı" yazıyordu
+- **Elle seçtiğiniz motor seçili kalıyor.** Sekme değiştirmek onu sessizce algılanan motora geri döndürüyordu
+- **Eksik paket önerisi artık gerçekten çalışan bir komut veriyor.** macOS'ta uygulama orada var olmayan `apt-get`i, üstelik TeX Live'ın tanımadığı Debian paket adlarıyla öneriyordu
+- **Her gün karşılaşılan küçükler.** Bul ve Değiştir'deki `\b` hiçbir Türkçe kelimeyi eşleştirmiyordu, atıf anahtarları ve etiketler yazım hatası sayılıyordu, başlıktaki aksan makroları anahatta yanlış kelime gösteriyordu ve README kurulum listesinde üç paket eksikti, yani listeyi izleyen kullanıcı PDF önizlemesi, sürüm geçmişi ve yazım denetimi olmayan bir uygulama kuruyordu
+
 ### v1.0.26: Bildiği Ama Söylemediği
 
 - **Derleme hatası hangi komutun bozuk olduğunu hiç söylemiyordu.** Panel "Tanımsız komut: yazım hatası olabilir ya da paketi yüklenmemiş" deyip susuyordu, oysa günlük suçluyu bir alt satırda adıyla yazıyor. O satırı okuyan kol "yalnız satır numarası bilinmiyorsa" koşuluna bağlıydı ve motor `-file-line-error` ile çağrıldığı için satır numarası her zaman biliniyor, yani koşul hiç sağlanmıyordu. Gerçek boru hattında beş belgeyle ölçüldü: 6 hatanın 0'ı bağlam taşıyordu. Aynı koşu her hatanın panelde **iki kez** listelendiğini de gösterdi, çünkü betik hata bloğunu iki kez basıyor ve tekrarı kimse ayıklamıyordu; 14 gerçek şablonda panel 163 satırdan 64'e indi ve kaybolan ayrı hata olmadı
