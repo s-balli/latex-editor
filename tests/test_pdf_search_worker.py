@@ -259,6 +259,138 @@ def test_ARAMA_hala_calisiyor_ve_belge_arama_boyunca_ACIK(qapp, tmp_path):
 
 
 # =====================================================================
+# Kacirilan acilis yeniden DENENMELI (2026-09-19)
+#
+# Windows'ta derleme PDF'i YERINDE yeniden yaziyor ve o ana denk gelen acilis
+# basarisiz oluyor. `_swap_document` `_doc_key`i denemeden ONCE atadigi icin
+# dongunun bekleme kosulu (`_wanted == _doc_key`) saglaniyor ve isci o belge
+# nesli boyunca bir daha ACMAYA GELMIYOR.
+#
+# pdf_render_worker bunu 2026-09-05'te aldi; pdf_search_worker almamisti.
+# OLCULDU 2026-09-19 (ayni dosya, ayni an, iki isci de ilk acilisi kaciriyor):
+# sayfalar normal cizildi, arama 0 eslesme dondurdu ve sayac "Araniyor..."da
+# asili kaldi.
+#
+# KAPI DONGUYU kosturuyor, `_swap_document`i elle cagirmiyor: islev
+# cagrildiginda zaten yeniden aciyor, kusur dongunun onu cagirmamasinda.
+# Elle cagiran bir olcum bu kusuru GOREMIYOR (ilk denemede oyle yazildi ve
+# iki isci arasinda hicbir fark gostermedi).
+#
+# IKI ISCIYI de ayni parametrik testten geciriyor: ilerideki ayrisma hangi
+# yonde olursa olsun burasi kirilir.
+# =====================================================================
+
+
+def _render_iscisi(w):
+    from gui.pdf_render_worker import PdfRenderWorker
+    return isinstance(w, PdfRenderWorker)
+
+
+def _sonuc_sinyali(w):
+    return w.rendered if _render_iscisi(w) else w.found
+
+
+def _is_ver(w):
+    """Isciye kendi turunden bir is ver (render bir sayfa, arama bir sorgu)."""
+    if _render_iscisi(w):
+        w.submit(1, 0, 1.0, False)
+    else:
+        w.search(1, "testalfa")
+
+
+def _acilisi_kacir(yol, kez=1):
+    """`open`i sarmala: verilen yolu her ISCI thread'inde `kez` defa patlat.
+
+    UI thread'i disarida: gercekte de `load_pdf` dosyayi okuyup gecmis
+    oluyor, isciler ayni dosyayi bir an SONRA aciyor.
+    """
+    gercek = open
+    sayac = {}
+    kilit = _threading.Lock()
+
+    def sahte(dosya, *a, **kw):
+        if (str(dosya) == str(yol)
+                and _threading.current_thread() is not _threading.main_thread()):
+            anahtar = _threading.get_ident()
+            with kilit:
+                n = sayac.get(anahtar, 0)
+                sayac[anahtar] = n + 1
+            if n < kez:
+                raise OSError("derleme dosyayi yeniden yaziyordu")
+        return gercek(dosya, *a, **kw)
+
+    return sahte, gercek
+
+
+@pytest.mark.parametrize("sinif", _iki_isci(), ids=lambda c: c.__name__)
+def test_acilisi_KACIRAN_isci_is_gelince_yeniden_deniyor(qapp, tmp_path,
+                                                         sinif, monkeypatch):
+    yol = _pdf_with_text(["merhaba testalfa"], str(tmp_path / "s.pdf"))
+    sahte, _gercek = _acilisi_kacir(yol)
+    monkeypatch.setattr("builtins.open", sahte)
+
+    gelen = []
+    w = sinif()
+    _sonuc_sinyali(w).connect(lambda *a: gelen.append(a))
+    w.start()
+    try:
+        w.open_document(yol, 1)
+        # Kapi bos kosmasin: acilis GERCEKTEN kacmis olmali
+        assert _spin(qapp, lambda: w._doc_key == (yol, 1) and w._doc is None), \
+            "acilis kacmadi, kapi bir sey kanitlamaz"
+        _is_ver(w)
+        assert _spin(qapp, lambda: bool(gelen)), \
+            "isci nesil boyunca olu kaldi: is sonucu hic gelmedi"
+    finally:
+        w.stop()
+        w.wait(6000)
+
+
+@pytest.mark.parametrize("sinif", _iki_isci(), ids=lambda c: c.__name__)
+def test_yeniden_deneme_SINIRLI_kaliyor(qapp, tmp_path, sinif, monkeypatch):
+    """Kalici bozuk dosyada sonsuza dek denenirse isci bos donup CPU yakar."""
+    from gui.pdf_render_worker import _MAX_ACILIS_DENEMESI
+
+    yol = _pdf_with_text(["merhaba testalfa"], str(tmp_path / "s.pdf"))
+    sahte, _gercek = _acilisi_kacir(yol, kez=10 ** 6)
+    monkeypatch.setattr("builtins.open", sahte)
+
+    cagri = {"n": 0}
+    asil = sinif._swap_document
+
+    def _sayan(self, wanted):
+        cagri["n"] += 1
+        return asil(self, wanted)
+
+    monkeypatch.setattr(sinif, "_swap_document", _sayan)
+
+    w = sinif()
+    w.start()
+    try:
+        w.open_document(yol, 1)
+        # Yeniden deneme yalnizca IS VARKEN: bos donguyu tetiklemedigi icin
+        # hak ancak is verildikce doluyor.
+        for _ in range(_MAX_ACILIS_DENEMESI + 4):
+            _is_ver(w)
+            _spin(qapp, lambda: False, timeout=0.05)
+        assert w._acilis_denemesi >= _MAX_ACILIS_DENEMESI, \
+            "deneme hakki hic dolmadi: %d" % w._acilis_denemesi
+        tukenmis = cagri["n"]
+        for _ in range(5):
+            _is_ver(w)
+            _spin(qapp, lambda: False, timeout=0.05)
+        _spin(qapp, lambda: False, timeout=0.3)
+        assert cagri["n"] == tukenmis, (
+            "hak tukendikten sonra her iste yeniden aciyor: %d -> %d"
+            % (tukenmis, cagri["n"]))
+        assert cagri["n"] <= _MAX_ACILIS_DENEMESI + 1, (
+            "sinirdan fazla acilis denemesi: %d" % cagri["n"])
+    finally:
+        w.stop()
+        w.wait(6000)
+
+
+# =====================================================================
 # Ctrl+F, arama cubugu ACIKKEN aramayi kapatiyordu (2026-09-07)
 #
 # `edit_ops._show_find` PDF odaktayken `_toggle_search_bar` cagiriyordu.

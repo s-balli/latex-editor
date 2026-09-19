@@ -321,7 +321,24 @@ class PdfRenderMixin:
                 lo = mid + 1
         return max(0, lo - 1)
 
-    def _render_visible(self):
+    def _render_visible(self, sayfayi_guncelle: bool = False):
+        """Görünür sayfaları çizdir; istenirse geçerli sayfayı da güncelle.
+
+        Geçerli sayfayı kaydırma konumundan bulmak YALNIZ KULLANICI
+        KAYDIRDIĞINDA doğru, onun için varsayılan kapalı ve tek açan
+        `_on_scroll`. Açık geçişler (`_scroll_to_page`, SyncTeX ileri
+        araması, PDF içi bağlantı) `_current_page`i kendileri atıyor ve
+        ardından yalnız çizim için buraya 100 ms'lik bir zamanlayıcı
+        kuruyor; o çağrı sayfayı yeniden hesaplarsa az önce yapılan geçişi
+        GERİ ALIYORDU. Hesap kaydırmaya göre olduğu için hedefin sayfa
+        içinde nereye düştüğüne bakıyor: `_hedefe_kaydir` pay bıraktığından
+        sayfanın üst yarısındaki bir hedefte kaydırma önceki sayfada kalıyor.
+
+        ÖLÇÜLDÜ (2026-09-19, altı sayfalık belge, olağan %100 ölçek):
+        SyncTeX 4. sayfanın üst yarısına atladı, vurgu 4. sayfada çizildi,
+        sayaç 100 ms sonra "Sayfa 3 / 6"ya döndü. Aynı desen PDF içi
+        bağlantıda ve uzaklaştırılmış belgede "sonraki sayfa" düğmesinde.
+        """
         if not self._page_labels:
             return
         viewport_height = self._scroll.viewport().rect().height()
@@ -337,7 +354,7 @@ class PdfRenderMixin:
             label_bottom = label_top + label.height()
 
             label_bottom_abs = label_y + label.height()
-            if label_y <= scroll_y < label_bottom_abs:
+            if sayfayi_guncelle and label_y <= scroll_y < label_bottom_abs:
                 if self._current_page != i:
                     self._current_page = i
                     self._update_nav()
@@ -353,7 +370,9 @@ class PdfRenderMixin:
                 self._request_render(i)
 
     def _on_scroll(self):
-        self._render_visible()
+        # Geçerli sayfayı kaydırmadan çıkaran TEK yer burası: kullanıcı
+        # kaydırdığında görüntünün tepesindeki sayfa gerçekten geçerli sayfa.
+        self._render_visible(sayfayi_guncelle=True)
 
     def _clear_pages(self):
         self._page_labels.clear()

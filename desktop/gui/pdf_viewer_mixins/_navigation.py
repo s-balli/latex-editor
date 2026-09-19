@@ -40,9 +40,35 @@ class PdfNavigationMixin:
             self._update_nav()
 
     def _scroll_to_page(self, index: int):
-        if 0 <= index < len(self._page_labels):
-            self._scroll.ensureWidgetVisible(self._page_labels[index])
-            QTimer.singleShot(100, self._render_visible)
+        """Sayfayı görüntünün TEPESİNE getir.
+
+        Eskiden `ensureWidgetVisible` çağrılıyordu ve Qt o çağrıyı hedef
+        ZATEN GÖRÜNÜRKEN sessizce atlıyor (`visibleRect.contains(focusRect)`
+        -> return), yani görüntü hiç oynamıyordu.
+
+        ÖLÇÜLDÜ (2026-09-19, altı sayfalık belge %20 yakınlaştırmada, iki
+        buçuk sayfa aynı anda görünür): ">" düğmesine üç kez basıldı, sayaç
+        her seferinde "Sayfa 2 / 6" olup 100 ms sonra "Sayfa 1 / 6"a döndü.
+        Düğme ölüydü: ne görüntü kımıldıyordu ne sayaç ilerliyordu.
+
+        YATAY konuma dokunulmuyor: `ensureWidgetVisible` onu da oynatıyordu,
+        oysa sayfa değiştirmek yan kaydırmayı bozmamalı. Sayfa içindeki bir
+        NOKTAYA gitmek isteyen `_hedefe_kaydir` kullanıyor, yatayı o yapıyor.
+        """
+        if not (0 <= index < len(self._page_labels)):
+            return
+        ust = self._page_labels[index].mapTo(self._pages_widget,
+                                             QPoint(0, 0)).y()
+        self._scroll.verticalScrollBar().setValue(max(0, ust))
+        # Kayıt `setValue`den SONRA: kaydırma `_on_scroll`u tetikliyor ve o da
+        # sayfayı kaydırma konumundan hesaplıyor. Çubuk istenen yere
+        # varamamış olabilir (belgenin sonu görüntüden kısa); sayfa yine de
+        # görüntüde ve kullanıcının istediği sayfa bu.
+        self._current_page = index
+        # Sayaç BURADA tazeleniyor: yer imi tıklaması `_update_nav`
+        # çağırmıyor, çağıran tek yol sayfa düğmeleri.
+        self._update_nav()
+        QTimer.singleShot(100, self._render_visible)
 
     def _hedefe_kaydir(self, label, x_pixel: int, y_pixel: int,
                        genislik: int = 0, dikey_pay: int = 0):

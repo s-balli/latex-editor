@@ -22,6 +22,10 @@ from PyQt6.QtCore import QThread, pyqtSignal
 
 from core.project_search import eslesme_ofsetleri
 from gui.pdf_metin import aksanlari_birlestir
+# Açılış deneme sınırı İKİZLE paylaşılıyor, kopyalanmıyor: iki işçi aynı
+# dosyayı aynı anda açıyor ve ayrı sayı tutmaları, bu dosyanın düştüğü
+# tuzağın (ikizin aldığı dersi almamak) ta kendisi olurdu.
+from gui.pdf_render_worker import _MAX_ACILIS_DENEMESI
 from gui.pdfium_lock import pdfium_lock
 
 
@@ -82,6 +86,10 @@ class PdfSearchWorker(QThread):
         # Doküman handle'ına yalnızca run() dokunur (kilitsiz alan)
         self._doc = None
         self._doc_key: tuple[str, int] | None = None
+        # Açılış başarısız olursa SINIRLI kez yeniden denenir. `_doc_key`i boş
+        # bırakıp döngüye bırakmak İŞE YARAMAZ: bekleme koşulu
+        # `_wanted == _doc_key` olduğu için işçi %100 CPU ile döner.
+        self._acilis_denemesi = 0
 
     # --- UI thread'inden ---
 
@@ -137,6 +145,19 @@ class PdfSearchWorker(QThread):
             if wanted != self._doc_key:
                 self._swap_document(wanted)
 
+            # Windows'ta derleme PDF'i YERİNDE yeniden yazıyor; o ana denk
+            # gelen açılış başarısız oluyordu ve `_doc_key` zaten atandığı
+            # için bir daha DENENMİYORDU: işçi o nesil boyunca ölü kalıyor,
+            # PDF'te arama sessizce hiçbir şey bulmuyordu. Kullanıcının
+            # gördüğü tek şey sayacın "Aranıyor..."da asılı kalmasıydı;
+            # sayfalar normal çiziliyor, çünkü İKİZ render işçisi bu
+            # düzeltmeyi 2026-09-05'te almıştı.
+            # Yeniden deneme yalnızca İŞ VARKEN ve sınırlı: boş döngüde
+            # tetiklenmediği için CPU yakmıyor.
+            if (self._doc is None and job is not None
+                    and self._acilis_denemesi < _MAX_ACILIS_DENEMESI):
+                self._swap_document(wanted)
+
             if self._doc is None or job is None:
                 continue
 
@@ -179,6 +200,8 @@ class PdfSearchWorker(QThread):
             except Exception:
                 pass
             self._doc = None
+        if wanted != self._doc_key:
+            self._acilis_denemesi = 0     # yeni nesil: sayaç sıfırlanır
         self._doc_key = wanted
         if wanted and wanted[0]:
             try:
@@ -186,5 +209,7 @@ class PdfSearchWorker(QThread):
                     data = f.read()
                 with pdfium_lock:
                     self._doc = pypdfium2.PdfDocument(data)
+                self._acilis_denemesi = 0
             except Exception:
                 self._doc = None
+                self._acilis_denemesi += 1
