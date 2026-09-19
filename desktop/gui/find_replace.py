@@ -829,6 +829,18 @@ class FindReplaceBar(QWidget):
             return
         text = self._find_input.text()
         if not text:
+            # BEKLEYEN SAYIM da iptal. Sayım 300 ms'lik bir zamanlayıcıya
+            # bırakılıyor ve bu dal onu durdurmuyordu: bir önceki tuş
+            # vuruşunda kurulan zamanlayıcı, kutu boşaldıktan 300 ms sonra
+            # ESKİ sorguyu sayıp etikete yazıyordu.
+            # ÖLÇÜLDÜ (2026-09-19, gerçek çubuk): "sekil" yazılıp backspace ile
+            # silindikten sonra kutu boş, etiket "3 sonuç"; bekleyen sorgu "s".
+            # Boş sorguda etiketin boş kalması bu dalın kendi kararı, bekleyen
+            # sayım onu geri alıyordu.
+            # `_count_text`i ayrıca temizlemeye gerek yok: onu yazan ve
+            # zamanlayıcıyı kuran tek yer aşağısı, okuyan tek yer de
+            # zamanlayıcının kendisi.
+            self._count_timer.stop()
             self._lbl_count.setText("")
             self._match_count = 0
             self._gecersiz_desen = False

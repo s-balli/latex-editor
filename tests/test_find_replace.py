@@ -64,6 +64,59 @@ class TestSayma:
         assert bar._lbl_count.text() == ""
 
 
+# --- Bekleyen sayım (debounce) ---
+#
+# Sayım 300 ms'lik bir zamanlayıcıya bırakılıyor. Kutu boşaldığında `_do_find`
+# erken dönüyor ve zamanlayıcıyı DURDURMUYORDU: bir önceki tuş vuruşunda
+# kurulan sayım 300 ms sonra ateşlenip ESKİ sorgunun sayısını etikete
+# yazıyordu. ÖLÇÜLDÜ (2026-09-19, gerçek çubuk): "sekil" yazılıp backspace ile
+# silindikten sonra kutu boş, etiket "3 sonuç", bekleyen sorgu "s".
+#
+# Yukarıdaki `test_bos_arama_temizler` bunu göremiyor: `_count_matches`i
+# DOĞRUDAN çağırıyor, yani zamanlayıcı yolundan hiç geçmiyor.
+
+
+class TestBekleyenSayim:
+
+    @staticmethod
+    def _dongu(ms):
+        from PyQt6.QtCore import QEventLoop, QTimer
+        d = QEventLoop()
+        QTimer.singleShot(ms, d.quit)
+        d.exec()
+
+    def _yaz(self, bar, s):
+        """Tuş tuş yaz; aralar debounce'tan kısa, yani sayım birikiyor."""
+        for i in range(1, len(s) + 1):
+            bar._find_input.setText(s[:i])
+            bar._on_find_text_changed()
+            self._dongu(20)
+
+    def test_kutu_bosalinca_BEKLEYEN_sayim_etiketi_geri_getirmiyor(self, qapp):
+        bar, _ed = _bar("sekil bir\nsekil iki\nsekil uc\n")
+        self._yaz(bar, "sekil")
+        self._dongu(400)
+        assert "3" in bar._lbl_count.text(), \
+            "sayım hiç koşmadı, kapı boş ölçüm yapıyor"
+
+        # Backspace ile temizle: son vuruş kutuyu boşaltıyor
+        for i in range(len("sekil") - 1, -1, -1):
+            bar._find_input.setText("sekil"[:i])
+            bar._on_find_text_changed()
+            self._dongu(20)
+
+        assert bar._lbl_count.text() == "", "temizler temizlemez etiket dolu"
+        self._dongu(400)                  # bekleyen sayım ateşlenecekse şimdi
+        assert bar._lbl_count.text() == "", (
+            "kutu boşken etiket %r diyor" % bar._lbl_count.text())
+
+        # Düzeltme sayacı BÜSBÜTÜN kapatarak kazanılmasın
+        self._yaz(bar, "sekil")
+        self._dongu(400)
+        assert "3" in bar._lbl_count.text(), \
+            "yeniden yazınca sayaç geri gelmiyor"
+
+
 # --- Tümünü değiştir ---
 
 class TestTumunuDegistir:
