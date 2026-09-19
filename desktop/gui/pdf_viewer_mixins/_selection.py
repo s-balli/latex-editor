@@ -74,7 +74,25 @@ class PdfSelectionMixin:
         if self._selection_start_label_pos is None:
             return False
         label = self._selection_start_label
-        label_pos = label.mapFrom(obj, pos) if obj != label else pos
+        try:
+            label_pos = label.mapFrom(obj, pos) if obj != label else pos
+        except RuntimeError:
+            # Derleme SÜRÜKLEMENİN ORTASINDA bitti. `load_pdf` yer
+            # tutucuları yok ediyor ama seçim çapasını temizlemiyor:
+            # `clear()` `_clear_selection` çağırıyor, `load_pdf` çağırmıyor.
+            # Etiketin C++ tarafı gittiği için `mapFrom` RuntimeError atıyor
+            # ve bu yol olay süzgecinden doğrudan çağrılıyor.
+            #
+            # ÖLÇÜLDÜ (2026-09-19, çocuk süreç, çıkış kodu): metin seçerken
+            # arka planda derleme biterse sonraki fare hareketi süreci
+            # 0xC0000409 ile öldürüyor; ne diyalog ne günlük kalıyor.
+            # Yaz-derle-bak döngüsünde sıradan bir an.
+            #
+            # Kardeş `_selection_release` bu dersi gecikmeli tıklama yolunda
+            # zaten almış. Çapa da bırakılıyor: yoksa sonraki her hareket
+            # aynı ölü etikete giderdi.
+            self._clear_selection()
+            return False
         delta = (label_pos - self._selection_start_label_pos).manhattanLength()
         if delta < 4:
             return False

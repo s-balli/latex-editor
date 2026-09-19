@@ -114,16 +114,33 @@ class PdfEventsMixin:
         if i is None:
             return None
         scale = self._olcek(i)
-        with pdfium_lock:
-            page = self._pdf[i]
-            if not page.raw:
-                return None
-            # `get_link_at_point` DÖNDÜRÜLMEMİŞ kullanıcı uzayı bekliyor;
-            # `get_height()` GÖRSEL boyut veriyor ve /Rotate'li sayfada bu
-            # karışım yanlış noktaya bakıyordu (bkz. gui/pdf_donusum.py).
-            x_pts, y_pdf = kullaniciya(geometri(page), label_pos.x(),
-                                       label_pos.y(), scale)
-            link = get_link_at_point(page.raw, x_pts, y_pdf)
+        # KORUMA ŞART. Bu blok pdfium'a giriyor ve pdfium bozuk sayfada
+        # fırlatıyor; buraya HER FARE HAREKETİNDE olay süzgecinden
+        # giriliyor. PyQt6'da olay süzgecinden kaçan istisna yakalanmıyor:
+        # `qFatal` çağrılıyor ve süreç abort ediyor. ÖLÇÜLDÜ (2026-09-19,
+        # çocuk süreç, çıkış kodu): tek bir fare hareketi 0xC0000409 ile
+        # süreci öldürüyor, ne diyalog ne günlük ne yığın izi kalıyor.
+        # Kardeş yolların hepsi bu korumayı taşıyor: `_render._get_page_size`,
+        # `_presentation._presentation_render`, `_bookmarks.update_bookmarks`,
+        # `_search._draw_search_highlight`, `_selection._selection_dblclick`.
+        # Bağlantı yolu o taramanın dışında kalmıştı.
+        #
+        # GÜNLÜĞE YAZILMIYOR: bozuk sayfanın üstünde gezinen fare saniyede
+        # yüzlerce çağrı üretiyor, uyarı akışı günlüğü kullanışsız yapardı.
+        # İmleç kozmetik; tıklama yolu zaten sessizce düşüyor (_selection.py).
+        try:
+            with pdfium_lock:
+                page = self._pdf[i]
+                if not page.raw:
+                    return None
+                # `get_link_at_point` DÖNDÜRÜLMEMİŞ kullanıcı uzayı bekliyor;
+                # `get_height()` GÖRSEL boyut veriyor ve /Rotate'li sayfada bu
+                # karışım yanlış noktaya bakıyordu (bkz. gui/pdf_donusum.py).
+                x_pts, y_pdf = kullaniciya(geometri(page), label_pos.x(),
+                                           label_pos.y(), scale)
+                link = get_link_at_point(page.raw, x_pts, y_pdf)
+        except Exception:
+            return None
         return (i, link, page) if link else None
 
     def _handle_link_click(self, pos, obj):

@@ -1,8 +1,12 @@
 """PdfViewer SyncTeX mixin — ileri/geri arama koordinat dönüşümü."""
 
 from PyQt6.QtCore import QTimer
+
+from core.log import get_logger
 from gui.pdf_donusum import geometri, gorselden_syncteze, synctex_kutusu
 from gui.pdfium_lock import pdfium_lock
+
+_logger = get_logger("pdf_viewer")
 
 
 class PdfSyncTexMixin:
@@ -19,8 +23,21 @@ class PdfSyncTexMixin:
         scale = self._olcek(i)
         # SyncTeX'in düzlemi /Rotate 0'da ekranla örtüşüyor ama döndürülmüş
         # sayfada örtüşmüyor (bkz. gui/pdf_donusum.py).
-        with pdfium_lock:
-            g = geometri(self._pdf[i])
+        #
+        # KORUMA ŞART. Bu blok pdfium'a giriyor, pdfium bozuk sayfada
+        # fırlatıyor ve buraya OLAY SÜZGECİNDEN geliniyor (Ctrl+tık).
+        # PyQt6'da olay süzgecinden kaçan istisna yakalanmıyor: `qFatal`
+        # çağrılıyor ve süreç abort ediyor. ÖLÇÜLDÜ (2026-09-19, çocuk
+        # süreç, çıkış kodu): tek bir Ctrl+tık 0xC0000409 ile süreci
+        # öldürüyor, ne diyalog ne günlük ne yığın izi kalıyor.
+        # Kardeş `_events._link_at_pos` bu korumayı aynı turda aldı.
+        try:
+            with pdfium_lock:
+                g = geometri(self._pdf[i])
+        except Exception:
+            _logger.warning("Ters arama: sayfa okunamadı: %d", i,
+                            exc_info=True)
+            return
         x_pts, y_pts = gorselden_syncteze(
             g, label_pos.x(), label_pos.y(), scale)
         self.reverse_search_requested.emit(i + 1, x_pts, y_pts, self._pdf_path)
@@ -46,8 +63,16 @@ class PdfSyncTexMixin:
             return
         label = self._page_labels[idx]
         scale = self._olcek(idx)
-        with pdfium_lock:
-            g = geometri(self._pdf[idx])
+        # Aynı koruma: burası işçi sonucu slot'u ve yukarıdaki docstring'in
+        # dediği gibi korumasız. Bozuk sayfa ileri aramayı düşürmeli, süreci
+        # değil.
+        try:
+            with pdfium_lock:
+                g = geometri(self._pdf[idx])
+        except Exception:
+            _logger.warning("İleri arama: sayfa okunamadı: %d", idx,
+                            exc_info=True)
+            return
         x_pixel, y_pixel, w_pixel, h_kutu = synctex_kutusu(
             g, left, y, width, height, scale)
 

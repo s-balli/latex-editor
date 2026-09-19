@@ -176,6 +176,109 @@ def test_yer_imleri_pdfium_KILIDI_altinda_okunuyor(viewer, monkeypatch):
 
 
 # --------------------------------------------------------------------------
+# FARE OLAY YOLU korumasızdı (2026-09-19)
+#
+# PyQt6'da olay süzgecinden kaçan istisna yakalanmıyor: `qFatal` çağrılıyor ve
+# süreç abort ediyor. ÖLÇÜLDÜ (çocuk süreç, çıkış kodu okunarak): iki yol da
+# süreci 0xC0000409 ile öldürüyordu; ne diyalog, ne günlük, ne yığın izi.
+#
+#   1. Bozuk sayfanın üzerinde TEK bir fare hareketi. `_events._link_at_pos`
+#      pdfium'a giriyor ve korumasızdı; `_update_link_cursor` oraya HER fare
+#      hareketinde giriyor. Bu dosyadaki kardeş yolların (zoom, sunum, yer
+#      imleri) hepsi korumayı çoktan almıştı, bağlantı yolu o taramanın
+#      dışında kalmıştı.
+#   2. Metin SEÇERKEN arka planda derlemenin bitmesi. `load_pdf` yer
+#      tutucuları yok ediyor ama seçim çapasını temizlemiyor (`clear()`
+#      temizliyor) ve ölü etikete `mapFrom` RuntimeError atıyor. Yaz-derle-bak
+#      döngüsünde sıradan bir an.
+#
+# Kapılar yolu DOĞRUDAN çağırıyor (bu dosyanın alışkanlığı): istisna o zaman
+# normal bir test hatası olur, pytest sürecini düşürmez.
+# --------------------------------------------------------------------------
+
+
+@gui
+def test_bozuk_sayfada_FARE_HAREKETI_oldurmuyor(viewer):
+    import gui.pdf_viewer_mixins._events as _ev
+    from PyQt6.QtCore import QPoint
+
+    etiket = viewer._page_labels[0]
+    nokta = QPoint(etiket.width() // 2, etiket.height() // 2)
+
+    # Koruma işi yapmayı BIRAKARAK kazanılmasın: sağlam sayfada yol hâlâ
+    # pdfium'a girmeli.
+    cagri = []
+    asil = _ev.get_link_at_point
+    _ev.get_link_at_point = lambda raw, x, y: cagri.append((x, y)) or None
+    try:
+        viewer._update_link_cursor(nokta, etiket)
+    finally:
+        _ev.get_link_at_point = asil
+    assert cagri, "sağlam sayfada pdfium'a hiç girilmedi: yol büsbütün kesilmiş"
+
+    viewer._pdf = _PatlayanBelge(viewer._pdf, 0)
+    viewer._update_link_cursor(nokta, etiket)     # istisna dışarı çıkmamalı
+    viewer._handle_link_click(nokta, etiket)      # tıklama yolu da
+
+
+@gui
+def test_bozuk_sayfada_CTRL_TIK_oldurmuyor(viewer):
+    """SyncTeX ters araması da aynı korumasız kalıptaydı.
+
+    `_synctex._handle_reverse_click` olay süzgecinden çağrılıyor ve içindeki
+    `geometri(self._pdf[i])` korumasızdı. ÖLÇÜLDÜ (2026-09-19, çocuk süreç):
+    bozuk sayfada tek bir Ctrl+tık süreci 0xC0000409 ile öldürüyordu.
+    İleri arama (`scroll_to_position`) da aynı bloğu taşıyor ve o işçi
+    sonucu slot'undan geliyor.
+    """
+    from PyQt6.QtCore import QPoint
+
+    etiket = viewer._page_labels[0]
+    nokta = QPoint(etiket.width() // 2, etiket.height() // 2)
+
+    # Koruma yolu BÜSBÜTÜN kesmesin: sağlam sayfada sinyal hâlâ çıkmalı
+    cikan = []
+    viewer.reverse_search_requested.connect(lambda *a: cikan.append(a))
+    viewer._handle_reverse_click(nokta, etiket)
+    assert cikan, "sağlam sayfada ters arama sinyali hiç çıkmadı"
+
+    viewer._pdf = _PatlayanBelge(viewer._pdf, 0)
+    viewer._handle_reverse_click(nokta, etiket)   # istisna dışarı çıkmamalı
+    viewer.scroll_to_position(1, 100.0, 120.0, left=100.0, width=60.0,
+                              height=12.0)        # ileri arama da
+
+
+@gui
+def test_SURUKLEME_sirasinda_derleme_bitince_oldurmuyor(viewer, qapp):
+    from PyQt6.QtCore import QEvent, QPoint
+
+    etiket = viewer._page_labels[0]
+    basla = QPoint(30, 40)
+    viewer._selection_press(basla, etiket)
+    assert viewer._selection_start_label_pos is not None, \
+        "seçim hiç başlamadı (test boş ölçüm)"
+
+    # Derleme bitti: load_pdf yer tutucuları yok ediyor
+    assert viewer.load_pdf(viewer._pdf_path)
+    qapp.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    qapp.processEvents()
+
+    # Ölü etikete giden hareket: istisna dışarı çıkmamalı
+    viewer._selection_move(QPoint(basla.x() + 60, basla.y() + 6),
+                           viewer._pages_widget)
+
+    assert viewer._selection_start_label_pos is None, \
+        "ölü çapa bırakıldı: sonraki her hareket yine ona giderdi"
+
+    # Yeni belgede sürükleme yeniden çalışmalı
+    yeni = viewer._page_labels[0]
+    viewer._selection_press(basla, yeni)
+    viewer._selection_move(QPoint(basla.x() + 60, basla.y() + 6), yeni)
+    assert viewer._selection_drag_started, \
+        "yeniden yüklemeden sonra sürükleme başlamıyor"
+
+
+# --------------------------------------------------------------------------
 # Sunum modu slaytı TAM EKRANI ölçüt almalı
 #
 # Pencere `showFullScreen()` ile açılıyor ve görev çubuğunun ÜSTÜNÜ de
