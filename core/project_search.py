@@ -78,9 +78,48 @@ def kucult(s: str) -> str:
     return s.lower().replace("̇", "")
 
 
+_BIRLESEN_NOKTA = "̇"
+
+
+def _katlanmis(metin: str) -> tuple[str, list[int]]:
+    """(katlanmış metin, her katlanmış karakterin ÖZGÜN indisi).
+
+    NEDEN HARİTA. ``kucult`` uzunluğu KORUMUYOR: gövdesi birleşen noktayı
+    siliyor ve o nokta metinde tek başına da bulunabiliyor. Ayrıştırılmış
+    (NFD) bir `İ` harfi tam olarak `I` + U+0307, yani böyle bir metinde
+    katlanmış dizge özgünden kısa kalıyor ve o noktadan sonraki bütün
+    ofsetler kayıyor. NFD gerçek bir kaynak: macOS dosya adlarını öyle
+    üretiyor, PDF ve web'den kopyalanan metin öyle gelebiliyor.
+
+    ÖLÇÜLDÜ (2026-09-19): `I`+U+0307+`cindekiler sekil` metninde `sekil`
+    sorgusu ofset 12 veriyordu ve özgün metnin 12. karakterinden itibaren
+    `\\nseki` duruyor. Ctrl+F yanlış yeri seçiyor, "Tümünü Değiştir" yanlış
+    yeri değiştiriyordu: `Burada sekil var.` -> `BuradaSEKILl var.`
+
+    KÜÇÜLTME BÜTÜN DİZGEDE yapılıyor, karakter karakter DEĞİL: Yunanca son
+    sigma bağlama duyarlı (`ΑΣ`.lower() -> `ας`, karakter karakter `ασ`).
+    ÖLÇÜLDÜ: tüm Unicode taranınca tek karakterde hiç ayrışma yok, ama
+    dizgede var; o yüzden küçültmeyi `str.lower()` yapıyor, bu döngü yalnız
+    hangi katlanmış karakterin hangi özgün karakterden geldiğini sayıyor.
+    Son sigma 1'e 1 olduğu için sayım bozulmuyor (ölçüldü: en zorlu 14
+    karakterden kurulu 2744 üçlüde uzunluk ayrışması 0).
+    """
+    alt = metin.lower()
+    parcalar: list[str] = []
+    harita: list[int] = []
+    j = 0
+    for i, ch in enumerate(metin):
+        for k in range(j, min(j + len(ch.lower()), len(alt))):
+            if alt[k] != _BIRLESEN_NOKTA:
+                parcalar.append(alt[k])
+                harita.append(i)
+        j += len(ch.lower())
+    return "".join(parcalar), harita
+
+
 def eslesme_ofsetleri(metin: str, sorgu: str, *,
                       case_sensitive: bool = False):
-    """`sorgu`nun `metin` içindeki başlangıç ofsetleri (karakter, artan).
+    """`sorgu`nun `metin` içindeki (baş, bit) aralıkları; ÖZGÜN indislerle.
 
     TEK KAYNAK: projede arama da, Ctrl+F de buradan geçiyor. İkisi eskiden
     ayrı motorlar kullanıyordu ve harf katlaması AYRIŞMIŞTI: Scintilla'nın
@@ -101,17 +140,49 @@ def eslesme_ofsetleri(metin: str, sorgu: str, *,
     Scintilla'nın motoru (SCI_SEARCHINTARGET) ve `grep -o` da eşleşmenin
     sonundan devam ediyor.
 
-    ``kucult`` UZUNLUĞU KORUDUĞU için ofsetler ÖZGÜN metinde de geçerli ve
-    eşleşme uzunluğu her zaman ``len(sorgu)``.
+    ARALIK dönüyor, yalnız başlangıç değil: ``kucult`` uzunluğu korumadığı
+    için eşleşmenin özgün metindeki uzunluğu ``len(sorgu)`` olmayabilir
+    (bkz. ``_katlanmis``). Çağıranlar bitişi buradan almak zorunda.
     """
     if not sorgu:
         return
-    karsilastirilan = metin if case_sensitive else kucult(metin)
-    hedef = sorgu if case_sensitive else kucult(sorgu)
-    bas = karsilastirilan.find(hedef)
-    while bas >= 0:
-        yield bas
-        bas = karsilastirilan.find(hedef, bas + len(hedef))
+    if case_sensitive:
+        n = len(sorgu)
+        bas = metin.find(sorgu)
+        while bas >= 0:
+            yield bas, bas + n
+            bas = metin.find(sorgu, bas + n)
+        return
+    katlanmis = kucult(metin)
+    hedef = kucult(sorgu)
+    # KATLANINCA BOŞALAN sorgu: tek başına birleşen nokta böyle. `find("")`
+    # her çağrıda aynı konumu döndürüyor ve döngü İLERLEMİYORDU; üreteci
+    # `list()`e veren Ctrl+F yolu (bkz. find_replace._yerler) arayüzü
+    # süresiz kilitliyor ve belleği şişiriyordu (ölçüldü 2026-09-19: ilk 12
+    # sonuç da 0, sayaç artmıyor).
+    if not hedef:
+        return
+    n = len(hedef)
+    if len(katlanmis) == len(metin):
+        # HIZLI YOL: metinde birleşen nokta yok, yani katlama uzunluğu
+        # korumuş ve ofsetler özgün metinde olduğu gibi geçerli. Harita
+        # kurmak SADECE bunun bozulduğu metinlerde gerekiyor ve pahalı:
+        # ÖLÇÜLDÜ (2026-09-19, gerçek 77 KB'lık .tex) harita her çağrıda
+        # 45 ms, bu yol 0.03 ms. Sayaç her tuş vuruşunda buradan geçiyor.
+        # Uzunluk denetimi güvenli bir ölçüt: ``kucult`` hiçbir karakteri
+        # UZATMIYOR (tüm Unicode tarandı, uzunluğu değiştiren tek kod
+        # noktası U+0307 ve o da siliniyor), yani eşit uzunluk "hiç nokta
+        # silinmedi" demek.
+        b = katlanmis.find(hedef)
+        while b >= 0:
+            yield b, b + n
+            b = katlanmis.find(hedef, b + n)
+        return
+    katlanmis, harita = _katlanmis(metin)
+    b = katlanmis.find(hedef)
+    while b >= 0:
+        yield harita[b], harita[b + n - 1] + 1
+        b = katlanmis.find(hedef, b + n)
 
 
 # Çözücü zincir TEK KAYNAK core.fs_ops; buradaki ad korunuyor çünkü modülün
@@ -214,8 +285,8 @@ def search_project(root: str, query: str, *, case_sensitive: bool = False,
             # Eşleştirme kuralı (harf katlaması ve örtüşen eşleşmeler)
             # `eslesme_ofsetleri`nde; Ctrl+F de aynı işlevi kullanıyor.
             gosterilen = None
-            for bas in eslesme_ofsetleri(satir, query,
-                                         case_sensitive=case_sensitive):
+            for bas, _bit in eslesme_ofsetleri(satir, query,
+                                               case_sensitive=case_sensitive):
                 if gosterilen is None:
                     gosterilen = satir.strip()[:_SATIR_KIRP]
                 bulgular.append(Bulgu(yol, no, bas, gosterilen))

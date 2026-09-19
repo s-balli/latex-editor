@@ -181,18 +181,85 @@ class TestTurkceNoktaliI:
         assert etiketli == [3], etiketli
         assert not set(isikli) & set(etiketli)
 
-    def test_kucult_uzunlugu_koruyor(self):
-        """col ofseti buna bağlı: 'İ' iki karaktere açılıp geri kapanıyor."""
+    def test_kucult_ONCEDEN_BIRLESIK_yazimda_uzunlugu_koruyor(self):
+        """SINIRI da yazılı: AYRIŞTIRILMIŞ yazımda korumuyor.
+
+        Bu kapı eskiden "col ofseti buna bağlı" diyordu ve yalnız önceden
+        birleşik dizgelerle koşuyordu; varsayımı gerçeklikten dardı ve
+        ayrıştırılmış metinde ofsetler kayıyordu (bkz.
+        TestAyristirilmisNoktaliI). Ofsetler artık buna bağlı DEĞİL,
+        `eslesme_ofsetleri` özgün metne haritalıyor.
+        """
         from core.project_search import kucult
         for s in ("İçindekiler", "ŞEKİL", "İİİ", "düz metin", ""):
             assert len(kucult(s)) == len(s), s
+        ayristirilmis = "İstanbul"
+        assert len(kucult(ayristirilmis)) < len(ayristirilmis), \
+            "sınır değişmiş: kucult artık ayrıştırılmış yazımı da koruyor"
 
-    def test_col_noktali_I_den_sonra_dogru(self, tmp_path):
+    @pytest.mark.parametrize("bas", ["İçindekiler", "İcindekiler"],
+                             ids=["onceden_birlesik", "ayristirilmis"])
+    def test_col_noktali_I_den_sonra_dogru(self, tmp_path, bas):
         kok = str(tmp_path)
-        satir = "İçindekiler ve hedef"
+        satir = bas + " ve hedef"
         _yaz(kok, "a.tex", satir + "\n")
         (b,), _ = search_project(kok, "hedef")
         assert b.col == satir.index("hedef")
+
+
+class TestAyristirilmisNoktaliI:
+    """AYRIŞTIRILMIŞ (NFD) `İ` ofsetleri kaydırıyordu.
+
+    `kucult` gövdesi birleşen noktayı siliyor. NFD bir `İ` tam olarak
+    `I` + U+0307, yani böyle bir metinde katlanmış dizge özgünden KISA
+    kalıyor ve o noktadan sonraki bütün ofsetler kayıyor. NFD gerçek bir
+    kaynak: macOS dosya adlarını öyle üretiyor, PDF ve web'den kopyalanan
+    metin öyle gelebiliyor.
+
+    ÖLÇÜLDÜ (2026-09-19): `sekil` sorgusu özgün metinde ` seki` gösteriyor,
+    Ctrl+F yanlış yeri seçiyor ve "Tümünü Değiştir" belgeyi bozuyordu:
+    `Burada sekil var.` -> `BuradaSEKILl var.`
+
+    Çözüm `kucult`u uzunluk koruyan yapmak DEĞİL: ölçüldü, o zaman
+    ayrıştırılmış SORGU hiç eşleşmiyor (aşağıdaki ikinci kapı onu tutuyor).
+    Çözüm dönen ofseti özgün metne haritalamak.
+    """
+
+    NOKTA = "̇"
+
+    def test_AYRISTIRILMIS_metinde_aralik_ozgun_metni_gosteriyor(self):
+        from core.project_search import eslesme_ofsetleri
+        metin = "I" + self.NOKTA + "cindekiler\nsekil burada\n"
+        araliklar = list(eslesme_ofsetleri(metin, "sekil"))
+        assert araliklar, "eşleşme hiç bulunamadı (kapı boş ölçüm)"
+        assert [metin[b:s] for b, s in araliklar] == ["sekil"]
+
+    def test_AYRISTIRILMIS_sorgu_hala_esleşiyor(self):
+        """Aşırı düzeltme kapısı: uzunluk koruyan katlama bunu kaybediyor."""
+        from core.project_search import eslesme_ofsetleri
+        metin = "İstanbul"
+        d = list(eslesme_ofsetleri(metin, "i" + self.NOKTA + "stanbul"))
+        assert d == [(0, len(metin))], d
+
+    def test_birlesen_nokta_sorgusu_DONGUYU_bitiriyor(self):
+        """Katlanınca BOŞALAN sorgu: `find("")` ilerlemiyordu.
+
+        Üreteci `list()`e veren Ctrl+F yolu arayüzü süresiz kilitliyor ve
+        belleği şişiriyordu (ölçüldü: ilk 12 sonuç da 0).
+        """
+        import itertools
+        from core.project_search import eslesme_ofsetleri
+        d = list(itertools.islice(
+            eslesme_ofsetleri("merhaba dunya", self.NOKTA), 20))
+        assert d == [], d
+
+    def test_haritali_katlama_BUTUN_DIZGE_katlamayla_ayni(self):
+        """Küçültme karakter karakter yapılamaz: Yunanca son sigma bağlam
+        duyarlı (`ΑΣ`.lower() -> `ας`, karakter karakter `ασ`)."""
+        from core.project_search import _katlanmis, kucult
+        for s in ("AΣ", "ΣΣ", "baΣ", "İstanbul", "İstanbul",
+                  "sekil ve tablo", ""):
+            assert _katlanmis(s)[0] == kucult(s), repr(s)
 
 
 class TestKodlama:

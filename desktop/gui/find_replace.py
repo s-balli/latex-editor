@@ -699,13 +699,18 @@ class FindReplaceBar(QWidget):
         return _kelime_karakteri(ch)
 
     def _yerler(self, metin: str, sorgu: str, tam_kelime: bool) -> list:
+        """Eşleşme ARALIKLARI: [(baş, bit)].
+
+        Bitiş `eslesme_ofsetleri`den geliyor, `len(sorgu)` ile hesaplanmıyor:
+        harf katlaması uzunluğu koruyabilir de korumayabilir de (birleşen
+        nokta taşıyan metinde korumuyor, bkz. core/project_search).
+        """
         yerler = list(eslesme_ofsetleri(metin, sorgu))
         if not tam_kelime:
             return yerler
-        n = len(sorgu)
-        return [b for b in yerler
+        return [(b, s) for b, s in yerler
                 if not self._kelime_karakteri(metin[b - 1:b] if b else "")
-                and not self._kelime_karakteri(metin[b + n:b + n + 1])]
+                and not self._kelime_karakteri(metin[s:s + 1])]
 
     @staticmethod
     def _ofset(metin: str, line: int, col: int) -> int:
@@ -732,16 +737,20 @@ class FindReplaceBar(QWidget):
             return False
         konum = self._ofset(metin, line, col)
         if forward:
-            uygun = [b for b in yerler if b >= konum]
+            uygun = [y for y in yerler if y[0] >= konum]
             secim = uygun[0] if uygun else (yerler[0] if wrap else None)
         else:
             # Geriye arama VURGULU eşleşmeyi ATLAMALI: `konum` onun başı.
-            uygun = [b for b in yerler if b < konum]
+            uygun = [y for y in yerler if y[0] < konum]
             secim = uygun[-1] if uygun else (yerler[-1] if wrap else None)
         if secim is None:
             return False
-        s1, c1 = self._satir_sutun(metin, secim)
-        s2, c2 = self._satir_sutun(metin, secim + len(sorgu))
+        # Bitiş ARALIKTAN geliyor, `secim + len(sorgu)` DEĞİL: katlama
+        # uzunluğu değiştirebiliyor ve o toplam yanlış yeri seçiyordu
+        # (ölçüldü: 'sekil' sorgusu ' seki' seçiyor, Tümünü Değiştir
+        # belgeyi bozuyordu).
+        s1, c1 = self._satir_sutun(metin, secim[0])
+        s2, c2 = self._satir_sutun(metin, secim[1])
         self._editor.setSelection(s1, c1, s2, c2)
         return True
 

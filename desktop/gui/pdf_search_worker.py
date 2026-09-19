@@ -51,11 +51,13 @@ def _sayfada_bul(ham: str, sorgu: str) -> list[tuple[int, int]]:
     `aksanlari_birlestir` haritayı da veriyor.
     """
     onarilmis, harita = aksanlari_birlestir(ham)
-    n = len(sorgu)
+    # Aralık `eslesme_ofsetleri`den geliyor, `len(sorgu)` ile hesaplanmıyor:
+    # harf katlaması uzunluğu koruyabilir de korumayabilir de (bkz.
+    # core/project_search._katlanmis).
     if harita is None:                 # onaracak bir şey yoktu, indisler ham
-        return [(j, j + n) for j in eslesme_ofsetleri(onarilmis, sorgu)]
-    return [(harita[j][0], harita[j + n - 1][1])
-            for j in eslesme_ofsetleri(onarilmis, sorgu)]
+        return list(eslesme_ofsetleri(onarilmis, sorgu))
+    return [(harita[b][0], harita[s - 1][1])
+            for b, s in eslesme_ofsetleri(onarilmis, sorgu)]
 
 _alive_workers: set["PdfSearchWorker"] = set()
 

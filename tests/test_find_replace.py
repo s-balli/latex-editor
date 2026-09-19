@@ -151,6 +151,21 @@ class TestTumunuDegistir:
         bar._replace_all()
         assert ed.text() == "merhaba\n"
 
+    def test_AYRISTIRILMIS_noktali_I_olan_belgede_dogru_yer_degisiyor(
+            self, qapp):
+        """Harf katlaması birleşen noktayı siliyor ve ofsetleri kaydırıyordu.
+
+        ÖLÇÜLDÜ (2026-09-19): `\\section{I+U+0307cindekiler}` taşıyan belgede
+        `sekil` sorgusu ' seki' seçiyor ve "Tümünü Değiştir" belgeyi
+        BOZUYORDU: `Burada sekil var.` -> `BuradaSEKILl var.`
+        Kural `core.project_search.eslesme_ofsetleri`de (bkz. oradaki
+        TestAyristirilmisNoktaliI); bu kapı kullanıcının gördüğü ucu tutuyor.
+        """
+        belge = "\\section{I\u0307cindekiler}\nBurada sekil var.\n"
+        bar, ed = _bar(belge, "sekil", "SEKIL")
+        bar._replace_all()
+        assert ed.text() == belge.replace("sekil", "SEKIL")
+
     def test_degistirme_metni_aramayi_iceriyor(self, qapp):
         """'a' -> 'aa' sonsuz döngüye girmemeli (imleç her adımda ilerler)."""
         bar, ed = _bar("a b a\n", "a", "aa")
