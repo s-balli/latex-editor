@@ -119,6 +119,44 @@ def test_RENK_adi_metin_degil_METIN_denetleniyor():
         ["Cerceveli", "metin"]
 
 
+def test_HREF_adresi_atlanir_BAGLANTI_METNI_denetlenir():
+    r"""`\href{adres}{görünen metin}` iki argüman alıyor ve ikincisi PDF'te
+    BASILAN metin; `_ARGUMANI_ATLA`da olduğu için ikisi birden atlanıyordu.
+
+    ÖLÇÜLDÜ (2026-09-22, 39 gerçek şablon): `\href` 17 belgede geçiyor,
+    metin taşıyan 52 çağrı var. İzole ölçüm (aynı belgeler, kural açık ve
+    kapalı): denetlenen kelime 25401'den 25459'a çıkıyor, yani 58 gerçek
+    kelime hiç denetlenmiyordu. Örnekler proz: "Author Guidelines",
+    "Supplementary Material", "Nomenclature".
+
+    Kehanet modülün kendi ölçütü (bkz. `test_RENK_adi...`): LaTeX'in
+    basmadığı kelimeyi işaretlemek yanlış; basılan kelimeyi hiç
+    denetlememek de kaçırmaktır.
+
+    İKİ YÖN BİRLİKTE: adres denetlenmemeli, metin denetlenmeli.
+    `\href{url}{url}` biçimi yanlış pozitif ÜRETMİYOR, çünkü gövdeyi
+    `_RE_ADRES` zaten eliyor.
+
+    `\hyperref` BİLEREK dokunulmadı: argümanı köşeli, bu mekanizma süslü
+    grup sayıyor ve korpusta hiç geçmiyor.
+    """
+    assert sozler("\\href{http://ornek.com}{baglanti yazisi}") == \
+        ["baglanti", "yazisi"]
+    # ADRES argümanı BİÇİMİNDEN bağımsız atlanmalı. Yukarıdaki satır bunu
+    # tek başına ölçmüyor: `http://...` zaten `_RE_ADRES`e takılıyor, yani
+    # "ilk argümanı atla" kuralı kapalı olsa da aynı sonucu verirdi
+    # (mutasyonla görüldü, 2026-09-22). Yerel dosya hedefi adres
+    # görünmüyor, ayrımı o yapıyor.
+    assert sozler("\\href{dosya.pdf}{gorunen metin}") == ["gorunen", "metin"]
+    # Gövde adresin kendisiyse `_RE_ADRES` eliyor: gürültü eklenmiyor
+    assert sozler("\\href{https://ornek.com/yol}{https://ornek.com/yol}") == []
+    # `\url` ve `\path`in metin argümanı YOK, tümüyle atlanmaya devam
+    assert sozler("\\url{http://ornek.com}") == []
+    assert sozler("\\path{/usr/local/bin}") == []
+    # `\hyperref` davranışı değişmedi
+    assert sozler("\\hyperref[tbl:bir]{Tablo aciklamasi}") == []
+
+
 def test_section_argumani_METINDIR():
     """Komut argümanlarının HEPSİ atılamaz: başlık gerçek metindir."""
     ks = sozler("\\section{Giris Bolumu}\\label{sec:giris}")

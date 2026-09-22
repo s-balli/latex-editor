@@ -97,7 +97,7 @@ _ARGUMANI_ATLA = frozenset("""
 label bibliography bibliographystyle
 input include includeonly includegraphics graphicspath
 usepackage RequirePackage documentclass LoadClass
-url href hyperref path lstinputlisting verbatiminput
+url hyperref path lstinputlisting verbatiminput
 newcommand renewcommand providecommand newenvironment renewenvironment
 DeclareMathOperator newtheorem theoremstyle
 setlength addtolength setcounter addtocounter usetikzlibrary
@@ -141,6 +141,28 @@ _YAPISAL_ARGUMAN = {
     "textcolor": 1,
     "colorbox": 1,
     "fcolorbox": 2,
+    # `\href{adres}{görünen metin}`: ikinci argüman PDF'te BASILAN metin.
+    # `_ARGUMANI_ATLA`da olduğu için ikisi birden atlanıyordu, yani gerçek
+    # proz yazım denetiminden hiç geçmiyordu.
+    #
+    # ÖLÇÜLDÜ (2026-09-22, 39 gerçek şablon): 52 çağrı, 14 belge, ham 140
+    # kelime. Bunların 69'u tarayıcının kendi kurallarından geçiyor, yani
+    # gerçekten denetlenecek proz: "Author Guidelines", "Supplementary
+    # Material", "Nomenclature". Kalanı `\href{url}{url}` biçimindeki
+    # gövdeler ve onları zaten `_RE_ADRES` eliyor, yani düzeltme yanlış
+    # pozitif getirmiyor.
+    #
+    # Kehanet modülün kendi ölçütü (bkz. `textcolor` notu): "bir kelime
+    # LaTeX tarafından hiç basılmıyorsa işaretlemek yanlıştır". Tersi de
+    # geçerli, basılan kelimeyi hiç denetlememek kaçırmaktır.
+    #
+    # `hyperref` BİLEREK `_ARGUMANI_ATLA`da kaldı: onun argümanı KÖŞELİ
+    # (`\hyperref[etiket]{metin}`), bu mekanizma ise SÜSLÜ grup sayıyor.
+    # Üstelik korpusta hiç geçmiyor (0 çağrı), yani ölçülmemiş bir
+    # değişiklik olurdu. Listeden çıkarmak da yanlış: tanınmayan komutun
+    # köşeli argümanı düz metin sayılıyor ve `tbl`, `bir` gibi sahte
+    # bulgular üretiyordu (ölçüldü).
+    "href": 1,
 }
 
 # ÖNSÖZ (\begin{document} öncesi) yapılandırmadır, düz metin değildir:
