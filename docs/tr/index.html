@@ -324,7 +324,7 @@
     <!-- ===== DOWNLOAD / REQUIREMENTS ===== -->
     <section class="section">
       <h2 class="section-title"><span class="tr">İndir</span></h2>
-      <div class="card-grid grid-2 download">
+      <div class="card-grid grid-3 download">
         <article class="card dl">
           <h3>🪟 Windows</h3>
           <p><span class="tr">Taşınabilir <code>.exe</code>. Derleme için <a href="https://learn.microsoft.com/en-us/windows/wsl/install" target="_blank" rel="noopener">WSL</a> + TeX Live gerekir.</span></p>
@@ -334,6 +334,11 @@
           <h3>🐧 Linux</h3>
           <p><span class="tr"><code>.AppImage</code>. Derleme için TeX Live gerekir.</span></p>
           <a class="primary-btn" href="https://github.com/s-balli/latex-editor/releases"><span class="tr">↓ Linux AppImage</span></a>
+        </article>
+        <article class="card dl">
+          <h3>🍎 <span class="tr">macOS (Apple Silicon)</span></h3>
+          <p><span class="tr"><code>.dmg</code>. Derleme için MacTeX gerekir. Kurduktan sonra indirme karantinasını bir kez kaldır (bkz. Kurulum).</span></p>
+          <a class="primary-btn" href="https://github.com/s-balli/latex-editor/releases"><span class="tr">↓ macOS .dmg</span></a>
         </article>
       </div>
       <p class="note"><span class="tr">⚠ İndirme yalnızca arayüzü içerir. LaTeX derleyicisi (<code>lualatex</code>/<code>pdflatex</code>/<code>xelatex</code>) TeX Live ile ayrıca kurulur.</span></p>
@@ -383,24 +388,24 @@ sudo apt-get install texlive-base texlive-binaries texlive-latex-base \
           </ol>
         </article>
         <article class="card setup-col">
-          <h3>🍎 <span class="tr">macOS (kaynaktan)</span></h3>
+          <h3>🍎 <span class="tr">macOS (Apple Silicon)</span></h3>
           <ol class="steps">
             <li>
               
-              <span class="tr">MacTeX ve Python'u kur (büyük indirme, birkaç GB):</span>
-              <div class="cmd"><pre><code>brew install python
-brew install --cask mactex</code></pre><button class="copy-btn" type="button"><span class="tr">Kopyala</span></button></div>
+              <span class="tr">MacTeX'i kur (büyük indirme, birkaç GB):</span>
+              <div class="cmd"><pre><code>brew install --cask mactex</code></pre><button class="copy-btn" type="button"><span class="tr">Kopyala</span></button></div>
             </li>
             <li>
               
-              <span class="tr">Depoyu klonla, Python paketlerini kur ve çalıştır:</span>
-              <div class="cmd"><pre><code>pip3 install -r desktop/requirements.txt
-cd desktop &amp;&amp; python3 main.py</code></pre><button class="copy-btn" type="button"><span class="tr">Kopyala</span></button></div>
-            </li>
-            <li>
-              
-              <span class="tr">Bunun yerine <code>.dmg</code> ile kurduysan indirme karantinasını bir kez kaldır, yoksa macOS uygulamayı açmıyor (paket ad-hoc imzalı, notarization yok):</span>
+              <span class="tr"><code>.dmg</code>'yi indir, uygulamayı Applications'a sürükle, sonra indirme karantinasını bir kez kaldır; yoksa macOS uygulamayı açmıyor (paket ad-hoc imzalı, notarization yok):</span>
               <div class="cmd"><pre><code>xattr -dr com.apple.quarantine "/Applications/LaTeX Editor.app"</code></pre><button class="copy-btn" type="button"><span class="tr">Kopyala</span></button></div>
+            </li>
+            <li>
+              
+              <span class="tr">Ya da <code>.dmg</code> yerine kaynaktan çalıştır:</span>
+              <div class="cmd"><pre><code>brew install python
+pip3 install -r desktop/requirements.txt
+cd desktop &amp;&amp; python3 main.py</code></pre><button class="copy-btn" type="button"><span class="tr">Kopyala</span></button></div>
             </li>
           </ol>
         </article>
