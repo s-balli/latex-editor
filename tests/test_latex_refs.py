@@ -1760,3 +1760,64 @@ class TestSubrefEtiketi:
         icerik, yol = self._kur(tmp_path, "\\subref{sfig:yokbu}\n")
         r = latex_refs.audit_references(icerik, yol)
         assert r.undefined_refs == ["sfig:yokbu"]
+
+
+class TestPaketinTanimladigiEtiket:
+    r"""PAKETİN kendi tanımladığı etiket "Tanımsız referans" sayılıyordu.
+
+    Kullanıcının kaynağında bu etiketlerin `\label`i YOK ve olmamalı;
+    tanımı paket yazıyor, kullanıcı onu yalnız `\ref` ile görüyor:
+
+        lastpage  -> LastPage    alt bilgide "Sayfa 3 / 12"
+        totpages  -> TotPages    tez kapağında sayfa sayısı
+
+    ÖLÇÜLDÜ (2026-09-22), kehanet LaTeX'in KENDİ derleme günlüğü:
+    template31-tez-hacettepe kapağında `\ref{TotPages}` var, `.log`da
+    "Reference ... undefined" YOK (yani LaTeX etiketi çözüyor), uygulama
+    ise "Tanımsız referans: TotPages" diyordu. Kullanıcının
+    düzeltemeyeceği bir hata; aynı sınıfı bu dosya `\nocite{*}` için
+    zaten kabul etmiş.
+
+    PAKET YÜKLÜYSE sayılıyor, koşulsuz DEĞİL: ikinci kapı onu tutuyor.
+    """
+
+    @staticmethod
+    def _denetle(tmp_path, govde, ekler=None):
+        for ad, ic in (ekler or {}).items():
+            (tmp_path / ad).write_text(ic, encoding="utf-8")
+        ana = tmp_path / "m.tex"
+        ana.write_text(govde, encoding="utf-8")
+        return latex_refs.audit_references(govde, str(ana))
+
+    def test_paket_YUKLUYKEN_tanimsiz_sayilmiyor(self, tmp_path):
+        r = self._denetle(tmp_path,
+                          "\\usepackage{lastpage}\n"
+                          "\\usepackage[dvi]{totpages}\n"
+                          "\\pageref{LastPage} / \\ref{TotPages}\n")
+        assert r.undefined_refs == []
+
+    def test_paket_YOKSA_hala_tanimsiz_deniyor(self, tmp_path):
+        r"""Kontrol: düzeltme koşulsuz susturma değil. Paketi yüklemeden
+        `\pageref{LastPage}` yazmak GERÇEKTEN kırık."""
+        r = self._denetle(tmp_path, "\\pageref{LastPage}\n")
+        assert r.undefined_refs == ["LastPage"]
+
+    def test_paket_ZINCIRDE_yuklenince_de_taniniyor(self, tmp_path):
+        r = self._denetle(tmp_path,
+                          "\\input{onsoz}\n\\pageref{LastPage}\n",
+                          {"onsoz.tex": "\\usepackage{amsmath,lastpage}\n"})
+        assert r.undefined_refs == []
+
+    def test_paket_etiketi_KULLANILMAYAN_listesine_girmiyor(self, tmp_path):
+        """Kullanıcının yazmadığı etiketi "kullanılmayan" diye önermek aynı
+        sahte uyarının ters yönü olurdu. Gerçek olan listede KALMALI.
+
+        Belge paketi YÜKLÜYOR ama etiketi HİÇ kullanmıyor: koşul bu, yoksa
+        etiket zaten `used_refs`te olur ve kapı bir şey ölçmez (mutasyonla
+        görüldü, 2026-09-22).
+        """
+        r = self._denetle(tmp_path,
+                          "\\usepackage{lastpage}\n"
+                          "\\label{hic:kullanilmayan}\n")
+        assert "LastPage" not in r.unused_labels
+        assert r.unused_labels == ["hic:kullanilmayan"]

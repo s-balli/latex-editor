@@ -1033,6 +1033,40 @@ def _segment_araliklari(m, old: str) -> list[tuple[int, int]]:
 _RE_BIBITEM = re.compile(_BIBITEM_BAS)
 _RE_NOCITE_ALL = re.compile(r'\\nocite\s*\{\*\}')
 
+# PAKETİN KENDİ tanımladığı etiketler. Kullanıcının kaynağında bunların
+# `\label`i YOK ve olmamalı; tanımı paket yazıyor, `\ref` ile görünüyorlar.
+# Denetim tanımlı etiket evrenini yalnız `\label`ten kurduğu için hepsi
+# "Tanımsız referans" çıkıyordu: kullanıcının düzeltemeyeceği bir hata.
+#
+# ÖLÇÜLDÜ (2026-09-22), kehanet LaTeX'in KENDİ derleme günlüğü:
+# template31-tez-hacettepe kapağında `\ref{TotPages}` var, `.log`da
+# "Reference ... undefined" YOK, yani LaTeX etiketi çözüyor; uygulama ise
+# "Tanımsız referans: TotPages" diyordu. 39 şablonun 1'i, ama `lastpage`
+# alt bilgide ("Sayfa 3 / 12") yaygın bir kalıp.
+#
+# PAKET YÜKLÜYSE sayılıyor, koşulsuz değil: paketi yüklemeden
+# `\pageref{LastPage}` yazmak GERÇEKTEN kırık ve öyle bildirilmeli.
+#
+# Liste dar tutuldu. Her paketi bilmek bu tablonun işi değil; eksik kalan
+# bir paket eski davranışı veriyor (sahte uyarı), fazladan yazılan bir
+# paket gerçek bir kırığı gizler. Sessizce yanılmanın bedeli daha ağır
+# olduğu için yalnız ölçülen ikisi var.
+_PAKET_ETIKETLERI = {
+    "lastpage": ("LastPage",),
+    "totpages": ("TotPages",),
+}
+_RE_USEPACKAGE = re.compile(r'\\usepackage\s*(?:\[[^\]]*\])?\s*\{([^}]*)\}')
+
+
+def _paket_etiketleri(texts) -> set[str]:
+    """Yüklü paketlerin kendiliğinden tanımladığı etiketler."""
+    yuklu: set[str] = set()
+    for t in texts:
+        for m in _RE_USEPACKAGE.finditer(t):
+            yuklu.update(ad.strip().lower() for ad in m.group(1).split(','))
+    return {etiket for paket, etiketler in _PAKET_ETIKETLERI.items()
+            if paket in yuklu for etiket in etiketler}
+
 
 @dataclass
 class RefAudit:
@@ -1113,9 +1147,13 @@ def audit_references(content: str, base_path: str) -> RefAudit:
     bib_keys = set(collect_cite_keys(content, base_path))
 
     return RefAudit(
-        undefined_refs=sorted(used_refs - defined_labels),
+        undefined_refs=sorted(used_refs - defined_labels
+                              - _paket_etiketleri(texts)),
         undefined_cites=sorted(used_cites - bib_keys - bibitem_keys),
         unused_bib_keys=[] if nocite_all else sorted(bib_keys - used_cites),
+        # Paket etiketleri buraya KATILMIYOR: kullanıcının yazmadığı bir
+        # etiketi "kullanılmayan etiket" diye önermek aynı sahte uyarıyı
+        # ters yönden üretirdi.
         unused_labels=sorted(defined_labels - used_refs),
     )
 
