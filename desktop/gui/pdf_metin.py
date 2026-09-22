@@ -42,8 +42,16 @@ def _aksan_uygula(taban: str, birlesik: str) -> str:
     """``taban`` + aksan GERÇEK bir harfse onu döndür, değilse "".
 
     Birleştirmenin ölçütü "sonuç TEK karakter mi": olmayan harf uydurmayı
-    engelliyor ve aksanın hangi harfe ait olduğu ikilemini kendiliğinden
-    çözüyor. `l¸c` dizisinde `l`+sedil diye bir harf YOK, `c`+sedil VAR.
+    engelliyor. `S¸EK˙IL`de sedili E'ye bağlamak `Ȩ` üretirdi; o harf
+    Unicode'da VAR, ama ölçüt sayesinde önce doğru aday deneniyor.
+
+    BU ÖLÇÜT TEK BAŞINA YETMİYOR. Burada eskiden "`l¸c` dizisinde `l`+sedil
+    diye bir harf YOK" yazıyordu ve `ölçüm` -> `¨ol¸c¨um` çözümü buna
+    bağlanıyordu. ÖLÇÜLDÜ (2026-09-22): o harf VAR, `ļ` (U+013C, Letonca).
+    Doğru sonucu veren şey bu ölçüt değil, çağıranın DAL SIRASI: önce
+    sonraki KÜÇÜK harf deneniyor (`c` -> `ç`), önceki harf ancak o
+    tutmazsa. Sıra ters çevrilirse `ölçüm` `öļcüm` oluyor; mutasyonla
+    ölçüldü, `test_pdf_secim.py` o durumda düşüyor.
 
     Noktasız `ı` LaTeX'in aksan TABANI: `\\^{\\i}` ile yazılan harf î'dir ve
     PDF'e noktasız glif + şapka olarak düşüyor (ölçüldü: "resmî" ->
@@ -89,9 +97,14 @@ def aksanlari_birlestir(text: str) -> tuple[str, list[tuple[int, int]] | None]:
     küçük harflerde aksan harften ÖNCE geliyor (`¸s`), büyük harflerde SONRA
     (`S¸`). Sıraya bakarak karar vermek `¨` yüzünden yanlış harf üretiyordu
     (`UN¨` -> N + iki nokta). Onun yerine BİRLEŞTİRİLEBİLİRLİK soruluyor:
-    sonuç TEK karakter değilse o bağ kurulmuyor. Böylece `l¸c` ikilemi
-    kendiliğinden çözülüyor ve olmayan harf uydurulmuyor. Eşi bulunamayan
-    aksan metinde artık bırakılmıyor.
+    sonuç TEK karakter değilse o bağ kurulmuyor, yani olmayan harf
+    uydurulmuyor. Eşi bulunamayan aksan metinde artık bırakılmıyor.
+
+    AMA BU ÖLÇÜT TEK BAŞINA KARAR VERMİYOR: aşağıdaki dalların SIRASI da
+    sonucu belirliyor. `¨ol¸c¨um` -> `ölçüm` çözümü "`l`+sedil diye bir
+    harf yok" diye açıklanıyordu; o harf VAR (`ļ`, U+013C). Doğru sonucu
+    veren, sedilin önce SONRAKİ küçük harfe (`c`) denenmesi. Sıra ters
+    çevrilince `öļcüm` çıkıyor (mutasyonla ölçüldü 2026-09-22).
 
     Büyük harflerin arasına giren boşluklar (`C¸ ALIS¸MA` -> `Ç ALIŞMA`)
     BURADA ÇÖZÜLMÜYOR: aksan bazen harfinden birkaç karakter uzağa düşüyor
