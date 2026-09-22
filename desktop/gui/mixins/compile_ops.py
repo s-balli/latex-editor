@@ -523,6 +523,14 @@ class CompileOpsMixin:
                 if key not in seen:
                     seen.add(key)
                     self._last_errors.append(e)
+        # Uyarılar da AYNI çözümlemeden geçiyor. derle.sh alt dosyadan gelen
+        # uyarının adını göreli yazıyor (`./bolum/ch1.tex`) ve çözülmeden
+        # kalsa `_goto_line` onu uygulamanın çalışma dizininde arayıp
+        # "Dosya bulunamadı" derdi. Ana belgenin uyarısı zaten mutlak yolla
+        # geliyor, `resolve_error_path` onu olduğu gibi bırakıyor.
+        for w in result.warnings:
+            if w.file_path:
+                w.file_path = resolve_error_path(w.file_path, base)
         self._err_index = -1
 
         self._output_panel.show_result(result)

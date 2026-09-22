@@ -134,6 +134,108 @@ ARAC_SESSIZ='(^|[^0-9])0 (rejected|warnings?|errors?)'
 kucult() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]'; }
 buyut()  { printf '%s' "$1" | tr '[:lower:]' '[:upper:]'; }
 
+# Uyarı satırlarını süz ve ANA BELGE DIŞINDAN gelenin dosyasını öne yaz.
+#
+# Hatalarda dosyayı motor söylüyor (`-file-line-error`, HATA_DESENI'nin
+# gerekçesi). Uyarılar için TeX'te öyle bir bayrak yok; dosya yalnız
+# günlüğün `(dosya ... )` iç içe parantezlerinde duruyor ve bu betik GUI'ye
+# yalnız süzülmüş uyarı satırlarını bastığı için o bilgi hiç ulaşmıyordu.
+# Sonuç: `\input` edilen bir dosyadaki HER uyarı ana belgeye atfediliyor,
+# kullanıcı tıklayınca ana belgenin aynı numaralı satırına gidiyordu.
+# Hatalar için düzeltilmiş kusurun uyarılarda kalmış ikizi.
+#
+# Uyarı, satır BAŞINDAKİ dosyaya ait: LaTeX uyarıyı hep yeni satırda
+# başlatıyor. Ana belge dışındaki bir dosyadan geliyorsa:
+#
+#     ./bolum/ch1.tex: LaTeX Warning: Reference `x' ... on input line 9.
+#
+# `-file-line-error`a benziyor ama SATIR NUMARASI YOK, yani ayrıştırıcının
+# hata deseniyle (`dosya:<sayı>: `) karışmıyor; satır uyarının kendi
+# metninde. Ana belgenin uyarıları DEĞİŞMEDEN geçiyor: tek dosyalı
+# belgede çıktı birebir eskisi gibi.
+#
+# HER `(` yığına giriyor, dosya olmasa da: `(hyperref)` gibi devam
+# satırlarının kapanışı yoksa gerçek bir dosyayı düşürürdü. Dosya olmayan
+# giriş ebeveyninin adını taşıyor. Adın bölünmemesini `max_print_line=1000`
+# sağlıyor (dosyanın başındaki gerekçe).
+#
+# Kullanıcının dosyası PROJE KLASÖRÜNÜN ALTINDAKİ `.tex`. TeX onu MUTLAK
+# yolla basıyor, çünkü TEXINPUTS `$KLASOR` ile başlıyor ve kpathsea dosyayı
+# oradan buluyor: `(/mnt/c/.../tez/bolum/ch1.tex`. Klasör dışındaki mutlak
+# yollar (`/usr/share/texlive/...`) paket dosyası, ebeveyne sayılıyor.
+# Klasör yolu BOŞLUK taşıyabildiği için önek harfi harfine karşılaştırılıyor;
+# klasörün altındaki adda boşluk varsa dosyanın diskte olması aranıyor
+# (ayrıştırıcıdaki `_dosya_adayi` ile aynı ölçüt). Önek okunur olsun diye
+# `./bolum/ch1.tex` biçimine indiriliyor; GUI onu ana belgenin klasörüne
+# göre çözüyor.
+#
+# Desenler ENVIRON'dan okunuyor: `awk -v` ters bölüleri yorumluyor.
+uyari_dosyasi_ekle() {
+    ANA="./$1" KLASOR="$KLASOR" UYARI_DESENI="$UYARI_DESENI" awk '
+    # "(" sonrasindaki metin kullanicinin .tex dosyasiysa "./goreli/ad.tex",
+    # degilse "" dondurur.
+    function kullanici_dosyasi(s,    k, t, p, i, ad, c) {
+        k = ENVIRON["KLASOR"] "/"
+        if (substr(s, 1, length(k)) == k)
+            s = substr(s, length(k) + 1)
+        else if (substr(s, 1, 1) == "/")
+            return ""
+        else if (substr(s, 1, 2) == "./")
+            s = substr(s, 3)
+        t = tolower(s)
+        p = 0
+        while ((i = index(substr(t, p + 1), ".tex")) > 0) {
+            p += i + 3
+            ad = substr(s, 1, p)
+            if (ad ~ /[()]/)
+                return ""
+            c = substr(s, p + 1, 1)
+            if (c != "" && c != " " && c != "(" && c != ")")
+                continue
+            if (ad ~ / /) {
+                if ((getline gecici < (k ad)) < 0)
+                    continue
+                close(k ad)
+            }
+            return "./" ad
+        }
+        return ""
+    }
+    {
+        if ($0 ~ ENVIRON["UYARI_DESENI"]) {
+            if (n > 0 && yigin[n] != "" && yigin[n] != ENVIRON["ANA"])
+                print yigin[n] ": " $0
+            else
+                print $0
+        }
+        # \hbox uyarisinin ARDINDAKI TEK satir kutunun icerigi: belgenin
+        # kendi metni, esi olmayan parantez tasiyabiliyor ("a) ilk madde").
+        # TeX onu `short_display` ile tam bir satir basiyor; ardindan bos
+        # satir GELMEYEBILIR, bir sonraki satir dosya kapanisi olabilir.
+        # \vbox uyarisinda terminale icerik basilmiyor.
+        if (kutu) {
+            kutu = 0
+            next
+        }
+        if ($0 ~ /^(Overfull|Underfull|Tight|Loose) \\hbox/) {
+            kutu = 1
+            next
+        }
+        satir = $0
+        while (match(satir, /[()]/)) {
+            c = substr(satir, RSTART, 1)
+            satir = substr(satir, RSTART + 1)
+            if (c == ")") {
+                if (n > 0) n--
+                continue
+            }
+            ad = kullanici_dosyasi(satir)
+            yigin[n + 1] = (ad != "") ? ad : ((n > 0) ? yigin[n] : "")
+            n++
+        }
+    }'
+}
+
 # Dosyanin degisme zamani. `stat -c` GNU'ya ozgu; BSD (macOS) `-f` istiyor
 # ve GNU bayragini "illegal option" diye reddediyor. Once GNU denenip
 # dusunce BSD'ye gecmek iki tarafta da tek satirda calisiyor.
@@ -979,7 +1081,7 @@ derle_dosya() {
     local UYARI_SATIRLARI
     UYARI_SATIRLARI=$(
         {
-            echo "$SON_CIKTI" | grep -E "$UYARI_DESENI" || true
+            echo "$SON_CIKTI" | uyari_dosyasi_ekle "$DOSYA_ADI" || true
             # TEKRAR SAYISI KORUNUYOR. Burada yalnizca `sort -u` vardi ve
             # ayristiricinin "yazi tipi basina kac kez gectigini yaz" kolu
             # bu yuzden HIC gercek sayiyi gormuyordu: sayilacak satirlar

@@ -661,6 +661,55 @@ class TestHataKonumu:
                    for h in sonuc.errors), [h.message for h in sonuc.errors]
 
 
+class TestUyariKonumu:
+    r"""UYARI da hangi dosyadan geldiyse orada gösterilmeli.
+
+    TestHataKonumu'nun ikizi. Hatalarda dosyayı `-file-line-error`
+    söylüyor; uyarılar için TeX'te öyle bir bayrak yok ve bu betik GUI'ye
+    günlüğün `(dosya ...)` parantezlerini basmıyordu. `\input` edilen
+    dosyadaki her uyarı ana belgeye atfediliyor, kullanıcı tıklayınca ana
+    belgenin AYNI NUMARALI satırına gidiyordu.
+
+    ÖLÇÜLDÜ (2026-09-22, gerçek boru hattı): `bolum/ch1.tex:9`daki uyarı
+    panelde `main.tex:9` çıkıyordu, ana belge 5 satırken.
+    """
+
+    ANA = ("\\documentclass{article}\n\\begin{document}\n"
+           "Ana \\ref{ana-yok}.\n\\input{bolum/ch1}\n\\end{document}\n")
+    # Taşan kutunun İÇERİĞİ eşi olmayan parantez taşıyor ("a)"). O dökümdeki
+    # parantez sayılsaydı alt dosya yığından düşer, ardından gelen uyarı
+    # yine ana belgeye giderdi.
+    ALT = ("\\hsize=2cm\\noindent Bir a) Cokuzunbirkelimeburadatasiyor "
+           "b) c.\\par\n\nBolum \\ref{bolum-yok} burada.\n")
+
+    def test_ALT_DOSYADAKI_uyari_o_dosyaya_atfediliyor(self, tmp_path):
+        from core.log_parser import parse_output
+
+        (tmp_path / "bolum").mkdir()
+        (tmp_path / "bolum" / "ch1.tex").write_text(self.ALT,
+                                                    encoding="utf-8")
+        (tmp_path / "ana.tex").write_text(self.ANA, encoding="utf-8")
+
+        r = _run_derle([str(tmp_path / "ana.tex")], cwd=str(tmp_path),
+                       timeout=180)
+        temiz = re.sub(r"\x1b\[[0-9;]*m", "", r.stdout)
+        uyarilar = {}
+        for u in parse_output(temiz, str(tmp_path / "ana.tex")).warnings:
+            m = re.search(r"`([^']+)'", u.message)
+            if m:
+                uyarilar[m.group(1)] = u
+
+        alt = uyarilar["bolum-yok"]
+        assert alt.file_path.replace("\\", "/").endswith("bolum/ch1.tex"), \
+            temiz[-1500:]
+        assert alt.line_number == 3, alt.line_number
+        # Karşı kol: ana belgenin uyarısı ana belgede kalıyor ve betiğin
+        # çıktısında ÖNEKSİZ: tek dosyalı belgede çıktı eskisi gibi.
+        ana = uyarilar["ana-yok"]
+        assert ana.file_path == str(tmp_path / "ana.tex"), ana.file_path
+        assert "  LaTeX Warning: Reference `ana-yok'" in temiz, temiz[-1500:]
+
+
 class TestUyariSuzgeci:
     r"""`derle.sh` süzgeci ile ayrıştırıcının bildiği sınıflar AYNI olmalı.
 

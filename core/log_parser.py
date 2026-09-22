@@ -175,10 +175,30 @@ _RE_UYARI_BAS = re.compile(
 # ondan önce gelen tam 79 sütunluk bir uyarı onu YUTUYORDU (template3'te
 # `Package lineno Warning: ...` satırı panelde iki boşluk girintisiyle tam
 # 79 sütun oluyor). İki ayrı uyarı tek satırda birleşip biri kayboluyordu.
+# Başındaki isteğe bağlı `dosya.tex: ` derle.sh'nin uyarı önekidir (bkz.
+# _RE_UYARI_DOSYASI): önekli bir uyarı da yapı başlangıcı, yoksa 79
+# sütunluk bir uyarının ardından gelince ona yapışırdı.
 _RE_YAPI_BAS = re.compile(
-    r'^\s*(?:!|l\.\d+|LaTeX(?: Font)? Warning:|Package \S+ Warning:|'
+    r'^\s*(?:\S[^:]*?\.tex: )?'
+    r'(?:!|l\.\d+|LaTeX(?: Font)? Warning:|Package \S+ Warning:|'
     r'(?:pdfTeX|LuaTeX|XeTeX) warning|warning\s+\(|Overfull|Underfull|==>|'
     r'Missing character:)', re.IGNORECASE)
+
+# derle.sh ANA BELGE DIŞINDAN gelen uyarının dosyasını öne yazıyor:
+#
+#     ./bolum/ch1.tex: LaTeX Warning: Reference `x' ... on input line 9.
+#
+# Uyarılar için TeX'te `-file-line-error` karşılığı yok ve derle.sh GUI'ye
+# günlüğün `(dosya ... )` parantezlerini hiç basmıyor, yani dosyayı
+# yalnız o biliyor (gerekçe derle.sh'deki `uyari_dosyasi_ekle`de). Önek
+# YALNIZ o satırı bağlıyor: sonraki öneksiz satır yığına döner.
+#
+# Ardından bir uyarı başlığı gelmek ZORUNDA: önek biçimi başka bir satırda
+# tesadüfen tutarsa o satır olduğu gibi kalsın. Hata biçimiyle
+# (`dosya.tex:3: `) karışmıyor, çünkü orada `.tex`i `:<sayı>` izliyor.
+_RE_UYARI_DOSYASI = re.compile(
+    r'^(\s*)(\S[^:]*?\.tex): (?=(?:LaTeX|Package|Overfull|Underfull|'
+    r'pdfTeX|LuaTeX|XeTeX|Font) )', re.IGNORECASE)
 
 
 # Hata satırı da sarıyor ama BAŞKA BİÇİMDE: 79 sütun değil, LaTeX'in kendi
@@ -320,6 +340,14 @@ def parse_output(raw: str, source_file: str = "") -> CompileResult:
     eksik_glif: dict[str, list] = {}
 
     for line in lines:
+        # derle.sh'nin uyarı öneki: dosyayı bu satır için sakla, öneki at
+        # ki aşağıdaki desenler satırı eskisi gibi tanısın.
+        satir_dosyasi = ""
+        m = _RE_UYARI_DOSYASI.match(line)
+        if m:
+            satir_dosyasi = m.group(2)
+            line = m.group(1) + line[m.end():]
+
         # Kaynakça aracının (bibtex/biber) kendi satırı. EN BAŞTA, çünkü
         # `(There were 2 error messages)` satırındaki kapanış parantezi
         # aşağıdaki dosya yığınından bir dosya düşürürdü.
@@ -346,7 +374,7 @@ def parse_output(raw: str, source_file: str = "") -> CompileResult:
                 dosya_yigini.append(ad if kullanilabilir else dosya_yigini[-1])
             elif len(dosya_yigini) > 1:
                 dosya_yigini.pop()
-        current_file = dosya_yigini[-1]
+        current_file = satir_dosyasi or dosya_yigini[-1]
 
         # derle.sh'nin kendi hata satırı
         m = _RE_SCRIPT_ERROR.match(line)

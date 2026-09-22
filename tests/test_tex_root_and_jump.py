@@ -17,7 +17,7 @@ try:
     from gui.mixins.compile_ops import CompileOpsMixin
     from gui.mixins.tab_ops import TabOpsMixin
     from gui.mixins.synctex_ops import SyncTexMixin
-    from core.log_parser import CompileResult
+    from core.log_parser import CompileResult, LatexWarning
     from tests.stub_main import StubMain
 except ImportError:  # pragma: no cover
     pytest.skip("PyQt6 / gui modülleri gerekli", allow_module_level=True)
@@ -273,6 +273,31 @@ def test_failed_compile_does_not_auto_jump(qapp, tmp_path):
     stub._on_compile_finished(result)
 
     assert stub._synctex_worker.calls == []
+
+
+def test_ALT_DOSYA_uyarisinin_yolu_cozuluyor(qapp, tmp_path):
+    r"""Uyarıya tıklamak da alt dosyaya gitmeli.
+
+    derle.sh alt dosyadan gelen uyarının adını GÖRELİ yazıyor
+    (`./bolum1.tex: LaTeX Warning: ...`, bkz. `uyari_dosyasi_ekle`). Yol
+    yalnız HATALAR için ana belgenin klasörüne göre çözülüyordu; uyarıda
+    göreli kalsa `_goto_line` onu uygulamanın çalışma dizininde arayıp
+    "Dosya bulunamadı" derdi.
+    """
+    root, child = _project(tmp_path)
+    stub = _Stub([_editor_for(root)], str(tmp_path))
+    stub._compile()
+    result = _finished_ctx(tmp_path, success=True)
+    result.warnings = [
+        LatexWarning(line_number=2, message="alt", file_path="./bolum1.tex"),
+        LatexWarning(line_number=3, message="ana", file_path=str(root)),
+    ]
+    stub._on_compile_finished(result)
+
+    assert (os.path.normcase(result.warnings[0].file_path)
+            == os.path.normcase(str(child)))
+    # Ana belgenin uyarısı zaten mutlak yolla geliyor, dokunulmuyor
+    assert result.warnings[1].file_path == str(root)
 
 
 def test_quiet_forward_keeps_status_message(qapp, tmp_path):
