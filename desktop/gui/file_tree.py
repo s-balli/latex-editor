@@ -1,6 +1,7 @@
 """Proje dosya ağacı — .tex/.cls/.sty/.bib dosyaları, alt klasör desteği."""
 
 import os
+import re
 
 import send2trash
 
@@ -50,7 +51,8 @@ _EDITABLE = set(fs_ops.KAYNAK_UZANTILARI)
 # kaynaktır, gizlenmesi yanlıştı (sürümleme de onu zaten geçmişe alıyordu).
 
 
-def _dosya_gizli_mi(ad: str, dizin: str, kok: str, tex_adlari: set) -> bool:
+def _dosya_gizli_mi(ad: str, dizin: str, kok: str, tex_adlari: set,
+                    kullanilan: set = frozenset()) -> bool:
     """Bu dosya ağaçta gizlensin mi.
 
     `.pdf` DIŞINDAKİ uzantılar her zaman gizli: .aux/.log/.toc gibi dosyaların
@@ -65,31 +67,104 @@ def _dosya_gizli_mi(ad: str, dizin: str, kok: str, tex_adlari: set) -> bool:
     için `\\includegraphics` bloğu üretiyor (main_window._handle_dropped_urls),
     yani özellik yazılmış ama kullanılamıyordu.
 
-    AYRIM (39 şablonun tamamında ölçüldü, 84 dosyanın 84'ü doğru tarafta):
+    AYRIM:
       1. Aynı klasörde aynı adlı bir `.tex` varsa -> çıktı. Kesin bilgi.
-      2. Dosya proje KÖKÜNDEyse -> çıktı. Kökteki 61 PDF'in hepsi
-         `main_pdflatex.pdf`, `Sample.fallback.pdf` gibi çıktılardı.
-      3. Alt klasördeyse -> kaynak. 23 dosyanın hepsi Figures/logo/figs/
-         Definitions içindeydi, biri bile çıktı değildi.
+      2. Belgenin `\\includegraphics` ile ÇAĞIRDIĞI dosyaysa -> kaynak.
+      3. Kalan ve proje KÖKÜNDE duran -> çıktı.
+      4. Alt klasördeyse -> kaynak.
 
-    2. madde sezgi, kesin bilgi değil: bölümlerini ayrı derleyip PDF'i alt
-    klasöra koyan biri o çıktıyı ağaçta görür. Şablonların hiçbirinde olmuyor.
+    2. madde sonradan eklendi, çünkü 3. madde tek başına sezgiydi ve
+    yanılıyordu. Eski gerekçe "kökteki 61 PDF'in hepsi çıktıydı" diyordu;
+    o sayım kuralın KENDİ sezgisiyle, dosya adına bakılarak yapılmıştı.
+    Bağımsız kehanetle (dosya `\\includegraphics` ile çağrılıyor mu)
+    yeniden ölçüldü: 39 şablonun 142 PDF'inden 6'sı, 5 projede, gerçek
+    şekildi ve gizleniyordu (`template15/figure1.pdf`, `orcid.pdf`,
+    `template18/figure.pdf`, `template6/GENETICSturquoise.pdf` ...).
+    Kural 2 eklenince aynı korpusta kusur 6'dan 0'a indi, gürültü
+    (kullanılmayıp görünen) 6'da kaldı; kural 3'ü büsbütün kaldırmak ise
+    gürültüyü 61'e çıkarıyordu.
 
-    Kök PDF'lerin gizli kalması ayrıca ŞART: `_collect_files` yenileme anlık
-    görüntüsünü buradan üretiyor ve derleme her koştuğunda kökteki PDF
-    değişiyor. Görünür olsalardı her derleme ağacı baştan taratırdı.
+    Bu, alt klasör PDF'leri için bir kez düzeltilmiş olan kusurun kökte
+    kalmış hâliydi: tez yazarı kendi şeklini ağaçta göremiyor, üstelik
+    ağaçtan editöre sürükle-bırak `.pdf` için `\\includegraphics` bloğu
+    üretiyor (main_window._handle_dropped_urls), yani özellik yazılmış
+    ama o dosyalar için kullanılamıyordu.
+
+    Eski gerekçenin ikinci yarısı ("derleme her koştuğunda kökteki PDF
+    değişiyor, görünür olsalardı her derleme ağacı baştan taratırdı") da
+    doğru değildi: `_collect_files` YOL kümesi topluyor, dosyanın içeriği
+    değişince o küme aynı kalıyor (ölçüldü: PDF görünürken de, gizliyken
+    de anlık görüntü değişmiyor).
     """
     ext = os.path.splitext(ad)[1].lower()
     if ext != ".pdf":
         return fs_ops.derleme_artigi_mi(ad)
     if os.path.splitext(ad)[0] in tex_adlari:
         return True
+    kucuk = ad.lower()
+    if kucuk in kullanilan or os.path.splitext(kucuk)[0] in kullanilan:
+        return False
     return os.path.normpath(dizin) == os.path.normpath(kok)
 
 
 def _tex_adlari(girdiler) -> set:
     """Bir klasördeki .tex dosyalarının uzantısız adları."""
     return {os.path.splitext(a)[0] for a in girdiler if a.lower().endswith(".tex")}
+
+
+_RE_GORSEL_CAGRISI = re.compile(r"\\includegraphics\s*(?:\[[^\]]*\])?\s*\{([^}]*)\}")
+
+
+def _kullanilan_gorseller(kok: str) -> set:
+    """Projede `\\includegraphics` ile çağrılan görsellerin adları.
+
+    Küçük harfe çevrilmiş, hem uzantılı hem uzantısız: belgeler
+    `{sekil}` de `{sekil.pdf}` de yazıyor. Karşılaştırma yalnız TABAN ad
+    üzerinden, çünkü `\\graphicspath` kullanan belgede çağrı yol önekli
+    olabiliyor (39 şablonun 12'sinde var).
+
+    KÖKTE aday PDF yoksa hiçbir dosya OKUNMUYOR. Bu yürüyüş
+    `_collect_files` üzerinden her dosya sistemi olayında koşuyor ve
+    tipik projede kökteki tek PDF `main.pdf`, onu da aynı adlı `.tex`
+    zaten eliyor. Tarama ölçüldü (39 şablon): ortalama 1,0 ms, en kötü
+    6,6 ms.
+
+    Yalnız `\\includegraphics` aranıyor: PDF'i belgeye sokan öteki
+    komutlar (`\\includepdf`, `\\pgfimage`, `\\epsfig`) 39 şablonun
+    hiçbirinde geçmiyor.
+
+    Eşleşme BİLEREK cömert: yorum satırındaki bir çağrı da, büyük/küçük
+    harfi tutmayan bir ad da "kullanılıyor" sayılıyor. Hata payı hep aynı
+    yöne gidiyor, dosyayı GÖSTERMEYE; gizlemek kullanıcının şeklini
+    kaybettiriyordu, göstermek yalnız listeye bir satır ekliyor.
+    """
+    try:
+        girdiler = os.listdir(kok)
+    except OSError:
+        return set()
+    tex_adlari = _tex_adlari(girdiler)
+    if not any(a.lower().endswith(".pdf")
+               and os.path.splitext(a)[0] not in tex_adlari for a in girdiler):
+        return set()
+    adlar: set = set()
+    for dizin, altlar, dosyalar in os.walk(kok):
+        altlar[:] = [d for d in altlar
+                     if d not in _SKIP_DIRS and not d.startswith(".")]
+        for ad in dosyalar:
+            if not ad.lower().endswith((".tex", ".sty", ".cls")):
+                continue
+            try:
+                with open(os.path.join(dizin, ad), "r", encoding="utf-8",
+                          errors="replace") as f:
+                    metin = f.read()
+            except OSError as e:
+                _logger.warning("Görsel çağrıları okunamadı: %s (%s)", ad, e)
+                continue
+            for m in _RE_GORSEL_CAGRISI.finditer(metin):
+                taban = m.group(1).strip().rsplit("/", 1)[-1].lower()
+                adlar.add(taban)
+                adlar.add(os.path.splitext(taban)[0])
+    return adlar
 
 
 class _DragTree(QTreeWidget):
@@ -441,9 +516,16 @@ class FileTree(QWidget):
         """Kök ve alt klasörlerdeki dosyaları recursive listele."""
         self._scan_recursive(self._root, self._tree.invisibleRootItem(), depth=0)
 
-    def _scan_recursive(self, dir_path, parent_item, depth: int):
+    def _scan_recursive(self, dir_path, parent_item, depth: int,
+                        kullanilan: set = frozenset()):
         if depth > _MAX_DEPTH:
             return
+        # Kullanım kümesi PROJE geneli (kökteki şekil alt klasördeki bir
+        # bölümden çağrılabiliyor), o yüzden bir kez kökte hesaplanıp
+        # aşağıya taşınıyor. `_collect_files` da aynısını yapıyor:
+        # iki yürüyüşün kuralı AYNI olmak zorunda (oradaki yorum).
+        if depth == 0:
+            kullanilan = _kullanilan_gorseller(dir_path)
         try:
             entries = sorted(os.listdir(dir_path))
         except (PermissionError, OSError) as e:
@@ -469,7 +551,7 @@ class FileTree(QWidget):
                 # sürükleme) zaten `os.path.isfile` ile eliyor.
                 folder_item.setData(0, Qt.ItemDataRole.UserRole, full)
                 folder_item.setForeground(0, QColor(self._theme["sem_folder"]))
-                self._scan_recursive(full, folder_item, depth + 1)
+                self._scan_recursive(full, folder_item, depth + 1, kullanilan)
                 # HER klasör gösteriliyor. Eskiden koşul `childCount() > 0`
                 # idi, yani "görünür dosyası olmayan klasörü gizle". İki şeyi
                 # birden bozuyordu:
@@ -484,7 +566,8 @@ class FileTree(QWidget):
                 parent_item.addChild(folder_item)
             elif os.path.isfile(full):
                 ext = os.path.splitext(name)[1].lower()
-                if _dosya_gizli_mi(name, dir_path, self._root, tex_adlari):
+                if _dosya_gizli_mi(name, dir_path, self._root, tex_adlari,
+                                   kullanilan):
                     continue
                 editable = ext in _EDITABLE
                 icon = "📄" if ext == ".tex" else "⚙" if ext in _EDITABLE else "🖼"
@@ -502,13 +585,15 @@ class FileTree(QWidget):
     def _save_snapshot(self):
         self._last_snapshot = self._collect_files(self._root)
 
-    def _collect_files(self, dir_path, depth=0):
+    def _collect_files(self, dir_path, depth=0, kullanilan=frozenset()):
         # Ağaç çizimiyle aynı kurallar: _SKIP_DIRS'e inilmez, _MAX_DEPTH'i
         # aşan derinlik taranmaz. (Snapshot/refresh yürüyüşü her FS olayında
         # çalıştığından node_modules/venv'e inmek WSL'de arayüzü kilitlerdi.)
         files = set()
         if depth > _MAX_DEPTH:
             return files
+        if depth == 0:
+            kullanilan = _kullanilan_gorseller(dir_path)
         try:
             girdiler = os.listdir(dir_path)
             # Görünürlük kuralı ağaç çizimiyle AYNI olmak zorunda: burası
@@ -530,9 +615,10 @@ class FileTree(QWidget):
                     # kalıyordu; ikisi de elle "Yenile" gerektiriyordu.
                     # Ayraçla bitirmek dosya yollarıyla çakışmayı engelliyor.
                     files.add(full + os.sep)
-                    files |= self._collect_files(full, depth + 1)
+                    files |= self._collect_files(full, depth + 1, kullanilan)
                 elif os.path.isfile(full):
-                    if not _dosya_gizli_mi(entry, dir_path, self._root, tex_adlari):
+                    if not _dosya_gizli_mi(entry, dir_path, self._root,
+                                           tex_adlari, kullanilan):
                         files.add(full)
         except (PermissionError, OSError) as e:
             _logger.warning("Dosya toplama başarısız: %s (%s)", dir_path, e)

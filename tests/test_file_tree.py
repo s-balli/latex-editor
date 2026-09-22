@@ -217,9 +217,12 @@ class TestPdfGorunurlugu:
     sürükle-bırakta `.pdf` için `\includegraphics` bloğu üretiyor, yani
     özellik yazılmış ama kullanılamıyordu.
 
-    39 şablonda ölçüldü, 84 dosyanın 84'ü doğru tarafta:
-      kökte 61 (hepsi main_pdflatex.pdf gibi çıktı),
-      alt klasörde 23 (hepsi Figures/logo/figs/Definitions içinde).
+    "Kökteki PDF çıktıdır" kuralı sezgiydi ve yanılıyordu. Eski sayım
+    dosya ADINA bakarak yapılmıştı, yani kuralın kendi sezgisiyle;
+    bağımsız kehanetle (dosya `\includegraphics` ile çağrılıyor mu)
+    yeniden ölçülünce 39 şablonun 142 PDF'inden 6'sı, 5 projede, çağrılan
+    gerçek şekil olduğu hâlde gizleniyordu. Kullanım kuralı eklendikten
+    sonra aynı korpusta kusur 0.
     """
 
     def test_ayni_adli_tex_varsa_cikti_sayiliyor(self, qapp, tmp_path):
@@ -234,6 +237,28 @@ class TestPdfGorunurlugu:
         (tmp_path / "main_pdflatex.pdf").write_bytes(b"%PDF-1.4\n")
         tree = _agac(qapp, tmp_path)
         assert _oge_bul(tree, "main_pdflatex.pdf") is None
+
+    def test_KOKTEKI_cagrilan_pdf_sekil_sayiliyor(self, qapp, tmp_path):
+        r"""Kökte dursa da `\includegraphics` ile çağrılan PDF şekildir.
+
+        `template15/figure1.pdf` tam olarak böyleydi: yazarın kendi şekli,
+        ağaçta hiç görünmüyordu. Üstelik `.pdf` sürükle-bırakta
+        `\includegraphics` bloğu üretiyor (IMG_EXTS), yani o dosyalar için
+        yazılmış özellik kullanılamıyordu.
+        """
+        (tmp_path / "ana.tex").write_text(
+            "\\includegraphics{sekil}\n\\includegraphics{ana}\n",
+            encoding="utf-8")
+        (tmp_path / "sekil.pdf").write_bytes(b"%PDF-1.4\n")
+        (tmp_path / "cikti.pdf").write_bytes(b"%PDF-1.4\n")
+        (tmp_path / "ana.pdf").write_bytes(b"%PDF-1.4\n")
+        tree = _agac(qapp, tmp_path)
+        assert _oge_bul(tree, "sekil.pdf") is not None
+        # Çağrılmayan kök PDF hâlâ çıktı sayılıyor: kural 3 kalktığında
+        # aynı korpusta gürültü 6'dan 61'e çıkıyordu.
+        assert _oge_bul(tree, "cikti.pdf") is None
+        # Aynı adlı .tex KESİN bilgi; çağrılmış olması onu değiştirmiyor.
+        assert _oge_bul(tree, "ana.pdf") is None
 
     def test_alt_klasordeki_pdf_gorunuyor(self, qapp, tmp_path):
         (tmp_path / "ana.tex").write_text("x", encoding="utf-8")
@@ -701,8 +726,15 @@ def test_anlik_goruntu_agacta_cizilenle_ayni(qapp, tmp_path):
 
     Ayrışırlarsa ağaç bayat kalır (ya da tersi: her derlemede boşuna
     yeniden taranır).
+
+    KÖK PDF'leri de kurulumda: kullanım kuralı iki yürüyüşten yalnız
+    birine eklenseydi burada görünürdü, çünkü küme her ikisinde de kökte
+    bir kez hesaplanıp aşağı taşınıyor.
     """
-    (tmp_path / "ana.tex").write_text("x", encoding="utf-8")
+    (tmp_path / "ana.tex").write_text(
+        "\\includegraphics{sekil}\n", encoding="utf-8")
+    (tmp_path / "sekil.pdf").write_bytes(b"%PDF-1.4\n")
+    (tmp_path / "cikti.pdf").write_bytes(b"%PDF-1.4\n")
     (tmp_path / "bolum").mkdir()
     (tmp_path / "bolum" / "giris.tex").write_text("g", encoding="utf-8")
     (tmp_path / "bos").mkdir()
