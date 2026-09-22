@@ -687,10 +687,33 @@ _GORSEL_ARAMA_SIRASI = ("", ".pdf", ".png", ".jpg", ".jpeg",
 # atıf olan bir şekil (template4, `figures/Example.pdf`) göreli yolla
 # kalıyordu; dosya diskte VAR, yalnız bağ kırık.
 #
-# `\](?!\()`: başlık içindeki `]`e izin var, görselin kapanışı olan
-# `](` dizisine yok. Aynı ders atıf çözümünde de alınmıştı (bkz.
-# `_resolve_md_citations` içindeki iç içe köşeli parantez gerekçesi).
-_RE_MD_GORSEL_GOVDE = r'!\[((?:[^\]]|\](?!\())*)\]\(([^)]+)\)'
+# BAŞLIK İÇİNDE BAĞLANTI DA OLABİLİR. `\](?!\()` kuralı başlıktaki yalın
+# `]`e izin veriyordu ama başlıkta GERÇEK bir bağlantı varsa ilk `](`
+# dizisi orada geçiyor ve desen başlığı erken kapatıyordu. pandoc
+# `\caption{... (bkz. Tablo~\ref{tbl1})}` için tam bunu üretiyor:
+#
+#     ![The beauty of Munnar, Kerala. (See also Table
+#     [\[tbl1\]](#tbl1){reference-type="ref"
+#     reference="tbl1"}).](figs/cas-munnar-2024.jpg){#FIG:1 ...}
+#
+# ÖLÇÜLDÜ (2026-09-22, template16 uçtan uca dışa aktarıldı), İKİ ayrı zarar:
+#
+#   - `#tbl1` "görselin yolu" sanılıp mutlak dosya yoluna çevriliyordu:
+#     belge içi çapraz başvuru KIRILIYOR ve kullanıcı adını taşıyan yerel
+#     yol (`C:/Users/.../template16/#tbl1`) paylaşılan belgeye SIZIYOR.
+#   - O şeklin GERÇEK görsel yolu göreli kalıyordu, yani işlevin asıl işi
+#     tam o şekillerde yapılmıyordu.
+#
+# Başlıkta çapraz başvuru akademik yazımda sıradan ("bkz. Tablo 1").
+#
+# Yeni gövde köşeli parantezleri DENGELİ okuyor: kaçışlı karakter
+# (`\\.`), parantezsiz karakter, ya da dengeli bir `[...]` grubu. Yalın
+# `]` toleransı korunuyor (`\](?!\()`), yani eski desenin geçtiği her
+# yerde bu da geçiyor (8 durumda ölçüldü). Kollar ilk karakterde
+# ayrıştığı için geri izleme patlaması yok (kötücül 1200 karakterlik
+# girdide eşleşme yokken 0.41 ms).
+_RE_MD_GORSEL_GOVDE = (
+    r'!\[((?:\\.|[^\[\]\\]|\[(?:\\.|[^\[\]\\])*\]|\](?!\())*)\]\(([^)]+)\)')
 _RE_MD_GORSEL = re.compile(_RE_MD_GORSEL_GOVDE)
 _RE_MD_GORSEL_OLCU = re.compile(
     r'(' + _RE_MD_GORSEL_GOVDE + r')\s*\{[^}]*width[^}]*\}')
@@ -728,7 +751,12 @@ def _fix_md_image_paths(tex_path: str, md_path: str):
         def _replace(m):
             alt = m.group(1)
             path = m.group(2)
-            if os.path.isabs(path) or path.startswith(("http://", "https://")):
+            # `#` ile başlayan hedef BELGE İÇİ ÇAPA, dosya değil: mutlaklaşınca
+            # var olmayan bir yola dönüşür. Desen artık başlıktaki bağlantıyı
+            # doğru okuduğu için buraya normalde düşmüyor; yine de aynı
+            # listede duruyor, çünkü "dosya olmayan hedef" kuralı bu.
+            if (os.path.isabs(path)
+                    or path.startswith(("http://", "https://", "#"))):
                 return f"![{alt}]({_md_hedef(path)})"
             # Adayları SIRAYLA dene ve diskte var olanı seç. Eskiden koşulsuz
             # graphics_paths[0] ekleniyordu: ikinci \graphicspath dizini hiç

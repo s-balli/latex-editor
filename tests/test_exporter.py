@@ -1894,3 +1894,75 @@ class TestPandocKurulumTavsiyesi:
         ok, mesaj = ex._export_native("a.tex", "b.docx")
         assert ok is False
         assert "WSL içinde" in mesaj, mesaj
+
+
+class TestBaslikIcindeBaglanti:
+    r"""Başlığında ÇAPRAZ BAŞVURU olan şekil dışa aktarmada bozuluyordu.
+
+    pandoc `\caption{... (bkz. Tablo~\ref{tbl1})}` için başlığın İÇİNE bir
+    bağlantı koyuyor:
+
+        ![The beauty of Munnar, Kerala. (See also Table
+        [\[tbl1\]](#tbl1){reference-type="ref"
+        reference="tbl1"}).](figs/cas-munnar-2024.jpg){#FIG:1 ...}
+
+    Eski desen başlıktaki yalın `]`e izin veriyordu ama `](` dizisine
+    vermiyordu; başlıkta GERÇEK bir bağlantı olunca ilk `](` orada geçiyor
+    ve desen başlığı erken kapatıyordu.
+
+    ÖLÇÜLDÜ (2026-09-22, template16 uçtan uca dışa aktarıldı), İKİ zarar:
+    `#tbl1` mutlak dosya yoluna çevriliyor (belge içi bağ KIRILIYOR ve
+    kullanıcı adı taşıyan yerel yol SIZIYOR), o şeklin gerçek görsel yolu
+    ise göreli kalıyordu.
+
+    Başlıkta çapraz başvuru akademik yazımda sıradan ("bkz. Tablo 1").
+    """
+
+    def _kur(self, tmp_path):
+        from core.exporter import _fix_md_image_paths
+        (tmp_path / "figs").mkdir()
+        (tmp_path / "figs" / "x.png").write_bytes(b"x")
+        tex = tmp_path / "m.tex"
+        tex.write_text("\\documentclass{article}\n", encoding="utf-8")
+        return _fix_md_image_paths, tex
+
+    def _duzelt(self, tmp_path, govde):
+        duzelt, tex = self._kur(tmp_path)
+        md = tmp_path / "m.md"
+        md.write_text(govde + "\n", encoding="utf-8")
+        duzelt(str(tex), str(md))
+        return md.read_text(encoding="utf-8").strip()
+
+    @staticmethod
+    def _mutlak(tmp_path):
+        return str(tmp_path / "figs" / "x.png").replace("\\", "/")
+
+    def test_capraz_basvurulu_baslikta_GORSEL_yolu_duzeliyor(self, tmp_path):
+        s = self._duzelt(
+            tmp_path,
+            '![Sekil. (bkz. Tablo [\\[t1\\]](#t1){reference-type="ref"})'
+            '.](figs/x.png)')
+        assert self._mutlak(tmp_path) in s, s
+
+    def test_capraz_basvurulu_baslikta_CAPA_bozulmuyor(self, tmp_path):
+        """Çapa mutlaklaşınca hem bağ kırılıyor hem yerel yol sızıyordu."""
+        s = self._duzelt(
+            tmp_path,
+            '![Sekil. (bkz. Tablo [\\[t1\\]](#t1){reference-type="ref"})'
+            '.](figs/x.png)')
+        assert "](#t1)" in s, s
+        assert "/#t1" not in s, s
+
+    def test_CAPA_hedefi_oldugu_gibi_kaliyor(self, tmp_path):
+        """`#` ile başlayan hedef dosya değil, belge içi çapa."""
+        s = self._duzelt(tmp_path, "![](#bolum2)")
+        assert s == "![](#bolum2)", s
+
+    def test_baslikta_ATIF_hala_calisiyor(self, tmp_path):
+        """Kontrol: önceki ölçülmüş düzeltme (2026-09-13) bozulmamalı."""
+        s = self._duzelt(tmp_path, "![Sekil [@kaynak2020] hakkinda.](figs/x.png)")
+        assert self._mutlak(tmp_path) in s, s
+
+    def test_baslikta_YALIN_koseli_parantez_hala_hos_goruluyor(self, tmp_path):
+        s = self._duzelt(tmp_path, "![A ] B](figs/x.png)")
+        assert self._mutlak(tmp_path) in s, s
