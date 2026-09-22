@@ -187,6 +187,31 @@ class TestGorselOnerisindeDerlemeCiktisi:
         assert self._kur(
             tmp_path, [("cizim.tex", self.STANDALONE)]) == ["cizim.pdf"]
 
+    def test_ADI_FARKLI_cikti_da_ONERILMIYOR(self, tmp_path):
+        r"""Çıktının adı belgeninkinden FARKLI olabiliyor.
+
+        Süzgeç yalnız aynı adı arıyordu. Bağımsız kehanetle ölçüldü
+        (pdfium'un verdiği SAYFA SAYISI; dosya adıyla ilgisi yok):
+        listenin önerdiği 84 PDF'in 51'i çok sayfalı ve projede hiç
+        çağrılmayan derlenmiş belgeydi. `main_pdflatex.pdf` (8 sayfa),
+        `Etuthesis_pdflatex.pdf` (32), `InterPore-Sample.fallback.pdf`
+        (10). Önek kuralı aynı korpusta 51'in 43'ünü tutuyor ve çağrılan
+        23 şeklin hiçbirini elemiyor.
+        """
+        ana = tmp_path / "tez.tex"
+        ana.write_text(self.TAM, encoding="utf-8")
+        (tmp_path / "main.tex").write_text(self.TAM, encoding="utf-8")
+        for ad in ("main_pdflatex.pdf", "main-son.pdf", "main.fallback.pdf"):
+            (tmp_path / ad).write_bytes(b"%PDF-1.4\n")
+        # AYRAÇ şart: `mainfigure.pdf` gerçek bir şekil olabilir.
+        (tmp_path / "mainfigure.pdf").write_bytes(b"%PDF-1.4\n")
+        # Standalone akışı önek biçiminde de korunuyor: `cizim.tex`
+        # belge değil, `cizim_v2.pdf` gerçek bir şekil.
+        (tmp_path / "cizim.tex").write_text(self.STANDALONE, encoding="utf-8")
+        (tmp_path / "cizim_v2.pdf").write_bytes(b"%PDF-1.4\n")
+        assert latex_refs.collect_image_paths(str(ana)) == [
+            "cizim_v2.pdf", "mainfigure.pdf"]
+
     def test_PARCA_kardes_ve_KARDESSIZ_pdf_ONERILIYOR(self, tmp_path):
         """Şüphede eleme yok: parça dosyanın yanındaki PDF onun çıktısı
         olmak zorunda değil, kardeşsiz PDF ise sıradan bir şekil."""

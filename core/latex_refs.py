@@ -511,6 +511,28 @@ _RE_BELGE_SINIFI = re.compile(
     r"\\documentclass\s*(?:\[[^\]]*\])?\s*\{([^{}]*)\}")
 
 
+def _tam_belge_mi(tex_yolu: str) -> bool:
+    r"""Bu `.tex` TAM BİR BELGE mi (ve `standalone` değil mi).
+
+    `\begin{document}` ARANMIYOR: `\documentclass` zaten "bu bir belge"
+    demek ve parça dosyalarda o da yok. Ek koşul denendi ve ÖLÇÜLDÜ
+    (mutasyonla): hiçbir kapıyı değiştirmiyor, üstelik önsözü 8 KB'ı aşan
+    bir belgede süzgeci boşa düşürüyordu.
+    """
+    try:
+        with open(tex_yolu, "r", encoding="utf-8", errors="replace") as f:
+            bas = f.read(8192)
+    except OSError:
+        return False
+    m = _RE_BELGE_SINIFI.search(bas)
+    return bool(m) and m.group(1).strip() != "standalone"
+
+
+# Derleme çıktısı adı belgenin adına bu ayraçlarla ekleniyor:
+# `main.tex` -> `main_pdflatex.pdf`, `InterPore-Sample.fallback.pdf`.
+_CIKTI_AYRACLARI = ("_", "-", ".")
+
+
 def _baska_belgenin_ciktisi_mi(pdf_yolu: str) -> bool:
     r"""Bu `.pdf` projedeki BAŞKA bir belgenin derleme çıktısı mı.
 
@@ -526,21 +548,49 @@ def _baska_belgenin_ciktisi_mi(pdf_yolu: str) -> bool:
     yanındaki .tex TAM BİR BELGE olacak ve `standalone` OLMAYACAK.
     Korpusta 102 vakanın 102'si tam belge, 0'ı standalone.
 
+    AYNI AD YETMİYOR. Çıktının adı belgeninkinden farklı olabiliyor ve
+    süzgeç o hâlde hiç tutmuyordu. Bağımsız kehanetle ölçüldü (pdfium'un
+    verdiği SAYFA SAYISI; dosya adıyla hiç ilgisi yok): listenin önerdiği
+    84 PDF'in 51'i çok sayfalı ve projede hiç çağrılmayan, yani derlenmiş
+    BELGELERDİ. `main_pdflatex.pdf` (8 sayfa), `Etuthesis_pdflatex.pdf`
+    (32), `InterPore-Sample.fallback.pdf` (10). Seçilseler belgenin ilk
+    sayfası bir şekil olarak gömülürdü, yani süzgecin var olma sebebi.
+
+    O yüzden ikinci kural: adı bu PDF'in ADININ ÖNEKİ olan bir TAM BELGE
+    aynı klasörde duruyorsa ve aradaki ayraç `_ - .` ise, bu da çıktı.
+    Aynı korpusta 51 belgenin 43'ünü tutuyor, gerçek bir şekli elemiyor.
+
+    Kalan 8'i `usrguid3.pdf`, `latex_primer.pdf` (155 sayfa) gibi şablonla
+    BİRLİKTE GELEN kılavuzlar: yanlarında hiçbir `.tex` yok, yani ada
+    bakan hiçbir kural onları göremez. Onları elemek sayfa saymayı
+    gerektirirdi; pdfium bu katmandan çağrılamıyor (kilit `gui`de, bkz.
+    `gui/pdfium_lock.py`) ve ham baytta sayfa sayısı 84 PDF'in 46'sında
+    hiç okunamıyor (nesne akışları), birinde de yanlış çıkıyor.
+
     Okunamayan ya da kararsız kalınan dosyada False dönüyor: şüphede
-    öneriyi ELEMEK, var olan bir şekli gizlemek olurdu.
+    öneriyi ELEMEK, var olan bir şekli gizlemek olurdu. Önek kuralı
+    "şüphe" değil: aynı klasörde o adla başlayan gerçek bir BELGE var.
+    Yine de bir bedeli var, `main.tex` yanındaki `main_plot.pdf` gerçek
+    bir şekilse listeden düşer (korpusta örneği yok).
     """
-    tex = os.path.splitext(pdf_yolu)[0] + ".tex"
+    dizin = os.path.dirname(pdf_yolu)
+    govde = os.path.splitext(os.path.basename(pdf_yolu))[0]
+    if _tam_belge_mi(os.path.join(dizin, govde + ".tex")):
+        return True
     try:
-        with open(tex, "r", encoding="utf-8", errors="replace") as f:
-            bas = f.read(8192)
+        adlar = os.listdir(dizin or ".")
     except OSError:
         return False
-    # `\begin{document}` ARANMIYOR: `\documentclass` zaten "bu bir belge"
-    # demek ve parça dosyalarda o da yok. Ek koşul denendi ve ÖLÇÜLDÜ
-    # (mutasyonla): hiçbir kapıyı değiştirmiyor, üstelik önsözü 8 KB'ı aşan
-    # bir belgede süzgeci boşa düşürüyordu.
-    m = _RE_BELGE_SINIFI.search(bas)
-    return bool(m) and m.group(1).strip() != "standalone"
+    for ad in adlar:
+        if not ad.lower().endswith(".tex"):
+            continue
+        kok_ad = os.path.splitext(ad)[0]
+        # `_tam_belge_mi` EN SONDA: ad tutmuyorsa hiçbir dosya okunmuyor.
+        if (len(kok_ad) < len(govde) and govde.startswith(kok_ad)
+                and govde[len(kok_ad)] in _CIKTI_AYRACLARI
+                and _tam_belge_mi(os.path.join(dizin, ad))):
+            return True
+    return False
 
 
 def collect_image_paths(base_path: str) -> list[str]:
