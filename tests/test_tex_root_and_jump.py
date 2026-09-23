@@ -131,6 +131,30 @@ def test_standalone_file_compiles_itself(qapp, tmp_path):
     assert stub._compiler.calls == [(str(root), "pdflatex")]
 
 
+def test_KOK_YORUMU_OLMAYAN_bolum_KOKUNU_derliyor(qapp, tmp_path):
+    """`% !TEX root` olmayan bölümde F5 "Bu dosya derlenemez" diyordu.
+    Derlemdeki bölüm dosyalarının hiçbirinde bu yorum yok. ÖLÇÜLDÜ
+    (2026-09-23): Otomatik Derle açık olduğu için Ctrl+S de her kayıtta
+    aynı mesajı veriyor ve kökten derlemenin hata listesini siliyordu;
+    kullanıcı hatayı düzeltmek için bölüme geçip kaydedince liste boşalıyor,
+    düzelttiği dosya derlenmiyordu. Ctrl+S aynı `_compile` yolundan geçiyor.
+    Köke bağlı OLMAYAN parçanın reddedildiği kol
+    `test_child_without_root_rejected`."""
+    root = tmp_path / "tez.tex"
+    root.write_text("\\documentclass{article}\n\\usepackage{fontspec}\n"
+                    "\\begin{document}\n\\input{Chapters/Chapter1}\n"
+                    "\\end{document}\n", encoding="utf-8")
+    (tmp_path / "Chapters").mkdir()
+    child = tmp_path / "Chapters" / "Chapter1.tex"
+    child.write_text("bölüm metni\n", encoding="utf-8")
+    ed = _editor_for(child)
+    stub = _Stub([ed], str(tmp_path))
+
+    stub._compile()
+
+    assert stub._compiler.calls == [(str(root), "lualatex")]
+
+
 def test_child_without_root_rejected(qapp, tmp_path):
     child = tmp_path / "parca.tex"
     child.write_text("yalnızca parça, kök işareti yok\n", encoding="utf-8")

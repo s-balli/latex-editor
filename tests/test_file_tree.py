@@ -157,6 +157,31 @@ def _menu_actionlari(tree, oge, monkeypatch):
     return toplanan
 
 
+def test_KOKUN_ZINCIRINDEKI_bolum_agacta_DERLENEBILIR(qapp, tmp_path,
+                                                      monkeypatch):
+    """Ağaç bölüm dosyasını "derlenemez" sayıyordu: `% !TEX root` yoksa ne
+    yeşil oluyordu ne de sağ tık menüsünde "Derle" vardı (ölçüldü,
+    2026-09-23). Ağaç F5 ile AYNI kuralı kullanmalı
+    (engine_detector.derleme_hedefi). Köke bağlı OLMAYAN parçanın yeşil
+    olmadığı kol test_ui_freezes.test_tree_compile_check_is_deferred_and_correct."""
+    from PyQt6.QtGui import QColor
+
+    (tmp_path / "main.tex").write_text(
+        "\\documentclass{article}\n\\begin{document}\n"
+        "\\input{Chapters/Chapter1}\n\\end{document}\n", encoding="utf-8")
+    (tmp_path / "Chapters").mkdir()
+    (tmp_path / "Chapters" / "Chapter1.tex").write_text("metin\n",
+                                                        encoding="utf-8")
+    tree = _agac(qapp, tmp_path)
+    while tree._pending_checks:
+        tree._process_pending_checks()
+    oge = _oge_bul(tree, "Chapter1.tex")
+
+    assert oge.foreground(0).color().name() == \
+        QColor(THEMES["dark"]["sem_compilable"]).name()
+    assert any("Derle" in m for m in _menu_actionlari(tree, oge, monkeypatch))
+
+
 class TestBaglamMenusu:
     def test_klasore_sag_tik_menu_aciyor(self, qapp, tmp_path, monkeypatch):
         """Eskiden klasörde menü HİÇ açılmıyordu (dosya değil diye dönülüyordu)."""

@@ -7,7 +7,7 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QMessageBox
 
 from gui.editor import EditorWidget
-from core.engine_detector import can_compile as _can_compile, detect_engine as _detect_engine, detect_root as _detect_root
+from core.engine_detector import derleme_hedefi as _derleme_hedefi, detect_engine as _detect_engine
 from core.log_parser import resolve_error_path
 from core.log import get_logger
 from core.latex_utils import (
@@ -82,18 +82,15 @@ class CompileOpsMixin:
     def _resolve_compile_target(self, path: str) -> tuple[str, str]:
         """Derlenecek hedefi çözümle: (hedef_yolu, hata_mesajı).
 
-        Dosya doğrudan derlenemiyorsa (% \\begin{document} yok) '% !TEX root'
-        magic comment'ından kök belge aranır (TeXstudio uzlaşımı). Bulunursa
-        hedef köktür; o da yoksa hata mesajı dolu döner.
+        Dosya doğrudan derlenemiyorsa (\\begin{document} yok) kök belgesi
+        derlenir: '% !TEX root' yorumu (TeXstudio uzlaşımı), yoksa `\\input`
+        zinciri onu içeren belge. Kural core.engine_detector.derleme_hedefi;
+        dosya ağacının "Derle" kararı da oradan geçiyor.
         """
-        ok, msg = _can_compile(path)
-        if ok:
-            return path, ""
-        root = _detect_root(path)
-        if root:
-            _logger.info("Alt dosya → kök belge: %s → %s", os.path.basename(path), os.path.basename(root))
-            return root, ""
-        return "", msg
+        hedef, msg = _derleme_hedefi(path)
+        if hedef and hedef != path:
+            _logger.info("Alt dosya → kök belge: %s → %s", os.path.basename(path), os.path.basename(hedef))
+        return hedef, msg
 
     def _derleme_motoru(self, hedef: str, kaynak: str) -> str:
         """``hedef`` hangi motorla derlenecek. ``kaynak`` derlemenin

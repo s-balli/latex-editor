@@ -15,8 +15,7 @@ from PyQt6.QtCore import QFileSystemWatcher, QMimeData
 
 from core.input_parser import parse_inputs, group_by_directory
 from core.engine_detector import (
-    can_compile as _can_compile,
-    detect_root as _detect_root,
+    derleme_hedefi as _derleme_hedefi,
     can_compile_from_content as _can_compile_content,
     detect_root_from_head as _detect_root_head,
 )
@@ -290,7 +289,7 @@ class FileTree(QWidget):
         kuruyor, hemen ardından komut satırından/"Birlikte Aç"tan bir dosya
         geldiyse `main_window` onun dizinini kök yapıyor. İkisi genellikle
         AYNI dizin — o hâlde ikinci çağrı ağacı boşaltıp baştan tarıyor ve
-        her .tex için `_can_compile` denetim kuyruğunu ikinci kez dolduruyordu.
+        her .tex için derlenebilirlik denetim kuyruğunu ikinci kez dolduruyordu.
         Kökü gerçekten değiştiren çağrılar etkilenmez; yenileme isteyenler
         zaten `refresh()` çağırıyor (dosya izleyici, elle yenileme).
 
@@ -448,14 +447,15 @@ class FileTree(QWidget):
     def _process_pending_checks(self):
         """Bir grup .tex dosyasının derlenebilirliğini denetle (UI thread).
 
-        '% !TEX root' magic comment'ı olan alt dosyalar da derlenebilir sayılır
-        (derleme köke yönlendirilir); renkleri yeşil olur.
+        '% !TEX root' yorumu olan ya da bir kökün `\\input` zincirinde duran
+        alt dosyalar da derlenebilir sayılır (derleme köke yönlendirilir);
+        renkleri yeşil olur. Kural F5 ile AYNI: engine_detector.derleme_hedefi.
         """
         batch = self._pending_checks[:5]
         del self._pending_checks[:5]
         for item, path in batch:
             try:
-                ok = _can_compile(path)[0] or _detect_root(path) != ""
+                ok = _derleme_hedefi(path)[0] != ""
             except Exception as e:
                 # Denetim düşerse dosya "derlenemez" renginde kalır; sebebi
                 # görünmezdi. exc_info YOK: bu kod her dosya için koşuyor,
@@ -657,10 +657,11 @@ class FileTree(QWidget):
         ext = "" if klasor_mu else os.path.splitext(path)[1].lower()
         editable = ext in _EDITABLE
 
-        # Derle — derlenebilir .tex için (alt dosyaysa % !TEX root kökü derlenir)
+        # Derle: derlenebilir .tex için; alt dosyaysa kök belgesi derlenir
+        # (F5 ile aynı kural, engine_detector.derleme_hedefi)
         act_compile = None
         if ext == ".tex" and editable:
-            if _can_compile(path)[0] or _detect_root(path) != "":
+            if _derleme_hedefi(path)[0]:
                 act_compile = menu.addAction(_("▶ Derle"))
 
         act_open = None

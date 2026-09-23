@@ -161,6 +161,29 @@ def kok_belge(tex_path: str) -> str:
     return tex_path
 
 
+def derleme_hedefi(tex_path: str) -> tuple[str, str]:
+    r"""(derlenecek belge, hata mesajı): ``tex_path`` derlenmek istenince.
+
+    Kendisi derlenebiliyorsa kendisi, değilse kök belgesi (`% !TEX root`
+    ya da `\input` zinciri, bkz. kok_belge); ikisi de yoksa ("", sebep).
+    TEK KURAL: F5, Ctrl+S ile otomatik derleme ve dosya ağacının "Derle"
+    kararı buradan geçiyor.
+
+    Eskiden yalnız `% !TEX root` aranıyordu. ÖLÇÜLDÜ (2026-09-23, tez
+    düzeni; derlemdeki bölüm dosyalarının hiçbirinde bu yorum yok): bölümde
+    F5 ve Ctrl+S "Bu dosya derlenemez" dedi. Ctrl+S kökten derlemenin hata
+    listesini de siliyordu; kullanıcı hatayı düzeltmek için bölüme geçip
+    kaydedince liste boşalıyor, düzelttiği dosya derlenmiyordu.
+    """
+    ok, msg = can_compile(tex_path)
+    if ok:
+        return tex_path, ""
+    kok = kok_belge(tex_path)
+    if kok != tex_path:
+        return kok, ""
+    return "", msg
+
+
 def _zincirde_mi(kok: str, tex_path: str) -> bool:
     """``kok`` derlenebilir bir belge ve zinciri ``tex_path``i içeriyor mu."""
     try:
