@@ -525,6 +525,14 @@ def bibe_ekle(yol: str, girdi_metni: str) -> None:
             var_olan, kodlama = _coz_adiyla(f.read())
     eklenecek = ekleme_metni(var_olan, girdi_metni)
 
+    # UTF-16'da SONA EKLEME olmaz: `encode("utf-16")` her çağrıda başa bir
+    # BOM koyuyor, yani ekleme dosyanın ORTASINA ikinci bir BOM yerleştirirdi.
+    # Dosyanın tamamı yeniden yazılıyor, kodlaması korunarak (bkz.
+    # `fs_ops.coz_adiyla`: PowerShell'in `>` yönlendirmesi bu kodlamayı yazıyor).
+    if kodlama == "utf-16":
+        yaz_atomik(yol, (var_olan + eklenecek).encode("utf-16"))
+        return
+
     try:
         veri = eklenecek.encode(kodlama)
     except UnicodeEncodeError:

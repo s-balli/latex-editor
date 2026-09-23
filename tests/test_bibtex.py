@@ -560,6 +560,24 @@ class TestBibeEkle:
         assert self._basliklar(p) == {"eski": "Şekil", "yeni": "Ölçüm"}
         assert self._tek_kodlama(p) is not None, "dosya karma kodlamalı kaldı"
 
+    def test_UTF16_dosyaya_eklemede_ORTADA_BOM_olusmuyor(self, tmp_path):
+        """PowerShell'in `>` yönlendirmesi UTF-16 yazıyor (bkz. fs_ops).
+
+        Sona ekleme `encode("utf-16")` ile yapılsaydı her çağrı başa bir
+        BOM koyduğu için dosyanın ORTASINA ikinci bir BOM girerdi. Önceden
+        dosya cp1254 sanılıp cp1254 ekleniyordu, yani iki kodlamanın karışımı
+        çıkıyordu. Dosya tek BOM'la, UTF-16 kalmalı; iki girdi de okunmalı.
+        """
+        p = tmp_path / "refs.bib"
+        p.write_bytes(b"\xff\xfe"
+                      + "@article{eski, title={Şekil}}\r\n".encode("utf-16-le"))
+
+        bibe_ekle(str(p), "@article{yeni,\n  title = {Ölçüm},\n}")
+
+        ham = p.read_bytes()
+        assert ham.startswith(b"\xff\xfe") and ham.count(b"\xff\xfe") == 1
+        assert self._basliklar(p) == {"eski": "Şekil", "yeni": "Ölçüm"}
+
     def test_eski_kodlamaya_SIGMAYAN_girdide_dosya_utf8_e_ceviriliyor(self, tmp_path):
         """DOI ile gelen kayıtta cp1254'te karşılığı olmayan harf olabiliyor.
 

@@ -126,6 +126,39 @@ def test_open_binary_rejected(qapp, tmp_path, monkeypatch):
     assert ed.open_file(str(p)) is False
 
 
+def test_UTF16_dosya_ikili_sayilmiyor_UTF8e_cevrilerek_aciliyor(
+        qapp, tmp_path, monkeypatch):
+    """Windows PowerShell 5.1'in `>` yönlendirmesi UTF-16 LE yazıyor.
+
+    ÖLÇÜLDÜ (2026-09-23, temiz `powershell.exe -NoProfile`: `FF FE 5C 00`):
+    `latexdiff a.tex b.tex > fark.tex` böyle bir dosya üretiyor. Editör onu
+    NUL baytları yüzünden "ikili dosya" diye reddediyordu; LaTeX de okuyamıyor
+    (gerçek derle.sh: "Invalid UTF-8 byte FF"), aynı içerik UTF-8'de
+    derleniyor. Dosya UTF-8'e çevrilerek açılmalı, disk kaydedilene kadar
+    değişmemeli, satır sonu (PowerShell CRLF yazıyor) korunmalı.
+    """
+    monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: None)
+    monkeypatch.setattr(QMessageBox, "critical", lambda *a, **k: None)
+    metin = "\\documentclass{article}\r\nŞekil ğüş ∑\r\n"
+    p = tmp_path / "fark.tex"
+    _write_raw(p, b"\xff\xfe" + metin.encode("utf-16-le"))
+
+    ed = _editor()
+    assert ed.open_file(str(p)) is True
+    assert ed.text().replace("\r\n", "\n") == metin.replace("\r\n", "\n")
+    assert ed._encoding == "utf-8" and ed._newline == "crlf"
+    assert ed.isModified() is True          # dönüşüm bekleyen bir değişiklik
+    assert p.read_bytes()[:2] == b"\xff\xfe", "kaydetmeden disk değişti"
+    assert ed.save_file()
+    assert p.read_bytes() == metin.encode("utf-8")
+
+    # KARŞI KOL: BOM var ama UTF-16 olarak ÇÖZÜLEMEYEN bozuk dosya hâlâ
+    # ikili sayılmalı, cp1254 çöpü olarak açılmamalı.
+    bozuk = tmp_path / "bozuk.tex"
+    _write_raw(bozuk, b"\xff\xfe\x00\xd8a\x00")   # eşsiz vekil
+    assert _editor().open_file(str(bozuk)) is False
+
+
 # --- round-trip: aç -> kaydet -> baytlar korunur ---
 
 

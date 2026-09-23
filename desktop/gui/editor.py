@@ -1,6 +1,7 @@
 """QScintilla tabanlı LaTeX kod editörü."""
 
 import bisect
+import codecs
 import os
 import re
 import stat
@@ -848,10 +849,18 @@ class EditorWidget(QsciScintilla):
         try:
             with open(path, "rb") as f:
                 raw = f.read()
-            # İkili dosya koruması: null bayt -> binary, metin olarak açma
-            if b"\x00" in raw[:8192]:
+            # İkili dosya koruması: null bayt -> binary, metin olarak açma.
+            # BOM'lu UTF-16 HARİÇ: onun NUL baytları kodlamanın kendisi
+            # (bkz. `fs_ops.coz_adiyla`). Windows PowerShell'in `>` ile
+            # yazdığı her .tex böyle ve "ikili dosya" diye reddediliyordu.
+            utf16 = raw.startswith((codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE))
+            if not utf16 and b"\x00" in raw[:8192]:
                 raise ValueError(_("İkili (binary) dosya; metin editöründe açılamaz."))
             text, encoding = _decode_bytes(raw)
+            # BOM var ama UTF-16 olarak ÇÖZÜLEMEDİ (bozuk dosya): eskisi gibi
+            # ikili sayılıyor, cp1254 çöpü olarak açılmasın.
+            if utf16 and encoding != "utf-16":
+                raise ValueError(_("İkili (binary) dosya; metin editöründe açılamaz."))
             # Satır sonu stilini hatırla: kayıtta aynen korunur (Windows text-
             # mode yazımı \n'i \r\n'e çevirip \r\r\n üretmesin diye — bu dosyayı
             # derlemez hale getiriyordu)
@@ -859,8 +868,19 @@ class EditorWidget(QsciScintilla):
             # pencere, ilk satırı uzun olan (pgfplots koordinat listesi gibi)
             # tamamen CRLF bir dosyayı 'lf' sanıyordu; kayıt da dosyanın TÜM
             # satır sonlarını sessizce LF'ye çeviriyordu.
-            i = raw.find(b"\n")
-            self._newline = "crlf" if i > 0 and raw[i - 1] == 0x0D else "lf"
+            # ÇÖZÜLMÜŞ metne bakılıyor: UTF-16'da `\r\n` baytta `0D 00 0A 00`
+            # ve `\n`in önündeki bayt `\r` değil NUL. Tek baytlı kodlamalarda
+            # ve UTF-8'de iki bakış birebir aynı.
+            i = text.find("\n")
+            self._newline = "crlf" if i > 0 and text[i - 1] == "\r" else "lf"
+            # LaTeX UTF-16 OKUYAMIYOR (ölçüldü, gerçek derle.sh: "Invalid
+            # UTF-8 byte FF", PDF yok; aynı içerik UTF-8'de derleniyor). Yani
+            # o kodlamada saklamak dosyayı derlenemez bırakmak: UTF-8'e
+            # çevrilerek açılıyor. Diskteki dosyaya kullanıcı kaydedene kadar
+            # DOKUNULMUYOR; sekme kirli, kapatırken soruluyor.
+            donusturuldu = encoding == "utf-16"
+            if donusturuldu:
+                encoding = "utf-8"
             # Belge bütünüyle değişiyor: lexer'ın satır-durum önbelleği eski
             # belgeye ait; erken çıkış yanlış eşleşme yapmasın diye sıfırla.
             lexer = self.lexer()
@@ -869,8 +889,17 @@ class EditorWidget(QsciScintilla):
             self.setText(text)
             self._file_path = os.path.normpath(path)
             self._encoding = encoding
-            self.setModified(False)
-            if encoding != "utf-8":
+            self.setModified(donusturuldu)
+            if donusturuldu:
+                _logger.warning("Dosya UTF-16, UTF-8'e çevrilerek açıldı: %s", path)
+                QMessageBox.warning(
+                    self, _("Kodlama Uyarısı"),
+                    _("Bu dosya UTF-16 kodlamalı ve LaTeX UTF-16 okuyamaz. "
+                      "UTF-8'e çevrilerek açıldı; kaydettiğinizde dosya UTF-8 "
+                      "olacak. Kaydetmeden kapatırsanız diskteki dosya "
+                      "değişmez."),
+                )
+            elif encoding != "utf-8":
                 _logger.warning("Dosya UTF-8 değil, %s olarak açıldı: %s", encoding, path)
                 QMessageBox.warning(
                     self, _("Kodlama Uyarısı"),

@@ -12,6 +12,7 @@ KESİŞİMİ: her yerde en dar küme uygulanıyor. Aksi hâlde hata, dosyayı
 yaratan makinede değil karşı taraftaki makinede patlıyor.
 """
 
+import codecs
 import os
 import re
 import tempfile
@@ -109,7 +110,20 @@ def coz_adiyla(ham: bytes) -> tuple[str, str]:
     Ad DÖNMEK zorunda: dosyayı aynı kodlamayla geri yazan yollar (editörün
     kaydetmesi, .bib'e girdi ekleme) baytları birebir korumak için onu
     kullanıyor.
+
+    BOM'lu UTF-16 zincirden ÖNCE tanınıyor. Windows PowerShell 5.1'in `>`
+    yönlendirmesi öntanımlı olarak onu yazıyor (ölçüldü, temiz bir
+    `powershell.exe -NoProfile` ile: `FF FE 5C 00 ...`); yani
+    `latexdiff eski.tex yeni.tex > fark.tex` UTF-16 bir .tex üretiyor. Katı
+    UTF-8 onu reddediyor, cp1254 ise BOM'u iki harf (ÿþ), her harfin
+    ardındaki NUL baytı da ayrı bir karakter sayıyordu: editör dosyayı
+    "ikili" sanıp açmıyor, projede arama içinde hiçbir şey bulamıyordu.
     """
+    if ham.startswith((codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE)):
+        try:
+            return ham.decode("utf-16"), "utf-16"
+        except UnicodeDecodeError:
+            pass
     for enc in KODLAMA_ZINCIRI:
         try:
             return ham.decode(enc), enc
