@@ -614,3 +614,30 @@ class TestOnsozZinciri:
                        "\\input{paketler}\n"
                        "\\begin{document}x\\end{document}\n", encoding="utf-8")
         assert detect_engine(str(tex)) == "lualatex"
+
+
+# --- kok_belge: alt dosyanın KÖK belgesi (2026-09-23) ---
+
+
+def test_KOK_BELGE_yalniz_zincirdeki_dosya_icin_koke_cikiyor(tmp_path):
+    """Aşırı düzeltme kapısı. Kök arama, kökün `\\input` zincirinde duran
+    dosya için; aynı klasördeki kendi başına derlenen belge ya da hiçbir
+    köke bağlı olmayan taslak kendi dizinine göre yazmaya devam etmeli,
+    yoksa çalışan yollar bozulurdu. Asıl kapı görsel ekleme testlerinde."""
+    from core.engine_detector import kok_belge
+
+    (tmp_path / "main.tex").write_text(
+        "\\begin{document}\n\\input{Chapters/c1}\n\\end{document}\n",
+        encoding="utf-8")
+    (tmp_path / "Chapters").mkdir()
+    bolum = tmp_path / "Chapters" / "c1.tex"
+    bolum.write_text("metin\n", encoding="utf-8")
+    poster = tmp_path / "Chapters" / "poster.tex"
+    poster.write_text("\\begin{document}\nx\n\\end{document}\n",
+                      encoding="utf-8")
+    taslak = tmp_path / "Chapters" / "taslak.tex"
+    taslak.write_text("taslak\n", encoding="utf-8")
+
+    assert kok_belge(str(bolum)) == str(tmp_path / "main.tex")
+    assert kok_belge(str(poster)) == str(poster)
+    assert kok_belge(str(taslak)) == str(taslak)

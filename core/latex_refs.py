@@ -468,18 +468,22 @@ def find_bib_path(content: str, base_path: str) -> str:
 
 # --- \input / \include tamamlama: projedeki .tex dosyaları ---
 
-def collect_input_paths(base_path: str) -> list[str]:
+def collect_input_paths(base_path: str, duzenlenen: str = "") -> list[str]:
     r"""\input{ / \include{ tamamlaması için projedeki .tex dosyaları.
 
     Ana dosyanın dizinini ve alt dizinlerini tarar; kök dizine göre .tex
     uzantısı soyulmuş göreli yollar döndürür (\include uzantı kabul etmez,
     \input uzantısızı da bulur; ikisi için de uzantısız öneri derlenir).
     Gizli dizinlere inilmez; ana dosyanın kendisi listede olmaz (kendini
-    \input etmek döngü olur). Yol ayracı her platformda LaTeX'in beklediği
-    '/'tir.
+    \input etmek döngü olur). ``duzenlenen`` verilirse o da olmaz: alt dosya
+    düzenlenirken taban KÖK belge oluyor ve alt dosya başka bir dosya. Yol
+    ayracı her platformda LaTeX'in beklediği '/'tir.
     """
     bdir = _base_dir(base_path)
-    base_name = os.path.basename(os.path.abspath(base_path))
+    haric = {os.path.normcase(os.path.basename(os.path.abspath(base_path)))}
+    if duzenlenen:
+        haric.add(os.path.normcase(
+            os.path.relpath(os.path.abspath(duzenlenen), bdir)))
     rels: list[str] = []
     for root, dirs, files in os.walk(bdir):
         dirs[:] = [d for d in dirs if not d.startswith('.')]
@@ -494,7 +498,7 @@ def collect_input_paths(base_path: str) -> list[str]:
             if not fn.lower().endswith('.tex'):
                 continue
             rel = os.path.relpath(os.path.join(root, fn), bdir)
-            if rel == base_name:
+            if os.path.normcase(rel) in haric:
                 continue
             rels.append(rel[:-4].replace(os.sep, '/'))
     return sorted(rels)

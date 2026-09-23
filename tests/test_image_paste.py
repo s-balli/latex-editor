@@ -43,7 +43,11 @@ class _StubMain(ImageOpsMixin):
     def _current_editor(self):
         return self._editor
 
-    def _insert_image(self, path):
+    def _insert_image(self, path, kaydet=None):
+        # Diyalog ONAYLANDI sayılıyor: gerçek `_insert_image` resmi ancak
+        # onaydan sonra `kaydet` ile yazıyor.
+        if kaydet is not None:
+            assert kaydet(), "resim kaydedilemedi"
         self.inserted.append(path)
 
     def _set_msg(self, m):
@@ -541,3 +545,160 @@ def test_BOS_birakilan_etiket_de_sadelestirilmis_dusuyor(bosaltip_ekle):
 def test_BOS_birakilan_genislik_varsayilana_donuyor(bosaltip_ekle):
     kod = bosaltip_ekle("duz.png")
     assert "width=0.8\\textwidth" in kod, kod
+
+
+# ==========================================================================
+# Kök belge, pano önceliği, bırakma yeri, .tex dışı sekme, Vazgeç
+# (2026-09-23, gerçek pencerede ölçüldü)
+# ==========================================================================
+
+_DUZ = "\\documentclass{article}\n\\begin{document}\nx\n\\end{document}\n"
+
+
+def _yaz(yol, metin):
+    yol.parent.mkdir(parents=True, exist_ok=True)
+    yol.write_text(metin, encoding="utf-8")
+    return str(yol)
+
+
+def _pano(metin=None, goruntu=True):
+    from PyQt6.QtCore import QMimeData
+
+    m = QMimeData()
+    if metin is not None:
+        m.setText(metin)
+    if goruntu:
+        m.setImageData(_red_image())
+    QApplication.clipboard().setMimeData(m)
+
+
+def _diyalog(monkeypatch, cevap):
+    """Görsel Ekle diyaloğunu ``cevap``la (1 Tamam, 0 Vazgeç) kapat."""
+    from PyQt6.QtWidgets import QDialog
+
+    acilan = []
+    monkeypatch.setattr(QDialog, "exec",
+                        lambda self: acilan.append(1) or cevap)
+    return acilan
+
+
+def _ctrl_v(ed):
+    from PyQt6.QtTest import QTest
+
+    QTest.keyClick(ed, Qt.Key.Key_V, Qt.KeyboardModifier.ControlModifier)
+
+
+def test_BOLUM_dosyasinda_yol_KOK_belgeye_gore(ana_pencere, tmp_path,
+                                               monkeypatch):
+    """Yol bölüm dosyasının dizinine göre yazılıyordu. ÖLÇÜLDÜ: tez düzeninde
+    (main.tex kökte, `\\input{Chapters/Chapter1}`, `% !TEX root` yok)
+    bölüme yapıştırılan görsel `media/image_1.png` yazıldı ve gerçek
+    derlemede bulunamadı. Tamamlama da aynı kuralla öneriyordu; önerdiği
+    `\\input{Chapter2}` derlemeyi "File `Chapter2.tex' not found" ile
+    düşürdü. Kehanet LaTeX'in kuralı: yol KÖK belgenin dizinine göre var."""
+    _diyalog(monkeypatch, 1)
+    kok = tmp_path / "tez"
+    _yaz(kok / "main.tex", "\\documentclass{article}\n\\begin{document}\n"
+         "\\input{Chapters/Chapter1}\n\\end{document}\n")
+    bolum = _yaz(kok / "Chapters" / "Chapter1.tex", "metin\n")
+    _yaz(kok / "Chapters" / "Chapter2.tex", "ikinci\n")
+    p = ana_pencere()
+    p._open_file_in_editor(bolum)
+    ed = p._current_editor()
+    _pano()
+    _ctrl_v(ed)
+
+    yol = re.search(r"\\includegraphics\[[^\]]*\]\{([^}]+)\}",
+                    ed.text()).group(1)
+    assert (kok / yol).is_file(), yol
+    onerilen = {}
+    ed._popup_goster = lambda liste, _t: onerilen.setdefault("x", liste)
+    ed._show_graphics_completion("")
+    assert onerilen.pop("x") == [yol]
+    ed._show_input_completion("")
+    assert onerilen.pop("x") == ["Chapters/Chapter2"]
+
+
+def test_ctrl_v_METIN_de_varsa_metni_yapistiriyor(qapp):
+    """Pano metin + görüntü taşırken Ctrl+V metni hiç yapıştırmıyor,
+    "Görsel Ekle"yi açıyordu; sağ tık "Yapıştır" aynı panoda metni
+    yapıştırıyordu. Ofis programları hücre ya da metin kutusu kopyalarken
+    panoya görüntüsünü de koyabiliyor. Yalnız görüntü taşıyan pano kolu
+    `test_ctrl_v_with_image_emits`te."""
+    ed = EditorWidget()
+    received = []
+    ed.image_paste_requested.connect(lambda: received.append(1))
+    _pano("a\tb\n1\t2\n")
+    ed.keyPressEvent(QKeyEvent(QEvent.Type.KeyPress, Qt.Key.Key_V,
+                               Qt.KeyboardModifier.ControlModifier))
+    assert received == []
+    assert "a\tb" in ed.text()
+
+
+def test_BIRAKILAN_gorsel_BIRAKILAN_satira_giriyor(ana_pencere, tmp_path,
+                                                  monkeypatch):
+    """Bırakmayı ana pencerenin olay süzgeci yakalıyor ve ekleme İMLECİN
+    olduğu yere yapılıyordu. ÖLÇÜLDÜ: imleç 2. satırdayken 12. satıra
+    bırakılan görselin bloğu 2. satıra girdi."""
+    from PyQt6.QtCore import QMimeData, QPoint, QPointF, QUrl
+    from PyQt6.QtGui import QDragEnterEvent, QDragMoveEvent, QDropEvent
+
+    _diyalog(monkeypatch, 1)
+    yol = _yaz(tmp_path / "belge.tex",
+               "\\documentclass{article}\n\\begin{document}\n"
+               + "".join("satir %d\n" % i for i in range(30))
+               + "\\end{document}\n")
+    png = str(tmp_path / "sekil.png")
+    _red_image().save(png, "PNG")
+    p = ana_pencere()
+    p.resize(1000, 800)
+    p.show()
+    p._open_file_in_editor(yol)
+    ed = p._current_editor()
+    ed.setCursorPosition(2, 0)
+    y = ed.SendScintilla(ed.SCI_POINTYFROMPOSITION, 0,
+                         ed.positionFromLineIndex(12, 0)) + 3
+    mime = QMimeData()
+    mime.setUrls([QUrl.fromLocalFile(png)])
+    kopya, sol, yok = (Qt.DropAction.CopyAction, Qt.MouseButton.LeftButton,
+                       Qt.KeyboardModifier.NoModifier)
+    for sinif in (QDragEnterEvent, QDragMoveEvent):
+        QApplication.sendEvent(ed.viewport(),
+                               sinif(QPoint(40, y), kopya, mime, sol, yok))
+    QApplication.sendEvent(ed.viewport(),
+                           QDropEvent(QPointF(40, y), kopya, mime, sol, yok))
+
+    assert ed.text().splitlines()[12].startswith("\\begin{figure}")
+
+
+def test_TEX_DISI_sekmede_gorsel_EKLENMIYOR(ana_pencere, tmp_path,
+                                           monkeypatch):
+    """Denetim yalnız yolun varlığına bakıyordu. ÖLÇÜLDÜ: .bib sekmesinde
+    Ctrl+V "Görsel Ekle"yi açtı, şekil bloğu .bib'in içine girdi ve
+    `media/` altına PNG yazıldı. Mesaj zaten ".tex dosyası açın" diyor."""
+    acilan = _diyalog(monkeypatch, 1)
+    bib = _yaz(tmp_path / "kaynak.bib", "@article{a,\n  title={T}\n}\n")
+    p = ana_pencere()
+    p._open_file_in_editor(bib)
+    ed = p._current_editor()
+    once = ed.text()
+    _pano()
+    _ctrl_v(ed)
+
+    assert (acilan, ed.text()) == ([], once)
+    assert not (tmp_path / "media").exists()
+
+
+def test_VAZGEC_diskte_dosya_BIRAKMIYOR(ana_pencere, tmp_path, monkeypatch):
+    """Resim diyalogdan ÖNCE yazılıyordu. ÖLÇÜLDÜ: üç kez yapıştırıp
+    Vazgeç'e basınca belge değişmedi ama `media/` altında üç PNG kaldı.
+    Onaylanınca yazıldığı kol `test_BOLUM_dosyasinda_yol_KOK_belgeye_gore`de
+    (dosya diskte var mı)."""
+    _diyalog(monkeypatch, 0)
+    yol = _yaz(tmp_path / "belge.tex", _DUZ)
+    p = ana_pencere()
+    p._open_file_in_editor(yol)
+    _pano()
+    _ctrl_v(p._current_editor())
+
+    assert not (tmp_path / "media").exists()

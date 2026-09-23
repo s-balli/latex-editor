@@ -116,6 +116,72 @@ def detect_root_from_head(head: str, tex_path: str) -> str:
     return ""
 
 
+# Kök belge üst dizinlerde en çok bu kadar kademe yukarıda aranıyor. Tez
+# düzeninde bölümler bir (`Chapters/`), bazen iki kademe altta duruyor.
+_KOK_ARAMA_KADEMESI = 3
+
+
+def kok_belge(tex_path: str) -> str:
+    r"""``tex_path`` hangi belgenin parçası: derlenen KÖK belgenin yolu.
+
+    Sıra: dosya kendisi derlenebiliyorsa kendisi; `% !TEX root` varsa o;
+    yoksa üst dizinlerdeki derlenebilir .tex dosyalarından `\input` /
+    `\include` zinciri bu dosyayı içeren ilki. Hiçbiri tutmazsa dosyanın
+    kendisi.
+
+    NEDEN. LaTeX dosya yollarını KÖK belgenin dizinine göre çözüyor, alt
+    dosyanınkine göre değil. ÖLÇÜLDÜ (2026-09-23, 39 şablon): alt klasörde
+    görsel kullanan 6 bölüm dosyasındaki 14 yolun 14'ü yalnız köke göre
+    var, bölüme göre hiçbiri; bu 6 dosyanın hiçbirinde `% !TEX root` yok.
+    Görsel ekleme ve yol tamamlama bölümün dizinine göre yazıyordu; gerçek
+    derlemede görsel de `\input` edilen dosya da bulunamıyordu.
+
+    Dizge değil DOSYA karşılaştırılıyor (`samefile`): macOS'un öntanımlı
+    birimi harf duyarsız ve `\input`taki yazım dosya adından farklı olabilir.
+    """
+    if can_compile(tex_path)[0]:
+        return tex_path
+    kok = detect_root(tex_path)
+    if kok:
+        return kok
+    dizin = os.path.dirname(os.path.abspath(tex_path))
+    for _ in range(_KOK_ARAMA_KADEMESI):
+        ust = os.path.dirname(dizin)
+        if ust == dizin:
+            break
+        dizin = ust
+        try:
+            adlar = sorted(os.listdir(dizin))
+        except OSError:
+            continue
+        for ad in adlar:
+            aday = os.path.join(dizin, ad)
+            if ad.lower().endswith(".tex") and _zincirde_mi(aday, tex_path):
+                return aday
+    return tex_path
+
+
+def _zincirde_mi(kok: str, tex_path: str) -> bool:
+    """``kok`` derlenebilir bir belge ve zinciri ``tex_path``i içeriyor mu."""
+    try:
+        with open(kok, "r", encoding="utf-8", errors="replace") as f:
+            icerik = f.read()
+    except OSError:
+        return False
+    if not _check_compilable_content(icerik)[0]:
+        return False
+    yigin = parse_inputs(icerik, os.path.dirname(os.path.abspath(kok)))
+    while yigin:
+        ref = yigin.pop()
+        yigin.extend(ref.get("children") or [])
+        try:
+            if os.path.samefile(ref["path"], tex_path):
+                return True
+        except OSError:
+            continue
+    return False
+
+
 # `\documentclass[...,pdftex,...]{...}`: yazar sürücüyü AÇIKÇA söylüyor ve
 # sınıf onu grafik/renk paketlerine geçiriyor. ÖLÇÜLDÜ (2026-09-14):
 # `template27` (mdpi sınıfı) lualatex'te HİÇ PDF üretmiyor, pdflatex'te

@@ -1407,7 +1407,11 @@ class MainWindow(
             elif event.type() == QEvent.Type.Drop:
                 mime = event.mimeData()
                 if mime and mime.hasUrls():
-                    self._handle_dropped_urls(mime.urls())
+                    editor = obj if isinstance(obj, EditorWidget) else parent
+                    nokta = editor.viewport().mapFrom(
+                        obj, event.position().toPoint()) \
+                        if obj is editor else event.position().toPoint()
+                    self._handle_dropped_urls(mime.urls(), (editor, nokta))
                     return True
 
         if event.type() == QEvent.Type.KeyPress:
@@ -1437,7 +1441,20 @@ class MainWindow(
     def dropEvent(self, event):
         self._handle_dropped_urls(event.mimeData().urls())
 
-    def _handle_dropped_urls(self, urls):
+    @staticmethod
+    def _imleci_birakilan_yere_koy(editor, nokta):
+        """Görsel editöre bırakıldı: imleci bırakılan yere taşı.
+
+        Bırakmayı `eventFilter` yakalıyor ve ekleme eskiden İMLECİN olduğu
+        yere yapılıyordu. ÖLÇÜLDÜ (2026-09-23): imleç 2. satırdayken 12.
+        satıra bırakılan görselin bloğu 2. satıra girdi. ``nokta`` editörün
+        görünüm alanının (viewport) koordinatında.
+        """
+        pos = editor.SendScintilla(editor.SCI_POSITIONFROMPOINT,
+                                   nokta.x(), nokta.y())
+        editor.setCursorPosition(*editor.lineIndexFromPosition(pos))
+
+    def _handle_dropped_urls(self, urls, birakilan=None):
         """Pencereye bırakılan yolları işle; işleyemiyorsan SEBEBİNİ söyle.
 
         Dışarıdan yol gelen ÜÇÜNCÜ giriş. Diğer ikisi (komut satırı ve ikinci
@@ -1460,6 +1477,9 @@ class MainWindow(
             path = url.toLocalFile()
             ext = os.path.splitext(path)[1].lower()
             if os.path.isfile(path) and ext in IMG_EXTS:
+                # (editör, görünüm alanındaki nokta): editöre bırakıldıysa
+                if birakilan is not None:
+                    self._imleci_birakilan_yere_koy(*birakilan)
                 self._insert_image(path)
                 continue
             if os.path.isdir(path):

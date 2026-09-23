@@ -12,6 +12,7 @@ from PyQt6.QtGui import QColor, QPalette
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from core.bibtex import RE_GIRDI_ANAHTARI
+from core.engine_detector import kok_belge
 from core.fs_ops import coz_adiyla, lf_ye_indir
 from core.log import get_logger
 from core.latex_refs import (
@@ -390,10 +391,16 @@ class EditorWidget(QsciScintilla):
         if event.key() == Qt.Key.Key_F2 and not event.modifiers():
             self._request_rename()
             return
-        # Ctrl+V + panoda resim varsa resim yapıştırma (metin yapıştırmayı bırak).
+        # Ctrl+V + panoda YALNIZ resim varsa resim yapıştırma. Pano metin de
+        # taşıyorsa metin yapıştırılıyor: ofis programları hücre ya da metin
+        # kutusu kopyalarken panoya görüntüsünü de koyabiliyor. ÖLÇÜLDÜ
+        # (2026-09-23): metin + görüntü taşıyan panoda Ctrl+V metni hiç
+        # yapıştırmıyor, "Görsel Ekle" açıyordu; sağ tık "Yapıştır" aynı
+        # panoda metni yapıştırıyordu.
         if (event.modifiers() & Qt.KeyboardModifier.ControlModifier and
                 event.key() == Qt.Key.Key_V):
-            if not QApplication.clipboard().image().isNull():
+            pano = QApplication.clipboard()
+            if not pano.image().isNull() and not pano.text().strip():
                 self.image_paste_requested.emit()
                 return
         # Ctrl+Space -> manuel tamamlama (C.7)
@@ -682,7 +689,10 @@ class EditorWidget(QsciScintilla):
         if not self._file_path:
             return
         try:
-            paths = collect_input_paths(self._file_path)
+            # Yollar KÖK belgeye göre; LaTeX onları orada arıyor (bkz.
+            # engine_detector.kok_belge). Görsel tamamlaması da aynı kural.
+            paths = collect_input_paths(kok_belge(self._file_path),
+                                        self._file_path)
         except Exception:
             _logger.debug("input dosya toplama başarısız", exc_info=True)
             return
@@ -695,7 +705,7 @@ class EditorWidget(QsciScintilla):
         if not self._file_path:
             return
         try:
-            paths = collect_image_paths(self._file_path)
+            paths = collect_image_paths(kok_belge(self._file_path))
         except Exception:
             _logger.debug("resim dosya toplama başarısız", exc_info=True)
             return

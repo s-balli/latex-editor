@@ -10,6 +10,7 @@ from PyQt6.QtWidgets import (
 
 from PyQt6.QtCore import QCoreApplication
 
+from core.engine_detector import kok_belge
 from core.latex_tables import escape_cell
 from core.latex_utils import label_key, strip_comments
 
@@ -176,13 +177,26 @@ class ImageOpsMixin:
             "\\end{figure}\n"
         )
 
-    def _insert_image(self, path: str):
+    def _insert_image(self, path: str, kaydet=None):
+        """``path``teki görsel için şekil bloğu ekle.
+
+        ``kaydet``: panodan yapıştırmada görseli diske yazan çağrı. Diyalog
+        ONAYLANDIKTAN sonra çağrılıyor; Vazgeç diskte hiçbir şey bırakmıyor.
+
+        Yalnız .tex sekmesinde. Denetim eskiden yalnız yolun varlığına
+        bakıyordu ve .bib sekmesinde Ctrl+V şekil bloğunu .bib'in içine
+        yazıyordu (ölçüldü, 2026-09-23); mesaj zaten ".tex" diyor.
+        """
         editor = self._current_editor()
-        if not editor or not editor.file_path:
+        if (not editor or not editor.file_path
+                or not editor.file_path.lower().endswith(".tex")):
             self._status.showMessage(_("Önce bir .tex dosyası açın"))
             return
 
-        tex_dir = os.path.dirname(editor.file_path)
+        # Yol KÖK belgenin dizinine göre: LaTeX onu orada arıyor (bkz.
+        # core.engine_detector.kok_belge). Bölüm dosyasının dizinine göre
+        # yazılan yol gerçek derlemede bulunamıyordu.
+        tex_dir = os.path.dirname(kok_belge(editor.file_path))
         try:
             rel_path = os.path.relpath(path, tex_dir).replace('\\', '/')
         except ValueError:
@@ -275,6 +289,9 @@ class ImageOpsMixin:
 
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return
+        if kaydet is not None and not kaydet():
+            self._status.showMessage(_("Panodaki resim kaydedilemedi"))
+            return
 
         template = cb_template.currentData()
         width = le_width.text().strip() or "0.8\\textwidth"
@@ -305,6 +322,10 @@ class ImageOpsMixin:
 
         Drag-drop ile aynı _insert_image akışını paylaşır (dialog + figure
         bloğu). .tex'e sadece snippet ekler; resim ayrı bir PNG dosyası olur.
+
+        Resim diyalog ONAYLANINCA yazılıyor. Eskiden diyalogdan önce
+        yazılıyordu: ÖLÇÜLDÜ (2026-09-23), üç kez yapıştırıp Vazgeç'e
+        basınca belge değişmedi ama `media/` altında üç PNG kaldı.
         """
         editor = self._current_editor()
         if not editor or not editor.file_path:
@@ -315,28 +336,24 @@ class ImageOpsMixin:
         if img.isNull():
             return  # panoda resim yok; metin yapıştırma editörde zaten yapıldı
         media_dir = os.path.join(os.path.dirname(editor.file_path), "media")
-        try:
-            os.makedirs(media_dir, exist_ok=True)
-        except OSError:
-            # `exist_ok` yalnız zaten DİZİN varsa affediyor; `media` adında
-            # bir DOSYA varsa FileExistsError atıyor. Salt okunur klasör,
-            # izin reddi ve dolu disk de buraya düşüyor.
-            #
-            # Bu bir Qt SLOTU (editor.image_paste_requested). Ölçüldü:
-            # PyQt6'da slot içindeki yakalanmamış istisna süreci öldürüyor ve
-            # bu uygulamada global excepthook yok, yani öbür sekmelerdeki
-            # kaydedilmemiş iş de giderdi. Hemen aşağıdaki `img.save`
-            # başarısızlığı zaten aynı mesajı veriyor; yeni bir kullanıcı
-            # metni eklemeye gerek yok.
-            self._status.showMessage(_("Panodaki resim kaydedilemedi"))
-            return
         n = 1
-        while True:
-            path = os.path.join(media_dir, f"image_{n}.png")
-            if not os.path.exists(path):
-                break
+        while os.path.exists(os.path.join(media_dir, f"image_{n}.png")):
             n += 1
-        if not img.save(path, "PNG"):
-            self._status.showMessage(_("Panodaki resim kaydedilemedi"))
-            return
-        self._insert_image(path)
+        path = os.path.join(media_dir, f"image_{n}.png")
+
+        def kaydet() -> bool:
+            try:
+                os.makedirs(media_dir, exist_ok=True)
+            except OSError:
+                # `exist_ok` yalnız zaten DİZİN varsa affediyor; `media`
+                # adında bir DOSYA varsa FileExistsError atıyor. Salt okunur
+                # klasör, izin reddi ve dolu disk de buraya düşüyor.
+                #
+                # Bu bir Qt SLOTU (editor.image_paste_requested) içinden
+                # çağrılıyor. Ölçüldü: PyQt6'da slot içindeki yakalanmamış
+                # istisna süreci öldürüyor ve bu uygulamada global excepthook
+                # yok, yani öbür sekmelerdeki kaydedilmemiş iş de giderdi.
+                return False
+            return img.save(path, "PNG")
+
+        self._insert_image(path, kaydet)
