@@ -197,6 +197,7 @@ class MainWindow(
         self._last_errors = []          # son derlemenin hataları (line>0, çözümlü yol)
         self._err_index = -1            # F4/Shift+F4 imleci (_last_errors içinde)
         self._compile_target = ""       # derlenen ana dosya yolu (path resolve base)
+        self._compile_engine = ""       # o derlemeye giden motor (ipucu bunu söylüyor)
         self._synctex_dir = tempfile.mkdtemp(prefix="latex_editor_")
         self._settings = QSettings("LatexEditor", "LatexEditor")
         # Otomatik derleme tercihi kalıcı (varsayılan: açık). QSettings bool'u
@@ -632,6 +633,9 @@ class MainWindow(
         self._editor_tabs.currentChanged.connect(self._on_tab_changed)
 
         self._engine_combo.currentTextChanged.connect(self._on_engine_changed)
+        # Yalnız KULLANICININ seçimi yayıyor; programla yapılan değişiklik
+        # (algılama, sekme değişimi) yaymıyor.
+        self._engine_combo.textActivated.connect(self._on_engine_activated)
 
         # QShortcut — ApplicationShortcut ile QScintilla focus problemi çözülür
         # (Ctrl+S artık Dosya menüsündeki QAction'da, app_shortcut=True ile.)
@@ -707,15 +711,24 @@ class MainWindow(
 
         Ardından F5 yanlış motorla derliyor ve hiçbir şey söylenmiyor.
 
-        `_on_tab_changed` kutuyu kurarken sinyali BLOKLUYOR, yani sekme
-        gezinmesi buraya düşmüyor; buraya yalnız kullanıcının seçimi ve
-        açılışta çalışan algılama geliyor. İkisi de "bu belgenin motoru"
-        demek.
+        Sekme değişimi ve algılama kutuyu sinyali BLOKLAYARAK kuruyor
+        (`tab_ops._motoru_goster`), yani buraya yalnız kullanıcının seçimi
+        geliyor. Seçimin ayrıca hatırlanması `_on_engine_activated`da.
         """
         self._status_engine.setText(motor)
         editor = self._current_editor()
         if isinstance(editor, EditorWidget) and motor:
             editor._detected_engine = motor
+
+    def _on_engine_activated(self, motor: str):
+        """Kullanıcı açılır kutudan motor SEÇTİ: bu belge artık onunla derlenir.
+
+        Seçim ayrı alana yazılıyor çünkü derleme algılamayı yeniliyor ve
+        yenilenen algılama kullanıcının seçimini ezmemeli.
+        """
+        editor = self._current_editor()
+        if isinstance(editor, EditorWidget) and motor:
+            editor._motor_elle = motor
 
     def _on_lang_changed(self, index: int):
         from core.i18n import set_language

@@ -322,6 +322,26 @@ class TabOpsMixin:
             if isinstance(editor, EditorWidget) and editor.file_path:
                 QApplication.clipboard().setText(editor.file_path)
 
+    def _motoru_goster(self, editor, motor: str):
+        """``editor``ın motor kaydını yaz; ön sekmeyse açılır kutuyu da kur.
+
+        Kayıt HANGİ belgeye aitse ona yazılıyor. Algılama eskiden hep ön
+        sekmeye yazıyordu ve arka sekme diskten yeniden yüklenince ön
+        sekmenin motoru değişiyordu (bkz. file_ops._detect_engine).
+
+        Kutu sinyal BLOKLANARAK kuruluyor: bu programın değişikliği,
+        kullanıcının seçimi değil.
+        """
+        editor._detected_engine = motor
+        if editor is not self._current_editor():
+            return
+        self._engine_combo.blockSignals(True)
+        idx = self._engine_combo.findText(motor)
+        if idx >= 0:
+            self._engine_combo.setCurrentIndex(idx)
+            self._status_engine.setText(motor)
+        self._engine_combo.blockSignals(False)
+
     def _on_tab_changed(self, index: int):
         editor = self._current_editor()
 
@@ -333,12 +353,7 @@ class TabOpsMixin:
             self._current_pdf = ""
 
         if isinstance(editor, EditorWidget) and editor._detected_engine:
-            self._engine_combo.blockSignals(True)
-            idx = self._engine_combo.findText(editor._detected_engine)
-            if idx >= 0:
-                self._engine_combo.setCurrentIndex(idx)
-                self._status_engine.setText(editor._detected_engine)
-            self._engine_combo.blockSignals(False)
+            self._motoru_goster(editor, editor._detected_engine)
 
         self._update_cursor_pos()
 

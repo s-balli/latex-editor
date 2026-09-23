@@ -230,7 +230,19 @@ class FileOpsMixin:
             self._file_watch_add(path)
 
     def _detect_engine(self, path: str):
-        """Dosya ve .cls içeriğinden uygun derleme motorunu algıla."""
+        """Dosya ve .cls içeriğinden uygun derleme motorunu algıla.
+
+        Sonuç ``path``in KENDİ sekmesine yazılıyor. Eskiden ön sekmeye
+        yazılıyordu. Açılışta ikisi aynı sekme, ama diskten yeniden yükleme
+        (file_watch) bunu ARKA sekme için de çağırıyor. ÖLÇÜLDÜ (2026-09-23,
+        gerçek pencere): önde fontspec'li belge (lualatex), arkada düz belge.
+        Arka sekme "Yeniden Yükle" ile yüklenince ön sekmenin motoru
+        pdflatex oldu, durum çubuğu "Motor algılandı: pdflatex" dedi ve F5
+        fontspec'li belgeyi pdflatex'le derledi. O belge pdflatex'te PDF
+        üretmiyor.
+
+        Kullanıcının seçtiği motor algılamayla ezilmiyor.
+        """
         # KUCUK HARFE CEVIRIP bakiliyor, bkz. file_tree._input_ref_ok:
         # buyuk harfli `.TEX` acilinca motor algilama HIC kosmuyordu ve
         # bir onceki belgenin motoru kaliyordu.
@@ -240,16 +252,15 @@ class FileOpsMixin:
         if engine is None:
             engine = "pdflatex"
 
+        editor = self._editor_by_path(path)
+        if not isinstance(editor, EditorWidget) or editor._motor_elle:
+            return
         _logger.info("Motor algılandı: %s → %s", os.path.basename(path), engine)
 
-        editor = self._current_editor()
-        if isinstance(editor, EditorWidget):
-            editor._detected_engine = engine
-
-        idx = self._engine_combo.findText(engine)
-        if idx >= 0 and idx != self._engine_combo.currentIndex():
-            self._engine_combo.setCurrentIndex(idx)
+        if (editor is self._current_editor()
+                and self._engine_combo.currentText() != engine):
             self._status.showMessage(_("Motor algılandı") + ": " + engine)
+        self._motoru_goster(editor, engine)
 
     def _save_file(self):
         editor = self._current_editor()

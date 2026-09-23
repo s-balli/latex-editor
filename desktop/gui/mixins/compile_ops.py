@@ -95,6 +95,39 @@ class CompileOpsMixin:
             return root, ""
         return "", msg
 
+    def _derleme_motoru(self, hedef: str, kaynak: str) -> str:
+        """``hedef`` hangi motorla derlenecek. ``kaynak`` derlemenin
+        başlatıldığı belge: F5'te ön sekme, ağaçta sağ tıklanan dosya.
+
+        Sıra: kullanıcının SEÇTİĞİ motor (kaynağın ya da kökün sekmesinde),
+        sonra hedefin diskteki hâlinden algılama. Algılama bir şey demezse
+        kaynak ön sekmedeyse kutudaki motor, değilse pdflatex (açılıştaki
+        algılamanın da varsayılanı). Algılama derleme anında yapılıyor ve
+        kayıt ondan önce yapıldığı için disk güncel.
+
+        Eskiden motor kutudan okunuyordu. Kutu ise derlenen belgeyi değil ön
+        sekmenin açılıştaki algılamasını gösteriyordu. ÖLÇÜLDÜ (2026-09-23,
+        gerçek pencere, kehanet `detect_engine`in o belge için cevabı):
+
+            önsöze fontspec eklendi, F5           pdflatex  (kehanet lualatex)
+            ağaçtan açık olmayan fontspec'li
+              belgeye "Derle"                     pdflatex  (ön sekmeninki)
+            alt dosyada kullanıcı xelatex seçti   lualatex  (seçim yok sayıldı)
+
+        İlk ikisinde belge pdflatex'te PDF üretmiyor. Üçüncüsünde ipucu da
+        yanlış motoru söylüyordu ("Şu an xelatex kullanılıyor").
+        """
+        kaynak_ed = self._editor_by_path(kaynak)
+        for ed in (kaynak_ed, self._editor_by_path(hedef)):
+            if getattr(ed, "_motor_elle", ""):
+                return ed._motor_elle
+        motor = _detect_engine(hedef)
+        if motor:
+            return motor
+        if kaynak_ed is not None and kaynak_ed is self._current_editor():
+            return self._engine_combo.currentText()
+        return "pdflatex"
+
     # shell-escape kararını hatırlayan QSettings anahtarları. Yol doğrudan
     # anahtar olarak KULLANILMIYOR: QSettings `/` karakterini grup ayracı
     # sayıyor ve yollar bunu taşıyor.
@@ -337,10 +370,8 @@ class CompileOpsMixin:
                 or not self._derleme_icin_kaydet(target)):
             self._status.showMessage(_("Kayıt başarısız, derleme iptal"))
             return
-        # Alt dosyadan kök derlendiyse motoru kökün içeriği belirler
-        engine = self._engine_combo.currentText()
-        if target != editor.file_path:
-            engine = _detect_engine(target) or engine
+        engine = self._derleme_motoru(target, editor.file_path)
+        self._motoru_goster(editor, engine)
         # Derleme sonrası otomatik ileri-arama için imleç konumunu hatırla;
         # SyncTeX girdi-dosyası bazlı olduğu için alt dosya konumu da geçerlidir
         line, col = editor.getCursorPosition()
@@ -350,6 +381,7 @@ class CompileOpsMixin:
         self._output_panel.clear()
         _logger.info("Derleme başladı: %s (%s)", os.path.basename(target), engine)
         self._compile_target = target
+        self._compile_engine = engine
         self._compiler.compile(target, engine,
                                shell_escape=self._shell_escape_karari(target))
 
@@ -371,11 +403,10 @@ class CompileOpsMixin:
                 or not self._derleme_icin_kaydet(target)):
             self._status.showMessage(_("Kayıt başarısız, derleme iptal"))
             return
-        engine = self._engine_combo.currentText()
-        if target != path:
-            engine = _detect_engine(target) or engine
+        engine = self._derleme_motoru(target, path)
         editor = self._editor_by_path(path)
         if editor is not None:
+            self._motoru_goster(editor, engine)
             line, col = editor.getCursorPosition()
             self._compile_cursor_ctx = (path, line + 1, col + 1)
             self._imlece_dokunuldu = (
@@ -383,6 +414,7 @@ class CompileOpsMixin:
         self._output_panel.clear()
         _logger.info("Derleme başladı: %s (%s)", os.path.basename(target), engine)
         self._compile_target = target
+        self._compile_engine = engine
         self._compiler.compile(target, engine,
                                shell_escape=self._shell_escape_karari(target))
 
@@ -536,7 +568,10 @@ class CompileOpsMixin:
         self._output_panel.show_result(result)
 
         if failed:
-            current = self._engine_combo.currentText()
+            # Derlemeye GİDEN motor. Ağaçtan başka bir belge derlendiyse
+            # kutu o motoru göstermiyor.
+            current = (getattr(self, "_compile_engine", "")
+                       or self._engine_combo.currentText())
             others = [e for e in ("lualatex", "pdflatex", "xelatex") if e != current]
             self._output_panel.show_engine_hint(current, others)
 

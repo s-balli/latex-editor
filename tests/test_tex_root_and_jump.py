@@ -115,9 +115,16 @@ def test_child_compiles_root_with_root_engine(qapp, tmp_path):
 
 
 def test_standalone_file_compiles_itself(qapp, tmp_path):
-    """Doğrudan derlenebilir dosya → kendisi derlenir, combo motoru geçerli kalır."""
+    """Doğrudan derlenebilir dosya → kendisi derlenir. Kullanıcının SEÇTİĞİ
+    motor, belge başka motor istese de geçerli kalır.
+
+    Kapı eskiden seçimsiz kutu değeriyle kuruluydu ve fontspec'li belgenin
+    pdflatex'le derlenmesini bekliyordu. O belge pdflatex'te PDF üretmiyor;
+    seçim yoksa artık algılama geçerli (bkz. compile_ops._derleme_motoru).
+    """
     root, _child = _project(tmp_path)
     ed = _editor_for(root)
+    ed._motor_elle = "pdflatex"          # kullanıcı açılır kutudan seçti
     stub = _Stub([ed], str(tmp_path), engine="pdflatex")
 
     stub._compile()

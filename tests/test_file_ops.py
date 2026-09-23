@@ -932,3 +932,127 @@ def test_MOTOR_belge_basina_ayri(qapp):
     assert stub._engine_combo.currentText() == "pdflatex"
     assert (ed1._detected_engine, ed2._detected_engine) == \
         ("xelatex", "pdflatex")
+
+
+# --- Derlemeye giden motor DERLENEN belgeden (2026-09-23) ---
+#
+# Motor açılır kutudan okunuyordu ve kutu ön sekmenin açılıştaki
+# algılamasını gösteriyordu. Gerçek pencerede dört yol ölçüldü; dördünde de
+# giden motor derlenen belgenin istediği değildi (bkz.
+# compile_ops._derleme_motoru, file_ops._detect_engine).
+
+_FONTSPEC = ("\\documentclass{article}\n\\usepackage{fontspec}\n"
+             "\\begin{document}\nx\n\\end{document}\n")
+_DUZ = "\\documentclass{article}\n\\begin{document}\nx\n\\end{document}\n"
+
+
+def _motor_dosyasi(yol, metin):
+    yol.parent.mkdir(parents=True, exist_ok=True)
+    yol.write_text(metin, encoding="utf-8")
+    return os.path.normpath(str(yol))
+
+
+def _giden_motor(p):
+    giden = []
+    p._compiler.compile = (lambda hedef, motor, shell_escape=None:
+                           giden.append((os.path.basename(hedef), motor)))
+    return giden
+
+
+def test_ARKA_sekme_yeniden_yuklenince_ON_sekmenin_motoru_DEGISMIYOR(
+        ana_pencere, tmp_path, monkeypatch):
+    """Algılama sonucu ön sekmeye yazılıyordu. ÖLÇÜLDÜ: önde fontspec'li
+    belge (lualatex), arkadaki düz belge "Yeniden Yükle" ile yüklenince ön
+    sekme pdflatex oldu ve F5 onu pdflatex'le derledi. Kapı iki yönü birden
+    tutuyor: ön sekmeye bulaşmıyor, arka sekmenin kendi kaydı yenileniyor."""
+    from PyQt6.QtWidgets import QMessageBox
+
+    on = _motor_dosyasi(tmp_path / "on.tex", _DUZ)
+    arka = _motor_dosyasi(tmp_path / "arka.tex", _DUZ)
+    p = ana_pencere()
+    p._open_file_in_editor(arka)
+    p._open_file_in_editor(on)
+
+    def yeniden_yukle(self):
+        self._secilen = next(b for b in self.buttons()
+                             if b.text().startswith("Yeniden Yükle"))
+        return 0
+
+    monkeypatch.setattr(QMessageBox, "exec", yeniden_yukle)
+    monkeypatch.setattr(QMessageBox, "clickedButton",
+                        lambda self: getattr(self, "_secilen", None))
+    _motor_dosyasi(tmp_path / "arka.tex", _FONTSPEC)      # dışarıdan
+    p._process_single(arka)
+
+    assert p._current_editor().file_path == on
+    assert p._engine_combo.currentText() == "pdflatex"
+    assert p._editor_by_path(arka)._detected_engine == "lualatex"
+
+
+def test_AGACTAN_derlenen_belge_KENDI_motoruyla(ana_pencere, tmp_path):
+    """Ağaçtan "Derle" motoru kutudan, yani ön sekmeden alıyordu. ÖLÇÜLDÜ:
+    önde düz belge varken ağaçtan açık olmayan fontspec'li belge derlenince
+    pdflatex gitti. Başarısız derlemede ipucu da giden motoru söylemeli,
+    kutu o belgenin motorunu göstermiyor."""
+    from core.log_parser import CompileResult
+
+    on = _motor_dosyasi(tmp_path / "on.tex", _DUZ)
+    fs = _motor_dosyasi(tmp_path / "b" / "fs.tex", _FONTSPEC)
+    p = ana_pencere()
+    p._open_file_in_editor(on)
+    giden = _giden_motor(p)
+
+    p._compile_file(fs)
+    p._on_compile_finished(CompileResult(success=False))
+
+    assert giden == [("fs.tex", "lualatex")]
+    ipucu = p._output_panel._suggest_list.item(0).text()
+    assert "lualatex" in ipucu.splitlines()[0], ipucu
+    p._compile_file(on)                       # kontrol: ön sekmenin belgesi
+    assert giden[-1] == ("on.tex", "pdflatex")
+
+
+def test_ALT_dosyadan_F5_KULLANICININ_sectigi_motorla(ana_pencere, tmp_path):
+    """Alt dosyadan F5'te kökün algılaması kullanıcının seçimini eziyordu.
+    ÖLÇÜLDÜ: kök fontspec'li, kullanıcı alt dosyada xelatex seçti, giden
+    lualatex oldu. Seçim yokken de kutu pdflatex gösteriyor, ipucu "Şu an
+    pdflatex kullanılıyor" diyordu; kutu derlemeye gideni göstermeli."""
+    from PyQt6.QtCore import Qt
+    from PyQt6.QtTest import QTest
+
+    _motor_dosyasi(tmp_path / "ana.tex",
+                   "\\documentclass{article}\n\\usepackage{fontspec}\n"
+                   "\\begin{document}\n\\input{bolum}\n\\end{document}\n")
+    bolum = _motor_dosyasi(tmp_path / "bolum.tex",
+                           "% !TEX root = ana.tex\nmetin\n")
+    p = ana_pencere()
+    p._open_file_in_editor(bolum)
+    giden = _giden_motor(p)
+
+    p._compile()
+    assert giden == [("ana.tex", "lualatex")]
+    assert p._engine_combo.currentText() == "lualatex"
+
+    # Kullanıcı gibi seç: klavye olayı `textActivated` yayar, programla
+    # yapılan seçim yaymaz.
+    QTest.keyClick(p._engine_combo, Qt.Key.Key_End)
+    assert p._engine_combo.currentText() == "xelatex"
+    p._compile()
+    assert giden[-1] == ("ana.tex", "xelatex")
+
+
+def test_ONSOZ_degisince_F5_YENI_motorla(ana_pencere, tmp_path):
+    """Motor yalnız açılışta algılanıyordu. ÖLÇÜLDÜ: düz belgeye fontspec
+    eklenip F5'e basılınca pdflatex gitti ve belge PDF üretmedi.
+    Kullanıcının seçimi yenilenen algılamayla ezilmiyor; o kol
+    `test_standalone_file_compiles_itself`te."""
+    yol = _motor_dosyasi(tmp_path / "belge.tex", _DUZ)
+    p = ana_pencere()
+    p._open_file_in_editor(yol)
+    giden = _giden_motor(p)
+
+    p._current_editor().insertAt("\\usepackage{fontspec}\n", 1, 0)
+    p._compile()
+
+    assert giden == [("belge.tex", "lualatex")]
+    assert p._engine_combo.currentText() == "lualatex"

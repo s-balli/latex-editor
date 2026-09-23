@@ -89,6 +89,10 @@ class EditorWidget(QsciScintilla):
         super().__init__(parent)
         self._file_path = ""
         self._detected_engine = ""
+        # Kullanıcının açılır kutudan SEÇTİĞİ motor (boşsa seçmedi). Algılanan
+        # motordan ayrı tutuluyor: algılama derlemede yenileniyor, seçim
+        # yenilenmiyor (bkz. compile_ops._derleme_motoru).
+        self._motor_elle = ""
         self._initial_theme = theme
         self._encoding = "utf-8"
         self._newline = "lf"      # dosyanın satır sonu stili ('lf' | 'crlf'); kayıtta korunur

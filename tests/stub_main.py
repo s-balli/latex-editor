@@ -16,7 +16,7 @@ Kullanım:
 
 from types import SimpleNamespace
 
-from PyQt6.QtWidgets import QTabWidget
+from PyQt6.QtWidgets import QComboBox, QTabWidget
 
 from gui.output_panel import OutputPanel
 from gui.theme import THEMES
@@ -76,7 +76,12 @@ class StubMain:
         self._status = StatusRecorder()
         self._compile_target = target
         self._pdf_viewer = pdf_viewer
-        self._engine_combo = SimpleNamespace(currentText=lambda: engine)
+        # Gerçek kutu: derleme, giden motoru ön sekmede kutuya da yazıyor
+        # (tab_ops._motoru_goster) ve bunun için findText/blockSignals gerek.
+        self._engine_combo = QComboBox()
+        self._engine_combo.addItems(["lualatex", "pdflatex", "xelatex"])
+        self._engine_combo.setCurrentText(engine)
+        self._status_engine = SimpleNamespace(setText=lambda t: None)
         self._progress = SimpleNamespace(hide=lambda: None)
         self._current_pdf = ""
         self._synctex_dir = ""
