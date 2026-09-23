@@ -425,7 +425,17 @@ def test_zaten_acik_sekmeye_geri_yukleniyor(qapp, tmp_path, monkeypatch):
     assert ed.text() == "çökmeden önceki kirli hâl\n"
     assert ed.isModified() is True
     assert yol.read_text(encoding="utf-8") == "diskteki\n", "disk ezildi"
-    assert recovery.oku(str(kayit)) == []
+    # Anlık görüntü diskte KALIYOR. Burada eskiden `== []` bekleniyordu, yani
+    # kapı kusurun kendisini sabitliyordu: geri yüklemenin hemen ardından
+    # diskte kurtarılabilir hiçbir şey yoktu ve yenisi 30 sn sonraki tura
+    # kalıyordu (ÖLÇÜLDÜ 2026-09-22, gerçek pencere). Tekrarlayan bir çökme
+    # tam o aralıkta gelir.
+    assert [s.snap_id for s in recovery.oku(str(kayit))] == ["eski-oturum"]
+    # Sekme kimliği DEVRALDI: tur ikinci bir dosya açmıyor, aynısını tazeliyor.
+    ed.setText("sonradan yazılan\n")
+    m._recovery_tick()
+    assert [(s.snap_id, s.content) for s in recovery.oku(str(kayit))] == \
+        [("eski-oturum", "sonradan yazılan\n")]
 
 
 @pytestmark_gui

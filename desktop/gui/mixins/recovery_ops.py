@@ -95,10 +95,26 @@ class RecoveryOpsMixin:
         for s in kayipli:
             if self._recovery_restore(s):
                 yuklenen += 1
-        # Geri yüklenenler artık sekmede ve KİRLİ; anlık görüntüleri bir sonraki
-        # tick zaten tazeleyecek. Eskilerini bırakmak ikinci bir açılışta aynı
-        # soruyu ürettiğinden temizle.
-        recovery.hepsini_sil(self._recovery_dir)
+        # KAYIPLI anlık görüntüler SİLİNMİYOR, yalnız diskle aynı çıkanlar.
+        # Eskiden burada `hepsini_sil` vardı ve gerekçe "bir sonraki tick
+        # zaten tazeler" idi; o tick 30 sn sonra. ÖLÇÜLDÜ (2026-09-22, gerçek
+        # pencere): "Geri Yükle"den hemen sonra diskte kurtarılabilir hiçbir
+        # şey yoktu. Tekrarlayan bir çökme (aynı belge, aynı adım) tam o
+        # aralıkta gelir ve kurtarılan işi götürürdü. Geri yüklenen sekme
+        # anlık görüntünün KİMLİĞİNİ devralıyor (`_recovery_restore`), yani
+        # dosya onun koruması olarak kalıyor ve ilk tur onu yerinde
+        # tazeliyor. Temiz kapanışta `_recovery_clear` hepsini siliyor, ikinci
+        # bir açılışta boşuna soru çıkmıyor.
+        #
+        # Geri yüklenemeyen de kalıyor: `hepsini_sil` onu da ANINDA siliyordu
+        # ve durum çubuğu yine "n dosya kurtarıldı" diyordu (hata enjekte
+        # edilerek ölçüldü; içerik hiçbir sekmede yoktu, diskte de). Artık
+        # yeni bir çökmeye karşı duruyor; temiz kapanışta `_recovery_clear`
+        # onu da siliyor, yani kalıcı bir çözüm değil, yalnız anında silmenin
+        # kaldırılması.
+        for s in snaplar:
+            if s not in kayipli:
+                recovery.sil(self._recovery_dir, s.snap_id)
         _logger.info("Kurtarma: %d/%d sekme geri yüklendi", yuklenen, len(kayipli))
         self._status.showMessage(
             _("{n} dosya kurtarıldı, kaydetmek için Ctrl+S").format(n=yuklenen))
@@ -123,6 +139,10 @@ class RecoveryOpsMixin:
                     self._file_watch_add(snap.file_path)
             editor.setText(snap.content)
             editor.setModified(True)          # kaydetmek kullanıcının kararı
+            # Anlık görüntünün kimliğini devral: diskteki dosya bu sekmenin
+            # koruması olarak kalıyor, tick onu yerinde tazeliyor (gerekçe
+            # `_recovery_prompt`ta).
+            editor._recovery_id = snap.snap_id
             return True
         except Exception:
             _logger.error("Anlık görüntü geri yüklenemedi: %s",

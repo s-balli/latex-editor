@@ -13,6 +13,7 @@ import os
 
 import pytest
 
+from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QMessageBox
 
 from gui.editor import EditorWidget
@@ -485,3 +486,35 @@ def test_SILINDI_sorusu_EKRANDAYKEN_dosya_GERI_YAZILMIYOR(
     p._handle_deleted_file(ed, os.path.normpath(str(yol)))
 
     assert not yol.exists()
+
+
+def test_KAYDETME_sorusu_EKRANDAYKEN_disk_YAZILMIYOR(
+        ana_pencere, tmp_path, monkeypatch):
+    """Üçüncü biçim, "Kaydedilsin mi?" sorusunda. ÖLÇÜLDÜ (2026-09-22):
+    kullanıcı "Kaydetme" dedi, diskte ATMAK İSTEDİĞİ metin duruyordu.
+
+    Yukarıdaki iki kapı turu kutuyu GÖSTERMEDEN koşturuyor; o sorularda
+    koruma bir bayrak. Bu soruda bayrak yok, koruma "açık bir modal var mı"
+    ve o ancak kutu gösterilince görülebiliyor. `exec()` de önce tam bunu
+    yapıyor: kutuyu ApplicationModal gösterip iç içe döngüyü çalıştırıyor.
+    """
+    yol = _proje(tmp_path, "belge.tex")
+    p = ana_pencere()
+    del p._save_dialog                 # fabrikanın sabit cevabı değil, GERÇEK soru
+    p._dis_yolu_ac(str(yol), "kapi")
+    ed = p._current_editor()
+    ed.setText("ATILACAK yazim\n")
+
+    def exec_(kutu):
+        kutu.setWindowModality(Qt.WindowModality.ApplicationModal)
+        kutu.show()
+        p._autosave_tick()             # soru dururken zamanlayıcı ateşledi
+        for dugme in kutu.buttons():
+            if kutu.buttonRole(dugme) == QMessageBox.ButtonRole.DestructiveRole:
+                dugme.click()          # "Kaydetme"
+        return 0
+
+    monkeypatch.setattr(QMessageBox, "exec", exec_)
+    p._close_tab_safe(p._editor_tabs.indexOf(ed))
+
+    assert yol.read_text(encoding="utf-8") == "ilk hali\n"

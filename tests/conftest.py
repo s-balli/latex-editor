@@ -131,6 +131,20 @@ def ana_pencere(monkeypatch, tmp_path):
     monkeypatch.setattr(mw.UpdateCheckThread, "start", lambda self: None)
     monkeypatch.setattr(RecoveryOpsMixin, "_recovery_prompt", lambda self: None)
 
+    # KURTARMA KLASÖRÜ de hapsediliyor. QSettings için yukarıda alınan önlem
+    # burada yoktu: klasör `LOG_FILE`ın yanında ve LOG_DIR GERÇEK uygulamanın
+    # dizini. Her test penceresi kapanırken closeEvent -> `_recovery_clear`
+    # -> `hepsini_sil(gerçek klasör)` çağrılıyordu. ÖLÇÜLDÜ (2026-09-22,
+    # hiçbir şey silmeden, `hepsini_sil` yerine yalnız dizini kaydeden bir
+    # casusla): test penceresinin kurtarma klasörü gerçek uygulamanınkiyle
+    # AYNIYDI ve kapanışta silinmek istenen oydu. Yani test takımını
+    # koşturmak, çöken bir oturumun açılışta sorulmayı bekleyen kurtarma
+    # dosyalarını ve O AN AÇIK uygulamanın canlı anlık görüntülerini
+    # siliyordu. Hapis tutmazsa fixture SERT DÜŞÜYOR.
+    import gui.mixins.recovery_ops as recovery_ops
+    kurtarma = str(tmp_path / "kurtarma")
+    monkeypatch.setattr(recovery_ops, "_recovery_dizini", lambda: kurtarma)
+
     pencereler = []
 
     # `open_file`: komut satırından gelen yol ("Birlikte Aç" ile ilk açılış).
@@ -139,8 +153,18 @@ def ana_pencere(monkeypatch, tmp_path):
     # çıkarmaktan iyi (bkz. yukarıdaki TEK KAYNAK notu).
     def _kur(karar="discard", open_file="", ek_dosyalar=()):
         w = mw.MainWindow(open_file=open_file, ek_dosyalar=ek_dosyalar)
-        w._save_dialog = lambda ad: karar      # kirli sekme sorusu
+        # İddia düşse de pencere SÖKÜMDE kapatılsın: listeye eklenmeyen
+        # pencere zombi kalıyor ve süreç özet basamadan 0xC0000409 ile
+        # ölüyordu (mutasyonla ölçüldü), yani hapis bozulunca yardımcı mesaj
+        # değil açıklamasız bir çökme görülüyordu. Kapatmadan önce klasör
+        # geçici dizine çevriliyor: söküm GERÇEK klasörü silmesin.
         pencereler.append(w)
+        if w._recovery_dir != kurtarma:
+            gercek, w._recovery_dir = w._recovery_dir, kurtarma
+            raise AssertionError(
+                "kurtarma klasörü hapsedilemedi, gerçek kullanıcının kurtarma "
+                "dosyaları silinirdi: " + gercek)
+        w._save_dialog = lambda ad: karar      # kirli sekme sorusu
         return w
 
     _kur.ayar = _ayar

@@ -31,6 +31,7 @@ planda her N dakikada bir derleme başlardı.
 import os
 
 from PyQt6.QtCore import QCoreApplication, QTimer
+from PyQt6.QtWidgets import QApplication
 
 from core.log import get_logger
 from gui.editor import EditorWidget
@@ -84,7 +85,17 @@ class AutosaveOpsMixin:
         #
         # Turu TAMAMEN atlamak kayıp değil: modal açıkken kullanıcı yazamaz,
         # yani kaydedilecek yeni bir şey oluşmuyor. Sonraki tur devralıyor.
-        if getattr(self, "_reload_prompt_active", False):
+        #
+        # Bayrak YALNIZ "dosya diskte değişti" sorusunda kalkıyordu; aynı
+        # kusur "Kaydedilsin mi?" sorusunda da vardı (sekme kapatma,
+        # uygulamadan çıkma, klasör açma; üçü de `_save_dialog`). ÖLÇÜLDÜ
+        # (2026-09-22, gerçek pencere, soru ApplicationModal gösterilip tur
+        # ateşlenerek): kullanıcı "Kaydetme" dedi, diskte ATMAK İSTEDİĞİ
+        # metin duruyordu; tur ateşlenmeyince disk eski kalıyordu. O yüzden
+        # ölçüt tek tek bayraklar değil, AÇIK HERHANGİ BİR MODAL: hangi soru
+        # olursa olsun cevabı beklenirken yazılmıyor.
+        if (getattr(self, "_reload_prompt_active", False)
+                or QApplication.activeModalWidget() is not None):
             return
         kaydedilen = 0
         for i in range(self._editor_tabs.count()):
