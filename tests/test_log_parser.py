@@ -629,9 +629,14 @@ class TestMotorAdiTekKaynak:
         from core.engine_detector import MOTOR_TAKMA_ADLARI
         from core.log_parser import _RE_ENGINE_REQ
 
-        m = re.search(r"requires\\s\+\(([^)]*)\)", _RE_ENGINE_REQ.pattern)
-        assert m, _RE_ENGINE_REQ.pattern
-        assert set(m.group(1).split("|")) == set(MOTOR_TAKMA_ADLARI)
+        # Desende HER ad seçenekleri grubu eşlemin anahtarları olmalı. Desen
+        # "requires either X or Y" biçimini tanıyınca iki grup taşıyor;
+        # kapı eskiden yalnız `requires\s+(` ardındakine bakıyordu.
+        gruplar = re.findall(r"\(((?:[a-z]+\|)+[a-z]+)\)",
+                             _RE_ENGINE_REQ.pattern)
+        assert gruplar, _RE_ENGINE_REQ.pattern
+        for grup in gruplar:
+            assert set(grup.split("|")) == set(MOTOR_TAKMA_ADLARI), grup
 
     def test_GERCEK_TeX_Live_yazimlari(self):
         """Gerçek paketlerin kullandığı yazımlar (WSL'de TeX Live tarandı):
@@ -641,6 +646,35 @@ class TestMotorAdiTekKaynak:
             r = parse_output("! This class requires %s.\nl.1 x\n" % ad)
             assert any("Bu belge %s gerektiriyor" % beklenen in s.message
                        for s in r.suggestions), ad
+
+    def test_FONTSPEC_yanlis_motorda_oneri_veriyor(self):
+        """fontspec'in kendi hatası: "requires EITHER XeTeX or LuaTeX".
+
+        Desen motor adını `requires`ın hemen ardında beklediği için hiç
+        eşleşmiyordu. ÖLÇÜLDÜ (2026-09-23, gerçek derle.sh, pdflatex):
+        öneri sayısı 0. İkinci satır `(fontspec)` önekiyle geliyor; önek
+        birleştirmede atılmazsa cümle kirleniyor ve ikinci seçenek
+        kaçıyordu (öneri xelatex çıkıyordu). Lualatex seçeneklerden biri
+        olduğu için o öneriliyor: uygulamanın varsayılanı ve
+        `engine_detector`ın fontspec için seçtiği motor.
+
+        Satırlar derle.sh'in gerçek çıktısından.
+        """
+        ham = ("  /usr/share/texlive/texmf-dist/tex/latex/fontspec/"
+               "fontspec.sty:45: Fatal Package fontspec Error: The fontspec "
+               "package requires either XeTeX or\n"
+               "  (fontspec)                      LuaTeX.\n"
+               "  (fontspec)\n"
+               "  (fontspec)                      You must change your "
+               "typesetting engine to,\n")
+        r = parse_output(ham, "b.tex")
+        assert r.errors[0].message == (
+            "Fatal Package fontspec Error: The fontspec package requires "
+            "either XeTeX or LuaTeX.")
+        assert [s.message for s in r.suggestions
+                if "gerektiriyor" in s.message] == [
+            "Bu belge lualatex gerektiriyor. Derleme motorunu lualatex "
+            "olarak değiştirin."]
 
 
 # =====================================================================
@@ -676,6 +710,39 @@ def test_SARAN_hata_mesaji_DEVAMIYLA_birlestiriliyor():
         "not set up for use with LaTeX.")
     assert r.errors[0].line_number == 4
     assert get_hint(r.errors[0].message) is not None
+
+
+def test_FILE_LINE_ERROR_bicimindeki_saran_hata_da_birlestiriliyor():
+    r"""Yukarıdaki kapının GERÇEK boru hattındaki hâli.
+
+    derle.sh motora `-file-line-error` veriyor, yani hata `yol:satır: ` ile
+    geliyor ve birleştirme kuralı yalnız `! ` biçimini tanıyordu: kural
+    gerçek boru hattında hiç çalışmıyordu. Yukarıdaki kapı `! ` biçimiyle
+    beslendiği için bunu göremiyordu. ÖLÇÜLDÜ (2026-09-23, gerçek derle.sh):
+    mesaj yine "(U+2605)"de kesiliyor, ipucu çıkmıyordu.
+
+    Satırlar derle.sh'in gerçek çıktısından, iki boşluk girintisi dahil.
+    """
+    ham = ("  /home/k/tez/b.tex:3: LaTeX Error: Unicode character ★ "
+           "(U+2605)\n"
+           "  not set up for use with LaTeX.\n"
+           "  \n"
+           "  See the LaTeX manual or LaTeX Companion for explanation.\n"
+           "  Type  H <return>  for immediate help.\n")
+    r = parse_output(ham, "b.tex")
+    assert r.errors[0].message == (
+        "LaTeX Error: Unicode character ★ (U+2605) "
+        "not set up for use with LaTeX.")
+    assert get_hint(r.errors[0].message) is not None
+
+    # KARŞI KOL: noktasız biten hatanın ardından gelen İKİNCİ hata ona
+    # yapışmamalı; iki ayrı hata kalmalı.
+    ham = ("  /home/k/tez/b.tex:3: Package foo Error: bir cumle noktasiz\n"
+           "  /home/k/tez/b.tex:7: Undefined control sequence.\n")
+    r = parse_output(ham, "b.tex")
+    assert [e.message for e in r.errors] == [
+        "Package foo Error: bir cumle noktasiz",
+        "Undefined control sequence."]
 
 
 def test_NOKTAYLA_biten_hata_BAGLAM_satirini_YUTMUYOR():

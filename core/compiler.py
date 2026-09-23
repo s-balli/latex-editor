@@ -3,6 +3,7 @@
 import codecs
 import os
 import re
+import signal
 import sys
 import time
 from pathlib import Path
@@ -173,6 +174,10 @@ class LatexCompiler(QObject):
             args.append("--shell-escape")
         elif self._shell_escape is False:
             args.append("--no-shell-escape")
+        # derle.sh KENDİ oturumunda (süreç grubunda) başlıyor ki iptal ve
+        # zaman aşımı bütün ağacı öldürebilsin (bkz. `_sureci_oldur`).
+        self.process.setUnixProcessParameters(
+            QProcess.UnixProcessFlag.CreateNewSession)
         self.process.start("bash", args)
 
     def _on_output(self):
@@ -334,6 +339,32 @@ class LatexCompiler(QObject):
             self._finished_emitted = True
             self.compilation_finished.emit(result)
 
+    def _sureci_oldur(self):
+        """Derleme sürecini ÇOCUKLARIYLA birlikte öldür.
+
+        `QProcess.kill()` yalnız doğrudan başlatılan süreci öldürüyor. Yerli
+        yolda (Linux, macOS) o süreç derle.sh'in `bash`ı; motor ise derle.sh'in
+        `$(...)` ikamesinin açtığı ALT KABUĞUN çocuğu ve SIGKILL oraya
+        gitmiyor. ÖLÇÜLDÜ (2026-09-23, gerçek `LatexCompiler`, sonsuz döngüye
+        giren belge): "Durdur" da zaman aşımı da sonrasında alt kabuk ve
+        `pdflatex` SAHİPSİZ kalıp koşmaya devam ediyordu, her iptal bir
+        çekirdeği %100'de bırakan bir süreç daha ekliyordu. Windows'ta
+        `wsl.exe` öldürülünce WSL içindeki ağaç da ölüyor (aynı ölçüm), o
+        kol olduğu gibi kalıyor.
+
+        Grup öldürme YALNIZ süreç kendi grubunun lideriyse: `_start_native`
+        onu yeni oturumda başlatıyor. Lider değilse `killpg` başka bir grubu
+        (uygulamanın kendisini) hedefleyebilirdi, o yüzden denenmiyor.
+        """
+        if PLATFORM != "win32":
+            pid = self.process.processId()
+            try:
+                if pid > 0 and os.getpgid(pid) == pid:
+                    os.killpg(pid, signal.SIGKILL)
+            except OSError:                   # süreç zaten bitmiş
+                pass
+        self.process.kill()
+
     def _on_timeout(self):
         """Derleme watchdog: süre doldu — süreci sonlandır ve hata bildir."""
         if not self.process or self.process.state() == QProcess.ProcessState.NotRunning:
@@ -343,7 +374,7 @@ class LatexCompiler(QObject):
         # kill sonrası gelen _on_finished tekrar emit etmesin
         self._finished_emitted = True
         self._oldurduk = True
-        self.process.kill()
+        self._sureci_oldur()
         self.process.waitForFinished(3000)
         sure = max(1, self._timeout_ms // 1000)
         msg = f"Derleme zaman aşımına uğradı ({sure}s), iptal edildi."
@@ -369,6 +400,6 @@ class LatexCompiler(QObject):
         if self.process and self.process.state() != QProcess.ProcessState.NotRunning:
             self._finished_emitted = True
             self._oldurduk = True
-            self.process.kill()
+            self._sureci_oldur()
             self.process.waitForFinished(3000)
             self._timeout_timer.stop()

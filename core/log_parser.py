@@ -123,10 +123,17 @@ _RE_INSTALL = re.compile(
 # gereksinimin tersi söyleniyordu (gerekçe ve ölçüm engine_detector'da).
 # Uzundan kısaya: alternatiflerden biri diğerinin önekiyse kısası önce
 # eşleşmesin.
+#
+# "requires EITHER X or Y" biçimi de tanınıyor. fontspec'in kendi hatası tam
+# olarak bu ("The fontspec package requires either XeTeX or LuaTeX.") ve
+# desen motor adını `requires`ın HEMEN ardında beklediği için hiç
+# eşleşmiyordu. ÖLÇÜLDÜ (2026-09-23, gerçek derle.sh, pdflatex): fontspec
+# yükleyen belgede öneri sayısı 0'dı; önerinin var olma sebebi tam bu durum.
+_MOTOR_ADI = '(' + '|'.join(sorted(MOTOR_TAKMA_ADLARI, key=len,
+                                    reverse=True)) + ')'
 _RE_ENGINE_REQ = re.compile(
-    r'requires\s+(' + '|'.join(
-        sorted(MOTOR_TAKMA_ADLARI, key=len, reverse=True)) + r')',
-    re.IGNORECASE)
+    r'requires\s+(?:either\s+)?' + _MOTOR_ADI + r'(?:\s+or\s+' + _MOTOR_ADI
+    + r')?', re.IGNORECASE)
 # derle.sh'nin KENDİ hataları: "[hata] lualatex kurulu değil — derlenemedi".
 # Bunlar LaTeX log'u değil betik çıktısı, o yüzden yukarıdaki '! ' desenleri
 # hiçbirini görmüyordu: motor kurulu değilken, dosya bulunamazken veya PDF hiç
@@ -227,6 +234,11 @@ _RE_UYARI_DOSYASI = re.compile(
 # birleştirmeden kaçınıyor.
 _RE_HATA_BAS = re.compile(r'^\s*! ')
 _CUMLE_SONU = (".", "?", "!")
+# Paket hatasının DEVAM satırı `(fontspec)   ...` önekiyle başlıyor (LaTeX'in
+# `\PackageError` biçimi). Birleştirirken atılıyor, yoksa cümlenin ortasına
+# "(fontspec)" ve bir sıra boşluk giriyordu. Dosya açılışları `(./a.tex`
+# gibi yol taşıdığı için desene uymuyor.
+_RE_PAKET_DEVAM = re.compile(r'^\([A-Za-z][\w-]*\)\s+')
 
 
 def _mantiksal_satirlar(ham: list[str]) -> list[str]:
@@ -243,13 +255,24 @@ def _mantiksal_satirlar(ham: list[str]) -> list[str]:
                 son = ham[i + 1]
                 s += son
                 i += 1
-        elif _RE_HATA_BAS.match(s):
+        elif _RE_HATA_BAS.match(s) or _RE_FILE_LINE_ERROR.match(s):
             # Uyarı kolundan farklı olarak BOŞLUKLA ekleniyor: kırılma
             # kelime sınırında, 79. sütunda değil.
+            #
+            # `-file-line-error` biçimi (`yol:satır: ...`) de burada. Kural
+            # yalnız `! ` ile başlayan satırı tanıyordu ve derle.sh motora
+            # `-file-line-error` verdiği için hata o biçimde geliyor: kural
+            # GERÇEK boru hattında hiç çalışmıyordu. ÖLÇÜLDÜ (2026-09-23,
+            # gerçek derle.sh): yukarıda anlatılan Unicode hatası yine
+            # "(U+2605)"de kesiliyor ve ipucu çıkmıyordu; fontspec hatası
+            # "requires either XeTeX or"da. Aynı biçimdeki bir sonraki hata
+            # satırı da birleştirmeyi durduruyor, iki hata birbirine yapışmasın.
             while (not s.rstrip().endswith(_CUMLE_SONU) and i + 1 < n
                    and ham[i + 1].strip()
-                   and not _RE_YAPI_BAS.match(ham[i + 1])):
-                s = s.rstrip() + " " + ham[i + 1].strip()
+                   and not _RE_YAPI_BAS.match(ham[i + 1])
+                   and not _RE_FILE_LINE_ERROR.match(ham[i + 1])):
+                s = (s.rstrip() + " "
+                     + _RE_PAKET_DEVAM.sub("", ham[i + 1].strip()))
                 i += 1
         out.append(s)
         i += 1
@@ -563,7 +586,11 @@ def parse_output(raw: str, source_file: str = "") -> CompileResult:
     for err in result.errors:
         m = _RE_ENGINE_REQ.search(err.message)
         if m:
-            required = MOTOR_TAKMA_ADLARI.get(m.group(1).lower(), "lualatex")
+            # İki seçenek varsa ve biri lualatex'se o öneriliyor: uygulamanın
+            # varsayılanı ve `engine_detector`ın fontspec için seçtiği motor.
+            secenekler = [MOTOR_TAKMA_ADLARI[g.lower()] for g in m.groups() if g]
+            required = ("lualatex" if "lualatex" in secenekler
+                        else secenekler[0])
             result.suggestions.append(LatexSuggestion(
                 message=f"Bu belge {required} gerektiriyor. Derleme motorunu {required} olarak değiştirin.",
             ))

@@ -148,6 +148,10 @@ class TestLatexCompiler:
         compiler = LatexCompiler()
         compiler.process = MagicMock()
         compiler.process.state.return_value = QProcess.ProcessState.Running
+        # Gerçek QProcess sözleşmesi: tam sayı, süreç yoksa 0. Sahte bunu
+        # vermeyince `_sureci_oldur`un `pid > 0` karşılaştırması yerli
+        # platformda TypeError atıyordu.
+        compiler.process.processId.return_value = 0
         compiler.stop()
         compiler.process.kill.assert_called_once()
 
@@ -194,6 +198,7 @@ class TestDerlemeZamanAsimi:
         c = LatexCompiler()
         c.process = MagicMock()
         c.process.state.return_value = QProcess.ProcessState.Running
+        c.process.processId.return_value = 0       # QProcess sözleşmesi
         results = []
         c.compilation_finished.connect(results.append)
         c._on_timeout()
@@ -359,6 +364,66 @@ class TestIptalLogaHataYazmiyor:
 
         assert [s for s in satirlar if "[hata]" in s], satirlar
         assert len(sonuclar) == 1 and sonuclar[0].success is False
+
+
+@pytest.mark.skipif(sys.platform == "win32",
+                    reason="yerli yol; Windows'ta derleme wsl.exe'den geçiyor "
+                           "ve orada ağaç zaten ölüyor (ölçüldü)")
+class TestIptalSurecAgaci:
+    r"""İptal ve zaman aşımı derle.sh'in ALT SÜREÇLERİNİ de öldürmeli.
+
+    `QProcess.kill()` yalnız `bash`i (derle.sh) öldürüyordu; motor derle.sh'in
+    `$(...)` ikamesinin açtığı ALT KABUKTA koşuyor ve SIGKILL oraya gitmiyor.
+    ÖLÇÜLDÜ (2026-09-23, gerçek `LatexCompiler`, sonsuz döngüye giren belge):
+    "Durdur" da zaman aşımı da sonrasında alt kabuk ve `pdflatex` sahipsiz
+    kalıp koşmaya devam ediyordu.
+
+    Sahte betik derle.sh'in YAPISINI taşıyor (uzun iş `$(...)` içinde),
+    yani TeX gerekmiyor ve kapı her yerli ortamda koşuyor. Döngü kısa
+    `sleep`lerden kuruluyor ki temizlik sonrası saatlerce yaşayan bir
+    `sleep` kalmasın.
+    """
+
+    @staticmethod
+    def _yasayan(betik):
+        import subprocess
+        p = subprocess.run(["pgrep", "-f", betik], capture_output=True,
+                           text=True, encoding="utf-8")
+        return p.stdout.split()
+
+    @pytest.mark.parametrize("nasil", ["durdur", "zaman_asimi"])
+    def test_IPTAL_alt_surecleri_de_olduruyor(self, tmp_path, monkeypatch,
+                                              nasil):
+        import subprocess
+        from PyQt6.QtCore import QEventLoop, QTimer
+
+        betik = tmp_path / "sahte_derle.sh"
+        betik.write_text("CIKTI=$(while :; do sleep 1; done)\n"
+                         "echo \"$CIKTI\"\n", encoding="utf-8")
+        monkeypatch.setattr(compiler_mod, "_find_derle_sh",
+                            lambda: str(betik))
+        tex = tmp_path / "a.tex"
+        tex.write_text("x", encoding="utf-8")
+
+        c = LatexCompiler()
+        try:
+            zaman = {"timeout_ms": 1500} if nasil == "zaman_asimi" else {}
+            assert c.compile(str(tex), "pdflatex", **zaman) is True
+            assert c.process.waitForStarted(10000)
+            time.sleep(0.5)                  # alt kabuk doğsun
+            assert len(self._yasayan(str(betik))) >= 2, "sahte derleme yok"
+
+            if nasil == "durdur":
+                c.stop()
+            else:                            # watchdog olay döngüsünde ateşler
+                dongu = QEventLoop()
+                QTimer.singleShot(2500, dongu.quit)
+                dongu.exec()
+            time.sleep(0.5)
+            assert self._yasayan(str(betik)) == [], \
+                "iptalden sonra alt kabuk sahipsiz kaldı"
+        finally:
+            subprocess.run(["pkill", "-f", str(betik)])
 
 
 class TestChunkCarryOver:
