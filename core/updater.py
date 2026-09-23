@@ -8,8 +8,14 @@ VERSION ile semver karşılaştırması yapar. Network hatası için 5s timeout.
 
 Cache: Açılış kontrolleri 24 saatte bir ile sınırlıdır (GitHub API rate limit
 koruması). Manuel kontrol (Yardım menüsü) cache'i bypass eder.
+
+Buradaki önbellek YALNIZ SÜREÇ içinde. Açılışlar arasındaki sınırı arayüz
+tutuyor: son başarılı denetimin zamanı ayarda (bkz.
+`main_window._start_update_check`). Eskiden yalnız bu önbellek vardı ve her
+açılış yeni süreç olduğu için sınır açılışlar arasında hiç işlemiyordu.
 """
 
+import html
 import json
 import time
 import urllib.request
@@ -203,6 +209,15 @@ def check_for_update(force: bool = False) -> Optional[dict]:
     body = release.get("body")
     if not isinstance(body, str):
         body = ""
+    # Gövde HTML KAÇIŞLI geliyor: `scripts/release_notes.sh` etiket mesajındaki
+    # `&`, `<`, `>`i GitHub sayfası için `&amp;`, `&lt;`, `&gt;` yapıyor.
+    # Pencere notu kendisi kaçışlıyor (`_kacir`), yani çözülmezse ikinci kez
+    # kaçışlanıyordu. ÖLÇÜLDÜ (2026-09-22, gerçek yayın gövdeleri, gerçek
+    # pencere): yazar `->` ve `&` yazmıştı, pencere beş yayının dördünde
+    # `-&gt;` ve `&amp;` gösteriyordu (v1.0.26, v1.0.9, v1.0.7, v1.0.4).
+    # `unescape` o `sed`in tam tersi: yazarın bilerek yazdığı `&copy;` bile
+    # gövdeye `&amp;copy;` olarak giriyor ve buradan `&copy;` olarak dönüyor.
+    body = html.unescape(body)
     changelog = _extract_changelog(body)
     url = release.get("html_url")
     if not isinstance(url, str) or not url:

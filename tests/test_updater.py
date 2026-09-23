@@ -97,6 +97,26 @@ class TestCheckForUpdate:
         monkeypatch.setattr(mod, "fetch_latest_release", lambda: {"tag_name": "v" + VERSION})
         assert check_for_update() is None
 
+    def test_GOVDEDEKI_html_varliklari_notta_cozuluyor(self, monkeypatch):
+        """Gövde `scripts/release_notes.sh`ten KAÇIŞLI geliyor.
+
+        Pencere notu kendisi kaçışladığı için çözülmezse ikinci kez
+        kaçışlanıyordu. ÖLÇÜLDÜ (2026-09-22, gerçek yayın gövdeleri,
+        gerçek pencere): yazar `->` ve `&` yazmıştı, pencere beş yayının
+        dördünde `-&gt;` ve `&amp;` gösteriyordu. Bu kapı notu gövdeden
+        üreten yere bakıyor; pencere kapıları notu HAM metin olarak
+        veriyordu, yani o boşluğu göremiyorlardı.
+        """
+        import core.updater as mod
+        govde = ("## What's Changed\n\n"
+                 "- align -&gt; amsmath &amp; &lt;b&gt;x&lt;/b&gt; &amp;copy;\n"
+                 "\n---\n\n## Installation\n")
+        monkeypatch.setattr(mod, "fetch_latest_release", lambda: {
+            "tag_name": "v99.0.0", "html_url": "u", "body": govde})
+        notlar = check_for_update()["notes"]
+        # `&amp;copy;` yazarın BİLEREK yazdığı `&copy;`: bir kez çözülüyor.
+        assert notlar == "- align -> amsmath & <b>x</b> &copy;"
+
     def test_returns_info_when_newer(self, monkeypatch):
         import core.updater as mod
         monkeypatch.setattr(mod, "fetch_latest_release", lambda: {

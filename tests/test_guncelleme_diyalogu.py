@@ -240,3 +240,45 @@ def test_qt_varsayilan_link_rengi_koyu_temada_YETMIYOR():
             if _karsitlik(qt_link, _coz(t["bg_primary"])) < ESIK]
 
     assert len(koyu) >= 5, "Qt varsayılanı beklenenden iyi: %s" % koyu
+
+
+@gui
+def test_ACILIS_denetimi_ACILISLAR_ARASINDA_da_24_saatte_bir(ana_pencere,
+                                                            monkeypatch):
+    """"Açılış kontrolleri 24 saatte bir" açılışlar arasında da tutmalı.
+
+    Önbellek `core.updater`da SÜREÇ içindeydi ve her açılış yeni bir süreç.
+    ÖLÇÜLDÜ (2026-09-22): üç açılış, üç API çağrısı. Önbellek kapısı üç
+    çağrıyı TEK süreçte yapıp yeşil kalıyordu. Aynı ayar dosyasını paylaşan
+    ardışık pencereler burada ardışık açılışlar.
+
+    Aşırı düzeltmeye karşı iki kol ŞART, çünkü bu özellik bozulunca SESSİZ
+    kalıyor: kullanıcı güncellemeyi hiç görmez. Ağ hatası zamanı yazmamalı
+    (bir sonraki açılış yeniden denesin) ve gelecekteki bir kayıt (saat geri
+    alınmış) denetimi engellememeli.
+    """
+    import time
+
+    denetim = []
+    monkeypatch.setattr(mw.UpdateCheckThread, "start",
+                        lambda self: denetim.append(1))
+
+    ilk = ana_pencere()
+    assert len(denetim) == 1
+    ilk._update_thread.finished_no_update.emit()          # başarılı denetim
+    ana_pencere()
+    assert len(denetim) == 1, "24 saat dolmadan açılışta yeniden denetlendi"
+
+    ayar = ana_pencere.ayar()
+    ayar.setValue("update/son_kontrol", 0)
+    ayar.sync()
+    ag_hatasi = ana_pencere()
+    assert len(denetim) == 2
+    ag_hatasi._update_thread.finished_network_error.emit()
+    ana_pencere()
+    assert len(denetim) == 3, "ağ hatasından sonra bir daha denetlenmedi"
+
+    ayar.setValue("update/son_kontrol", int(time.time()) + 10 * 86400)
+    ayar.sync()
+    ana_pencere()
+    assert len(denetim) == 4, "gelecekteki kayıt denetimi engelledi"

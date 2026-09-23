@@ -4,10 +4,12 @@ import os
 import shutil
 import tempfile
 import threading
+import time
 from html import escape as _kacir
 
 from core.fs_ops import KAYNAK_UZANTILARI
 from core.latex_refs import IMG_EXTS
+from core.updater import CACHE_INTERVAL
 from core.version import VERSION
 from core.log import get_logger, log_path as _log_path
 from PyQt6.QtCore import QCoreApplication
@@ -1196,6 +1198,19 @@ class MainWindow(
 
     def _start_update_check(self, silent: bool = False):
         """Arka planda güncelleme kontrolü başlat. silent=True ise açılış kontrolü."""
+        # AÇILIŞ denetimi 24 saatte bir. `core.updater`in önbelleği SÜREÇ
+        # içinde ve her açılış yeni bir süreç: sınır açılışlar arasında hiç
+        # işlemiyordu. ÖLÇÜLDÜ (2026-09-22): üç açılış, üç API çağrısı; var
+        # olan kapı üç çağrıyı TEK süreçte yapıp yeşil kalıyordu. Son BAŞARILI
+        # denetimin zamanı ayarda tutuluyor; ağ hatası yazmıyor, yani bir
+        # sonraki açılış yeniden deniyor. Elle denetim sınırı atlıyor. Kayıt
+        # gelecekteyse (saat geri alınmış) denetim yapılıyor, yoksa saat
+        # yakalayana kadar hiç denetlenmezdi.
+        if silent:
+            son = self._ayar_sayi(
+                self._settings.value("update/son_kontrol", 0), 0, 0, 2 ** 62)
+            if 0 <= time.time() - son < CACHE_INTERVAL:
+                return
         # Mevcut thread çalışıyorsa, silent flag'i güncelle ve sonucunu bekle
         if self._update_thread and self._update_thread.isRunning():
             self._update_check_silent = silent
@@ -1207,6 +1222,11 @@ class MainWindow(
             self._status.showMessage(_("Güncellemeler kontrol ediliyor..."))
         self._update_thread = UpdateCheckThread(self)
         self._update_thread._force = not silent
+        # Zaman yalnız BAŞARILI denetimde yazılıyor: iki sonuç da sayılır,
+        # ağ hatası sayılmaz (yukarıdaki sınırın gerekçesi).
+        self._update_thread.update_found.connect(self._guncelleme_denetlendi)
+        self._update_thread.finished_no_update.connect(
+            self._guncelleme_denetlendi)
         self._update_thread.update_found.connect(self._on_update_found)
         self._update_thread.finished_no_update.connect(self._on_no_update)
         self._update_thread.finished_network_error.connect(self._on_network_error)
@@ -1216,6 +1236,10 @@ class MainWindow(
     def _check_for_update_manual(self):
         """Yardım menüsünden manuel güncelleme kontrolü."""
         self._start_update_check(silent=False)
+
+    def _guncelleme_denetlendi(self, *_):
+        """Başarılı bir güncelleme denetiminin zamanını kaydet."""
+        self._settings.setValue("update/son_kontrol", int(time.time()))
 
     def _on_thread_finished(self):
         """Thread bitti — referansı temizle."""
