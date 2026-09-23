@@ -116,3 +116,48 @@ class TestBaglamSatiriVarsayimi:
         ilk = re.findall(r"\\[A-Za-z]+", ctx)[0]
         assert ilk == "\\textbf", ctx
         assert params["cmd"] != ilk
+
+
+class TestMakroIcindeTanimsizKomut:
+    r"""Hata bir kullanıcı makrosunun İÇİNDEYSE `l.N` satırının son komutu
+    makronun kendisi. TeX suçluyu hata iletisinin ÜST satırının sonunda
+    gösteriyor ("The control sequence at the end of the top line of your
+    error message was never \def'ed"). ÖLÇÜLDÜ (2026-09-23): ipucu `\R`
+    ve `\vect`i suçluyordu. Kehanet TeX'in kendisi: paket eklenince hata
+    KALKIYOR, yani suçlu o paketin komutu."""
+
+    @staticmethod
+    def _tanimsizlar(onsoz: str, govde: str):
+        d = tempfile.mkdtemp(prefix="ipucu_makro_")
+        try:
+            p = os.path.join(d, "a.tex")
+            with open(p, "w", encoding="utf-8") as f:
+                f.write("\\documentclass{article}\n" + onsoz
+                        + "\\begin{document}\n" + govde + "\n\\end{document}\n")
+            subprocess.run(
+                ["pdflatex", "-interaction=nonstopmode", "-halt-on-error",
+                 "-output-directory", d, p],
+                capture_output=True, timeout=120)
+            with open(os.path.join(d, "a.log"), encoding="utf-8",
+                      errors="replace") as f:
+                r = parse_output(f.read())
+        finally:
+            shutil.rmtree(d, ignore_errors=True)
+        return [e for e in r.errors
+                if "Undefined control sequence" in e.message]
+
+    @pytest.mark.parametrize("makro,govde,suclu,paket", [
+        ("\\newcommand{\\R}{\\mathbb{R}}\n", "$x\\in\\R$", r"\mathbb",
+         "amssymb"),
+        ("\\newcommand{\\vect}[1]{\\boldsymbol{#1}}\n", "$\\vect{x}$",
+         r"\boldsymbol", "amsmath"),
+    ])
+    def test_suclu_makronun_ICINDEKI_komut(self, makro, govde, suclu, paket):
+        hatalar = self._tanimsizlar(makro, govde)
+        assert hatalar, "log'da 'Undefined control sequence' ayrıştırılamadı"
+        e = hatalar[0]
+        h = get_hint(e.message, e.context, e.ust_satir)
+        assert h[1].get("cmd") == suclu, (e.ust_satir, e.context, h)
+        # kehanet: paket eklenince hata kalkıyor
+        assert not self._tanimsizlar("\\usepackage{%s}\n" % paket + makro,
+                                     govde)

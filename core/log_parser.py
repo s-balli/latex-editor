@@ -13,6 +13,10 @@ class LatexError:
     message: str = ""
     context: str = ""
     file_path: str = ""
+    # TeX'in "üst satırı": hatadan hemen sonraki bağlam satırı (yalnız
+    # tanımsız komut hatasında tutuluyor). Hata bir makronun içindeyse
+    # `context`teki `l.N` satırından FARKLI (bkz. parse_output).
+    ust_satir: str = ""
 
 
 @dataclass
@@ -359,6 +363,7 @@ def parse_output(raw: str, source_file: str = "") -> CompileResult:
 
     lines = _mantiksal_satirlar(raw.split('\n'))
     current_error: LatexError | None = None
+    ust_bekleniyor = False
     # yazı tipi -> [ilk ham satır, kaç kez]. Döngü sonunda tek uyarıya iner.
     eksik_glif: dict[str, list] = {}
 
@@ -399,6 +404,19 @@ def parse_output(raw: str, source_file: str = "") -> CompileResult:
                 dosya_yigini.pop()
         current_file = satir_dosyasi or dosya_yigini[-1]
 
+        # Tanımsız komut hatasından HEMEN sonraki satır TeX'in "üst satırı".
+        # Suçlu komut onun SONUNDA; TeX'in kendi yardım metni: "The control
+        # sequence at the end of the top line of your error message was
+        # never \def'ed". Hata bir kullanıcı makrosunun içindeyse bu satır
+        # `l.N` satırı değil, `\R ->\mathbb` gibi makro satırı oluyor ve
+        # ipucu eskiden yalnız `l.N` satırına bakıp tanımlı makroyu (`\R`)
+        # suçluyordu (ölçüldü 2026-09-23, gerçek derle.sh çıktısı).
+        # `continue` YOK: üst satır `l.N` satırının kendisi de olabilir.
+        if ust_bekleniyor:
+            ust_bekleniyor = False
+            if current_error is not None and line.strip():
+                current_error.ust_satir = line.strip()
+
         # derle.sh'nin kendi hata satırı
         m = _RE_SCRIPT_ERROR.match(line)
         if m:
@@ -436,6 +454,7 @@ def parse_output(raw: str, source_file: str = "") -> CompileResult:
             current_error = LatexError(message=m.group(3).strip(),
                                        file_path=m.group(1),
                                        line_number=int(m.group(2)))
+            ust_bekleniyor = "Undefined control sequence" in current_error.message
             continue
 
         # Genel hata
@@ -444,6 +463,7 @@ def parse_output(raw: str, source_file: str = "") -> CompileResult:
             if current_error:
                 result.errors.append(current_error)
             current_error = LatexError(message=m.group(1), file_path=current_file)
+            ust_bekleniyor = "Undefined control sequence" in current_error.message
             continue
 
         # Hata bağlamı: "l.42 Kume $\mathbb" satırı. Hem satır numarasını

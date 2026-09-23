@@ -362,3 +362,35 @@ def test_esc_ONCE_bul_cubugunu_kapatiyor(qapp, tmp_path):
     finally:
         ed.deleteLater()
         qapp.processEvents()
+
+
+def test_SEBEBI_BILINEN_basarisizlikta_genel_motor_onerisi_YOK(ana_pencere,
+                                                              tmp_path):
+    """Genel "motoru değiştirip tekrar deneyin" satırı her başarısızlıkta
+    Öneriler'in en üstüne giriyor ve paneli oraya çeviriyordu. ÖLÇÜLDÜ
+    (2026-09-23, gerçek derle.sh; satırlar oradan): yazım hatasında hata
+    listesi kapalı sekmede kaldı (aynı hata üç motorda da düşüyor), pdflatex
+    ile fontspec'te aynı öneri iki kez çıktı. Sebebi bilinmeyen
+    başarısızlıkta satırın durduğu kol
+    test_file_ops.test_AGACTAN_derlenen_belge_KENDI_motoruyla."""
+    from core.log_parser import parse_output
+
+    p = ana_pencere()
+    op = p._output_panel
+    tex = str(tmp_path / "main.tex")
+    p._compile_target = tex
+    p._compile_engine = "pdflatex"
+
+    # derle.sh WSL'de koşuyor ve POSIX yolu basıyor
+    p._on_compile_finished(parse_output(
+        "  /home/u/y/main.tex:3: Undefined control sequence.\n"
+        "  l.3 Merhaba \\hatali\n", tex))
+    assert op._suggest_list.count() == 0
+    assert op._tabs.currentIndex() == op._error_tab_index
+
+    p._on_compile_finished(parse_output(
+        "  /usr/share/texlive/texmf-dist/tex/latex/fontspec/fontspec.sty:45: "
+        "Fatal Package fontspec Error: The fontspec package requires either "
+        "XeTeX or\n"
+        "  (fontspec)                      LuaTeX.\n", tex))
+    assert op._suggest_list.count() == 1

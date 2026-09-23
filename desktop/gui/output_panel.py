@@ -338,7 +338,8 @@ class OutputPanel(QWidget):
         # Hatalar
         for err in result.errors:
             text = _("Satır {n}: {msg}").format(n=err.line_number, msg=err.message) if err.line_number else err.message
-            hint = self._hint_text(get_hint(err.message, err.context))
+            hint = self._hint_text(get_hint(err.message, err.context,
+                                            err.ust_satir))
             if hint:
                 text += "\n    → " + hint
             item = QListWidgetItem(text)

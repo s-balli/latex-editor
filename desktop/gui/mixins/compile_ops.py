@@ -21,6 +21,28 @@ _ = lambda s: QCoreApplication.translate("CompileOpsMixin", s)
 _logger = get_logger("compile")
 
 
+def _basarisizlik_aciklandi(result) -> bool:
+    r"""Başarısız derlemenin sebebi panelde zaten söyleniyor mu.
+
+    Günlüğün kendi önerisi (eksik paket, "Bu belge lualatex gerektiriyor")
+    ya da ipucu tanınan bir hata varsa genel "motoru değiştirip tekrar
+    deneyin" satırı EKLENMİYOR. O satır her başarısızlıkta Öneriler'in en
+    üstüne giriyor ve paneli oraya çeviriyordu. ÖLÇÜLDÜ (2026-09-23, gerçek
+    derle.sh çıktısı):
+
+        yazım hatası (\hatali)   hata listesi kapalı sekmede kaldı; aynı
+                                 hata üç motorda da düşüyor
+        pdflatex + fontspec      aynı öneri iki kez, genel olanı hedefli
+                                 olanın ÜSTÜNDE
+
+    Sebebi bilinmeyen başarısızlıkta satır yedek olarak duruyor.
+    """
+    from core.error_hints import get_hint
+
+    return bool(result.suggestions) or any(
+        get_hint(e.message, e.context, e.ust_satir) for e in result.errors)
+
+
 class CompileOpsMixin:
 
     def _save_if_open(self, path: str) -> bool:
@@ -564,7 +586,7 @@ class CompileOpsMixin:
 
         self._output_panel.show_result(result)
 
-        if failed:
+        if failed and not _basarisizlik_aciklandi(result):
             # Derlemeye GİDEN motor. Ağaçtan başka bir belge derlendiyse
             # kutu o motoru göstermiyor.
             current = (getattr(self, "_compile_engine", "")

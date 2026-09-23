@@ -190,11 +190,33 @@ KOMUT_SINIFI = {
 }
 
 
-def get_hint(message: str, context: str = "") -> tuple[str, dict[str, str]] | None:
-    """Hata/uyarı mesajı için (ipucu_kimliği, parametreler); tanınmazsa None.
+def _suclu_komut(ust_satir: str, context: str) -> str:
+    r"""Tanımsız komut: üst satırın, yoksa `l.N` satırının SON kontrol sözcüğü.
 
-    ``context``: log_parser'ın yakaladığı "l.42 ..." satırı (tanımsız komutun
-    kaynağını çıkarmada kullanılır).
+    Üst satır `l.N` önekli olabilir (hata doğrudan kaynakta) ya da bir makro
+    satırı olabilir (`\R ->\mathbb`); ikisinde de satırın sonu. ``context``
+    eskisi gibi yalnız `l.N` işaretçisi taşıyorsa okunuyor.
+    """
+    sm = _RE_CTX_SATIRI.search(ust_satir)
+    komutlar = _RE_KOMUT.findall(sm.group(1) if sm else ust_satir)
+    if not komutlar:
+        cm = _RE_CTX_SATIRI.search(context)
+        komutlar = _RE_KOMUT.findall(cm.group(1)) if cm else []
+    return komutlar[-1] if komutlar else ""
+
+
+def get_hint(message: str, context: str = "",
+             ust_satir: str = "") -> tuple[str, dict[str, str]] | None:
+    r"""Hata/uyarı mesajı için (ipucu_kimliği, parametreler); tanınmazsa None.
+
+    ``context``: log_parser'ın yakaladığı "l.42 ..." satırı. ``ust_satir``:
+    TeX'in hatadan hemen sonraki bağlam satırı. Tanımsız komut ÖNCE
+    ``ust_satir``in sonunda aranıyor (TeX'in kendi kuralı, bkz.
+    log_parser.parse_output); hata bir makronun içindeyse `l.N` satırının
+    son komutu o makronun KENDİSİ oluyor. ÖLÇÜLDÜ (2026-09-23, gerçek
+    derle.sh): `\newcommand{\R}{\mathbb{R}}` + `$\R$` ipucu `\R`yi
+    suçluyordu, `amssymb` eklenince hata kalkıyor; `\vect` ile
+    `\boldsymbol` (amsmath) aynı.
     """
     if not message:
         return None
@@ -210,20 +232,16 @@ def get_hint(message: str, context: str = "") -> tuple[str, dict[str, str]] | No
     for pat, hint_id in _PATTERNS:
         if pat.search(message):
             params: dict[str, str] = {}
-            if hint_id == "undefined_control" and context:
-                sm = _RE_CTX_SATIRI.search(context)
-                if sm:
-                    komutlar = _RE_KOMUT.findall(sm.group(1))
-                    if komutlar:
-                        params["cmd"] = komutlar[-1]
-                        ad = komutlar[-1].lstrip("\\")
-                        if ad in KOMUT_PAKETI:
-                            return "cmd_needs_package", {
-                                "cmd": komutlar[-1],
-                                "paket": KOMUT_PAKETI[ad]}
-                        if ad in KOMUT_SINIFI:
-                            return "cmd_needs_class", {
-                                "cmd": komutlar[-1],
-                                "sinif": KOMUT_SINIFI[ad]}
+            if hint_id == "undefined_control":
+                komut = _suclu_komut(ust_satir, context)
+                if komut:
+                    params["cmd"] = komut
+                    ad = komut.lstrip("\\")
+                    if ad in KOMUT_PAKETI:
+                        return "cmd_needs_package", {
+                            "cmd": komut, "paket": KOMUT_PAKETI[ad]}
+                    if ad in KOMUT_SINIFI:
+                        return "cmd_needs_class", {
+                            "cmd": komut, "sinif": KOMUT_SINIFI[ad]}
             return hint_id, params
     return None

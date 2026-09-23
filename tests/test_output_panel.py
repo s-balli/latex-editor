@@ -288,3 +288,24 @@ def test_hata_tiklamasi_SATIR_varsa_yayiyor(qapp):
     p._on_error_click(it)
 
     assert yayilan == [("C:/x/a.tex", 12)]
+
+
+def test_MAKRO_icindeki_tanimsiz_komutta_ipucu_ASIL_sucluyu_gosteriyor(qapp):
+    """Hata kullanıcı makrosunun içindeyse ipucu makronun KENDİSİNİ
+    suçluyordu. ÖLÇÜLDÜ (2026-09-23, gerçek derle.sh çıktısı; aşağıdaki
+    satırlar oradan, yol kısaltıldı): `\\newcommand{\\R}{\\mathbb{R}}` +
+    `$\\R$` için ipucu "(\\R)" dedi; `amssymb` eklenince hata kalkıyor,
+    yani suçlu `\\mathbb`. TeX'in kuralı: suçlu komut hata iletisinin ÜST
+    satırının sonunda. Gerçek pdflatex'li kol test_ipucu_derleme'de."""
+    from core.log_parser import parse_output
+
+    ham = ("  /home/u/tez/main.tex:4: Undefined control sequence.\n"
+           "  \\R ->\\mathbb\n"
+           "  {R}\n"
+           "  l.4 $x\\in\\R\n"
+           "  $\n")
+    p = _panel()
+    p.show_result(parse_output(ham, "/home/u/tez/main.tex"))
+
+    metin = p._error_list.item(0).text()
+    assert "\\mathbb" in metin and "amssymb" in metin, metin
