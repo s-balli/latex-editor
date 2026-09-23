@@ -663,10 +663,29 @@ class EditorWidget(QsciScintilla):
         matches = [e for e in _LATEX_ENVIRONMENTS[lo:hi] if e != typed]
         self._popup_goster(matches, typed)
 
+    def _projeden(self, topla) -> list:
+        r"""``topla(icerik, yol)`` bu belge ve KÖK belgesi için, birleşik.
+
+        Bölüm dosyasında proje kökte: `\bibliography` ve öteki bölümlerin
+        etiketleri oradan görünüyor. ÖLÇÜLDÜ (2026-09-23, tez düzeni):
+        bölümde `\ref{` yalnız bölümün kendi etiketini, `\cite{` hiçbir
+        anahtarı önermiyordu. Belgenin kendisi ARABELLEKTEN okunuyor ki
+        kaydedilmemiş etiket de gelsin; kök diskten (bkz. kok_belge).
+        """
+        sonuc = set(topla(self.text(), self._file_path))
+        kok = kok_belge(self._file_path) if self._file_path else ""
+        if kok and os.path.normcase(kok) != os.path.normcase(self._file_path):
+            try:
+                with open(kok, "r", encoding="utf-8", errors="replace") as f:
+                    sonuc |= set(topla(f.read(), kok))
+            except OSError:
+                pass
+        return sorted(sonuc)
+
     def _show_ref_completion(self, typed: str):
         r"""\ref{...} için projedeki \label anahtarlarını öner (doküman-farkında)."""
         try:
-            labels = collect_labels(self.text(), self._file_path)
+            labels = self._projeden(collect_labels)
         except Exception:
             _logger.debug("label toplama başarısız", exc_info=True)
             return
@@ -677,7 +696,7 @@ class EditorWidget(QsciScintilla):
         r"""\cite{...} için .bib anahtarlarını öner (key1,key2 çoklu destek)."""
         partial = typed.rsplit(',', 1)[-1]   # son virgülden sonraki segment
         try:
-            keys = collect_citable_keys(self.text(), self._file_path)
+            keys = self._projeden(collect_citable_keys)
         except Exception:
             _logger.debug("cite anahtar toplama başarısız", exc_info=True)
             return

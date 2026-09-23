@@ -532,13 +532,47 @@ class EditOpsMixin:
         return ((anahtar, "bibitem", "", _bibitem_yili(metin), metin),
                 dosya, satir)
 
+    def _proje_tabani(self, ed) -> tuple[str, str]:
+        r"""Proje işlemlerinin tabanı: (kök belgenin yolu, içeriği).
+
+        F2 ile yeniden adlandırma, anahtar çakışma denetimi ve Referans
+        Denetimi projeyi bu tabandan ve onun `\input` zincirinden görüyor.
+        Eskiden taban düzenlenen dosyanın KENDİSİYDİ ve bölüm dosyasında
+        öteki bölümler görünmüyordu. ÖLÇÜLDÜ (2026-09-23, tez düzeni,
+        `% !TEX root` yok; kehanet projede kalan eski anahtar ve gerçek
+        derleme):
+
+            bölümde F2 etiket           öteki bölümdeki \ref değişmedi ->
+                                        "Reference undefined"
+            aynı adlı etikete F2        engellenmedi -> "multiply defined"
+            bölümde F2 atıf             .bib ve öteki bölüm değişmedi ->
+                                        "Citation undefined"
+            bölümden denetim            gerçekte olmayan 1 tanımsız ref,
+                                        1 tanımsız cite, 1 kullanılmayan
+                                        label
+
+        Kök sekmede açıksa arabelleği, değilse diski okunuyor. Kök yoksa
+        dosyanın kendisi (bkz. core.engine_detector.kok_belge).
+        """
+        from core.engine_detector import kok_belge
+
+        kok = kok_belge(ed.file_path)
+        if os.path.normcase(os.path.abspath(kok)) != os.path.normcase(
+                os.path.abspath(ed.file_path)):
+            kok_ed = self._editor_by_path(kok)
+            icerik = kok_ed.text() if kok_ed is not None else self._read_text(kok)
+            if icerik is not None:
+                return kok, icerik
+        return ed.file_path, ed.text()
+
     def _audit_references(self):
         """Düzenle > Referansları Denetle — derlemeden bağımsız lokal analiz."""
         editor = self._current_editor()
         if not editor or not editor.file_path:
             self._status.showMessage(_("Önce bir .tex dosyası açın"))
             return
-        warnings, suggestions, c = self._collect_audit_items(editor.text(), editor.file_path)
+        taban, icerik = self._proje_tabani(editor)
+        warnings, suggestions, c = self._collect_audit_items(icerik, taban)
         self._output_panel.show_audit(warnings, suggestions)
         if not warnings and not suggestions:
             self._status.showMessage(_("Referans denetimi: sorun yok"))
@@ -674,6 +708,30 @@ class EditOpsMixin:
     # derleniyor (ölçüldü 2026-09-14). Kullanıcı uygulamanın kendi
     # ürettiği etiketi yeniden adlandıramıyordu.
 
+    def _rename_editoru(self):
+        """F2'nin geldiği editör: sinyali gönderen, yoksa ön sekme."""
+        from gui.editor import EditorWidget
+
+        ed = self.sender()
+        if not isinstance(ed, EditorWidget):
+            ed = self._current_editor()
+        return ed
+
+    @staticmethod
+    def _zincir_yollari(taban: str, icerik: str, duzenlenen: str) -> list:
+        r"""Taban ve `\input` zincirindeki dosyalar, ``duzenlenen`` dahil.
+
+        `% !TEX root` ile köke bağlanan dosya kökün zincirinde görünmeyebilir;
+        F2'nin başladığı dosya her hâlde değişmeli.
+        """
+        from core.latex_refs import input_chain_paths
+
+        yollar = [taban] + input_chain_paths(icerik, taban)
+        gorulen = {os.path.normcase(os.path.abspath(y)) for y in yollar}
+        if os.path.normcase(os.path.abspath(duzenlenen)) not in gorulen:
+            yollar.append(duzenlenen)
+        return yollar
+
     def _rename_ister(self, key: str, baslik: str, gecersiz_msg: str,
                       gosterim: str = ""):
         """Editörü bul + yeni adı sor + doğrula.
@@ -683,11 +741,7 @@ class EditOpsMixin:
         ``gosterim`` diyalogda anahtarın nasıl yazılacağı (label için
         etiket komutuyla birlikte, diğerlerinde anahtarın kendisi).
         """
-        from gui.editor import EditorWidget
-
-        ed = self.sender()
-        if not isinstance(ed, EditorWidget):
-            ed = self._current_editor()
+        ed = self._rename_editoru()
         if not ed or not ed.file_path or not key:
             return None, ""
 
@@ -708,7 +762,7 @@ class EditOpsMixin:
 
         Yeni ad projede zaten varsa engellenir.
         """
-        from core.latex_refs import collect_labels, input_chain_paths, label_rename_spans
+        from core.latex_refs import collect_labels, label_rename_spans
 
         ed, new_key = self._rename_ister(
             key, _("Etiketi Yeniden Adlandır"),
@@ -716,15 +770,18 @@ class EditOpsMixin:
             gosterim=f"\\label{{{key}}}")
         if ed is None:
             return
-        content = ed.text()
-        if new_key in collect_labels(content, ed.file_path):
+        # Taban KÖK belge (bkz. `_proje_tabani`). Zincir diskten okunuyor;
+        # düzenlenen dosyanın kaydedilmemiş etiketleri ayrıca sayılıyor.
+        taban, icerik = self._proje_tabani(ed)
+        if (new_key in collect_labels(icerik, taban)
+                or new_key in collect_labels(ed.text(), ed.file_path)):
             QMessageBox.warning(
                 self, _("Etiketi Yeniden Adlandır"),
                 _("'{k}' adlı etiket projede zaten var.").format(k=new_key),
             )
             return
 
-        paths = [ed.file_path] + input_chain_paths(content, ed.file_path)
+        paths = self._zincir_yollari(taban, icerik, ed.file_path)
         changed, failed = self._apply_renamings(
             paths, lambda t: label_rename_spans(t, key), new_key)
 
@@ -740,10 +797,25 @@ class EditOpsMixin:
         (kullanım hiç yoksa yalnız .bib girdisi değişir). Çift anahtar
         engellenir.
         """
+        from core.engine_detector import kok_belge
         from core.latex_refs import (
             bib_key_rename_spans, cite_rename_spans,
-            find_bib_path, find_cite_usage, input_chain_paths,
+            find_bib_path, find_bibitem_location, find_cite_usage,
         )
+
+        # El ile kaynakçada \cite'ın hedefi .bib girdisi değil \bibitem.
+        # F2 \cite üzerindeyken hep bu kola geliyor ve \bibitem'e hiç
+        # dokunulmuyordu. ÖLÇÜLDÜ (2026-09-23, tek dosyalı belge):
+        # `\cite{knuth}` -> `knuth84` oldu, `\bibitem{knuth}` kaldı ve
+        # derleme "Citation `knuth84' undefined" dedi. İmleç \bibitem
+        # satırındayken doğru çalışıyordu.
+        kaynak = self._rename_editoru()
+        if (kaynak is not None and kaynak.file_path
+                and not kaynak.file_path.lower().endswith('.bib')):
+            taban, icerik = self._proje_tabani(kaynak)
+            if find_bibitem_location(icerik, taban, key) is not None:
+                self._on_rename_bibitem(key)
+                return
 
         title = _("Kaynakça Anahtarını Yeniden Adlandır")
         ed, new_key = self._rename_ister(
@@ -756,13 +828,18 @@ class EditOpsMixin:
         # birakilsaydi `.BIB` dosyasi bu dala hic girmez, `base_path`
         # .bib'in kendisi olur ve makaledeki `\cite{eski}` degismeden
         # kalirdi (kaynakcada `[?]`). Ikisi birlikte duzeltildi.
+        duzenlenen = ed.file_path
         if ed.file_path.lower().endswith('.bib'):
             bib_path = ed.file_path
             usage = find_cite_usage(bib_path, key)
-            base_path = usage[0] if usage else ""
+            # Anahtarı kullanan İLK dosya çoğu zaman bir bölüm; zincir onun
+            # KÖKÜNDEN kuruluyor. Ölçüldü: bölümden kurulunca öteki
+            # bölümdeki \cite değişmiyordu.
+            base_path = kok_belge(usage[0]) if usage else ""
+            duzenlenen = usage[0] if usage else ""
         else:
-            base_path = ed.file_path
-            bib_path = find_bib_path(ed.text(), base_path)
+            base_path, icerik = self._proje_tabani(ed)
+            bib_path = find_bib_path(icerik, base_path)
 
         # çift anahtar kontrolü: .bib (sekmeyse arabellekten, değilse diskten)
         bib_text = ""
@@ -781,8 +858,8 @@ class EditOpsMixin:
             base_ed = self._editor_by_path(base_path)
             base_content = base_ed.text() if base_ed else self._read_text(base_path)
             if base_content is not None:
-                paths.append(base_path)
-                paths += input_chain_paths(base_content, base_path)
+                paths += self._zincir_yollari(base_path, base_content,
+                                              duzenlenen or base_path)
         if bib_path:
             paths.append(bib_path)
 
@@ -803,8 +880,7 @@ class EditOpsMixin:
         ve tüm \cite kullanımları birlikte değişir. Çift anahtar engellenir.
         """
         from core.latex_refs import (
-            bibitem_rename_spans, cite_rename_spans,
-            find_bibitem_location, input_chain_paths,
+            bibitem_rename_spans, cite_rename_spans, find_bibitem_location,
         )
 
         title = _("Kaynakça Anahtarını Yeniden Adlandır")
@@ -812,15 +888,17 @@ class EditOpsMixin:
             key, title, _("Geçersiz anahtar adı (harf, rakam, : . _ - kullanın)"))
         if ed is None:
             return
-        content = ed.text()
-        if find_bibitem_location(content, ed.file_path, new_key) is not None:
+        taban, icerik = self._proje_tabani(ed)
+        if (find_bibitem_location(icerik, taban, new_key) is not None
+                or find_bibitem_location(ed.text(), ed.file_path,
+                                         new_key) is not None):
             QMessageBox.warning(
                 self, title,
                 _("'{k}' adlı etiket projede zaten var.").format(k=new_key),
             )
             return
 
-        paths = [ed.file_path] + input_chain_paths(content, ed.file_path)
+        paths = self._zincir_yollari(taban, icerik, ed.file_path)
         changed, failed = self._apply_renamings(
             paths,
             lambda t: cite_rename_spans(t, key) + bibitem_rename_spans(t, key),

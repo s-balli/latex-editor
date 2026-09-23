@@ -692,3 +692,147 @@ def test_f2_PARANTEZLI_bib_girdisinde_de_calisiyor(qapp):
     ed._request_rename()
     assert caught == ["kaya2020"]
     assert ed._bib_key_at("@article(kaya2020, title={X})", 12) == "kaya2020"
+
+
+# --- Bölüm dosyasında F2: taban KÖK belge (2026-09-23) ---
+#
+# Tez düzeni, `% !TEX root` yok (derlemdeki bölüm dosyaları böyle). F2
+# düzenlenen bölümü kök sayıyordu. Kehanet projede KALAN eski anahtar (düz
+# regex, uygulama kodu değil); gerçek derlemede kalan her anahtar
+# "undefined" ya da "multiply defined" veriyordu.
+
+_BIB_KAYNAKCA = "\\bibliographystyle{plain}\n\\bibliography{kaynak}\n"
+
+
+def _tez(tmp_path, kaynakca=_BIB_KAYNAKCA, bib=True):
+    kok = tmp_path / "tez"
+    (kok / "Chapters").mkdir(parents=True)
+    (kok / "main.tex").write_text(
+        "\\documentclass{article}\n\\begin{document}\n"
+        "\\input{Chapters/Chapter1}\n\\input{Chapters/Chapter2}\n"
+        + kaynakca + "\\end{document}\n", encoding="utf-8")
+    (kok / "Chapters" / "Chapter1.tex").write_text(
+        "\\section{Giris}\\label{sec:giris}\n"
+        "Bkz.~\\ref{sec:yontem}. \\cite{smith2020}.\n", encoding="utf-8")
+    (kok / "Chapters" / "Chapter2.tex").write_text(
+        "\\section{Yontem}\\label{sec:yontem}\n"
+        "Giris~\\ref{sec:giris}. \\cite{smith2020}.\n", encoding="utf-8")
+    if bib:
+        (kok / "kaynak.bib").write_text(
+            "@article{smith2020,\n  title={T},\n  year={2020}\n}\n",
+            encoding="utf-8")
+    return kok
+
+
+def _kalan(kok, anahtar):
+    """Projede eski anahtarın kalan kullanımları: {dosya: sayı}."""
+    import re
+
+    desen = re.compile(r"(?:\\(?:ref|label|cite|bibitem)\{|@\w+\{)"
+                       + re.escape(anahtar) + r"[,}]")
+    kalan = {}
+    for yol in sorted(kok.rglob("*")):
+        if yol.suffix in (".tex", ".bib"):
+            n = len(desen.findall(yol.read_text(encoding="utf-8")))
+            if n:
+                kalan[yol.relative_to(kok).as_posix()] = n
+    return kalan
+
+
+def _yeni_ad(monkeypatch, ad):
+    from PyQt6.QtWidgets import QInputDialog
+
+    monkeypatch.setattr(QInputDialog, "getText", lambda *a, **k: (ad, True))
+
+
+def _hepsini_kaydet(p):
+    for i in range(p._editor_tabs.count()):
+        p._editor_tabs.widget(i).save_file()
+
+
+def test_BOLUMDE_F2_etiket_BUTUN_projede_degisiyor(ana_pencere, tmp_path,
+                                                   monkeypatch):
+    """Bölümde F2 yalnız bölümü değiştiriyordu. ÖLÇÜLDÜ: öteki bölümdeki
+    `\\ref{sec:giris}` kaldı, derleme "Reference `sec:giris' undefined".
+    Öteki bölümde var olan bir ada F2 engellenmedi, derleme "Label
+    `sec:yontem' multiply defined"."""
+    from PyQt6.QtWidgets import QMessageBox
+
+    kok = _tez(tmp_path)
+    p = ana_pencere()
+    p._open_file_in_editor(str(kok / "Chapters" / "Chapter1.tex"))
+    uyari = []
+    monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: uyari.append(a))
+    _yeni_ad(monkeypatch, "sec:intro")
+    p._on_rename_label("sec:giris")
+    _hepsini_kaydet(p)
+    assert _kalan(kok, "sec:giris") == {}
+
+    _yeni_ad(monkeypatch, "sec:yontem")            # Chapter2'de var
+    p._on_rename_label("sec:intro")
+    assert uyari
+    assert "\\label{sec:intro}" in p._current_editor().text()
+
+
+def test_BOLUMDE_ve_BIBDEN_F2_atif_BUTUN_projede_degisiyor(ana_pencere,
+                                                          tmp_path,
+                                                          monkeypatch):
+    """Bölümde F2 atıf .bib'i ve öteki bölümü değiştirmiyordu; .bib
+    sekmesinden F2 yalnız anahtarı kullanan İLK bölümün zincirini
+    değiştiriyordu. ÖLÇÜLDÜ: iki kolda da derleme "Citation undefined"."""
+    kok = _tez(tmp_path)
+    p = ana_pencere()
+    p._open_file_in_editor(str(kok / "Chapters" / "Chapter1.tex"))
+    _yeni_ad(monkeypatch, "smith20")
+    p._on_rename_cite("smith2020")
+    _hepsini_kaydet(p)
+    assert _kalan(kok, "smith2020") == {}
+
+    p._open_file_in_editor(str(kok / "kaynak.bib"))
+    _yeni_ad(monkeypatch, "smith21")
+    p._on_rename_cite("smith20")
+    _hepsini_kaydet(p)
+    assert _kalan(kok, "smith20") == {}
+
+
+def test_ELLE_KAYNAKCADA_cite_uzerinde_F2_bibitemi_de_degistiriyor(
+        ana_pencere, tmp_path, monkeypatch):
+    """`\\cite` üzerinde F2 hep .bib koluna gidiyordu ve el ile kaynakçada
+    `\\bibitem`e dokunulmuyordu. ÖLÇÜLDÜ: tek dosyalı belgede de bölümde de
+    `\\bibitem` kaldı, derleme "Citation `...' undefined". Bölüm kolu
+    ayrıca kökteki `\\bibitem`i görmüyordu; kapı ikisini birden tutuyor."""
+    kok = _tez(tmp_path, kaynakca="\\begin{thebibliography}{9}\n"
+               "\\bibitem{smith2020} Smith.\n\\end{thebibliography}\n",
+               bib=False)
+    p = ana_pencere()
+    p._open_file_in_editor(str(kok / "Chapters" / "Chapter1.tex"))
+    ed = p._current_editor()
+    ed.setCursorPosition(1, ed.text(1).index("smith2020") + 2)
+    _yeni_ad(monkeypatch, "smith20")
+    ed._request_rename()
+    _hepsini_kaydet(p)
+    assert _kalan(kok, "smith2020") == {}
+
+
+def test_KOK_ZINCIRINDE_gorunmeyen_dosyada_F2_dosyanin_KENDISINI_degistiriyor(
+        qapp, tmp_path):
+    """Aşırı düzeltme kapısı. `% !TEX root` ile köke bağlı ama kökün
+    `\\input` zincirinde GÖRÜNMEYEN dosya (burada `\\subimport`). Taban kök
+    olunca F2'nin başladığı dosya değişiklik listesinden düşmemeli; eski
+    davranış onu her zaman değiştiriyordu."""
+    (tmp_path / "main.tex").write_text(
+        "\\documentclass{article}\n\\usepackage{import}\n"
+        "\\begin{document}\n\\subimport{b/}{c1}\n\\end{document}\n",
+        encoding="utf-8")
+    (tmp_path / "b").mkdir()
+    c1 = tmp_path / "b" / "c1.tex"
+    c1.write_text("% !TEX root = ../main.tex\n\\label{fig:a}\n", encoding="utf-8")
+    ed = EditorWidget()
+    assert ed.open_file(str(c1))
+
+    stub = _StubMain(editors=[ed])
+    with patch("gui.mixins.edit_ops.QInputDialog.getText",
+               return_value=("fig:b", True)):
+        MainWindow._on_rename_label(stub, "fig:a")
+
+    assert "\\label{fig:b}" in ed.text()

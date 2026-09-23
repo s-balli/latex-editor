@@ -407,3 +407,32 @@ def test_includegraphics_no_images_no_popup(qapp, tmp_path):
     ed.setCursorPosition(0, len("\\includegraphics{"))
     ed._check_autocomplete()
     assert not _autoc_active(ed)
+
+
+def test_BOLUMDE_ref_ve_cite_tamamlamasi_KOKU_goruyor(qapp, tmp_path):
+    """Bölümde `\\ref{` yalnız bölümün kendi etiketini, `\\cite{` hiçbir
+    anahtarı önermiyordu (ÖLÇÜLDÜ, 2026-09-23): `\\bibliography` ve öteki
+    bölüm kökte, bölüm dosyasında `% !TEX root` yok. Kaydedilmemiş etiket
+    de önerilmeli; arabellek diskten önce geliyor."""
+    kok = tmp_path / "tez"
+    (kok / "Chapters").mkdir(parents=True)
+    (kok / "main.tex").write_text(
+        "\\documentclass{article}\n\\begin{document}\n"
+        "\\input{Chapters/Chapter1}\n\\input{Chapters/Chapter2}\n"
+        "\\bibliography{kaynak}\n\\end{document}\n", encoding="utf-8")
+    (kok / "Chapters" / "Chapter1.tex").write_text(
+        "\\label{sec:giris}\n", encoding="utf-8")
+    (kok / "Chapters" / "Chapter2.tex").write_text(
+        "\\label{sec:yontem}\n", encoding="utf-8")
+    (kok / "kaynak.bib").write_text(
+        "@article{smith2020,\n  title={T}\n}\n", encoding="utf-8")
+    ed = EditorWidget()
+    assert ed.open_file(str(kok / "Chapters" / "Chapter1.tex"))
+    ed.insertAt("\\label{sec:yeni}\n", 0, 0)          # kaydedilmedi
+    gelen = []
+    ed._popup_goster = lambda liste, _t: gelen.append(liste)
+
+    ed._show_ref_completion("")
+    ed._show_cite_completion("")
+
+    assert gelen == [["sec:giris", "sec:yeni", "sec:yontem"], ["smith2020"]]

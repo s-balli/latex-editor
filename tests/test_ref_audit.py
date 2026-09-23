@@ -871,3 +871,34 @@ def test_uc_durum_AYRI_mesaj_veriyor(qapp, tmp_path, monkeypatch):
         stub._doi_hedef_bib(ed)
     assert len(mesajlar) == 3, mesajlar
     assert len(set(mesajlar)) == 3, mesajlar
+
+
+def test_BOLUMDEN_denetim_KOKTEN_denetimle_ayni(ana_pencere, tmp_path):
+    """Bölümden "Referansları Denetle" bölümü kök sayıyordu. ÖLÇÜLDÜ (tez
+    düzeni, `% !TEX root` yok): gerçek derlemede hiç tanımsız referans
+    yokken 1 tanımsız ref, 1 tanımsız cite ve 1 kullanılmayan label
+    bildirdi. Kökten denetim temizdi."""
+    kok = tmp_path / "tez"
+    (kok / "Chapters").mkdir(parents=True)
+    (kok / "main.tex").write_text(
+        "\\documentclass{article}\n\\begin{document}\n"
+        "\\input{Chapters/Chapter1}\n\\input{Chapters/Chapter2}\n"
+        "\\bibliographystyle{plain}\n\\bibliography{kaynak}\n"
+        "\\end{document}\n", encoding="utf-8")
+    (kok / "Chapters" / "Chapter1.tex").write_text(
+        "\\label{sec:giris}\n\\ref{sec:yontem} \\cite{smith2020}\n",
+        encoding="utf-8")
+    (kok / "Chapters" / "Chapter2.tex").write_text(
+        "\\label{sec:yontem}\n\\ref{sec:giris} \\cite{smith2020}\n",
+        encoding="utf-8")
+    (kok / "kaynak.bib").write_text(
+        "@article{smith2020,\n  author={S},\n  title={T},\n  journal={J},\n"
+        "  year={2020}\n}\n", encoding="utf-8")
+    p = ana_pencere()
+    p._open_file_in_editor(str(kok / "Chapters" / "Chapter1.tex"))
+    gelen = []
+    p._output_panel.show_audit = lambda w, s: gelen.append((w, s))
+
+    p._audit_references()
+
+    assert gelen == [([], [])]
