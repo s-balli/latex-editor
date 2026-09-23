@@ -559,28 +559,28 @@ Referanslar tutarsız kaldı. Bu dosyalara yazma izni verip işlemi tekrarlayın
         <translation>İkili (binary) dosya; metin editöründe açılamaz.</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="905" />
-        <location filename="../gui/editor.py" line="896" />
+        <location filename="../gui/editor.py" line="910" />
+        <location filename="../gui/editor.py" line="901" />
         <source>Kodlama Uyarısı</source>
         <translation>Kodlama Uyarısı</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="897" />
-        <source>Bu dosya UTF-16 kodlamalı ve LaTeX UTF-16 okuyamaz. UTF-8'e çevrilerek açıldı; kaydettiğinizde dosya UTF-8 olacak. Kaydetmeden kapatırsanız diskteki dosya değişmez.</source>
-        <translation>Bu dosya UTF-16 kodlamalı ve LaTeX UTF-16 okuyamaz. UTF-8'e çevrilerek açıldı; kaydettiğinizde dosya UTF-8 olacak. Kaydetmeden kapatırsanız diskteki dosya değişmez.</translation>
+        <location filename="../gui/editor.py" line="902" />
+        <source>Bu dosya UTF-16 kodlamalı ve LaTeX UTF-16 okuyamaz. UTF-8'e çevrilerek açıldı; dosya ilk kaydedildiğinde UTF-8 olacak. Otomatik kaydetme ve derlemeden önceki kayıt da buna dahil.</source>
+        <translation>Bu dosya UTF-16 kodlamalı ve LaTeX UTF-16 okuyamaz. UTF-8'e çevrilerek açıldı; dosya ilk kaydedildiğinde UTF-8 olacak. Otomatik kaydetme ve derlemeden önceki kayıt da buna dahil.</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="906" />
+        <location filename="../gui/editor.py" line="911" />
         <source>Bu dosya UTF-8 değil ({enc}). {enc} olarak açıldı ve aynı kodlamayla kaydedilecek. Sorunsuz derleme için UTF-8'e dönüştürmeniz önerilir.</source>
         <translation>Bu dosya UTF-8 değil ({enc}). {enc} olarak açıldı ve aynı kodlamayla kaydedilecek. Sorunsuz derleme için UTF-8'e dönüştürmeniz önerilir.</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="913" />
+        <location filename="../gui/editor.py" line="918" />
         <source>Dosya Açma Hatası</source>
         <translation>Dosya Açma Hatası</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="913" />
+        <location filename="../gui/editor.py" line="918" />
         <source>Dosya açılamadı:
 {path}
 
@@ -591,12 +591,12 @@ Referanslar tutarsız kaldı. Bu dosyalara yazma izni verip işlemi tekrarlayın
 {e}</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1004" />
+        <location filename="../gui/editor.py" line="1009" />
         <source>Kodlama Yetersiz</source>
         <translation>Kodlama Yetersiz</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1005" />
+        <location filename="../gui/editor.py" line="1010" />
         <source>Bu dosya {enc} kodlamasında ve {ch} karakteri o kodlamada yok, bu yüzden kaydedilemiyor.
 
 Dosya UTF-8'e dönüştürülsün mü? (önerilen)</source>
@@ -605,12 +605,12 @@ Dosya UTF-8'e dönüştürülsün mü? (önerilen)</source>
 Dosya UTF-8'e dönüştürülsün mü? (önerilen)</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1048" />
+        <location filename="../gui/editor.py" line="1053" />
         <source>Kaydetme Hatası</source>
         <translation>Kaydetme Hatası</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1048" />
+        <location filename="../gui/editor.py" line="1053" />
         <source>Dosya kaydedilemedi:
 {path}
 
@@ -621,7 +621,7 @@ Dosya UTF-8'e dönüştürülsün mü? (önerilen)</translation>
 {e}</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1073" />
+        <location filename="../gui/editor.py" line="1078" />
         <source>Yeni Dosya</source>
         <translation>Yeni Dosya</translation>
     </message>

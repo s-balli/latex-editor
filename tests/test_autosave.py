@@ -488,6 +488,31 @@ def test_SILINDI_sorusu_EKRANDAYKEN_dosya_GERI_YAZILMIYOR(
     assert not yol.exists()
 
 
+def test_UTF16_donusumu_otomatik_kayitla_yaziliyor_ve_MESAJ_bunu_soyluyor(
+        ana_pencere, tmp_path, monkeypatch):
+    """UTF-16 dosya UTF-8'e çevrilerek açılıyor ve sekme kirli; yani ilk
+    otomatik kaydetme turu dosyayı kullanıcı hiçbir şey yapmadan çeviriyor.
+
+    Mesajın ilk hâli "kaydetmeden kapatırsanız diskteki dosya değişmez"
+    diyordu. ÖLÇÜLDÜ (2026-09-23, gerçek pencere): kullanıcı hiçbir şey
+    yazmadan ilk tur dosyayı çevirdi, yani vaat tutmuyordu. Kapı davranışla
+    mesajı birbirine bağlıyor: biri değişirse öteki de gözden geçirilmeli.
+    """
+    mesajlar = []
+    monkeypatch.setattr(QMessageBox, "warning",
+                        lambda *a, **k: mesajlar.append(a[2]))
+    yol = tmp_path / "fark.tex"
+    yol.write_bytes(b"\xff\xfe"
+                    + "\\documentclass{article}\r\n".encode("utf-16-le"))
+    p = ana_pencere()
+    p._dis_yolu_ac(str(yol), "kapi")
+
+    p._autosave_tick()                   # kullanıcı hiçbir şey yapmadı
+
+    assert yol.read_bytes() == b"\\documentclass{article}\r\n"
+    assert any("Otomatik kaydetme" in m for m in mesajlar), mesajlar
+
+
 def test_KAYDETME_sorusu_EKRANDAYKEN_disk_YAZILMIYOR(
         ana_pencere, tmp_path, monkeypatch):
     """Üçüncü biçim, "Kaydedilsin mi?" sorusunda. ÖLÇÜLDÜ (2026-09-22):

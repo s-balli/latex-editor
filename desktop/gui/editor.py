@@ -876,8 +876,13 @@ class EditorWidget(QsciScintilla):
             # LaTeX UTF-16 OKUYAMIYOR (ölçüldü, gerçek derle.sh: "Invalid
             # UTF-8 byte FF", PDF yok; aynı içerik UTF-8'de derleniyor). Yani
             # o kodlamada saklamak dosyayı derlenemez bırakmak: UTF-8'e
-            # çevrilerek açılıyor. Diskteki dosyaya kullanıcı kaydedene kadar
-            # DOKUNULMUYOR; sekme kirli, kapatırken soruluyor.
+            # çevrilerek açılıyor ve sekme KİRLİ. İlk kayıt dosyayı UTF-8
+            # yazıyor ve bu kayıt kullanıcının Ctrl+S'i olmayabilir: otomatik
+            # kaydetme (öntanımlı açık) ya da derlemeden önceki kayıt da onu
+            # yapıyor. ÖLÇÜLDÜ (2026-09-23, gerçek pencere): kullanıcı hiçbir
+            # şey yazmadan ilk otomatik kaydetme turu dosyayı çevirdi. Mesaj
+            # bu yüzden "kaydetmezseniz disk değişmez" DEMİYOR; ilk hâli öyle
+            # diyordu ve yanlıştı.
             donusturuldu = encoding == "utf-16"
             if donusturuldu:
                 encoding = "utf-8"
@@ -895,9 +900,9 @@ class EditorWidget(QsciScintilla):
                 QMessageBox.warning(
                     self, _("Kodlama Uyarısı"),
                     _("Bu dosya UTF-16 kodlamalı ve LaTeX UTF-16 okuyamaz. "
-                      "UTF-8'e çevrilerek açıldı; kaydettiğinizde dosya UTF-8 "
-                      "olacak. Kaydetmeden kapatırsanız diskteki dosya "
-                      "değişmez."),
+                      "UTF-8'e çevrilerek açıldı; dosya ilk kaydedildiğinde "
+                      "UTF-8 olacak. Otomatik kaydetme ve derlemeden önceki "
+                      "kayıt da buna dahil."),
                 )
             elif encoding != "utf-8":
                 _logger.warning("Dosya UTF-8 değil, %s olarak açıldı: %s", encoding, path)

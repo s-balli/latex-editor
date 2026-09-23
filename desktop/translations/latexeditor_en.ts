@@ -559,28 +559,28 @@ References are now inconsistent. Grant write permission to these files and retry
         <translation>Binary file; cannot be opened in the text editor.</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="905" />
-        <location filename="../gui/editor.py" line="896" />
+        <location filename="../gui/editor.py" line="910" />
+        <location filename="../gui/editor.py" line="901" />
         <source>Kodlama Uyarısı</source>
         <translation>Encoding Warning</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="897" />
-        <source>Bu dosya UTF-16 kodlamalı ve LaTeX UTF-16 okuyamaz. UTF-8'e çevrilerek açıldı; kaydettiğinizde dosya UTF-8 olacak. Kaydetmeden kapatırsanız diskteki dosya değişmez.</source>
-        <translation>This file is UTF-16 encoded, and LaTeX cannot read UTF-16. It has been opened converted to UTF-8; when you save, the file will be UTF-8. If you close without saving, the file on disk stays unchanged.</translation>
+        <location filename="../gui/editor.py" line="902" />
+        <source>Bu dosya UTF-16 kodlamalı ve LaTeX UTF-16 okuyamaz. UTF-8'e çevrilerek açıldı; dosya ilk kaydedildiğinde UTF-8 olacak. Otomatik kaydetme ve derlemeden önceki kayıt da buna dahil.</source>
+        <translation>This file is UTF-16 encoded, and LaTeX cannot read UTF-16. It has been opened converted to UTF-8; the file becomes UTF-8 the first time it is saved. Autosave and the save before compiling count as well.</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="906" />
+        <location filename="../gui/editor.py" line="911" />
         <source>Bu dosya UTF-8 değil ({enc}). {enc} olarak açıldı ve aynı kodlamayla kaydedilecek. Sorunsuz derleme için UTF-8'e dönüştürmeniz önerilir.</source>
         <translation>This file is not UTF-8 ({enc}). It was opened as {enc} and will be saved with the same encoding. Converting it to UTF-8 is recommended for trouble-free compilation.</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="913" />
+        <location filename="../gui/editor.py" line="918" />
         <source>Dosya Açma Hatası</source>
         <translation>File Open Error</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="913" />
+        <location filename="../gui/editor.py" line="918" />
         <source>Dosya açılamadı:
 {path}
 
@@ -591,12 +591,12 @@ References are now inconsistent. Grant write permission to these files and retry
 {e}</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1004" />
+        <location filename="../gui/editor.py" line="1009" />
         <source>Kodlama Yetersiz</source>
         <translation>Encoding Cannot Represent Text</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1005" />
+        <location filename="../gui/editor.py" line="1010" />
         <source>Bu dosya {enc} kodlamasında ve {ch} karakteri o kodlamada yok, bu yüzden kaydedilemiyor.
 
 Dosya UTF-8'e dönüştürülsün mü? (önerilen)</source>
@@ -605,12 +605,12 @@ Dosya UTF-8'e dönüştürülsün mü? (önerilen)</source>
 Convert the file to UTF-8? (recommended)</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1048" />
+        <location filename="../gui/editor.py" line="1053" />
         <source>Kaydetme Hatası</source>
         <translation>Save Error</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1048" />
+        <location filename="../gui/editor.py" line="1053" />
         <source>Dosya kaydedilemedi:
 {path}
 
@@ -621,7 +621,7 @@ Convert the file to UTF-8? (recommended)</translation>
 {e}</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1073" />
+        <location filename="../gui/editor.py" line="1078" />
         <source>Yeni Dosya</source>
         <translation>New File</translation>
     </message>
