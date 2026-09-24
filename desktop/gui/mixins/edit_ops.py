@@ -300,7 +300,10 @@ class EditOpsMixin:
             self._output_panel.show_bibliography([], _("Önce bir .tex dosyası açın"))
             return
 
-        yol = find_bib_path(editor.text(), editor.file_path)
+        # Taban KÖK belge: bölüm sekmesinde kaynakça kökte bildiriliyor.
+        # ÖLÇÜLDÜ (2026-09-23): bölümde sekme 0 girdi gösterdi, .bib'de 1 var.
+        taban, icerik = self._proje_tabani(editor)
+        yol = find_bib_path(icerik, taban)
         if yol:
             try:
                 with open(yol, "rb") as f:
@@ -321,7 +324,7 @@ class EditOpsMixin:
 
         # .bib yok: kaynakça ELLE yazılmış olabilir. 38 şablonun 13'ü böyle
         # (213 kaynak) ve o kullanıcılar sekmeyi hiç göremiyordu.
-        elle = parse_bibitems(editor.text(), editor.file_path)
+        elle = parse_bibitems(icerik, taban)
         if elle:
             self._output_panel.show_bibliography(
                 [self._bibitem_satiri(x) for x in elle])
@@ -332,7 +335,7 @@ class EditOpsMixin:
         # ÜÇ AYRI durum, üçü de ayrı cümleyi hak ediyor. Hepsine aynı mesajı
         # vermek yanlış yönlendiriyordu (bkz. _bib_yok_nedeni).
         self._output_panel.show_bibliography(
-            [], self._bib_yok_nedeni(editor.text(), editor.file_path))
+            [], self._bib_yok_nedeni(icerik, taban))
 
     # --- DOI ile kaynak ekleme ---
 
@@ -351,15 +354,21 @@ class EditOpsMixin:
         """
         from core.latex_refs import bib_declaration, find_bib_path, has_manual_bibliography
 
-        yol = find_bib_path(editor.text(), editor.file_path)
+        # Taban KÖK belge (bkz. `_proje_tabani`): bölüm dosyasında
+        # `\bibliography` yok, kökte. ÖLÇÜLDÜ (2026-09-23, tez düzeni,
+        # `% !TEX root` yok): bölümde DOI eklemek "Bu belgede kaynakça yok,
+        # önce \bibliography{refs} ekleyin" dedi; `main.tex` kaynak.bib'i
+        # bildiriyor ve dosya diskteydi.
+        taban, icerik = self._proje_tabani(editor)
+        yol = find_bib_path(icerik, taban)
         if yol:
             return yol
 
-        ad = bib_declaration(editor.text(), editor.file_path)
+        ad = bib_declaration(icerik, taban)
         if ad:
             if not ad.endswith(".bib"):
                 ad += ".bib"
-            hedef = os.path.join(os.path.dirname(os.path.abspath(editor.file_path)), ad)
+            hedef = os.path.join(os.path.dirname(os.path.abspath(taban)), ad)
             cevap = QMessageBox.question(
                 self, _("DOI ile Kaynak Ekle"),
                 _("Belge '{ad}' dosyasına başvuruyor ama dosya yok.\n\n"
@@ -384,7 +393,7 @@ class EditOpsMixin:
             # geri dönüşü olmayan yan etki bütün sorulardan SONRA.
             return hedef
 
-        if has_manual_bibliography(editor.text(), editor.file_path):
+        if has_manual_bibliography(icerik, taban):
             # Elle yazılmış kaynakçaya BibTeX girdisi eklemek işe yaramaz:
             # belge o girdiyi hiç okumaz. Dönüştürmek ayrı bir iş (BibTeX'i
             # biçimlenmiş metne çevirmek), bilinçli olarak kapsam dışı.

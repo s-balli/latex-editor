@@ -442,3 +442,37 @@ def test_VAR_OLAN_bib_iptalde_bozulmuyor(qapp, tmp_path, monkeypatch):
     finally:
         ed.deleteLater()
         qapp.processEvents()
+
+
+def test_BOLUMDE_kaynakca_KOK_belgeden_okunuyor(ana_pencere, tmp_path,
+                                                monkeypatch):
+    """Bölümde DOI ekleme ve Kaynakça sekmesi bölümü kök sayıyordu.
+    ÖLÇÜLDÜ (2026-09-23, tez düzeni, `% !TEX root` yok): DOI "Bu belgede
+    kaynakça yok, önce \\bibliography{refs} ekleyin" dedi, Kaynakça sekmesi
+    0 girdi gösterdi; `main.tex` kaynak.bib'i bildiriyor ve dosyada 1 girdi
+    var. Kehanet BibTeX'in kuralı: .bib kökün `\\bibliography`sinden."""
+    import os
+    from PyQt6.QtWidgets import QMessageBox
+
+    kok = tmp_path / "tez"
+    (kok / "Chapters").mkdir(parents=True)
+    (kok / "main.tex").write_text(
+        "\\documentclass{article}\n\\begin{document}\n"
+        "\\input{Chapters/Chapter1}\n\\bibliography{kaynak}\n"
+        "\\end{document}\n", encoding="utf-8")
+    (kok / "Chapters" / "Chapter1.tex").write_text("\\cite{smith2020}\n",
+                                                   encoding="utf-8")
+    (kok / "kaynak.bib").write_text(
+        "@article{smith2020,\n  title={T},\n  year={2020}\n}\n",
+        encoding="utf-8")
+    kutular = []
+    monkeypatch.setattr(QMessageBox, "information",
+                        lambda *a, **k: kutular.append(a))
+    p = ana_pencere()
+    p._open_file_in_editor(str(kok / "Chapters" / "Chapter1.tex"))
+
+    hedef = p._doi_hedef_bib(p._current_editor())
+    assert hedef and os.path.samefile(hedef, str(kok / "kaynak.bib")), hedef
+    assert kutular == []
+    p._show_bibliography()
+    assert p._output_panel._bib_table.rowCount() == 1

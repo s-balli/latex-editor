@@ -1134,3 +1134,34 @@ def test_yenileme_INPUT_agacini_silmiyor(qapp, tmp_path):
     finally:
         tree.deleteLater()
         qapp.processEvents()
+
+
+def test_BOLUM_sekmesinde_input_agaci_KOKE_gore(qapp, tmp_path):
+    """Bölüm sekmesinde `\\input` ağacı yolları bölümün dizinine göre
+    çözüyordu. ÖLÇÜLDÜ (2026-09-23, tez düzeni, `% !TEX root` yok): köke
+    göre yazılmış `\\input{Chapters/Chapter1a}` bulunamadı ve ağaç BOŞ
+    kaldı. Kehanet LaTeX'in kuralı: yol kökün dizinine göre var. Bağlantı
+    belge kökü üzerinden derlendiği için yeşil."""
+    from PyQt6.QtGui import QColor
+
+    (tmp_path / "main.tex").write_text(
+        "\\documentclass{article}\n\\begin{document}\n"
+        "\\input{Chapters/Chapter1}\n\\end{document}\n", encoding="utf-8")
+    (tmp_path / "Chapters").mkdir()
+    ch1 = tmp_path / "Chapters" / "Chapter1.tex"
+    ch1.write_text("\\input{Chapters/Chapter1a}\n", encoding="utf-8")
+    (tmp_path / "Chapters" / "Chapter1a.tex").write_text("alt\n",
+                                                         encoding="utf-8")
+    tree = _agac(qapp, tmp_path)
+    try:
+        tree.update_input_tree(str(ch1), ch1.read_text(encoding="utf-8"))
+
+        agac = tree._input_tree
+        assert agac.topLevelItemCount() == 1
+        oge = agac.topLevelItem(0)
+        assert "Chapter1a.tex" in oge.text(0)
+        assert oge.foreground(0).color().name() == \
+            QColor(THEMES["dark"]["sem_compilable"]).name()
+    finally:
+        tree.deleteLater()
+        qapp.processEvents()

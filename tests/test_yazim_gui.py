@@ -909,3 +909,30 @@ def test_ONERI_hedefi_belgede_YOKSA_soyleniyor(qapp):
     s._yazim_degistir("yanlis", "dogru")
 
     assert "bulunamadı" in s._status.msg
+
+
+def test_BOLUMDE_yazim_dili_KOK_belgeden(ana_pencere, tmp_path, monkeypatch):
+    """Bölüm dosyasında dil bildirimi yok, kökte. ÖLÇÜLDÜ (2026-09-23,
+    İngilizce tez, `% !TEX root` yok): bölümde seçici tr_TR kaldı ve
+    İngilizce metin Türkçe sözlükle denetlendi. Kehanet kökün babel ana
+    dili. Bölümün KENDİ açık bildirimi yine kazanmalı (aşırı düzeltme)."""
+    kok = tmp_path / "tez"
+    (kok / "Chapters").mkdir(parents=True)
+    (kok / "main.tex").write_text(
+        "\\documentclass{article}\n\\usepackage[english]{babel}\n"
+        "\\begin{document}\n\\input{Chapters/Chapter1}\n"
+        "\\input{Chapters/Chapter2}\n\\end{document}\n", encoding="utf-8")
+    (kok / "Chapters" / "Chapter1.tex").write_text("This chapter.\n",
+                                                   encoding="utf-8")
+    (kok / "Chapters" / "Chapter2.tex").write_text(
+        "% !TEX spellcheck = tr_TR\nBu bölüm.\n", encoding="utf-8")
+    p = ana_pencere()
+    op = p._output_panel
+    monkeypatch.setattr(op, "_on_yazim_denetle", lambda: None)
+
+    for ad, beklenen, baslangic in (("Chapter1.tex", "en_US", "tr_TR"),
+                                    ("Chapter2.tex", "tr_TR", "en_US")):
+        op._yazim_dil.setCurrentIndex(op._yazim_dil.findData(baslangic))
+        p._open_file_in_editor(str(kok / "Chapters" / ad))
+        p._yazim_denetle()
+        assert op._yazim_dil.currentData() == beklenen, ad

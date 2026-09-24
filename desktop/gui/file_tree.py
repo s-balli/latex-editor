@@ -319,14 +319,27 @@ class FileTree(QWidget):
             self._input_tree.hide()
             return
 
-        refs = parse_inputs(content, os.path.dirname(file_path))
-        refs = group_by_directory(refs, os.path.dirname(file_path))
+        # Yollar KÖK belgenin dizinine göre çözülüyor: LaTeX onları orada
+        # arıyor (bkz. engine_detector.kok_belge). ÖLÇÜLDÜ (2026-09-23, tez
+        # düzeni, `% !TEX root` yok): bölüm sekmesinde köke göre yazılmış
+        # `\input{Chapters/Chapter1a}` bulunamadı ve ağaç BOŞ kaldı.
+        #
+        # Belge derlenebiliyorsa (kendisi ya da kökü) ağaçtaki her bağlantı
+        # o derlemeye giriyor ve yeşil. Karar sekme başına BİR kez veriliyor,
+        # bağlantı başına kök aramak her sekme değişimini yavaşlatırdı. Kural
+        # F5 ve ana ağaçla aynı (derleme_hedefi).
+        hedef = _derleme_hedefi(file_path)[0]
+        kok_dizin = os.path.dirname(hedef or file_path)
+        refs = parse_inputs(content, os.path.dirname(file_path),
+                            root_dir=kok_dizin)
+        refs = group_by_directory(refs, os.path.dirname(file_path), kok_dizin)
         if not refs:
             self._input_header.hide()
             self._input_tree.hide()
             return
 
-        self._populate_input_tree(refs, self._input_tree.invisibleRootItem())
+        self._populate_input_tree(refs, self._input_tree.invisibleRootItem(),
+                                  bool(hedef))
         self._input_tree.expandAll()
         self._input_header.show()
         self._input_tree.show()
@@ -353,14 +366,15 @@ class FileTree(QWidget):
             return True
         return _detect_root_head(content, path) != ""
 
-    def _populate_input_tree(self, refs, parent):
+    def _populate_input_tree(self, refs, parent, derlenebilir: bool = False):
+        """``derlenebilir``: belge derleniyor, yani her bağlantı da."""
         for ref in refs:
             if ref.get('is_dir'):
                 item = QTreeWidgetItem(parent, [f"📁 {ref['name']}"])
                 item.setData(0, Qt.ItemDataRole.UserRole, None)
                 item.setForeground(0, QColor(self._theme["sem_folder"]))
             else:
-                ok = self._input_ref_ok(ref['path'])
+                ok = derlenebilir or self._input_ref_ok(ref['path'])
                 item = QTreeWidgetItem(parent, [f"📎 {ref['name']}"])
                 item.setData(0, Qt.ItemDataRole.UserRole, ref['path'])
                 if ok:
@@ -368,7 +382,7 @@ class FileTree(QWidget):
                 else:
                     item.setForeground(0, QColor(self._theme["fg_muted"]))
             if ref.get('children'):
-                self._populate_input_tree(ref['children'], item)
+                self._populate_input_tree(ref['children'], item, derlenebilir)
 
     def _agac_durumu(self):
         """(açık klasör yolları, seçili öğenin yolu) — yenileme öncesi.

@@ -246,7 +246,13 @@ class YazimOpsMixin:
         ed = self._current_editor()
         if ed is not None:
             from core.yazim import belgeden_dil
+            # Belgenin kendi bildirimi önce; bölüm dosyasında dil (babel,
+            # polyglossia) KÖK belgede duruyor (bkz. edit_ops._proje_tabani).
+            # ÖLÇÜLDÜ (2026-09-23, İngilizce tez, `% !TEX root` yok): bölümde
+            # seçici tr_TR kaldı, İngilizce metin Türkçe sözlükle denetlendi.
             dil = belgeden_dil(ed.text())
+            if not dil and ed.file_path:
+                dil = belgeden_dil(self._proje_tabani(ed)[1])
             if dil:
                 self._output_panel.yazim_dili_ayarla(dil)
         self._output_panel._on_yazim_denetle()
