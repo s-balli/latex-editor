@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import QInputDialog, QMessageBox
 
 from core import versioning
 from core.log import get_logger
+from core.paths import dizin_altinda_mi
 
 _ = lambda s: QCoreApplication.translate("VersionOpsMixin", s)
 _logger = get_logger("version_ops")
@@ -118,12 +119,22 @@ class VersionOpsMixin:
         tree = getattr(self, "_file_tree", None)
         return getattr(tree, "_root", "") or ""
 
-    def _save_all_open(self) -> bool:
-        """Açık kirli sekmeleri kaydet (anlık görüntü diskteki hâli alır)."""
+    def _save_all_open(self, kok: str) -> bool:
+        """``kok`` altındaki kirli sekmeleri kaydet (sürüm diskteki hâli alır).
+
+        Yalnız ``kok`` altındakiler: sürüm yalnız o klasörü alıyor. Eskiden
+        bütün kirli sekmeler yazılıyordu. ÖLÇÜLDÜ (2026-09-23, gerçek
+        pencere): Ctrl+K başka klasördeki kaydedilmemiş bir taslağı diske
+        yazdı ve o dosya sürüme de girmedi. Derlemeden önceki kayıt da aynı
+        sınırla çalışıyor (compile_ops._derleme_icin_kaydet).
+        """
         from gui.editor import EditorWidget
         for i in range(self._editor_tabs.count()):
             editor = self._editor_tabs.widget(i)
             if isinstance(editor, EditorWidget) and editor.isModified():
+                if not (editor.file_path and dizin_altinda_mi(
+                        os.path.dirname(editor.file_path), kok)):
+                    continue
                 if not editor.save_file():
                     return False
                 if hasattr(self, "_file_watch_record_save"):
@@ -229,7 +240,7 @@ class VersionOpsMixin:
         msg = msg.strip() or (_("Başlangıç sürümü") if first else _("Güncelleme"))
 
         # Buradan sonrası yan etki: kullanıcı bütün soruları geçti.
-        if not self._save_all_open():
+        if not self._save_all_open(root):
             self._status.showMessage(_("Kayıt başarısız, sürümleme iptal"))
             return
 
@@ -336,7 +347,7 @@ class VersionOpsMixin:
                 # var olan doğru mesaja düşülüyor.
                 rel = ""
             if action == "diff":
-                self._show_version_diff(root, sha, rel)
+                self._show_version_diff(root, sha, rel, editor)
             elif action == "restore":
                 self._restore_version(root, sha, rel, editor)
             else:
@@ -362,9 +373,14 @@ class VersionOpsMixin:
             else:
                 self._drop_all_history(root)
 
-    def _show_version_diff(self, root: str, sha: str, rel: str):
+    def _show_version_diff(self, root: str, sha: str, rel: str, editor=None):
+        """Sürümle editörde GÖRÜNEN hâlin farkı (kaydedilmemişler dahil)."""
         try:
-            diff = versioning.file_diff(root, sha, rel)
+            if editor is not None:
+                diff = versioning.file_diff(root, sha, rel, editor.text(),
+                                            editor._encoding or "utf-8")
+            else:
+                diff = versioning.file_diff(root, sha, rel)
         except Exception:
             _logger.error("Fark okunamadı: %s@%s", rel, sha, exc_info=True)
             self._status.showMessage(_("Fark okunamadı"))
@@ -480,13 +496,48 @@ class VersionOpsMixin:
         _logger.info("Tüm sürüm geçmişi silindi: %s", root)
         self._refresh_history(select_tab=True)
 
+    def _geri_yukleme_oncesi_surum(self, root: str, rel: str, editor) -> bool:
+        """Geri yüklemeden ÖNCE şimdiki hâli sürüme al. False = iptal.
+
+        Geri yükleme dosyanın ÜZERİNE yazıyor. Son sürümden sonra kaydedilen
+        iş hiçbir sürümde yok ve eskiden kalıcı olarak gidiyordu; uyarı ise
+        yalnız "kaydedilmemiş değişiklikler kaybolur" diyordu. ÖLÇÜLDÜ
+        (2026-09-23, gerçek pencere): kaydedilmiş ama sürümlenmemiş metin
+        geri yüklemeden sonra diskte yok, Ctrl+Z getirmiyor, geçmişte yok,
+        kurtarma klasöründe yok. Kaydedilmemiş değişiklik de önce kaydediliyor
+        ki o sürüme girsin. Değişiklik yoksa sürüm atılmıyor: son sürüm zaten
+        şimdiki hâl.
+        """
+        if getattr(self, "_snapshot_busy", False):
+            self._status.showMessage(_("Sürüm alınıyor; bitmesini bekleyin"))
+            return False
+        if not self._confirm_repo_use(root):
+            return False
+        if editor.isModified():
+            if not editor.save_file():
+                self._status.showMessage(_("Kayıt başarısız, geri yükleme iptal"))
+                return False
+            if hasattr(self, "_file_watch_record_save"):
+                self._file_watch_record_save(editor.file_path)
+        try:
+            versioning.snapshot(
+                root, _("Geri yüklemeden önce: {f}").format(f=rel))
+        except Exception:
+            _logger.error("Geri yükleme öncesi sürüm alınamadı: %s", root,
+                          exc_info=True)
+            self._status.showMessage(
+                _("Şimdiki hâl sürüme alınamadı, geri yükleme iptal"))
+            return False
+        return True
+
     def _restore_version(self, root: str, sha: str, rel: str, editor):
         from gui.editor import EditorWidget
 
         answer = QMessageBox.question(
             self, _("Sürümden Geri Yükle"),
-            _("{f} dosyası seçilen sürüme döndürülecek. Kaydedilmemiş "
-              "değişiklikler kaybolur.").format(f=rel),
+            _("{f} dosyası seçilen sürüme döndürülecek. Şimdiki hâli önce "
+              "yeni bir sürüm olarak kaydedilir; geri dönmek isterseniz "
+              "Sürüm Geçmişi'nde bulursunuz.").format(f=rel),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No)
         if answer != QMessageBox.StandardButton.Yes:
             return
@@ -497,6 +548,8 @@ class VersionOpsMixin:
             _logger.error("Sürümden okunamadı: %s@%s", rel, sha, exc_info=True)
         if data is None:
             self._status.showMessage(_("Dosya bu sürümde bulunamadı"))
+            return
+        if not self._geri_yukleme_oncesi_surum(root, rel, editor):
             return
         # HAM bayt yazımı: decode/encode döngüsü kodlamayı bozar (cp1254
         # Türkçe dosyada karakterler bozulur, PDF yanlış derlenirdi)
@@ -517,3 +570,5 @@ class VersionOpsMixin:
         self._status.showMessage(
             _("Geri yüklendi") + f": {rel} @ {sha[:7]}")
         _logger.info("Sürümden geri yüklendi: %s @ %s", rel, sha[:7])
+        # Listede geri yüklemeden önceki sürüm de görünsün
+        self._refresh_history()

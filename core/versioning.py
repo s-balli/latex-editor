@@ -344,16 +344,28 @@ def drop_last(root: str) -> bool:
     return True
 
 
-def file_diff(root: str, sha_hex: str, rel_path: str) -> str:
-    """Kayıttaki hâli ile diskteki hâlin birleşik farkı ('eski → yeni')."""
+def file_diff(root: str, sha_hex: str, rel_path: str,
+              yeni: str | None = None, kodlama: str = "utf-8") -> str:
+    """Kayıttaki hâli ile şimdiki hâlin birleşik farkı ('eski → yeni').
+
+    ``yeni`` verilirse şimdiki hâl o metin (editörün arabelleği), yoksa
+    disk. Arabellek verilmezse kaydedilmemiş değişiklik görünmüyordu:
+    ÖLÇÜLDÜ (2026-09-23), kirli sekmede fark ekranı "fark yok" dedi.
+    ``kodlama`` kayıttaki baytları çözüyor; arabellekle karşılaştırırken
+    dosyanın kendi kodlaması olmalı, yoksa her Türkçe harf fark sayılır.
+    """
     _require()
-    old = file_content(root, sha_hex, rel_path) or ""
-    path = os.path.join(root, rel_path.replace("/", os.sep))
-    try:
-        with open(path, "r", encoding="utf-8", errors="replace") as f:
-            new = f.read()
-    except OSError:
-        new = ""
+    data = file_bytes(root, sha_hex, rel_path)
+    old = data.decode(kodlama, "replace") if data is not None else ""
+    if yeni is not None:
+        new = yeni
+    else:
+        path = os.path.join(root, rel_path.replace("/", os.sep))
+        try:
+            with open(path, "r", encoding="utf-8", errors="replace") as f:
+                new = f.read()
+        except OSError:
+            new = ""
     diff = difflib.unified_diff(
         old.splitlines(keepends=True), new.splitlines(keepends=True),
         fromfile=f"{rel_path}@{sha_hex[:7]}", tofile=rel_path)

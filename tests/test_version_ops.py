@@ -517,9 +517,19 @@ def _geri_yukleme_kur(tmp_path, monkeypatch):
     assert ed.open_file(str(tex))
     stub = _SinirStub(str(tmp_path), ed)
     vo = _sinir_kur(monkeypatch, stub)
-    monkeypatch.setattr(vo, "versioning", SimpleNamespace(
-        file_bytes=lambda root, sha, rel: b"ESKI SURUM\n"))
+    monkeypatch.setattr(vo, "versioning", _sahte_surumleme())
     return tex, stub
+
+
+def _sahte_surumleme():
+    """Geri yüklemenin kullandığı `versioning` arayüzü. Geri yüklemeden önce
+    şimdiki hâl sürüme alınıyor, o yüzden `repo_status` ile `snapshot` da
+    gerekiyor (bkz. version_ops._geri_yukleme_oncesi_surum)."""
+    return SimpleNamespace(
+        file_bytes=lambda root, sha, rel: b"ESKI SURUM\n",
+        repo_status=lambda root: SimpleNamespace(
+            foreign=False, nested=False, remotes=[]),
+        snapshot=lambda root, msg: None)
 
 
 def test_GERI_YUKLEME_yazamazsa_slottan_istisna_KACMIYOR(qapp, tmp_path,
@@ -594,8 +604,7 @@ def test_SAGLAM_geri_yukleme_hala_calisiyor(qapp, tmp_path, monkeypatch):
 
     stub = _SinirStub(str(tmp_path), ed)
     vo = _sinir_kur(monkeypatch, stub)
-    monkeypatch.setattr(vo, "versioning", SimpleNamespace(
-        file_bytes=lambda root, sha, rel: b"ESKI SURUM\n"))
+    monkeypatch.setattr(vo, "versioning", _sahte_surumleme())
 
     stub._on_version_action("restore", "abc1234")
 
@@ -769,3 +778,100 @@ def test_MESGUL_DEGILKEN_gecmis_silme_calisiyor(qapp, tmp_path, monkeypatch):
     finally:
         ed.deleteLater()
         qapp.processEvents()
+
+
+# --- 2026-09-23: Ctrl+K sınırı, geri yüklemede şimdiki hâl, fark ekranı ---
+
+
+def _evet(monkeypatch):
+    monkeypatch.setattr(
+        "gui.mixins.version_ops.QMessageBox.question",
+        staticmethod(lambda *a, **k: 16384))           # Yes
+
+
+def test_SURUMLE_proje_DISINDAKI_kirli_sekmeyi_KAYDETMIYOR(qapp, tmp_path,
+                                                          monkeypatch):
+    """Ctrl+K bütün kirli sekmeleri diske yazıyordu. ÖLÇÜLDÜ (2026-09-23,
+    gerçek pencere): başka klasördeki kaydedilmemiş taslak diske yazıldı ve
+    sürüme de girmedi. Proje içindekinin kaydedildiği kol
+    `test_snapshot_saves_dirty_editor_first`."""
+    proje = tmp_path / "proje"
+    proje.mkdir()
+    tex = _project(proje)
+    dis = tmp_path / "baska" / "not.tex"
+    dis.parent.mkdir()
+    dis.write_text("DISKTEKI not\n", encoding="utf-8")
+    ed, ed_dis = EditorWidget(), EditorWidget()
+    ed.open_file(tex)
+    ed_dis.open_file(str(dis))
+    ed_dis.setText("KAYDEDILMEMIS taslak\n")
+    stub = _Stub([ed, ed_dis], str(proje))
+    import gui.mixins.version_ops as vo
+    monkeypatch.setattr(vo.QInputDialog, "getText",
+                        staticmethod(lambda *a, **k: ("kayıt", True)))
+
+    _snap(qapp, stub)
+
+    assert dis.read_text(encoding="utf-8") == "DISKTEKI not\n"
+    assert ed_dis.isModified() is True
+
+
+def test_GERI_YUKLEME_simdiki_hali_GECMISTE_birakiyor(qapp, tmp_path,
+                                                     monkeypatch):
+    """Geri yükleme dosyanın üzerine yazıyordu ve son sürümden sonraki iş
+    hiçbir yerde kalmıyordu; uyarı yalnız "kaydedilmemiş değişiklikler
+    kaybolur" diyordu. ÖLÇÜLDÜ (2026-09-23, gerçek pencere): kaydedilmiş,
+    sürümlenmemiş metin geri yüklemeden sonra diskte, Ctrl+Z'de, geçmişte ve
+    kurtarma klasöründe yoktu. Kaydedilmemiş değişiklik de korunmalı."""
+    stub, ed, tex = _stub_with_editor(tmp_path, monkeypatch)
+    _snap(qapp, stub)
+    ilk = V.history(str(tmp_path))[0].sha
+    _evet(monkeypatch)
+
+    def gecmiste(metin):
+        return any(metin in (V.file_content(str(tmp_path), e.sha, "ana.tex") or "")
+                   for e in V.history(str(tmp_path)))
+
+    ed.setText("UC SAATLIK IS\n")
+    ed.save_file()
+    stub._on_version_action("restore", ilk)
+    assert "merhaba" in open(tex, encoding="utf-8").read()
+    assert gecmiste("UC SAATLIK IS")
+
+    ed.setText("KAYDEDILMEMIS taslak\n")                # kaydedilmedi
+    stub._on_version_action("restore", ilk)
+    assert gecmiste("KAYDEDILMEMIS taslak")
+
+
+def test_FARK_ekrani_editorde_GORUNENI_karsilastiriyor(ana_pencere, tmp_path,
+                                                       monkeypatch):
+    """Fark diskle yapılıyordu. ÖLÇÜLDÜ (2026-09-23, gerçek pencere): kirli
+    sekmede fark ekranı "fark yok" dedi. Arabellek kendi kodlamasıyla
+    karşılaştırılmalı: cp1254 dosyada Türkçe harfler sahte fark üretmemeli."""
+    import gui.mixins.version_ops as vo
+    from PyQt6.QtWidgets import QDialog, QPlainTextEdit
+
+    farklar = []
+    monkeypatch.setattr(vo, "build_diff_view",
+                        lambda diff, theme: farklar.append(diff) or QPlainTextEdit())
+    monkeypatch.setattr(QDialog, "exec", lambda self: 0)
+    monkeypatch.setattr("gui.editor.QMessageBox.warning",
+                        staticmethod(lambda *a, **k: None))
+
+    tex = _project(tmp_path)
+    (tmp_path / "eski.tex").write_bytes("% Türkçe ğüş\n".encode("cp1254"))
+    V.init_repo(str(tmp_path))
+    sha = V.snapshot(str(tmp_path), "kayıt").sha
+    p = ana_pencere()
+    p._file_tree.set_root(str(tmp_path))
+    p._open_file_in_editor(tex)
+    ed = p._current_editor()
+
+    ed.setText(ed.text() + "KAYDEDILMEMIS satir\n")
+    p._on_version_action("diff", sha)
+    assert farklar and "+KAYDEDILMEMIS satir" in farklar[-1], farklar
+
+    p._open_file_in_editor(str(tmp_path / "eski.tex"))   # ön sekme cp1254
+    farklar.clear()
+    p._on_version_action("diff", sha)
+    assert farklar == [] and "fark yok" in p._status.currentMessage(), farklar
