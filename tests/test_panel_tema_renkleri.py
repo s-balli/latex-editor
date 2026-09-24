@@ -264,3 +264,69 @@ def test_clear_sonrasi_ipucu_isareti_sizmiyor(qapp):
         assert _oneri_renkleri(p) == [THEMES["dark"]["sem_suggestion"].lower()]
     finally:
         p.deleteLater()
+
+
+# --- Pencere düzeyi: tema değişince ESKİ temanın rengi hiçbir yerde kalmıyor ---
+
+
+def test_PENCERE_tema_degisince_ESKI_temanin_rengi_hicbir_yerde_kalmiyor(
+        ana_pencere, tmp_path):
+    r"""Paneller ayrı ayrı sınanıyordu, pencere bütün olarak değil.
+    ÖLÇÜLDÜ (2026-09-24, gerçek pencere, 12 tema çiftinin hepsinde):
+    `\input` ağacının klasörü ve bağlı dosyası eski temanın renginde
+    kaldı (açık zeminde karşıtlık 1.72 ve 1.21) ve araç çubuğundaki "Dil:"
+    etiketi 11 çiftte eski renkte kaldı. Kehanet: YALNIZ eski temada olan
+    bir renk ne bir stil sayfasında ne bir ağaç ya da liste öğesinde
+    kalmalı."""
+    import re
+
+    from PyQt6.QtCore import Qt
+    from PyQt6.QtWidgets import QListWidget, QTreeWidget, QWidget
+
+    b1 = tmp_path / "tez" / "bolumler" / "giris.tex"
+    b1.parent.mkdir(parents=True)
+    b1.write_text("giris\n", encoding="utf-8")
+    ana = tmp_path / "tez" / "main.tex"
+    ana.write_text("\\documentclass{article}\n\\begin{document}\n\\section{A}\n"
+                   "\\input{bolumler/giris}\n\\end{document}\n", encoding="utf-8")
+    p = ana_pencere(open_file=str(ana))
+    p._file_tree.set_root(str(ana.parent))
+    p._on_tab_changed(p._editor_tabs.currentIndex())
+    r = CompileResult(success=False)
+    r.errors = [LatexError(message="Undefined control sequence.",
+                           file_path=str(ana), line_number=4)]
+    r.warnings = [LatexWarning(message="Overfull hbox", line_number=4)]
+    r.suggestions = [LatexSuggestion(message="Eksik paket: x",
+                                     install_command="sudo apt-get install x")]
+    p._output_panel.show_result(r)
+    p._show_find()
+    assert p._file_tree._input_tree.topLevelItemCount(), "input ağacı dolmadı"
+
+    eski = THEMES[p._theme_mgr.current_name]
+    hedef = "light" if p._theme_mgr.current_name != "light" else "dark"
+    p._select_theme(hedef)
+    yalniz_eski = ({v.lower() for v in eski.values() if str(v).startswith("#")}
+                   - {v.lower() for v in THEMES[hedef].values()
+                      if str(v).startswith("#")})
+
+    kalan = []
+    for w in [p] + p.findChildren(QWidget):
+        for renk in re.findall(r"#[0-9a-fA-F]{6}\b", w.styleSheet() or ""):
+            if renk.lower() in yalniz_eski:
+                kalan.append((renk, type(w).__name__, getattr(w, "text", str)()))
+        ogeler = []
+        if isinstance(w, QTreeWidget):
+            yigin = [w.topLevelItem(i) for i in range(w.topLevelItemCount())]
+            while yigin:
+                it = yigin.pop()
+                ogeler.append((it.data(0, Qt.ItemDataRole.ForegroundRole),
+                               it.foreground(0), it.text(0)))
+                yigin.extend(it.child(i) for i in range(it.childCount()))
+        elif isinstance(w, QListWidget):
+            ogeler = [(w.item(i).data(Qt.ItemDataRole.ForegroundRole),
+                       w.item(i).foreground(), w.item(i).text())
+                      for i in range(w.count())]
+        for veri, firca, metin in ogeler:
+            if veri is not None and firca.color().name() in yalniz_eski:
+                kalan.append((firca.color().name(), type(w).__name__, metin))
+    assert not kalan, kalan

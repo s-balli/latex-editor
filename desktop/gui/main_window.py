@@ -664,6 +664,11 @@ class MainWindow(
         self._theme_label.setStyleSheet(
             f"color: {t['fg_label']}; font-weight: bold;"
         )
+        # "Dil:" etiketi burada UNUTULMUŞTU: rengi kurulumdaki temadan
+        # kalıyordu (ölçüldü 2026-09-24, 12 tema çiftinin 11'inde).
+        self._lang_label.setStyleSheet(
+            f"color: {t['fg_label']}; font-weight: bold;"
+        )
         self._update_auto_label_theme(t)
         # Combobox'ı senkronize et
         idx = self._theme_combo.findData(self._theme_mgr.current_name)

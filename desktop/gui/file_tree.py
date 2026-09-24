@@ -308,6 +308,8 @@ class FileTree(QWidget):
 
     def update_input_tree(self, file_path: str, content: str):
         """Aktif dosyanın \\input/\\include bağımlılıklarını göster."""
+        # Tema değişince ağaç bu girdilerle YENİDEN kuruluyor (apply_theme).
+        self._input_son = (file_path, content)
         self._input_tree.clear()
 
         # KÜÇÜK HARFE ÇEVİRİP bak: `.TEX` uzantılı kök dosyalarda (sahada var:
@@ -943,3 +945,10 @@ class FileTree(QWidget):
         )
         if self._root:
             self.refresh()
+        # `\input` ağacının öğeleri de renklerini KURULURKEN alıyor ve
+        # `refresh()` yalnız ana ağacı kuruyor. ÖLÇÜLDÜ (2026-09-24, gerçek
+        # pencere, 12 tema çiftinin 12'sinde): koyudan açığa geçince klasör ve
+        # bağlı dosya eski renkte kaldı; açık zeminde karşıtlık 1.72 ve 1.21,
+        # yani sekme değişene kadar okunmuyor.
+        if getattr(self, "_input_son", None):
+            self.update_input_tree(*self._input_son)
