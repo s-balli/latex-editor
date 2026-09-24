@@ -164,6 +164,29 @@ def test_dosya_OLMAYAN_argumanlar_atlaniyor(tmp_path):
     assert alinan == [os.path.normpath(str(var))]
 
 
+def test_GORELI_arguman_calisma_dizinine_gore_MUTLAK_oluyor(tmp_path,
+                                                            monkeypatch):
+    """Terminalden `latex-editor main.tex` GÖRELİ geliyor ve anlamı bu
+    sürecin çalışma dizininde. Göreli kalınca çalışan örnek yolu kendi
+    dizinine göre çözüyordu. ÖLÇÜLDÜ (2026-09-24, ikinci örnek gerçek
+    süreçle): başka dizinden gelen `main.tex` için çalışan örnek KENDİ
+    projesinin main.tex'ini ikinci sekmede açtı. Aynı dosyanın iki
+    yazılışı da tek girdi kalmalı."""
+    import main as m
+
+    proje = tmp_path / "projA"
+    proje.mkdir()
+    (proje / "main.tex").write_text("x\n", encoding="utf-8")
+    monkeypatch.chdir(proje)
+
+    alinan = m._dosya_argumanlari(
+        ["main.tex", os.path.join("..", "projA", "main.tex")])
+
+    assert len(alinan) == 1, alinan
+    assert os.path.isabs(alinan[0]), alinan
+    assert os.path.samefile(alinan[0], proje / "main.tex")
+
+
 def test_UC_dosya_UC_sekme_aciyor(ana_pencere, tmp_path):
     """Kirilirsa kullanici uc belge secip yalnizca birini gorur ve neden
     digerlerinin acilmadigini soyleyen hicbir sey yoktur.

@@ -648,3 +648,74 @@ def test_gorsel_uzanti_kumesi_TEK_KAYNAK():
     assert "IMG_EXTS" in kaynak, "sürükle bırak kendi demetini taşıyor"
     for ek in (".png", ".pdf", ".eps"):
         assert ek in IMG_EXTS
+
+
+# =====================================================================
+# Dışarıdan gelen yolun YAZILIŞI (ölçüldü 2026-09-24)
+# =====================================================================
+
+
+def test_ESKI_surumun_GORELI_kayitlari_geri_yuklenmiyor(ana_pencere, tmp_path,
+                                                        monkeypatch):
+    """Eski sürüm terminalden gelen `main.tex`i oturuma ve Son Açılanlar'a
+    GÖRELİ yazıyordu; anlamı o günkü çalışma dizinindeydi. ÖLÇÜLDÜ
+    (2026-09-24): sonraki açılış başka dizinden olunca oturum BAŞKA
+    projenin main.tex'ini geri yükledi, sekme yine göreli saklandığı için
+    kusur her açılışta sürdü. Göreli kaydın doğru bir tabanı yok: açılmıyor,
+    gösterilmiyor."""
+    from gui.editor import EditorWidget
+
+    baska = tmp_path / "projB"
+    baska.mkdir()
+    (baska / "main.tex").write_text("% B projesi\n", encoding="utf-8")
+    ayar = ana_pencere.ayar()
+    ayar.setValue("open_tabs", ["main.tex"])
+    ayar.setValue("active_tab_path", "main.tex")
+    ayar.setValue("file_tree_root", ".")
+    ayar.setValue("recent_files", ["main.tex"])
+    ayar.sync()
+    monkeypatch.chdir(baska)
+
+    w = ana_pencere()
+
+    acik = [w._editor_tabs.widget(i) for i in range(w._editor_tabs.count())]
+    assert not [e.file_path for e in acik if isinstance(e, EditorWidget)]
+    assert not w._file_tree._root, w._file_tree._root
+    assert not [a.data() for a in w._recent_menu.actions() if a.data()]
+
+
+def test_HARF_farki_DOSYA_SISTEMINE_gore_karar_veriyor(ana_pencere, tmp_path):
+    r"""Diskte `chapter1.tex`, TeX'in bildirdiği `Chapter1.tex`.
+
+    Harf duyarsız dosya sisteminde (Windows, öntanımlı macOS) ikisi AYNI
+    dosya: `\input{Chapter1}` derleniyor ve TeX hatayı `\input`taki
+    yazılışla bildiriyor. ÖLÇÜLDÜ (2026-09-24, gerçek derle.sh): hataya
+    tıklamak aynı dosyayı İKİNCİ sekmede açtı, açık sekmedeki hata işareti
+    hiç görünmedi. Harf duyarlı sistemde (Linux) ikisi AYRI dosya ve ayrı
+    kalmalı. Karar platform adıyla değil sonda dosyasıyla veriliyor.
+    """
+    from core.log_parser import LatexError
+
+    kucuk = tmp_path / "chapter1.tex"
+    kucuk.write_text("birinci\n\\hatali\n", encoding="utf-8")
+    buyuk = tmp_path / "Chapter1.tex"
+    duyarsiz = buyuk.exists()
+    if not duyarsiz:
+        buyuk.write_text("baska\ndosya\n", encoding="utf-8")
+    w = ana_pencere(open_file=str(kucuk))
+    ed = w._current_editor()
+    w._last_errors = [LatexError(file_path=str(buyuk), line_number=2,
+                                 message="Undefined control sequence.")]
+    w._refresh_error_markers()
+    isaret = bool(ed.markersAtLine(1) & (1 << ed._ERR_MARKER))
+
+    w._goto_line(str(buyuk), 2)
+    sekmeler = [w._editor_tabs.widget(i) for i in range(w._editor_tabs.count())]
+
+    if duyarsiz:
+        assert isaret, "açık sekmede hata işareti yok"
+        assert sekmeler == [ed], [s.file_path for s in sekmeler]
+        assert ed.getCursorPosition()[0] == 1
+    else:
+        assert not isaret, "BAŞKA dosyanın hatası bu sekmeye işaretlendi"
+        assert len(sekmeler) == 2 and w._current_editor() is not ed

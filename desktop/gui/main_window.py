@@ -1682,7 +1682,13 @@ class MainWindow(
         if isinstance(open_tabs, str):
             open_tabs = [open_tabs]
         for path in open_tabs:
-            if os.path.isfile(path):
+            # GÖRELİ kayıt geri yüklenmiyor: eski sürüm terminalden gelen
+            # `main.tex`i öyle saklıyordu (bkz. main._dosya_argumanlari) ve
+            # anlamı o günkü çalışma dizinindeydi. Bugünkü dizine göre
+            # açmak BAŞKA projenin main.tex'ini getiriyordu (ölçüldü
+            # 2026-09-24); açılan sekme yine göreli saklandığı için kusur
+            # her açılışta sürüyordu.
+            if os.path.isabs(path) and os.path.isfile(path):
                 # add_recent=False: oturum sekmeleri 'Son Açılanlar'ı ezmesin;
                 # liste kullanıcının gerçekte en son açtığı dosyaları taşısın
                 self._open_file_in_editor(path, add_recent=False)
@@ -1698,5 +1704,5 @@ class MainWindow(
 
         # Dosya ağacı kökünü geri yükle
         tree_root = self._settings.value("file_tree_root", "")
-        if tree_root and os.path.isdir(tree_root):
+        if tree_root and os.path.isabs(tree_root) and os.path.isdir(tree_root):
             self._file_tree.set_root(tree_root)

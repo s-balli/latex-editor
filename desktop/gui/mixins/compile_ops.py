@@ -15,6 +15,7 @@ from core.log import get_logger
 from core.latex_utils import (
     KAGIT_ADLARI, bildirilen_kagit, kagit_adi, kagit_eslesiyor_mu,
 )
+from core.fs_ops import ayni_dosya_mi
 from core.paths import dizin_altinda_mi
 from gui.pdfium_lock import pdfium_lock
 from PyQt6.QtCore import QCoreApplication
@@ -723,13 +724,23 @@ class CompileOpsMixin:
 
         currentChanged (sekme değişince) ve F4 atlamasından sonra da çağrılır;
         böylece hangi dosya aktifse onun hataları işaretlenir.
+
+        Dosya dizgeyle değil `ayni_dosya_mi` ile eşleniyor: TeX bölümü
+        `\\input`taki yazılışla bildiriyor (`Chapter1.tex`), sekme diskteki
+        adı taşıyor (`chapter1.tex`). ÖLÇÜLDÜ (2026-09-24, gerçek derle.sh):
+        işaret açık sekmede HİÇ görünmedi; harfler aynıyken görünüyor.
+        Karar dosya başına bir kez, hata başına değil.
         """
         editor = self._current_editor()
         if not isinstance(editor, EditorWidget):
             return
         editor.clear_error_markers()
+        bu_dosya = {}
         for e in getattr(self, "_last_errors", []):
-            if e.file_path == editor.file_path:
+            if e.file_path not in bu_dosya:
+                bu_dosya[e.file_path] = ayni_dosya_mi(e.file_path,
+                                                      editor.file_path)
+            if bu_dosya[e.file_path]:
                 editor.add_error_marker(e.line_number)
 
     def _goto_next_error(self):

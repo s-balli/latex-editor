@@ -372,7 +372,12 @@ class FileOpsMixin:
         #
         # Var olmayan girdi listeden SİLİNMİYOR: kopmuş bir ağ sürücüsündeki
         # dosya unutulmamalı, yalnız o an gösterilmemeli.
-        var_olanlar = [p for p in recent if os.path.isfile(p)]
+        #
+        # GÖRELİ girdi de gösterilmiyor: eski sürümün terminalden gelen yolu
+        # öyle saklamasından kalma ve bugünkü çalışma dizinine göre BAŞKA
+        # projenin dosyasını açardı (bkz. main_window._restore_state).
+        var_olanlar = [p for p in recent
+                       if os.path.isabs(p) and os.path.isfile(p)]
         if not var_olanlar:
             act = self._recent_menu.addAction(_("(boş)"))
             act.setEnabled(False)

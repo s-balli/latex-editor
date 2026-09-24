@@ -228,11 +228,21 @@ def _dosya_argumanlari(argv) -> list:
     Dosya OLMAYAN argümanlar atlanıyor (bayraklar, silinmiş yollar).
     Yinelenenler bir kez alınıyor: aynı yol iki kez verilirse ikinci
     `_dis_yolu_ac` çağrısı yeni sekme açmaz ama gereksizdir.
+
+    Yol MUTLAK yapılıyor, çünkü göreli yolun anlamı bu sürecin çalışma
+    dizininde. Terminalden `latex-editor main.tex` göreli geliyor; yol
+    olduğu gibi kalınca çalışan örnek onu KENDİ dizinine göre çözüyordu.
+    Sekme, ağaç kökü, son açılanlar ve oturum da göreli saklanıyordu.
+    ÖLÇÜLDÜ (2026-09-24, ikinci örnek gerçek süreçle): başka dizinden
+    gelen `main.tex` için çalışan örnek KENDİ projesinin main.tex'ini
+    ikinci sekmede açtı, dosyasız bir dizinden başlatılmışsa "Dosya
+    bulunamadı" dedi. Sonraki açılış başka dizinden olunca oturum öteki
+    projenin main.tex'ini geri yükledi.
     """
     yollar = []
     for arg in argv:
         if os.path.isfile(arg):
-            yol = os.path.normpath(arg)
+            yol = os.path.abspath(arg)
             if yol not in yollar:
                 yollar.append(yol)
     return yollar

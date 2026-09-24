@@ -9,6 +9,7 @@ from PyQt6.QtWidgets import (
     QTabBar as _QTabBar, QToolButton, QMenu, QApplication, QStyle,
 )
 
+from core.fs_ops import ayni_dosya_mi
 from core.latex_refs import (
     CITE_KOMUTLARI, REF_ARALIK_KOMUTLARI, REF_KOMUTLARI, komut_alternatifi,
 )
@@ -198,11 +199,24 @@ class TabOpsMixin:
         karşılaştırma kuralı eklendiğinde beşini birden güncellemek
         gerekiyordu. Yollar her iki tarafta normpath'tir (open_file
         normpath'le saklar).
+
+        Dizge tutmazsa DOSYA karşılaştırılıyor (`ayni_dosya_mi`): Windows'ta
+        ve macOS'ta dosya sistemi harf duyarsız ve aynı dosyaya farklı
+        yazılmış bir yol gelebiliyor. ÖLÇÜLDÜ (2026-09-24, gerçek derle.sh):
+        diskte `chapter1.tex` varken `\\input{Chapter1}` derleniyor ve TeX
+        hatayı `Chapter1.tex` diye bildiriyor. Hataya tıklamak aynı dosyayı
+        İKİNCİ sekmede açtı. Komut satırından harf farkıyla gelen yol da
+        öyle.
         """
         path = os.path.normpath(path)
-        for i in range(self._editor_tabs.count()):
-            editor = self._editor_tabs.widget(i)
-            if isinstance(editor, EditorWidget) and editor.file_path == path:
+        editorler = [self._editor_tabs.widget(i)
+                     for i in range(self._editor_tabs.count())]
+        editorler = [e for e in editorler if isinstance(e, EditorWidget)]
+        for editor in editorler:
+            if editor.file_path == path:
+                return editor
+        for editor in editorler:
+            if editor.file_path and ayni_dosya_mi(editor.file_path, path):
                 return editor
         return None
 
