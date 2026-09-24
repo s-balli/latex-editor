@@ -184,6 +184,58 @@ def derleme_hedefi(tex_path: str) -> tuple[str, str]:
     return "", msg
 
 
+def paket_yukleme_yeri(kok: str, paket_yolu: str) -> tuple[str, int] | None:
+    r"""Bir paket ya da sınıf dosyasını kullanıcının YÜKLEDİĞİ satır.
+
+    ``paket_yolu`` `.../fontspec.sty` ya da `.../IEEEtran.cls`. Dönüş
+    (dosya, satır); kök belge ve `\input` zinciri sırayla taranıyor (önsöz
+    ayrı dosyada olabilir). Paket başka bir paketin içinden yükleniyorsa
+    None.
+
+    NEDEN. Paketin içinden gelen hata TeX günlüğünde paketin KENDİ satırıyla
+    geliyor ve kullanıcının satırı günlükte hiç yok. ÖLÇÜLDÜ (2026-09-24,
+    pdflatex + fontspec, gerçek derle.sh): panel "Satır 45" yazdı, tıklama
+    "Dosya bulunamadı: fontspec.sty" dedi; `\usepackage{fontspec}`
+    `main.tex`in 3. satırında. Sınıfın kendi hatası da öyle geliyor:
+    `bjfuthesis.cls:21` pdflatex'i reddediyor, kullanıcının satırı
+    `\documentclass`.
+    """
+    ad, uzanti = os.path.splitext(os.path.basename(paket_yolu))
+    uzanti = uzanti.lower()
+    if uzanti == ".cls":
+        desen = re.compile(r"\\documentclass\s*(?:\[[^\]]*\])?\s*\{\s*"
+                           + re.escape(ad) + r"\s*\}")
+    elif uzanti != ".sty":
+        return None
+    try:
+        with open(kok, "r", encoding="utf-8", errors="replace") as f:
+            icerik = f.read()
+    except OSError:
+        return None
+    sira = [kok]
+    yigin = list(reversed(parse_inputs(
+        icerik, os.path.dirname(os.path.abspath(kok)))))
+    while yigin:
+        ref = yigin.pop()
+        sira.append(ref["path"])
+        yigin.extend(reversed(ref.get("children") or []))
+    for yol in sira:
+        try:
+            with open(yol, "r", encoding="utf-8", errors="replace") as f:
+                temiz = strip_comments(f.read())
+        except OSError:
+            continue
+        if uzanti == ".cls":
+            m = desen.search(temiz)
+            eslesmeler = [m] if m else []
+        else:
+            eslesmeler = [m for m in _RE_PAKET_YUKLEME.finditer(temiz)
+                          if ad in (x.strip() for x in m.group(1).split(","))]
+        if eslesmeler:
+            return yol, temiz.count("\n", 0, eslesmeler[0].start()) + 1
+    return None
+
+
 def _zincirde_mi(kok: str, tex_path: str) -> bool:
     """``kok`` derlenebilir bir belge ve zinciri ``tex_path``i içeriyor mu."""
     try:

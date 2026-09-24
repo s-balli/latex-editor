@@ -394,3 +394,57 @@ def test_SEBEBI_BILINEN_basarisizlikta_genel_motor_onerisi_YOK(ana_pencere,
         "XeTeX or\n"
         "  (fontspec)                      LuaTeX.\n", tex))
     assert op._suggest_list.count() == 1
+
+
+def test_PAKETIN_ya_da_SINIFIN_hatasi_kullanicinin_YUKLEDIGI_satira_gidiyor(
+        ana_pencere, tmp_path):
+    r"""Paketin içinden gelen hata paketin KENDİ satırıyla geliyordu.
+    ÖLÇÜLDÜ (2026-09-24, gerçek derle.sh; satırlar oradan): pdflatex ile
+    fontspec'te panel "Satır 45" yazdı, tıklama "Dosya bulunamadı:
+    fontspec.sty" dedi. Kullanıcının satırı TeX günlüğünde hiç yok; kehanet
+    kaynağın kendisi. Önsöz ayrı dosyada olabiliyor, sınıfın kendi hatası
+    `\documentclass` satırına gidiyor (yorumdaki sayılmıyor), projenin
+    KENDİ .sty'si yerinde kalıyor: satır orada düzeltiliyor."""
+    import os
+
+    from PyQt6.QtCore import Qt
+
+    from core.log_parser import LatexError, parse_output
+
+    (tmp_path / "onsoz.tex").write_text(
+        "\\usepackage{graphicx}\n\\usepackage{amsmath, fontspec}\n",
+        encoding="utf-8")
+    stil = tmp_path / "benimstil.sty"
+    stil.write_text("\\ProvidesPackage{benimstil}\n\\hatali\n", encoding="utf-8")
+    tex = tmp_path / "main.tex"
+    tex.write_text("% \\documentclass{bjfuthesis} eski satir\n"
+                   "\\documentclass{bjfuthesis}\n\\input{onsoz}\n"
+                   "\\usepackage{benimstil}\n\\begin{document}\nx\n"
+                   "\\end{document}\n", encoding="utf-8")
+    p = ana_pencere()
+    p._compile_target = str(tex)
+    p._compile_engine = "pdflatex"
+
+    def yer(sonuc):
+        p._on_compile_finished(sonuc)
+        dosya, satir = p._output_panel._error_list.item(0).data(
+            Qt.ItemDataRole.UserRole)
+        return os.path.normcase(os.path.normpath(dosya)), satir
+
+    def yol(x):
+        return os.path.normcase(str(x))
+
+    # TeX ağacındaki yol Windows'ta da olduğu gibi kalıyor (wsl_to_windows)
+    assert yer(parse_output(
+        "  /usr/share/texlive/texmf-dist/tex/latex/fontspec/fontspec.sty:45: "
+        "Fatal Package fontspec Error: The fontspec package requires either "
+        "XeTeX or\n", str(tex))) == (yol(tmp_path / "onsoz.tex"), 2)
+    assert yer(parse_output(
+        "  /usr/share/texlive/texmf-dist/tex/latex/bjfuthesis/bjfuthesis.cls:21: "
+        "Class bjfuthesis Error: XeLaTeX is required to compile this "
+        "document.\n", str(tex))) == (yol(tex), 2)
+    # Projenin dosyası: derleyici yolu yerel biçime çevirmiş olarak veriyor
+    yerel = parse_output("", str(tex))
+    yerel.errors = [LatexError(line_number=2, file_path=str(stil),
+                               message="Undefined control sequence.")]
+    assert yer(yerel) == (yol(stil), 2)

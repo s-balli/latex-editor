@@ -25,12 +25,12 @@ Use the open window, or quit the application and start it again.</translation>
 </context><context>
     <name>CompileOpsMixin</name>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="197" />
+        <location filename="../gui/mixins/compile_ops.py" line="216" />
         <source>Kabuk Erişimi (shell-escape)</source>
         <translation>Shell Access (shell-escape)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="198" />
+        <location filename="../gui/mixins/compile_ops.py" line="217" />
         <source>Bu proje 'minted' paketini kullanıyor ve derlemek için kabuk erişimi (-shell-escape) gerekiyor.
 
 Bu izin belgenin BİLGİSAYARINIZDA KOMUT ÇALIŞTIRMASINA olanak verir. Yalnızca güvendiğiniz belgelerde açın.
@@ -45,109 +45,109 @@ Enable it for '{k}'?
 (Your answer is remembered for this project.)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="363" />
+        <location filename="../gui/mixins/compile_ops.py" line="382" />
         <source>Kabuk erişimi izni sıfırlandı; sonraki derlemede sorulacak</source>
         <translation>Shell access permission reset; you will be asked on the next compile</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="366" />
+        <location filename="../gui/mixins/compile_ops.py" line="385" />
         <source>Bu proje için kayıtlı bir kabuk erişimi cevabı yok</source>
         <translation>No shell access answer is stored for this project</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="410" />
-        <location filename="../gui/mixins/compile_ops.py" line="374" />
+        <location filename="../gui/mixins/compile_ops.py" line="429" />
+        <location filename="../gui/mixins/compile_ops.py" line="393" />
         <source>Derleme sürüyor; bitmesini bekleyin veya Esc ile durdurun</source>
         <translation>Compilation in progress; wait for it to finish or stop it with Esc</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="379" />
+        <location filename="../gui/mixins/compile_ops.py" line="398" />
         <source>Derlenecek dosya yok</source>
         <translation>No file to compile</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="423" />
-        <location filename="../gui/mixins/compile_ops.py" line="390" />
+        <location filename="../gui/mixins/compile_ops.py" line="442" />
+        <location filename="../gui/mixins/compile_ops.py" line="409" />
         <source>Kayıt başarısız, derleme iptal</source>
         <translation>Save failed, compilation cancelled</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="456" />
+        <location filename="../gui/mixins/compile_ops.py" line="475" />
         <source>Derleme durduruldu</source>
         <translation>Compilation stopped</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="476" />
+        <location filename="../gui/mixins/compile_ops.py" line="495" />
         <source>Derleniyor...</source>
         <translation>Compiling...</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="508" />
+        <location filename="../gui/mixins/compile_ops.py" line="527" />
         <source>PDF açılamadı, motoru değiştirip tekrar deneyin</source>
         <translation>Could not open PDF, change the engine and try again</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="522" />
+        <location filename="../gui/mixins/compile_ops.py" line="541" />
         <source>PDF oluşturuldu ama boş, motoru değiştirip tekrar deneyin</source>
         <translation>PDF created but empty, try changing the engine</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="532" />
+        <location filename="../gui/mixins/compile_ops.py" line="551" />
         <source>hata</source>
         <translation>error(s)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="532" />
+        <location filename="../gui/mixins/compile_ops.py" line="551" />
         <source>Basarisiz</source>
         <translation>Failed</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="534" />
+        <location filename="../gui/mixins/compile_ops.py" line="553" />
         <source>Basarili</source>
         <translation>Successful</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="536" />
+        <location filename="../gui/mixins/compile_ops.py" line="555" />
         <source>uyari</source>
         <translation>warning(s)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="655" />
+        <location filename="../gui/mixins/compile_ops.py" line="675" />
         <source>Belge {istenen} istiyor ama PDF {cikan} çıktı. Kağıt boyunu belgenin belirlemesi için \usepackage[{secenek}]{{geometry}} ekleyin.</source>
         <translation>The document asks for {istenen} but the PDF came out {cikan}. Add \usepackage[{secenek}]{{geometry}} so the document decides the paper size.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="670" />
+        <location filename="../gui/mixins/compile_ops.py" line="690" />
         <source>Derleme sonrası referans denetimi açıldı</source>
         <translation>Post-compile reference audit enabled</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="671" />
+        <location filename="../gui/mixins/compile_ops.py" line="691" />
         <source>Derleme sonrası referans denetimi kapatıldı</source>
         <translation>Post-compile reference audit disabled</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="724" />
+        <location filename="../gui/mixins/compile_ops.py" line="744" />
         <source>Hata yok</source>
         <translation>No errors</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="733" />
+        <location filename="../gui/mixins/compile_ops.py" line="753" />
         <source>Hata konumu bulunamadı</source>
         <translation>Error location not found</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="737" />
+        <location filename="../gui/mixins/compile_ops.py" line="757" />
         <source>Satır</source>
         <translation>Line</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="752" />
+        <location filename="../gui/mixins/compile_ops.py" line="772" />
         <source>Otomatik Derle</source>
         <translation>Auto Compile</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="758" />
+        <location filename="../gui/mixins/compile_ops.py" line="778" />
         <source>Manuel</source>
         <translation>Manual</translation>
     </message>
@@ -283,44 +283,44 @@ Enable it for '{k}'?
         <translation>This document has no \bibliography or \addbibresource</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="572" />
-        <location filename="../gui/mixins/edit_ops.py" line="409" />
+        <location filename="../gui/mixins/edit_ops.py" line="581" />
+        <location filename="../gui/mixins/edit_ops.py" line="418" />
         <location filename="../gui/mixins/edit_ops.py" line="300" />
         <source>Önce bir .tex dosyası açın</source>
         <translation>Open a .tex file first</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="311" />
+        <location filename="../gui/mixins/edit_ops.py" line="314" />
         <source>Kaynakça dosyası okunamadı</source>
         <translation>Could not read the bibliography file</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="316" />
+        <location filename="../gui/mixins/edit_ops.py" line="319" />
         <source>kaynakçada girdi yok</source>
         <translation>no entries in the bibliography</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="318" />
+        <location filename="../gui/mixins/edit_ops.py" line="321" />
         <source>Kaynakça: {n} girdi · {d}</source>
         <translation>Bibliography: {n} entries · {d}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="329" />
+        <location filename="../gui/mixins/edit_ops.py" line="332" />
         <source>Kaynakça: {n} girdi (elle yazılmış)</source>
         <translation>Bibliography: {n} entries (written by hand)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="503" />
-        <location filename="../gui/mixins/edit_ops.py" line="456" />
-        <location filename="../gui/mixins/edit_ops.py" line="424" />
-        <location filename="../gui/mixins/edit_ops.py" line="399" />
-        <location filename="../gui/mixins/edit_ops.py" line="392" />
-        <location filename="../gui/mixins/edit_ops.py" line="364" />
+        <location filename="../gui/mixins/edit_ops.py" line="512" />
+        <location filename="../gui/mixins/edit_ops.py" line="465" />
+        <location filename="../gui/mixins/edit_ops.py" line="433" />
+        <location filename="../gui/mixins/edit_ops.py" line="408" />
+        <location filename="../gui/mixins/edit_ops.py" line="401" />
+        <location filename="../gui/mixins/edit_ops.py" line="373" />
         <source>DOI ile Kaynak Ekle</source>
         <translation>Add Source by DOI</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="365" />
+        <location filename="../gui/mixins/edit_ops.py" line="374" />
         <source>Belge '{ad}' dosyasına başvuruyor ama dosya yok.
 
 Oluşturulsun mu?</source>
@@ -329,7 +329,7 @@ Oluşturulsun mu?</source>
 Create it?</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="393" />
+        <location filename="../gui/mixins/edit_ops.py" line="402" />
         <source>Bu belge kaynakçayı elle yazıyor (\bibitem).
 
 DOI ile ekleme .bib dosyası gerektiriyor: belgeye \bibliography{refs} satırını ekleyin.</source>
@@ -338,7 +338,7 @@ DOI ile ekleme .bib dosyası gerektiriyor: belgeye \bibliography{refs} satırın
 Adding by DOI needs a .bib file: add a \bibliography{refs} line to the document.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="400" />
+        <location filename="../gui/mixins/edit_ops.py" line="409" />
         <source>Bu belgede kaynakça yok.
 
 Önce \bibliography{refs} satırını ekleyin; dosyayı sonra sizin için oluşturabilirim.</source>
@@ -347,62 +347,62 @@ Adding by DOI needs a .bib file: add a \bibliography{refs} line to the document.
 Add a \bibliography{refs} line first; I can create the file for you afterwards.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="425" />
+        <location filename="../gui/mixins/edit_ops.py" line="434" />
         <source>DOI (tam URL de olur):</source>
         <translation>DOI (a full URL also works):</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="438" />
+        <location filename="../gui/mixins/edit_ops.py" line="447" />
         <source>DOI getiriliyor...</source>
         <translation>Fetching DOI...</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="450" />
+        <location filename="../gui/mixins/edit_ops.py" line="459" />
         <source>Bu bir DOI'ye benzemiyor (10. ile başlamalı)</source>
         <translation>This does not look like a DOI (it should start with 10.)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="451" />
+        <location filename="../gui/mixins/edit_ops.py" line="460" />
         <source>Bu DOI bulunamadı</source>
         <translation>This DOI was not found</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="452" />
+        <location filename="../gui/mixins/edit_ops.py" line="461" />
         <source>Gelen kayıt okunamadı</source>
         <translation>The record that came back could not be read</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="457" />
+        <location filename="../gui/mixins/edit_ops.py" line="466" />
         <source>Bağlantı kurulamadı</source>
         <translation>Could not connect</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="496" />
+        <location filename="../gui/mixins/edit_ops.py" line="505" />
         <source>Eklendi: {a} · {d} (kaydedilmedi)</source>
         <translation>Added: {a} · {d} (not saved yet)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="504" />
+        <location filename="../gui/mixins/edit_ops.py" line="513" />
         <source>Kaynakçaya yazılamadı: {e}</source>
         <translation>Could not write to the bibliography: {e}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="511" />
+        <location filename="../gui/mixins/edit_ops.py" line="520" />
         <source>Eklendi: {a} · {d}</source>
         <translation>Added: {a} · {d}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="578" />
+        <location filename="../gui/mixins/edit_ops.py" line="587" />
         <source>Referans denetimi: sorun yok</source>
         <translation>Reference audit: no issues</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="685" />
+        <location filename="../gui/mixins/edit_ops.py" line="694" />
         <source>Yeniden Adlandırma</source>
         <translation>Rename</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="686" />
+        <location filename="../gui/mixins/edit_ops.py" line="695" />
         <source>'{o}' → '{n}': {c} dosya değiştirildi, {f} dosya değiştirilemedi.
 
 {liste}
@@ -415,57 +415,57 @@ Referanslar tutarsız kaldı. Bu dosyalara yazma izni verip işlemi tekrarlayın
 References are now inconsistent. Grant write permission to these files and retry, or fix them by hand.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="697" />
+        <location filename="../gui/mixins/edit_ops.py" line="706" />
         <source>Değişiklik yok: {k}</source>
         <translation>No changes: {k}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="749" />
+        <location filename="../gui/mixins/edit_ops.py" line="758" />
         <source>yeni ad:</source>
         <translation>new name:</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="779" />
-        <location filename="../gui/mixins/edit_ops.py" line="768" />
+        <location filename="../gui/mixins/edit_ops.py" line="788" />
+        <location filename="../gui/mixins/edit_ops.py" line="777" />
         <source>Etiketi Yeniden Adlandır</source>
         <translation>Rename Label</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="769" />
+        <location filename="../gui/mixins/edit_ops.py" line="778" />
         <source>Geçersiz etiket adı (harf, rakam, : . _ - kullanın)</source>
         <translation>Invalid label name (use letters, digits, : . _ -)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="897" />
-        <location filename="../gui/mixins/edit_ops.py" line="780" />
+        <location filename="../gui/mixins/edit_ops.py" line="906" />
+        <location filename="../gui/mixins/edit_ops.py" line="789" />
         <source>'{k}' adlı etiket projede zaten var.</source>
         <translation>A label named '{k}' already exists in the project.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="790" />
+        <location filename="../gui/mixins/edit_ops.py" line="799" />
         <source>Etiket yeniden adlandırıldı: {o} → {n} ({c} dosya)</source>
         <translation>Label renamed: {o} → {n} ({c} files)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="886" />
-        <location filename="../gui/mixins/edit_ops.py" line="820" />
+        <location filename="../gui/mixins/edit_ops.py" line="895" />
+        <location filename="../gui/mixins/edit_ops.py" line="829" />
         <source>Kaynakça Anahtarını Yeniden Adlandır</source>
         <translation>Rename Bibliography Key</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="888" />
-        <location filename="../gui/mixins/edit_ops.py" line="822" />
+        <location filename="../gui/mixins/edit_ops.py" line="897" />
+        <location filename="../gui/mixins/edit_ops.py" line="831" />
         <source>Geçersiz anahtar adı (harf, rakam, : . _ - kullanın)</source>
         <translation>Invalid key name (use letters, digits, : . _ -)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="852" />
+        <location filename="../gui/mixins/edit_ops.py" line="861" />
         <source>'{k}' anahtarı .bib'te zaten var.</source>
         <translation>A key named '{k}' already exists in the .bib file.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/edit_ops.py" line="909" />
-        <location filename="../gui/mixins/edit_ops.py" line="874" />
+        <location filename="../gui/mixins/edit_ops.py" line="918" />
+        <location filename="../gui/mixins/edit_ops.py" line="883" />
         <source>Kaynakça anahtarı yeniden adlandırıldı: {o} → {n} ({c} dosya)</source>
         <translation>Bibliography key renamed: {o} → {n} ({c} files)</translation>
     </message>
@@ -872,47 +872,47 @@ Windows: run 'sudo apt install pandoc' inside WSL</translation>
         <translation> LINKED FILES</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="665" />
+        <location filename="../gui/file_tree.py" line="679" />
         <source>▶ Derle</source>
         <translation>▶ Compile</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="669" />
+        <location filename="../gui/file_tree.py" line="683" />
         <source>📂 Düzenle</source>
         <translation>📂 Edit</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="681" />
+        <location filename="../gui/file_tree.py" line="695" />
         <source>📄 Yeni Dosya...</source>
         <translation>📄 New File...</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="682" />
+        <location filename="../gui/file_tree.py" line="696" />
         <source>📁 Yeni Klasör...</source>
         <translation>📁 New Folder...</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="687" />
+        <location filename="../gui/file_tree.py" line="701" />
         <source>📂 Klasörde Aç</source>
         <translation>📂 Show in Folder</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="695" />
+        <location filename="../gui/file_tree.py" line="709" />
         <source>✏ Yeniden Adlandır</source>
         <translation>✏ Rename</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="697" />
+        <location filename="../gui/file_tree.py" line="711" />
         <source>🗑 Sil</source>
         <translation>🗑 Delete</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="747" />
+        <location filename="../gui/file_tree.py" line="761" />
         <source>Klasörde Aç</source>
         <translation>Show in Folder</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="748" />
+        <location filename="../gui/file_tree.py" line="762" />
         <source>Klasör açılamadı:
 
 {e}</source>
@@ -921,122 +921,122 @@ Windows: run 'sudo apt install pandoc' inside WSL</translation>
 {e}</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="764" />
+        <location filename="../gui/file_tree.py" line="778" />
         <source>Ad boş olamaz.</source>
         <translation>Name cannot be empty.</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="765" />
+        <location filename="../gui/file_tree.py" line="779" />
         <source>'.' ve '..' ad olarak kullanılamaz.</source>
         <translation>'.' and '..' cannot be used as names.</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="766" />
+        <location filename="../gui/file_tree.py" line="780" />
         <source>Ad şu karakterleri içeremez:  &lt; &gt; : " / \ | ? *</source>
         <translation>A name cannot contain:  &lt; &gt; : " / \ | ? *</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="768" />
+        <location filename="../gui/file_tree.py" line="782" />
         <source>Ad nokta veya boşlukla bitemez: Windows bunları sessizce siler ve dosyayı adıyla bulamazsınız.</source>
         <translation>A name cannot end with a dot or a space: Windows silently strips them and you will not find the file under the name you typed.</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="771" />
+        <location filename="../gui/file_tree.py" line="785" />
         <source>Bu ad Windows'ta aygıt adı olarak ayrılmış (CON, PRN, AUX, NUL, COM1-9, LPT1-9); uzantı eklense de kullanılamaz.</source>
         <translation>This name is reserved as a device name on Windows (CON, PRN, AUX, NUL, COM1-9, LPT1-9); adding an extension does not help.</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="774" />
+        <location filename="../gui/file_tree.py" line="788" />
         <source>Ad çok uzun (en fazla 255 karakter).</source>
         <translation>Name is too long (255 characters at most).</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="775" />
+        <location filename="../gui/file_tree.py" line="789" />
         <source>Ad geçersiz.</source>
         <translation>Invalid name.</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="798" />
+        <location filename="../gui/file_tree.py" line="812" />
         <source>Yeni Klasör</source>
         <translation>New Folder</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="798" />
+        <location filename="../gui/file_tree.py" line="812" />
         <source>Yeni Dosya</source>
         <translation>New File</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="799" />
+        <location filename="../gui/file_tree.py" line="813" />
         <source>Klasör adı:</source>
         <translation>Folder name:</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="799" />
+        <location filename="../gui/file_tree.py" line="813" />
         <source>Dosya adı (örn. bolum2.tex):</source>
         <translation>File name (e.g. chapter2.tex):</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="841" />
-        <location filename="../gui/file_tree.py" line="807" />
+        <location filename="../gui/file_tree.py" line="855" />
+        <location filename="../gui/file_tree.py" line="821" />
         <source>'{name}' zaten var.</source>
         <translation>'{name}' already exists.</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="811" />
+        <location filename="../gui/file_tree.py" line="825" />
         <source>Oluşturulamadı: {e}</source>
         <translation>Could not create: {e}</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="821" />
+        <location filename="../gui/file_tree.py" line="835" />
         <source>Yeniden Adlandır</source>
         <translation>Rename</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="823" />
+        <location filename="../gui/file_tree.py" line="837" />
         <source>Yeni ad:</source>
         <translation>New name:</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="847" />
+        <location filename="../gui/file_tree.py" line="861" />
         <source>Yeniden adlandırılamadı: {e}</source>
         <translation>Could not rename: {e}</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="881" />
+        <location filename="../gui/file_tree.py" line="895" />
         <source>Sil</source>
         <translation>Delete</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="882" />
+        <location filename="../gui/file_tree.py" line="896" />
         <source>'{name}' klasörünü ve İÇİNDEKİLERİ silmek istediğinize emin misiniz?
 (Geri dönüşüm kutusuna taşınır)</source>
         <translation>Delete the folder '{name}' AND ITS CONTENTS?
 (Moved to the recycle bin)</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="884" />
+        <location filename="../gui/file_tree.py" line="898" />
         <source>'{name}' dosyasını silmek istediğinize emin misiniz?
 (Geri dönüşüm kutusuna taşınır)</source>
         <translation>Are you sure you want to delete '{name}'?
 (Moved to recycle bin)</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="888" />
+        <location filename="../gui/file_tree.py" line="902" />
         <source>Evet</source>
         <translation>Yes</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="889" />
+        <location filename="../gui/file_tree.py" line="903" />
         <source>Hayır</source>
         <translation>No</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="897" />
+        <location filename="../gui/file_tree.py" line="911" />
         <source>Hata</source>
         <translation>Error</translation>
     </message>
     <message>
-        <location filename="../gui/file_tree.py" line="897" />
+        <location filename="../gui/file_tree.py" line="911" />
         <source>Silinemedi: {e}</source>
         <translation>Could not delete: {e}</translation>
     </message>
@@ -1726,9 +1726,9 @@ Some matches in the document may be unchanged; run the command again to continue
         <translation>Table Wizard</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="323" />
-        <location filename="../gui/mixins/yazim_ops.py" line="318" />
-        <location filename="../gui/mixins/yazim_ops.py" line="287" />
+        <location filename="../gui/mixins/yazim_ops.py" line="329" />
+        <location filename="../gui/mixins/yazim_ops.py" line="324" />
+        <location filename="../gui/mixins/yazim_ops.py" line="293" />
         <location filename="../gui/main_window.py" line="911" />
         <location filename="../gui/main_window.py" line="868" />
         <source>Yazım Denetimi</source>
@@ -2406,12 +2406,12 @@ Some matches in the document may be unchanged; run the command again to continue
         <translation>Cannot open this file type: {name}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="269" />
+        <location filename="../gui/mixins/yazim_ops.py" line="275" />
         <source>sözlük yükleniyor...</source>
         <translation>loading dictionary...</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="288" />
+        <location filename="../gui/mixins/yazim_ops.py" line="294" />
         <source>Sözlük yüklenemedi.
 
 {hata}
@@ -2424,42 +2424,42 @@ Sözlük dizini: {dizin}</source>
 Dictionary folder: {dizin}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="312" />
+        <location filename="../gui/mixins/yazim_ops.py" line="318" />
         <source>Öneriler aranıyor...</source>
         <translation>Looking for suggestions...</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="319" />
+        <location filename="../gui/mixins/yazim_ops.py" line="325" />
         <source>'{k}' için öneri bulunamadı.</source>
         <translation>No suggestions found for '{k}'.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="324" />
+        <location filename="../gui/mixins/yazim_ops.py" line="330" />
         <source>'{k}' yerine:</source>
         <translation>Replace '{k}' with:</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="367" />
+        <location filename="../gui/mixins/yazim_ops.py" line="373" />
         <source>Bulgunun geldiği belge açık değil: {name}</source>
         <translation>The document this finding came from is not open: {name}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="384" />
+        <location filename="../gui/mixins/yazim_ops.py" line="390" />
         <source>'{e}' belgede bulunamadı, değiştirilmedi</source>
         <translation>'{e}' was not found in the document, nothing was replaced</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="390" />
+        <location filename="../gui/mixins/yazim_ops.py" line="396" />
         <source>'{e}' -&gt; '{y}' değiştirildi</source>
         <translation>'{e}' replaced with '{y}'</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="398" />
+        <location filename="../gui/mixins/yazim_ops.py" line="404" />
         <source>'{k}' sözlüğe eklendi</source>
         <translation>'{k}' added to dictionary</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="404" />
+        <location filename="../gui/mixins/yazim_ops.py" line="410" />
         <source>'{k}' sözlüğe eklenemedi, kullanıcı sözlüğü yazılamıyor</source>
         <translation>'{k}' could not be added: the user dictionary is not writable</translation>
     </message>
@@ -2496,401 +2496,401 @@ Dictionary folder: {dizin}</translation>
 </context><context>
     <name>OutputPanel</name>
     <message>
-        <location filename="../gui/output_panel.py" line="27" />
+        <location filename="../gui/output_panel.py" line="29" />
         <source>Tanımsız komut{cmd}: yazım hatası olabilir ya da komutu sağlayan paket yüklenmemiş (\usepackage gerekebilir)</source>
         <translation>Unknown command{cmd}: possible typo, or the package providing it is not loaded (\usepackage may be needed)</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="28" />
+        <location filename="../gui/output_panel.py" line="30" />
         <source>Matematik modu dışında _ ^ veya özel karakter kullanılmış; $...$ veya \[...\] içine alın</source>
         <translation>_ ^ or a special character used outside math mode; wrap in $...$ or \[...\]</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="29" />
+        <location filename="../gui/output_panel.py" line="31" />
         <source>Geçersiz karakter: genelde Word'den kopyalanan akıllı tırnak/tire; düz " ve - kullanın</source>
         <translation>Invalid character: usually smart quotes/dashes pasted from Word; use plain " and -</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="30" />
+        <location filename="../gui/output_panel.py" line="32" />
         <source>Eksik/fazla süslü parantez; bu satırdan geriye doğru { } eşleşmesini kontrol edin</source>
         <translation>Missing/extra brace; check the { } pairing backwards from this line</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="31" />
+        <location filename="../gui/output_panel.py" line="33" />
         <source>Aynı terimde iki alt/üst simge; a_{bc} gibi gruplayın</source>
         <translation>Two sub/superscripts on the same term; group them like a_{bc}</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="32" />
+        <location filename="../gui/output_panel.py" line="34" />
         <source>Tanımsız ortam {env}: \newenvironment ile tanımlanmamış ya da paketi yüklenmemiş</source>
         <translation>Unknown environment {env}: not defined with \newenvironment, or its package is not loaded</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="36" />
+        <location filename="../gui/output_panel.py" line="38" />
         <source>Tanımsız ortam {env}: önsöze \usepackage{{paket}} ekleyin</source>
         <translation>Unknown environment {env}: add \usepackage{{paket}} to the preamble</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="40" />
+        <location filename="../gui/output_panel.py" line="42" />
         <source>Tanımsız komut {komut}: önsöze \usepackage{{paket}} ekleyin</source>
         <translation>Undefined command {komut}: add \usepackage{{paket}} to the preamble</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="41" />
+        <location filename="../gui/output_panel.py" line="43" />
         <source>Tanımsız komut {komut}: article sınıfında yok, {sinif} sınıfında var</source>
         <translation>Undefined command {komut}: not available in the article class, only in {sinif}</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="42" />
+        <location filename="../gui/output_panel.py" line="44" />
         <source>Bir komut/ortam kapanmamış (eksik } veya \end{...}); dosyanın sonuna doğru kontrol edin</source>
         <translation>A command/environment is left open (missing } or \end{...}); check towards the end of the file</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="43" />
+        <location filename="../gui/output_panel.py" line="45" />
         <source>Derleyici beklenmedik durdu; genelde eksik dosya veya kapanmamış blok. Log sekmesindeki son satırlara bakın</source>
         <translation>The compiler stopped unexpectedly; usually a missing file or an unclosed block. See the last lines in the Log tab</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="44" />
+        <location filename="../gui/output_panel.py" line="46" />
         <source>Sayaç sınırı aşıldı (çok sayıda dipnot/liste öğesi); enumitem paketini kullanın</source>
         <translation>Counter limit exceeded (many footnotes/list items); use the enumitem package</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="45" />
+        <location filename="../gui/output_panel.py" line="47" />
         <source>tabular komutu yanlış yerde; \toprule/\midrule yalnız tabular içinde satır başında kullanılır</source>
         <translation>tabular command in the wrong place; \toprule/\midrule only work at the start of a row inside tabular</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="46" />
+        <location filename="../gui/output_panel.py" line="48" />
         <source>Kaynakça anahtarı çözülmedi: tekrar derleyin (iki geçe gerekir) veya Düzenle &gt; Referansları Denetle ile anahtarı kontrol edin</source>
         <translation>Citation key unresolved: compile again (two passes needed) or check the key via Edit &gt; Check References</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="47" />
+        <location filename="../gui/output_panel.py" line="49" />
         <source>Çapraz referans çözülmedi: tekrar derleyin; \label tanımlı mı diye Referansları Denetle'ye bakın</source>
         <translation>Cross reference unresolved: compile again; use Check References to see whether the \label exists</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="48" />
+        <location filename="../gui/output_panel.py" line="50" />
         <source>Tekrar derleyin: çapraz referanslar ve kaynakça iki derleme geçesinde çözülür</source>
         <translation>Compile again: cross references and the bibliography resolve over two passes</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="49" />
+        <location filename="../gui/output_panel.py" line="51" />
         <source>Aynı \label iki kez kullanılmış; F2 ile birini yeniden adlandırın</source>
         <translation>The same \label is used twice; rename one with F2</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="50" />
+        <location filename="../gui/output_panel.py" line="52" />
         <source>Listings dili yüklenemedi. \usepackage[turkish]{babel} kullanıyorsanız bu bilinen bir çakışmadır: language=C yerine language={[ANSI]C} yazın. Değilse dil adını kontrol edin (C, Python, Pascal, Java...)</source>
         <translation>Could not load the Listings language. If you use \usepackage[turkish]{babel} this is a known conflict: write language={[ANSI]C} instead of language=C. Otherwise check the language name (C, Python, Pascal, Java...)</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="51" />
+        <location filename="../gui/output_panel.py" line="53" />
         <source>Karakterin {font} yazı tipinde karşılığı yok, PDF'e yazılmadan atlandı ve derleme yine de başarılı göründü. En sık sebebi XeLaTeX/LuaLaTeX ile [T1]{fontenc} kullanmak; ş, ı, İ ve ğ sessizce düşer. Çözüm: \usepackage{iftex} ekleyip fontenc ile inputenc satırlarını \ifPDFTeX ... \fi bloğuna alın</source>
         <translation>The character has no glyph in font {font}, so it was dropped from the PDF while the build still reported success. The usual cause is [T1]{fontenc} under XeLaTeX/LuaLaTeX, which silently loses ş, ı, İ and ğ. Fix: add \usepackage{iftex} and wrap the fontenc and inputenc lines in \ifPDFTeX ... \fi</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="305" />
-        <location filename="../gui/output_panel.py" line="109" />
+        <location filename="../gui/output_panel.py" line="307" />
+        <location filename="../gui/output_panel.py" line="111" />
         <source>Hatalar</source>
         <translation>Errors</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="306" />
-        <location filename="../gui/output_panel.py" line="116" />
+        <location filename="../gui/output_panel.py" line="308" />
+        <location filename="../gui/output_panel.py" line="118" />
         <source>Uyarılar</source>
         <translation>Warnings</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="307" />
-        <location filename="../gui/output_panel.py" line="123" />
+        <location filename="../gui/output_panel.py" line="309" />
+        <location filename="../gui/output_panel.py" line="125" />
         <source>Öneriler</source>
         <translation>Suggestions</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="135" />
+        <location filename="../gui/output_panel.py" line="137" />
         <source>Sürüm Geçmişi</source>
         <translation>Version History</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="148" />
+        <location filename="../gui/output_panel.py" line="150" />
         <source>Klasörde ara (Enter)</source>
         <translation>Find in folder (Enter)</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="156" />
+        <location filename="../gui/output_panel.py" line="158" />
         <source>Büyük/küçük harf eşleştir</source>
         <translation>Match case</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="158" />
+        <location filename="../gui/output_panel.py" line="160" />
         <source>İşaretliyse 'Şekil' ile 'şekil' ayrı sayılır</source>
         <translation>When checked, 'Figure' and 'figure' are treated as different</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="176" />
+        <location filename="../gui/output_panel.py" line="178" />
         <source>Klasörde Ara</source>
         <translation>Find in Folder</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="192" />
+        <location filename="../gui/output_panel.py" line="194" />
         <source>Süz (anahtar, yazar, başlık)</source>
         <translation>Filter (key, author, title)</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="201" />
+        <location filename="../gui/output_panel.py" line="203" />
         <source>Anahtar</source>
         <translation>Key</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="201" />
+        <location filename="../gui/output_panel.py" line="203" />
         <source>Tür</source>
         <translation>Type</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="201" />
+        <location filename="../gui/output_panel.py" line="203" />
         <source>Yazar</source>
         <translation>Author</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="201" />
+        <location filename="../gui/output_panel.py" line="203" />
         <source>Yıl</source>
         <translation>Year</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="201" />
+        <location filename="../gui/output_panel.py" line="203" />
         <source>Başlık</source>
         <translation>Title</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="700" />
-        <location filename="../gui/output_panel.py" line="660" />
-        <location filename="../gui/output_panel.py" line="215" />
+        <location filename="../gui/output_panel.py" line="718" />
+        <location filename="../gui/output_panel.py" line="678" />
+        <location filename="../gui/output_panel.py" line="217" />
         <source>Kaynakça</source>
         <translation>Bibliography</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="230" />
+        <location filename="../gui/output_panel.py" line="232" />
         <source>Dil:</source>
         <translation>Language:</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="238" />
+        <location filename="../gui/output_panel.py" line="240" />
         <source>Belge `% !TEX spellcheck = tr_TR` ya da babel ile dilini bildiriyorsa açılışta o seçilir</source>
         <translation>If the document declares its language with `% !TEX spellcheck = tr_TR` or babel, that one is preselected</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="244" />
+        <location filename="../gui/output_panel.py" line="246" />
         <source>İkinci dil de var</source>
         <translation>Second language too</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="246" />
+        <location filename="../gui/output_panel.py" line="248" />
         <source>Belgede öteki dilde bölümler varsa (İngilizce özet gibi) işaretleme çok azalır</source>
         <translation>If the document has sections in the other language (an English abstract, say), far fewer words are flagged</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="248" />
+        <location filename="../gui/output_panel.py" line="250" />
         <source>Denetle</source>
         <translation>Check</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="271" />
+        <location filename="../gui/output_panel.py" line="273" />
         <source>Yazım</source>
         <translation>Spelling</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="340" />
-        <source>Satır {n}: {msg}</source>
-        <translation>Line {n}: {msg}</translation>
+        <location filename="../gui/output_panel.py" line="347" />
+        <source>{dosya}, satır {n}: </source>
+        <translation>{dosya}, line {n}: </translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="350" />
-        <source>Hatalar ({n})</source>
-        <translation>Errors ({n})</translation>
-    </message>
-    <message>
-        <location filename="../gui/output_panel.py" line="354" />
+        <location filename="../gui/output_panel.py" line="349" />
         <source>Satır {n}: </source>
         <translation>Line {n}: </translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="438" />
-        <location filename="../gui/output_panel.py" line="418" />
-        <location filename="../gui/output_panel.py" line="364" />
+        <location filename="../gui/output_panel.py" line="367" />
+        <source>Hatalar ({n})</source>
+        <translation>Errors ({n})</translation>
+    </message>
+    <message>
+        <location filename="../gui/output_panel.py" line="456" />
+        <location filename="../gui/output_panel.py" line="436" />
+        <location filename="../gui/output_panel.py" line="382" />
         <source>Uyarılar ({n})</source>
         <translation>Warnings ({n})</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="377" />
+        <location filename="../gui/output_panel.py" line="395" />
         <source>Ortam Denetimi'ni Aç...</source>
         <translation>Open Environment Check...</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="780" />
-        <location filename="../gui/output_panel.py" line="771" />
-        <location filename="../gui/output_panel.py" line="439" />
-        <location filename="../gui/output_panel.py" line="419" />
-        <location filename="../gui/output_panel.py" line="381" />
+        <location filename="../gui/output_panel.py" line="798" />
+        <location filename="../gui/output_panel.py" line="789" />
+        <location filename="../gui/output_panel.py" line="457" />
+        <location filename="../gui/output_panel.py" line="437" />
+        <location filename="../gui/output_panel.py" line="399" />
         <source>Öneriler ({n})</source>
         <translation>Suggestions ({n})</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="417" />
+        <location filename="../gui/output_panel.py" line="435" />
         <source>Sorun bulunamadı, tüm \ref/\cite anahtarları tanımlı.</source>
         <translation>No issues found, all \ref/\cite keys are defined.</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="450" />
+        <location filename="../gui/output_panel.py" line="468" />
         <source>Aranıyor...</source>
         <translation>Searching...</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="471" />
+        <location filename="../gui/output_panel.py" line="489" />
         <source>Aranan klasör: {yol}</source>
         <translation>Search folder: {yol}</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="473" />
+        <location filename="../gui/output_panel.py" line="491" />
         <source>klasör yok</source>
         <translation>no folder</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="474" />
+        <location filename="../gui/output_panel.py" line="492" />
         <source>Ctrl+Shift+O ile bir klasör açın</source>
         <translation>Open a folder with Ctrl+Shift+O</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="518" />
+        <location filename="../gui/output_panel.py" line="536" />
         <source>bulunamadı</source>
         <translation>not found</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="522" />
+        <location filename="../gui/output_panel.py" line="540" />
         <source>ilk {n} sonuç (kırpıldı)</source>
         <translation>first {n} results (truncated)</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="526" />
+        <location filename="../gui/output_panel.py" line="544" />
         <source>{n} sonuç · {d} dosya</source>
         <translation>{n} results · {d} files</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="574" />
+        <location filename="../gui/output_panel.py" line="592" />
         <source>temiz</source>
         <translation>clean</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="580" />
+        <location filename="../gui/output_panel.py" line="598" />
         <source>{n} bulgu · {k} kelime (%{o:.1f})</source>
         <translation>{n} findings · {k} words ({o:.1f}%)</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="583" />
+        <location filename="../gui/output_panel.py" line="601" />
         <source>{n} bulgu</source>
         <translation>{n} findings</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="598" />
+        <location filename="../gui/output_panel.py" line="616" />
         <source>Öneriler...</source>
         <translation>Suggestions...</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="600" />
+        <location filename="../gui/output_panel.py" line="618" />
         <source>Sözlüğe ekle</source>
         <translation>Add to dictionary</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="834" />
-        <location filename="../gui/output_panel.py" line="603" />
+        <location filename="../gui/output_panel.py" line="852" />
+        <location filename="../gui/output_panel.py" line="621" />
         <source>Kopyala</source>
         <translation>Copy</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="640" />
+        <location filename="../gui/output_panel.py" line="658" />
         <source>{g}/{t} girdi</source>
         <translation>{g}/{t} entries</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="642" />
+        <location filename="../gui/output_panel.py" line="660" />
         <source>{n} girdi</source>
         <translation>{n} entries</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="696" />
+        <location filename="../gui/output_panel.py" line="714" />
         <source>kaynakça bulunamadı</source>
         <translation>bibliography not found</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="700" />
+        <location filename="../gui/output_panel.py" line="718" />
         <source>Kaynakça ({n})</source>
         <translation>Bibliography ({n})</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="714" />
+        <location filename="../gui/output_panel.py" line="732" />
         <source>dosya</source>
         <translation>file(s)</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="739" />
+        <location filename="../gui/output_panel.py" line="757" />
         <source>Açık dosyayı bu sürümden geri yükle</source>
         <translation>Restore open file from this snapshot</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="740" />
+        <location filename="../gui/output_panel.py" line="758" />
         <source>Açık dosyanın farklarını göster</source>
         <translation>Show diff of the open file</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="741" />
+        <location filename="../gui/output_panel.py" line="759" />
         <source>Açık dosyanın bu sürümdeki hâlini kopyala</source>
         <translation>Copy the open file as of this snapshot</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="745" />
+        <location filename="../gui/output_panel.py" line="763" />
         <source>Bu sürümü sil (en yeni)</source>
         <translation>Delete this snapshot (latest)</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="747" />
+        <location filename="../gui/output_panel.py" line="765" />
         <source>Tüm geçmişi sil</source>
         <translation>Delete all history</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="763" />
+        <location filename="../gui/output_panel.py" line="781" />
         <source>Derleme başarısız oldu. Şu an {current} kullanılıyor.
     → Araç çubuğundan motoru {other} olarak değiştirip tekrar deneyin.</source>
         <translation>Compilation failed. Currently using {current}.
     → Try changing the engine to {other} from the toolbar and try again.</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="790" />
+        <location filename="../gui/output_panel.py" line="808" />
         <source>derleniyor</source>
         <translation>compiling</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="791" />
+        <location filename="../gui/output_panel.py" line="809" />
         <source>basarili</source>
         <translation>successful</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="792" />
+        <location filename="../gui/output_panel.py" line="810" />
         <source>basarisiz</source>
         <translation>failed</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="793" />
+        <location filename="../gui/output_panel.py" line="811" />
         <source>uyari</source>
         <translation>warning(s)</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="794" />
+        <location filename="../gui/output_panel.py" line="812" />
         <source>hata</source>
         <translation>error(s)</translation>
     </message>
     <message>
-        <location filename="../gui/output_panel.py" line="795" />
+        <location filename="../gui/output_panel.py" line="813" />
         <source>bilgi</source>
         <translation>info</translation>
     </message>

@@ -7,7 +7,9 @@ from PyQt6.QtCore import Qt
 from PyQt6.QtWidgets import QMessageBox
 
 from gui.editor import EditorWidget
-from core.engine_detector import derleme_hedefi as _derleme_hedefi, detect_engine as _detect_engine
+from core.engine_detector import (derleme_hedefi as _derleme_hedefi,
+                                  detect_engine as _detect_engine,
+                                  paket_yukleme_yeri)
 from core.log_parser import resolve_error_path
 from core.log import get_logger
 from core.latex_utils import (
@@ -19,6 +21,23 @@ from PyQt6.QtCore import QCoreApplication
 
 _ = lambda s: QCoreApplication.translate("CompileOpsMixin", s)
 _logger = get_logger("compile")
+
+
+def _paket_satirina_bagla(hata, kok: str) -> None:
+    """Hata TeX ağacındaki bir paket/sınıf dosyasındaysa, kullanıcının onu
+    YÜKLEDİĞİ satıra bağla (bkz. engine_detector.paket_yukleme_yeri).
+
+    Projenin kendi `.sty`si dokunulmuyor: satır kullanıcının düzeltebileceği
+    bir dosyada. Paket başka bir paketin içinden yükleniyorsa da yer
+    değişmiyor.
+    """
+    if not kok or not hata.file_path.lower().endswith((".sty", ".cls")):
+        return
+    if dizin_altinda_mi(os.path.dirname(hata.file_path), os.path.dirname(kok)):
+        return
+    yer = paket_yukleme_yeri(kok, hata.file_path)
+    if yer:
+        hata.file_path, hata.line_number = yer
 
 
 def _basarisizlik_aciklandi(result) -> bool:
@@ -570,6 +589,7 @@ class CompileOpsMixin:
         for e in result.errors:
             if e.line_number > 0:
                 e.file_path = resolve_error_path(e.file_path, base)
+                _paket_satirina_bagla(e, self._compile_target or "")
                 key = (e.file_path, e.line_number)
                 if key not in seen:
                     seen.add(key)

@@ -1,5 +1,7 @@
 """Derleme çıktı paneli — hatalar, uyarılar, ham log."""
 
+import os
+
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QColor, QTextCursor
 from PyQt6.QtWidgets import (
@@ -332,12 +334,27 @@ class OutputPanel(QWidget):
         # Yine de yer tutucuyu değiştirecek olan bunu akılda tutsun.
         return out.replace("{font}", font)
 
+    @staticmethod
+    def _satir_oneki(dosya: str, satir: int) -> str:
+        """Satır öneki: 'main.tex, satır 4: '; dosya bilinmiyorsa 'Satır 4: '.
+
+        Dosya adı yazılmıyordu. ÖLÇÜLDÜ (2026-09-24, çok dosyalı proje,
+        gerçek derle.sh): bölümdeki ve kökteki iki hata "Satır 2" ve "Satır
+        4" diye göründü; hangisinin hangi dosyada olduğu yalnız tıklayınca
+        anlaşılıyordu. Referans Denetimi bulguları dosyayı zaten yazıyor.
+        """
+        if dosya:
+            return _("{dosya}, satır {n}: ").format(
+                dosya=os.path.basename(dosya), n=satir)
+        return _("Satır {n}: ").format(n=satir)
+
     def show_result(self, result: CompileResult):
         self.clear()
 
         # Hatalar
         for err in result.errors:
-            text = _("Satır {n}: {msg}").format(n=err.line_number, msg=err.message) if err.line_number else err.message
+            text = (self._satir_oneki(err.file_path, err.line_number) + err.message
+                    if err.line_number else err.message)
             hint = self._hint_text(get_hint(err.message, err.context,
                                             err.ust_satir))
             if hint:
@@ -351,7 +368,8 @@ class OutputPanel(QWidget):
 
         # Uyarılar
         for w in result.warnings:
-            line_info = _("Satır {n}: ").format(n=w.line_number) if w.line_number else ""
+            line_info = (self._satir_oneki(w.file_path, w.line_number)
+                         if w.line_number else "")
             text = f"{line_info}[{w.warning_type}] {w.message}" if w.warning_type else f"{line_info}{w.message}"
             hint = self._hint_text(get_hint(w.message))
             if hint:

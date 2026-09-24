@@ -309,3 +309,26 @@ def test_MAKRO_icindeki_tanimsiz_komutta_ipucu_ASIL_sucluyu_gosteriyor(qapp):
 
     metin = p._error_list.item(0).text()
     assert "\\mathbb" in metin and "amssymb" in metin, metin
+
+
+def test_hata_ve_uyari_satiri_DOSYA_ADINI_soyluyor(qapp):
+    """Panel yalnız "Satır 2" yazıyordu. ÖLÇÜLDÜ (2026-09-24, çok dosyalı
+    proje, gerçek derle.sh; satırlar oradan, yol kısaltıldı): bölümdeki ve
+    kökteki iki hata "Satır 2" ve "Satır 4" diye göründü, hangisinin hangi
+    dosyada olduğu yalnız tıklayınca anlaşılıyordu."""
+    from core.log_parser import parse_output
+
+    ham = ("  /home/u/tez/Chapters/Chapter1.tex:2: Undefined control sequence.\n"
+           "  l.2 \\hatali\n"
+           "  /home/u/tez/main.tex:4: Undefined control sequence.\n"
+           "  l.4 \\hatali\n"
+           "  ./Chapters/Chapter1.tex: LaTeX Warning: Reference `yok' on page 1 "
+           "undefined on input line 1.\n")
+    p = _panel()
+    p.show_result(parse_output(ham, "/home/u/tez/main.tex"))
+
+    hatalar = [p._error_list.item(i).text().split(": ")[0]
+               for i in range(p._error_list.count())]
+    assert hatalar == ["Chapter1.tex, satır 2", "main.tex, satır 4"]
+    uyari = p._warn_list.item(0).text()
+    assert uyari.startswith("Chapter1.tex, satır 1: "), uyari
