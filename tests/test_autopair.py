@@ -8,7 +8,10 @@ kapanışı yerleştirir. Kapanış karakteri imleç sağındakiyle aynıysa üz
 import pytest
 
 try:
+    from PyQt6.QtCore import Qt
+    from PyQt6.QtTest import QTest
     from PyQt6.QtWidgets import QApplication
+    from core.fs_ops import lf_ye_indir
     from gui.editor import EditorWidget
 except ImportError:  # pragma: no cover
     pytest.skip("PyQt6 / gui.editor import edilemiyor", allow_module_level=True)
@@ -164,3 +167,59 @@ def test_no_pair_with_selection(qapp):
     ed.setText("foo")
     ed.selectAll()
     assert ed._handle_autopair(_FakeEvent("(")) is False
+
+
+# --- Gerçek tuş olaylarıyla: kullanıcının yazdığı metin oluşuyor mu ---
+
+
+@pytest.mark.parametrize("yazilan, beklenen", [
+    ("Fiyat \\$5 oldu.", "Fiyat \\$5 oldu."),
+    ("$a\\$", "$a\\$$"),          # matematikte düz $: kapanış yutulmuyor
+    ("a\\\\$", "a\\\\$$"),        # `\\` satır sonu, ardından matematik çiftlenir
+], ids=["kacis", "matematik_ici", "cift_ters_bolu"])
+def test_KACISLI_dolar_ne_acilis_ne_kapanis(qapp, yazilan, beklenen):
+    r"""`\$` düz dolar işareti: çiftlenmiyor, kapanış yerine de geçmiyor.
+
+    ÖLÇÜLDÜ (2026-09-25, gerçek pdflatex): yazılan `Fiyat \$5 oldu.`
+    derleniyor, editörde oluşan `Fiyat \$5 oldu.$` "Missing $ inserted"
+    veriyordu.
+    """
+    ed = _editor()
+    QTest.keyClicks(ed, yazilan)
+    assert ed.text() == beklenen
+
+
+def test_YORUMDA_begin_kapanisi_end_EKLEMIYOR(qapp):
+    r"""Yorumda `\begin{ad}` + `}`: yalnız `}` yazılıyor.
+
+    Eklenen `\end{ad}` yorumun DIŞINA düşüyordu. ÖLÇÜLDÜ (2026-09-25,
+    gerçek pdflatex): "\begin{document} ended by \end{itemize}".
+    """
+    ed = _editor()
+    ed.setText("% not: \\begin{itemize")
+    ed.lexer().styleText(0, len(ed.text().encode("utf-8")))
+    _cursor_end(ed)
+    QTest.keyClicks(ed, "}")
+    assert ed.text() == "% not: \\begin{itemize}"
+
+
+@pytest.mark.parametrize("on, yazilan", [
+    ("", "\\begin{figure}"),                     # \end bloğu ekleniyor
+    ("\\label{fig:abc}\n", "\\ref{fig:abc}"),    # kapanış atlanıyor
+], ids=["begin", "ref"])
+def test_EDITORUN_eklemesinden_sonra_Enter_listeyi_KABUL_ETMIYOR(qapp, on, yazilan):
+    r"""Harf harf yazılan ad `}` ile bitince tamamlama listesi kapanıyor.
+
+    Açık kalan liste sonraki Enter'da kabul ediliyor ve kelimenin başından
+    imlece kadar olan her şeyi, `}` ve eklenen gövde satırı dahil, siliyordu.
+    ÖLÇÜLDÜ (2026-09-25, görünür gerçek pencere): `\ref{fig:abc}` + Enter
+    `\ref{fig:abc`, `\begin{figure}` + Enter `\begin{figure*` oldu.
+    """
+    ed = _editor()
+    ed.setText(on)
+    ed.setCursorPosition(ed.lines() - 1, 0)
+    QTest.keyClicks(ed, yazilan[:-1])
+    assert ed.isListActive()                # kapının ön koşulu
+    QTest.keyClicks(ed, "}")
+    QTest.keyClick(ed, Qt.Key.Key_Return)
+    assert yazilan in lf_ye_indir(ed.text()).split("\n")

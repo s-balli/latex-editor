@@ -417,12 +417,25 @@ class EditorWidget(QsciScintilla):
                 event.key() == Qt.Key.Key_Space):
             self._check_autocomplete(manual=True)
         elif self._handle_autopair(event):
-            pass
+            # Tuşu editör kendisi işledi (çift, atlama, \end bloğu): yazılan
+            # kelime bitti, tamamlama listesi kapanmalı. Açık kalınca sonraki
+            # Enter/Tab onu kabul ediyor ve kelimenin başından imlece kadar
+            # olan HER ŞEYİ, editörün az önce eklediğini de siliyordu.
+            # ÖLÇÜLDÜ (2026-09-25, görünür gerçek pencere): harf harf yazılan
+            # `\input{bolumler/giris}` + Enter `\input{bolumler/giris` oldu,
+            # `\ref{..}` ve `\cite{..}` de öyle; `\begin{figure}` + Enter
+            # gövde satırını silip `\begin{figure*` bıraktı.
+            self.cancelList()
         else:
+            # Liste açıkken Enter satır AÇMIYOR, tamamlamayı kabul ediyor:
+            # o zaman girinti ayarı da yapılmamalı (imleci satır sonuna
+            # atıyordu, `\item` ile satırdaki metin birleşiyordu).
+            liste_acikti = self.isListActive()
             super().keyPressEvent(event)
             text = event.text()
             if event.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
-                self._smart_indent_after_enter()
+                if not liste_acikti:
+                    self._smart_indent_after_enter()
             elif text and text.isalpha():
                 self._check_autocomplete()
         # C.11: imleç hareketinde eşleşen tag'i vurgula. cursorPositionChanged
@@ -440,16 +453,34 @@ class EditorWidget(QsciScintilla):
             return False
         has_sel = self.hasSelectedText()
 
+        # `\$` düz dolar işaretidir: ne açılış ne kapanış, olduğu gibi yazılır.
+        # Çiftlenince geride kalan `$` matematiği açıyordu. ÖLÇÜLDÜ
+        # (2026-09-25, gerçek pdflatex): yazılan `Fiyat \$5 oldu.` derleniyor,
+        # editörde oluşan `Fiyat \$5 oldu.$` "Missing $ inserted" veriyor.
+        # Tek sayıda ters bölü kaçış; `\\$` (satır sonu + matematik) çiftlenir.
+        if text == '$':
+            once = self._text_before_cursor()
+            if (len(once) - len(once.rstrip('\\'))) % 2:
+                return False
+
         # Skip-over: imlecin sağındaki karakter yazılan kapanışla aynıysa ekleme, atla
         if not has_sel and text in (')', ']', '}', '$') and self._char_after_cursor() == text:
             line, index = self.getCursorPosition()
             self.setCursorPosition(line, index + 1)
             return True
 
-        # \begin{ad} kapanışı — '}' yazılınca \end{ad} bloğu ekle
+        # \begin{ad} kapanışı: '}' yazılınca \end{ad} bloğu ekle.
+        # YORUMDA değil: eklenen satırlar yorumun DIŞINA düşüyor. ÖLÇÜLDÜ
+        # (2026-09-25, gerçek pdflatex): `% not: \begin{itemize}` yazan
+        # kullanıcının belgesi "\begin{document} ended by \end{itemize}" ile
+        # derlenmiyordu. Ölçüt C.8'deki gibi lexer'ın stili. Verbatim ayrı
+        # tutuldu: eklenen satır orada verbatim içinde kalıyor, derlemeyi
+        # bozmuyor; `alltt` içinde ise \begin gerçekten çalışıyor.
         if not has_sel and text == '}':
             m = re.search(r'\\begin\{([A-Za-z]+\*?)$', self._text_before_cursor())
-            if m:
+            if m and self.SendScintilla(
+                    QsciScintilla.SCI_GETSTYLEAT,
+                    self._cursor_byte_pos() - 1) != LatexLexer.COMMENT:
                 self._insert_begin_end(m.group(1))
                 return True
 
@@ -550,7 +581,16 @@ class EditorWidget(QsciScintilla):
         prev_indent = self.SendScintilla(QsciScintilla.SCI_GETLINEINDENTATION, line - 1)
         new_indent = prev_indent + self.tabWidth()
         self.SendScintilla(QsciScintilla.SCI_SETLINEINDENTATION, line, new_indent)
-        self.setCursorPosition(line, len(self.text(line).rstrip("\n")))
+        # İmleç GİRİNTİNİN sonuna, satırın sonuna değil. Satır sonu iki
+        # durumda yanlıştı: Enter satırı böldüyse imleç alta inen metnin
+        # ARKASINA geçiyordu; CRLF dosyada `\r` de sayıldığı için imleç ALT
+        # SATIRA atlıyordu. ÖLÇÜLDÜ (2026-09-25, gerçek pencere, Windows ve
+        # Linux): CRLF bir belgede `\begin{itemize}` sonunda Enter ve X,
+        # X'i alttaki `\item a`nın başına yazdı. Paketle gelen 132 şablonun
+        # 17'si CRLF.
+        self.SendScintilla(
+            QsciScintilla.SCI_GOTOPOS,
+            self.SendScintilla(QsciScintilla.SCI_GETLINEINDENTPOSITION, line))
 
     def _insert_begin_end(self, name: str):
         r"""\\begin{ad} → '}' + gövde + \\end{ad}; gövde +1 seviye, \end \\begin hizasında.

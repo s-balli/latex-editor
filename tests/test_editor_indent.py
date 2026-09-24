@@ -9,8 +9,10 @@ import pytest
 try:
     from PyQt6.QtCore import QEvent, Qt
     from PyQt6.QtGui import QKeyEvent
+    from PyQt6.QtTest import QTest
     from PyQt6.QtWidgets import QApplication
     from PyQt6.Qsci import QsciScintilla
+    from core.fs_ops import lf_ye_indir
     from gui.editor import EditorWidget
 except ImportError:  # pragma: no cover
     pytest.skip("PyQt6 / gui.editor import edilemiyor", allow_module_level=True)
@@ -156,3 +158,45 @@ def test_enter_keypress_indents_after_begin(qapp):
     ed.keyPressEvent(ret)
     assert ed.lines() >= 2                  # yeni satır oluştu
     assert _indent(ed, 1) == 4              # smart indent uygulandı
+
+
+@pytest.mark.parametrize("metin, satir1, satir2", [
+    # CRLF: satır sonundaki `\r` de sayılınca imleç ALT satıra atlıyordu
+    ("\\begin{itemize}\r\n\\item a\r\n", "X", "\\item a"),
+    # Enter satırı böldü: imleç alta inen metnin ARKASINA geçiyordu
+    ("\\begin{itemize}\\item a\n", "X\\item a", ""),
+], ids=["crlf", "bolunen_satir"])
+def test_ENTER_sonrasi_yazilan_GIRINTININ_sonuna_dusuyor(qapp, metin, satir1, satir2):
+    r"""Begin satırında Enter ve harf: harf yeni satırın girintisinin arkasında.
+
+    ÖLÇÜLDÜ (2026-09-25, gerçek pencere, Windows ve Linux): CRLF belgede
+    X alttaki `\item a`nın başına, bölünen satırda alta inen metnin sonuna
+    yazılıyordu. Paketle gelen 132 şablonun 17'si CRLF.
+    """
+    ed = _editor()
+    ed.setText(metin)
+    ed.setCursorPosition(0, len("\\begin{itemize}"))
+    QTest.keyClick(ed, Qt.Key.Key_Return)
+    QTest.keyClicks(ed, "X")
+    satirlar = lf_ye_indir(ed.text()).split("\n")
+    assert satirlar[0] == "\\begin{itemize}"
+    assert satirlar[1].lstrip() == satir1
+    assert satirlar[2] == satir2
+
+
+def test_TAMAMLAMAYI_kabul_eden_Enter_imleci_YERINDE_birakiyor(qapp):
+    r"""Liste açıkken Enter satır açmıyor, tamamlamayı kabul ediyor.
+
+    Girinti ayarı yine de çalışıp imleci satır SONUNA atıyordu: çıplak
+    `\begin` satırının altında `\ite` + Enter + boşluk `\item birinci`
+    yerine `\itembirinci` yazıyordu (ölçüldü 2026-09-25, gerçek pencere).
+    """
+    ed = _editor()
+    ed.setText("\\begin{itemize}\n    birinci madde\n")
+    ed.setCursorPosition(1, 4)
+    QTest.keyClicks(ed, "\\ite")
+    assert ed.isListActive()                # kapının ön koşulu
+    QTest.keyClick(ed, Qt.Key.Key_Return)
+    satir, sutun = ed.getCursorPosition()
+    assert satir == 1
+    assert _line(ed, 1)[sutun:] == "birinci madde"
