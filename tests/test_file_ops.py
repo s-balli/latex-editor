@@ -600,6 +600,49 @@ def test_DISA_AKTAR_belgenin_YANINA_oneriyor(qapp, tmp_path, dialog_kaydi):
         os.path.dirname(os.path.normpath(belge)), "bolum3.html")
 
 
+def test_BOLUM_sekmesinden_disa_aktarma_KOKU_aktariyor(ana_pencere, tmp_path,
+                                                       monkeypatch):
+    r"""Bölüm tek başına pandoc'a veriliyordu. ÖLÇÜLDÜ (2026-09-24, gerçek
+    pandoc): köke göre görsel yolu yazılı bir bölüm DOCX'e 0 görselle,
+    atıf çözülmeden ve önsöz makroları ham TeX olarak çıktı; durum çubuğu
+    "Dışa aktarıldı" dedi. Derlemeyle aynı kural: kök aktarılıyor, önerilen
+    ad kökün ve zincirdeki öteki açık bölümün kaydedilmemiş değişikliği de
+    diske iniyor."""
+    import time
+
+    import gui.mixins.file_ops as fo
+
+    tez = tmp_path / "tez"
+    (tez / "Chapters").mkdir(parents=True)
+    b1 = tez / "Chapters" / "Chapter1.tex"
+    b1.write_text("\\section{Bir}\n", encoding="utf-8")
+    b2 = tez / "Chapters" / "Chapter2.tex"
+    b2.write_text("ESKI\n", encoding="utf-8")
+    ana = tez / "main.tex"
+    ana.write_text("\\documentclass{article}\n\\begin{document}\n"
+                   "\\input{Chapters/Chapter1}\n\\input{Chapters/Chapter2}\n"
+                   "\\end{document}\n", encoding="utf-8")
+    giden, oneri = [], []
+    monkeypatch.setattr(fo, "_export", lambda src, dst: giden.append(
+        (os.path.normcase(os.path.normpath(src)),
+         b2.read_text(encoding="utf-8"))) or (True, ""))
+    monkeypatch.setattr(fo.QFileDialog, "getSaveFileName", lambda *a, **k: (
+        oneri.append(a[2]) or (str(tmp_path / "cikti.docx"), "")))
+    w = ana_pencere(open_file=str(b1))
+    w._open_file_in_editor(str(b2))
+    w._current_editor().setText("YENI\n")
+    w._editor_tabs.setCurrentIndex(0)
+    w._pandoc_available = True
+
+    w._export_file("Word", ".docx")
+    son = time.monotonic() + 10
+    while w._export_busy and time.monotonic() < son:
+        ana_pencere.app.processEvents()
+
+    assert oneri == [os.path.join(str(tez), "main.docx")]
+    assert giden == [(os.path.normcase(str(ana)), "YENI\n")]
+
+
 def test_KLASOR_YOKKEN_belgenin_yanindan_basliyor(qapp, tmp_path,
                                                   dialog_kaydi):
     """Proje açık değilse açık belgenin klasörü kullanılmalı."""

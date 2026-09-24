@@ -6,7 +6,8 @@ import threading
 from PyQt6.QtWidgets import QFileDialog
 
 from gui.editor import EditorWidget
-from core.engine_detector import detect_engine as _detect_engine_auto
+from core.engine_detector import (derleme_hedefi as _derleme_hedefi,
+                                  detect_engine as _detect_engine_auto)
 from core.exporter import export as _export
 from core.log import get_logger
 from PyQt6.QtCore import QCoreApplication, QObject, pyqtSignal
@@ -437,11 +438,20 @@ class FileOpsMixin:
             self._status.showMessage(_("Dışa aktarma zaten sürüyor, bitmesini bekleyin"))
             return
 
+        # Bölüm sekmesinden KÖK belge aktarılıyor, derlemeyle aynı kural
+        # (`derleme_hedefi`). Bölüm tek başına pandoc'a veriliyordu ve
+        # LaTeX'in yolları köke göre çözdüğünü bilmiyordu. ÖLÇÜLDÜ
+        # (2026-09-24, gerçek pandoc): görseller köke göre yazılı bir bölüm
+        # DOCX'e 0 görselle, atıf çözülmeden ve önsöz makroları ham TeX
+        # olarak çıktı; durum çubuğu yine "Dışa aktarıldı" dedi. Kökten
+        # aktarınca üçü de doğru. Kökü bulunamayan belge kendisi aktarılıyor.
+        kaynak = _derleme_hedefi(editor.file_path)[0] or editor.file_path
+
         # Ad tek başına SÜREÇ ÇALIŞMA DİZİNİNE göre çözülüyordu; çıktı
         # belgenin yanına önerilmeli.
         default_name = os.path.join(
-            os.path.dirname(editor.file_path),
-            os.path.splitext(os.path.basename(editor.file_path))[0] + ext)
+            os.path.dirname(kaynak),
+            os.path.splitext(os.path.basename(kaynak))[0] + ext)
         dest, _sel_filter = QFileDialog.getSaveFileName(
             self, _("Dışa Aktar") + ": " + fmt_name, default_name,
             fmt_name + f" (*{ext});;" + _("Tüm Dosyalar (*)")
@@ -453,8 +463,9 @@ class FileOpsMixin:
         # + _preprocess_tex), arabellekten değil. Kaydetmeden dışa aktarınca
         # kullanıcı son değişiklikleri içermeyen bir DOCX/HTML alıyor ve durum
         # çubuğu yine "Dışa aktarıldı" diyordu. Derleme yolu bunu zaten yapıyor
-        # (compile_ops._compile), dışa aktarma atlamıştı.
-        if not self._save_if_open(editor.file_path):
+        # (compile_ops._compile), dışa aktarma atlamıştı. Kök aktarıldığı için
+        # kayıt da derlemeninki: `\input` zincirindeki öteki açık bölümler de.
+        if not self._derleme_icin_kaydet(kaynak):
             self._status.showMessage(_("Kayıt başarısız, dışa aktarma iptal edildi"))
             return
 
@@ -465,7 +476,7 @@ class FileOpsMixin:
         self._export_busy = True
         self._export_dest = dest
         self._status.showMessage(_("Dışa aktarılıyor") + f" ({fmt_name})...")
-        self._export_runner.start(editor.file_path, dest)
+        self._export_runner.start(kaynak, dest)
 
     def _on_export_done(self, ok: bool, err: str):
         """Arka plan pandoc dışa aktarması bitti — durumu bildir."""

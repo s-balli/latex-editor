@@ -97,6 +97,15 @@ def export(tex_path: str, dest_path: str) -> tuple[bool, str]:
     # Bibliography (.bib) tespit et ki referanslar çözülsün.
     bibs = _find_bibliography(tex_path)
     tmp_tex = _preprocess_tex(tex_path)
+    # `\graphicspath` dizinleri pandoc'un KAYNAK YOLUNA. pandoc o komutu
+    # okumuyor ve görseli yalnız belgenin dizininde arıyordu. ÖLÇÜLDÜ
+    # (2026-09-24, pandoc 3.1.3, kökten aktarma): `\graphicspath{{Figures/}}`
+    # ile `\includegraphics{sekil2.png}` DOCX'e gömülmedi, HTML'de kırık
+    # kaldı. Uzantısız ad (`{sekil2}`) kaynak yolundan da bulunmuyor, çünkü
+    # pandoc uzantıyı yalnız çalışma dizininde tamamlıyor; şablon
+    # korpusunda o biçim hiç yok, uzantılısı 368 görsel. Markdown'da
+    # sonradan düzeltiliyordu (`_fix_md_image_paths`).
+    gorsel_dizinleri = _extract_graphics_paths(tex_path)
     # Uzantı KÜÇÜK HARFE çevrilerek karşılaştırılır, `_pandoc_args` zaten
     # öyle yapıyordu; burada `endswith(".md")` deniyordu ve aynı dosyada iki
     # ayrı kural vardı. Kullanıcı hedefi 'rapor.MD' diye yazınca (uzantı
@@ -108,9 +117,9 @@ def export(tex_path: str, dest_path: str) -> tuple[bool, str]:
     ok, err = False, ""
     try:
         if PLATFORM == "win32":
-            ok, err = _export_wsl(tmp_tex, dest_path, bibs)
+            ok, err = _export_wsl(tmp_tex, dest_path, bibs, gorsel_dizinleri)
         else:
-            ok, err = _export_native(tmp_tex, dest_path, bibs)
+            ok, err = _export_native(tmp_tex, dest_path, bibs, gorsel_dizinleri)
         if ok and hedef_ext == ".md":
             _fix_md_image_paths(tex_path, dest_path)
             if bibs:
@@ -901,18 +910,28 @@ def _bicim_argumanlari(dest_path: str, bibs=()) -> list[str]:
     return args
 
 
-def _pandoc_args(tex_path: str, dest_path: str, bibs=()) -> list[str]:
-    """Format'a göre pandoc argümanlarını oluştur."""
+def _kaynak_dizinleri(tex_path: str, gorsel_dizinleri=()) -> list[str]:
+    """pandoc'un görsel arayacağı dizinler: belgenin dizini, sonra DİSKTE
+    var olan `\\graphicspath` dizinleri (belgenin dizinine göre, LaTeX gibi)."""
     work_dir = os.path.dirname(os.path.abspath(tex_path))
-    return (["pandoc", tex_path, "-o", dest_path, f"--resource-path={work_dir}"]
+    ek = [os.path.normpath(os.path.join(work_dir, d)) for d in gorsel_dizinleri]
+    return [work_dir] + [d for d in ek if os.path.isdir(d) and d != work_dir]
+
+
+def _pandoc_args(tex_path: str, dest_path: str, bibs=(),
+                 gorsel_dizinleri=()) -> list[str]:
+    """Format'a göre pandoc argümanlarını oluştur."""
+    arama = os.pathsep.join(_kaynak_dizinleri(tex_path, gorsel_dizinleri))
+    return (["pandoc", tex_path, "-o", dest_path, f"--resource-path={arama}"]
             + _bicim_argumanlari(dest_path, bibs))
 
 
-def _export_native(tex_path: str, dest_path: str, bibs=()) -> tuple[bool, str]:
+def _export_native(tex_path: str, dest_path: str, bibs=(),
+                   gorsel_dizinleri=()) -> tuple[bool, str]:
     work_dir = os.path.dirname(os.path.abspath(tex_path))
     try:
         r = subprocess.run(
-            _pandoc_args(tex_path, dest_path, bibs),
+            _pandoc_args(tex_path, dest_path, bibs, gorsel_dizinleri),
             capture_output=True, text=True, encoding="utf-8",
             errors="replace", timeout=30,
             cwd=work_dir, env=clean_child_env(),
@@ -931,9 +950,14 @@ def _export_native(tex_path: str, dest_path: str, bibs=()) -> tuple[bool, str]:
         return False, str(e)
 
 
-def _export_wsl(tex_path: str, dest_path: str, bibs=()) -> tuple[bool, str]:
+def _export_wsl(tex_path: str, dest_path: str, bibs=(),
+                gorsel_dizinleri=()) -> tuple[bool, str]:
     wsl_tex = windows_to_wsl(tex_path)
     wsl_dir = os.path.dirname(wsl_tex)
+    # pandoc WSL'de koşuyor: ayraç `:`, yollar `/mnt/...`
+    wsl_arama = ":".join([wsl_dir] + [
+        windows_to_wsl(d)
+        for d in _kaynak_dizinleri(tex_path, gorsel_dizinleri)[1:]])
     # pid eki: aynı hedef adına art arda/çakışan çağrılar WSL'de birbirinin
     # ara çıktısını ezmesin. ntpath: dest_path Windows yoludur; posix basename
     # ters bölüleri ayırmaz.
@@ -942,7 +966,7 @@ def _export_wsl(tex_path: str, dest_path: str, bibs=()) -> tuple[bool, str]:
 
     # Biçim kuralı `_bicim_argumanlari`de; burada yalnız YOLLAR farklı.
     pandoc_cmd = (["pandoc", wsl_tex, "-o", tmp_dest,
-                   f"--resource-path={wsl_dir}"]
+                   f"--resource-path={wsl_arama}"]
                   + _bicim_argumanlari(dest_path,
                                        [windows_to_wsl(b) for b in bibs]))
 

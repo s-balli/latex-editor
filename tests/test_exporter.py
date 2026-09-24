@@ -119,6 +119,50 @@ class TestPandocArgs:
         assert f"--resource-path={beklenen}" in args
 
 
+class TestGraphicspathKaynakYolu:
+    r"""`\graphicspath` dizinleri pandoc'un KAYNAK YOLUNA gidiyor.
+
+    pandoc o komutu okumuyor. ÖLÇÜLDÜ (2026-09-24, pandoc 3.1.3): kökte
+    `\graphicspath{{Figures/}}` ile `\includegraphics{sekil2.png}` DOCX'e
+    gömülmedi, HTML'de kırık kaldı; Figures kaynak yoluna girince ikisinde
+    de gömüldü. Şablon korpusunda 12 ana belgenin 368 görseli YALNIZ bu
+    yolla bulunuyor. Uzantısız ad (`{sekil2}`) kaynak yolundan da
+    bulunmuyor; korpusta hiç yok.
+    """
+
+    def test_export_dizini_iletiyor_iki_yol_da_kullaniyor(self, tmp_path,
+                                                         monkeypatch):
+        from core import exporter
+
+        (tmp_path / "Figures").mkdir()
+        tex = tmp_path / "main.tex"
+        tex.write_text("\\documentclass{article}\n\\graphicspath{{Figures/}}\n"
+                       "\\begin{document}\nx\n\\end{document}\n",
+                       encoding="utf-8")
+        gelen = []
+
+        def sahte(t, d, b=(), g=()):
+            gelen.append(list(g))
+            return False, "x"
+
+        monkeypatch.setattr(exporter, "_export_wsl", sahte)
+        monkeypatch.setattr(exporter, "_export_native", sahte)
+        exporter.export(str(tex), str(tmp_path / "c.docx"))
+        assert gelen == [["Figures/"]]
+
+        belge = os.path.dirname(os.path.abspath(str(tex)))
+        figures = os.path.normpath(os.path.join(belge, "Figures"))
+        args = _pandoc_args(str(tex), str(tmp_path / "c.docx"), (), ["Figures/"])
+        assert f"--resource-path={belge}{os.pathsep}{figures}" in args
+
+        with patch("core.exporter.subprocess.run") as run:
+            run.return_value = MagicMock(returncode=1, stderr="e")
+            _export_wsl(str(tex), str(tmp_path / "c.docx"), (), ["Figures/"])
+        komut = run.call_args_list[0][0][0][-1]
+        assert ("--resource-path=" + exporter.windows_to_wsl(belge) + ":"
+                + exporter.windows_to_wsl(figures)) in komut
+
+
 class TestExtractGraphicsPaths:
     # read_data artık BAYT: `_extract_graphics_paths` dosyayı ikili açıp
     # `coz()` ile çözüyor (eski kodlamalı .tex'lerde `errors="replace"`
@@ -1843,7 +1887,7 @@ class TestDisaAktarmaHataMesaji:
                        encoding="utf-8")
         tmp_ad = str(tex) + ".export_tmp.tex"
 
-        def sahte(tex_arg, dest, bibs=()):
+        def sahte(tex_arg, dest, bibs=(), gorsel_dizinleri=()):
             # pandoc'un gerçek biçimi: WSL yolu + geçici ad + çok satır
             return False, ('Error at "%s" (line 7, column 17):\n'
                            'unexpected ()\n'

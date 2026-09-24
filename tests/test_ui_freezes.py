@@ -81,6 +81,13 @@ class _FileOpsStub(FileOpsMixin, StubMain):
             return editor.save_file()
         return True
 
+    def _derleme_icin_kaydet(self, hedef):
+        """CompileOpsMixin'deki eşleniğin sadeleştirilmiş kopyası: kirli her
+        sekme (gerçeği proje kapsamıyla sınırlı). Dışa aktarma kök belgeyi
+        aktardığı için derlemenin kaydını kullanıyor."""
+        return all(self._save_if_open(ed.file_path)
+                   for ed in self._editors if ed.file_path)
+
     def _apply_editor_settings(self, editor):
         pass
 
