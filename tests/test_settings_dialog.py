@@ -65,6 +65,34 @@ def test_font_size_survives_theme_change(qapp):
     assert ed.wrapMode() == QsciScintilla.WrapMode.WrapWord
 
 
+def test_okumanin_kabul_ettigi_deger_diyalogda_KIRPILMIYOR(qapp):
+    """Diyalog 2-8 / 8-24, okuma 1-16 / 6-72 idi. ÖLÇÜLDÜ (2026-09-24,
+    gerçek pencere): kayıtlı yazı 28 ve sekme 12, hiçbir alana dokunulmadan
+    Tamam'la 24 ve 8 oldu, açık sekme de küçüldü."""
+    dlg = EditorSettingsDialog({"tab_width": 12, "font_size": 28, "wrap": True,
+                                "autosave": True, "autosave_dk": 3})
+    assert dlg.values()["tab_width"] == 12
+    assert dlg.values()["font_size"] == 28
+
+
+def test_yazi_buyuyunce_satir_numarasi_kenari_da_BUYUYOR(qapp):
+    """Kenar genişliği ölçüldüğü anki yazıyla hesaplanıyor ve yalnız satır
+    sayısı değişince tazeleniyordu. ÖLÇÜLDÜ (2026-09-24): yazı 11'den 24'e
+    çıkınca kenar 32 pikselde kaldı, dört hane 72 piksel istiyordu (Windows'un
+    gerçek platformu; offscreen'de sayılar başka, oran aynı). Kehanet
+    Scintilla'nın kendi ölçüsü: SCI_TEXTWIDTH."""
+    ed = EditorWidget(theme=THEMES["dark"])
+    ed.setText("\n".join("satir %d" % i for i in range(1, 1201)))
+    ed.apply_editor_settings(4, 11, True)
+    ed.apply_editor_settings(4, 24, True)
+
+    kenar = ed.SendScintilla(QsciScintilla.SCI_GETMARGINWIDTHN, 1)
+    gerek = ed.SendScintilla(QsciScintilla.SCI_TEXTWIDTH,
+                             QsciScintilla.STYLE_LINENUMBER,
+                             b"0" * len(str(ed.lines())))
+    assert kenar >= gerek, (kenar, gerek)
+
+
 # --- MainWindow._open_settings_dialog: kaydet + açık sekmelere uygula ---
 
 

@@ -47,6 +47,7 @@ from gui.mixins.autosave_ops import (
     AUTOSAVE_MAX_DK, AUTOSAVE_MIN_DK, AUTOSAVE_VARSAYILAN_DK,
     AutosaveOpsMixin,
 )
+from gui.settings_dialog import SEKME_ARALIGI, YAZI_ARALIGI
 from gui.mixins.recovery_ops import RecoveryOpsMixin
 from gui.mixins.project_search_ops import ProjectSearchMixin
 from gui.mixins.yazim_ops import YazimOpsMixin
@@ -773,10 +774,10 @@ class MainWindow(
         return {
             "tab_width": self._ayar_sayi(
                 self._settings.value("editor/tab_width", d["editor/tab_width"]),
-                d["editor/tab_width"], 1, 16),
+                d["editor/tab_width"], *SEKME_ARALIGI),
             "font_size": self._ayar_sayi(
                 self._settings.value("editor/font_size", d["editor/font_size"]),
-                d["editor/font_size"], 6, 72),
+                d["editor/font_size"], *YAZI_ARALIGI),
             "wrap": self._settings.value("editor/wrap", d["editor/wrap"]) in (True, "true", "True"),
             "autosave": self._settings.value(
                 "editor/autosave", d["editor/autosave"]) in (True, "true", "True"),

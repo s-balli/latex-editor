@@ -216,13 +216,22 @@ class EditorWidget(QsciScintilla):
                            self._hex_to_scintilla(t.get("fg_bright", "#ffffff")))
 
     def apply_editor_settings(self, tab_width: int, font_size: int, wrap: bool):
-        """Ayarlar dialogu değerlerini uygula; tema yeniden uygulansa da korunur."""
+        """Ayarlar dialogu değerlerini uygula; tema yeniden uygulansa da korunur.
+
+        Satır numarası kenar boşluğu YENİ yazıyla yeniden ölçülüyor: genişlik
+        piksel olarak ölçüldüğü anki yazıyla hesaplanıyor ve yalnız satır
+        sayısı değişince tazeleniyordu. ÖLÇÜLDÜ (2026-09-24, Windows'un
+        gerçek platformunda): yazı 11'den 24'e çıkınca kenar 32 piksel
+        kaldı, dört hane için 72 piksel gerekiyordu; açık sekmelerde numara
+        bir satır eklenene kadar KESİK göründü.
+        """
         self._font_size = font_size
         self.setTabWidth(tab_width)
         self.setWrapMode(QsciScintilla.WrapMode.WrapWord if wrap
                          else QsciScintilla.WrapMode.WrapNone)
         if self._theme:
             self.apply_theme(self._theme)
+        self._update_margin_width()
 
     def mousePressEvent(self, event):
         if (event.button() == Qt.MouseButton.LeftButton and self._file_path):

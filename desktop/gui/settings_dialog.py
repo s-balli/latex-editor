@@ -9,7 +9,18 @@ from PyQt6.QtWidgets import (
     QDialog, QDialogButtonBox, QCheckBox, QFormLayout, QSpinBox,
 )
 
+from gui.mixins.autosave_ops import AUTOSAVE_MAX_DK, AUTOSAVE_MIN_DK
+
 _ = lambda s: QCoreApplication.translate("EditorSettingsDialog", s)
+
+# Sınırlar TEK KAYNAK: kayıtlı ayarı okuyan `MainWindow._read_editor_settings`
+# de bunları kullanıyor. Diyalog 2-8 / 8-24, okuma 1-16 / 6-72 idi; okumanın
+# kabul ettiği ama diyaloğun aralığı dışındaki bir kayıt (elle düzenlenmiş
+# ayar, başka sürüm) hiçbir alana dokunulmadan Tamam'la KIRPILIP yazılıyordu.
+# ÖLÇÜLDÜ (2026-09-24, gerçek pencere): yazı 28 ve sekme 12, Tamam'dan sonra
+# 24 ve 8 oldu, açık sekme de onlara döndü.
+SEKME_ARALIGI = (1, 16)
+YAZI_ARALIGI = (6, 72)
 
 
 class EditorSettingsDialog(QDialog):
@@ -21,12 +32,12 @@ class EditorSettingsDialog(QDialog):
         form = QFormLayout(self)
 
         self._tab = QSpinBox()
-        self._tab.setRange(2, 8)
+        self._tab.setRange(*SEKME_ARALIGI)
         self._tab.setValue(current.get("tab_width", 4))
         form.addRow(_("Tab genişliği"), self._tab)
 
         self._font = QSpinBox()
-        self._font.setRange(8, 24)
+        self._font.setRange(*YAZI_ARALIGI)
         self._font.setSuffix(" pt")
         self._font.setValue(current.get("font_size", 11))
         form.addRow(_("Font boyutu"), self._font)
@@ -43,7 +54,7 @@ class EditorSettingsDialog(QDialog):
         form.addRow("", self._autosave)
 
         self._autosave_dk = QSpinBox()
-        self._autosave_dk.setRange(1, 60)
+        self._autosave_dk.setRange(AUTOSAVE_MIN_DK, AUTOSAVE_MAX_DK)
         self._autosave_dk.setSuffix(" " + _("dk"))
         self._autosave_dk.setValue(current.get("autosave_dk", 3))
         self._autosave_dk.setEnabled(self._autosave.isChecked())
