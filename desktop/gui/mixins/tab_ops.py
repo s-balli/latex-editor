@@ -386,6 +386,15 @@ class TabOpsMixin:
             self._file_tree.update_input_tree(editor.file_path, editor.text())
             self._outline.update_outline(editor.text())
             self._refresh_error_markers()
+        else:
+            # Sekme kalmadı: `\input` ağacı ve anahat KAPANAN belgeyi
+            # göstermeye devam ediyordu (sayaçtaki aynı kusur). ÖLÇÜLDÜ
+            # (2026-09-24, gerçek pencere): son sekme ya da "Tümünü Kapat"
+            # sonrası ağaçta kapanan belgenin bağlantısı, anahatta başlığı
+            # kaldı; başlığa tıklamak hiçbir şey yapmıyordu. Açılıştaki boş
+            # hâle dönülüyor.
+            self._file_tree.update_input_tree("", "")
+            self._outline.update_outline("")
 
     @staticmethod
     def _konum_metni(line: int, col: int) -> str:

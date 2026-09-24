@@ -116,3 +116,27 @@ def test_ACIK_BELGEDE_konum_hala_guncelleniyor(ana_pencere, tmp_path):
     p._update_cursor_pos()
 
     assert p._status_pos.text() == "Satır 2, Sütun 4"
+
+
+def test_SON_SEKME_kapaninca_input_agaci_ve_anahat_da_BOSALIYOR(ana_pencere,
+                                                                 tmp_path):
+    r"""Sayaçtaki kusurun ikizi. ÖLÇÜLDÜ (2026-09-24, gerçek pencere): son
+    sekme ya da "Tümünü Kapat" sonrası `\input` ağacında kapanan belgenin
+    bağlantısı, anahatta başlığı kaldı; başlığa tıklamak hiçbir şey
+    yapmıyordu. Ölçüt açılıştaki hâl: ağaç gizli, anahat boş."""
+    (tmp_path / "bolum.tex").write_text("x\n", encoding="utf-8")
+    yol = tmp_path / "A.tex"
+    yol.write_text("\\documentclass{article}\n\\begin{document}\n"
+                   "\\section{Kapanan}\n\\input{bolum}\n\\end{document}\n",
+                   encoding="utf-8")
+    p = ana_pencere()
+    p._dis_yolu_ac(str(yol), "kapi")
+    p._on_tab_changed(p._editor_tabs.currentIndex())
+    assert p._file_tree._input_tree.topLevelItemCount() and p._outline._items
+
+    p._close_tab(p._editor_tabs.currentIndex())
+
+    assert p._editor_tabs.count() == 0
+    assert p._file_tree._input_tree.isHidden()
+    assert p._file_tree._input_tree.topLevelItemCount() == 0
+    assert p._outline._items == []
