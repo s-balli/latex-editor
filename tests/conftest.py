@@ -4,6 +4,7 @@ Daha önce her test dosyasında tekrarlanan sys.path bloğu burada toplandı;
 conftest, test modülleri toplanmadan önce yüklendiği için herkese yeter.
 """
 
+import gc
 import os
 import sys
 
@@ -113,6 +114,9 @@ def ana_pencere(monkeypatch, tmp_path):
     from gui.mixins.recovery_ops import RecoveryOpsMixin
 
     app = QApplication.instance() or QApplication([])
+    # Önceki testlerin pencereleri bu test pencere kurmadan ÖNCE ölsün
+    # (gerekçe aşağıdaki `pytest_runtest_teardown`da).
+    gc.collect()
 
     kum = str(tmp_path / "ayarlar")
     os.makedirs(kum, exist_ok=True)
@@ -190,12 +194,58 @@ def ana_pencere(monkeypatch, tmp_path):
     #     yük var, bu satır VAR         0/6
     # Önceki turun 4'er koşusuyla birlikte 4/10 -> 0/10.
     #
-    # NE ÖLÇÜLEMEDİ, DÜRÜSTÇE: MEKANİZMA. "Pencereler zombi kalıp QApplication
-    # yıkılırken topluca ölüyor" diye bir açıklama kurmuştum, teardown sonrası
-    # 3/3 pencere yaşıyor diye ölçmüştüm; aynı ölçümü yineleyince 0/4 çıktı,
-    # yani açıklama TUTMADI. Yerli yığın izi (WER/cdb) olmadan mekanizma
-    # kurulamıyor. Bu satır, etkisi ölçülmüş ama nedeni kanıtlanmamış bir
-    # HAFİFLETME; ürün koduna dokunmuyor ve kardeş fixture'la aynı şekli
-    # taşıyor. Mekanizma çıkarsa buraya gerçek gerekçe yazılmalı.
+    # Linux'ta ölçülen mekanizma ve pencerelerin toplanması aşağıdaki
+    # `pytest_runtest_teardown`da. Windows'taki 0xC0000409'un yığını ayrıca
+    # ölçülmedi.
     QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
     app.processEvents()
+
+
+@pytest.hookimpl(wrapper=True)
+def pytest_runtest_teardown(item):
+    """`ana_pencere` kullanan testin pencereleri söküm BİTİNCE toplanıyor.
+
+    ÖLÇÜLDÜ (2026-09-24, Linux; SIGSEGV anında yerli yığın basan bir
+    LD_PRELOAD kitaplığıyla): test_dosya_iliskilendirme ile
+    test_ana_pencere_yollari birlikte koşunca 20 koşunun 10'u, testler
+    geçtikten sonra SIGSEGV veriyordu. Zincir:
+
+    1. Pencerenin C++ nesnesi siliniyor ama PYTHON nesnesi yaşıyor. Alt
+       nesnelerin sinyallerine bağlı lambda'lar `self`i tutuyor ve PyQt
+       bağlantı vekillerini deleteLater ile siliyor. C++'ı ölmüş Python
+       pencereleri test test birikiyordu.
+    2. Bu zombi pencere, C++'ta yaratılan alt nesnelerin (menü çubuğu,
+       menüler, eylemler) sarmalayıcılarını tutuyor. sip böyle bir nesnenin
+       silinişini öğrenmiyor: sarmalayıcı adres haritasında BAYAT kalıyor.
+    3. Aynı adreste yeni bir nesne doğunca sip bayat sarmalayıcıyı veriyor
+       ve `parent()` silinmiş nesnenin belleğini okuyor (yığın:
+       meth_QObject_parent). Çoğunlukla MainWindow.eventFilter'da, çünkü o
+       her nesnenin her olayını görüyor; seyrek olarak yeni pencerenin
+       kurulumunda `menu.addAction`da. Süzgece bekçi koymak da denendi ve
+       yetmedi (2/20, kurulumdaki kol kalıyor); zombiler gidince bekçisiz
+       de 0/40.
+
+    Çare İKİ adım, çünkü iki ayrı an gerekiyor (her pencere kurulurken kaç
+    zombi olduğu ölçüldü):
+
+    - Söküm BİTİNCE ertelenmiş silmeleri boşaltmak (burada): bağlantı
+      vekilleri o an siliniyor. Sonraki testin başında aynı boşaltma
+      vekilleri silmiyor, zombiler kalıyordu (20/21 kurulum).
+    - Döngüyü (pencere ile lambda'ları) toplamak sonraki `ana_pencere`nin
+      BAŞINDA: sökümde pencereyi testin fixture değerleri hâlâ tutuyor,
+      pytest onları söküm kancalarından sonra bırakıyor. Burada toplanınca
+      her testin penceresi bir sonrakinde zombiydi.
+
+    İkisiyle her pencere kurulurken zombi 0/21 ve aynı döngü 40 koşuda hiç
+    çökmedi. İki adım da yalnız `ana_pencere` kullanan testlerde, çünkü her
+    testte gc.collect takımı 57 sn'den 96 sn'ye çıkarıyordu (bkz.
+    `_sahipsiz_qsci_temizle`).
+    """
+    try:
+        return (yield)
+    finally:
+        if "ana_pencere" in getattr(item, "fixturenames", ()):
+            from PyQt6.QtCore import QCoreApplication, QEvent
+            if QCoreApplication.instance() is not None:
+                QCoreApplication.sendPostedEvents(
+                    None, QEvent.Type.DeferredDelete)
