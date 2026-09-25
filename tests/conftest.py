@@ -19,6 +19,50 @@ for _p in (_REPO, _DESKTOP):
         sys.path.insert(0, _p)
 
 
+def _gunlugu_hapset():
+    """GÜNLÜK de hapiste: hiçbir modül get_logger çağırmadan ÖNCE geçici dizin.
+
+    QSettings ve kurtarma klasörü aşağıda hapsediliyor, günlük değildi: her
+    test süreci GERÇEK kullanıcının günlüğüne yazıyordu. ÖLÇÜLDÜ (2026-09-25,
+    gerçek günlük dosyaları YALNIZ OKUNARAK): 13 günü kapsayan beş dosyanın
+    satırlarının en az üçte biri testlerin geçici dizinlerini taşıyordu,
+    1375 "başlatıldı" kaydının neredeyse hepsi test süreçlerindendi; dosya
+    üç günde bir dönüp kullanıcının gerçek kayıtlarını dışarı itiyordu.
+    "Log Klasörünü Aç" hata bildirmek için o dosyayı gösteriyor.
+    """
+    try:
+        import core.log as gunluk
+    except ImportError:           # Qt'siz ortam: core.log PyQt6 istiyor
+        return
+    if gunluk._initialized:
+        raise RuntimeError("günlük hapisten önce açıldı, gerçek dosyaya "
+                           "yazılırdı: " + gunluk.LOG_FILE)
+    import atexit
+    import logging
+    import shutil
+    import tempfile
+    dizin = tempfile.mkdtemp(prefix="latex-editor-test-gunluk-")
+    # Yalnız dosya İŞLEYİCİSİ geçici dizine: kurulum bir kez geçici yolla
+    # çalışıyor, sonra üretim yolları (LOG_DIR, LOG_FILE) geri konuyor.
+    # test_log onları sınıyor, kurtarma klasörü de onlardan türüyor.
+    uretim = (gunluk.LOG_DIR, gunluk.LOG_FILE)
+    gunluk.LOG_DIR = dizin
+    gunluk.LOG_FILE = os.path.join(dizin, "latex-editor.log")
+    try:
+        gunluk._init_once()
+    finally:
+        gunluk.LOG_DIR, gunluk.LOG_FILE = uretim
+
+    def _temizle():
+        logging.shutdown()        # Windows açık dosyayı sildirmiyor
+        shutil.rmtree(dizin, ignore_errors=True)
+
+    atexit.register(_temizle)
+
+
+_gunlugu_hapset()
+
+
 def _qt():
     """(QApplication örneği, QsciScintilla sınıfı) — yoksa (None, None).
 

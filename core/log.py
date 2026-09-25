@@ -50,24 +50,33 @@ def _init_once():
         return
     _initialized = True
 
-    os.makedirs(LOG_DIR, exist_ok=True)
-
     root = logging.getLogger("latex_editor")
     root.setLevel(logging.DEBUG)
 
-    # Dosya handler — INFO ve üstü, rotating
-    fh = RotatingFileHandler(
-        LOG_FILE,
-        maxBytes=1_000_000,   # 1 MB
-        backupCount=5,
-        encoding="utf-8",
-    )
-    fh.setLevel(logging.INFO)
-    fh.setFormatter(logging.Formatter(
-        "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
-        datefmt="%Y-%m-%d %H:%M:%S",
-    ))
-    root.addHandler(fh)
+    # Dosya handler: INFO ve üstü, rotating. AÇILAMAZSA uygulama yine
+    # açılmalı: her modül get_logger'ı import anında çağırıyor ve main.py
+    # gui.main_window'u excepthook kurulmadan önce import ediyor, yani istisna
+    # uygulamayı HİÇ açtırmıyordu (pencereli sürümde mesaj da yok). ÖLÇÜLDÜ
+    # (2026-09-25, geçici dizinde, dosya Word ve Excel'in yaptığı gibi
+    # paylaşımsız açık tutularak): `import gui.editor` PermissionError ile
+    # düştü; kilit yokken yüklendi. Günlük yazılamıyor ama uygulama çalışıyor.
+    try:
+        os.makedirs(LOG_DIR, exist_ok=True)
+        fh = RotatingFileHandler(
+            LOG_FILE,
+            maxBytes=1_000_000,   # 1 MB
+            backupCount=5,
+            encoding="utf-8",
+        )
+    except OSError:
+        fh = None
+    if fh is not None:
+        fh.setLevel(logging.INFO)
+        fh.setFormatter(logging.Formatter(
+            "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        ))
+        root.addHandler(fh)
 
     # Console handler — DEBUG ve üstü (sadece geliştirme).
     # Paketlenmiş sürüm windowed (console=False): sys.stdout/stderr None olur ve

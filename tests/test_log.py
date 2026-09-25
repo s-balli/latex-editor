@@ -304,3 +304,51 @@ class TestLogDiziniImportAnindanBagimsiz:
         pytest.importorskip("PyQt6")
         assert self._log_dir("import core.log as log\nprint(log.LOG_DIR)\n") \
             == self._log_dir(self._ONCE)
+
+
+# --- Günlük dosyası açılamayınca ve testlerin gerçek günlüğü (2026-09-25) ---
+
+
+def test_GUNLUK_dosyasi_ACILAMAYINCA_uygulama_yine_yukleniyor(fresh_log, tmp_path, monkeypatch):
+    r"""Dosya açılamıyor (başka programda kilitli, yazılamıyor): istisna YOK.
+
+    Her modül get_logger'ı import anında çağırıyor ve main.py gui'yi
+    excepthook'tan önce import ediyor: istisna uygulamayı hiç açtırmıyordu.
+    ÖLÇÜLDÜ: dosya paylaşımsız açık tutulunca `import gui.editor`
+    PermissionError ile düştü. Burada taşınabilir biçimi: yol bir KLASÖR,
+    açmak her platformda OSError.
+    """
+    klasor = tmp_path / "latex-editor.log"
+    klasor.mkdir()
+    monkeypatch.setattr(fresh_log, "LOG_FILE", str(klasor))
+    fresh_log.get_logger("test").info("dosya yok ama kayıt düşmüyor")
+
+
+def test_TEST_OTURUMU_uretim_gunluk_dosyasina_YAZMIYOR(tmp_path):
+    r"""conftest günlüğü hapsediyor: üretim yolundaki dosya HİÇ açılmıyor.
+
+    Her test süreci gerçek kullanıcının günlüğüne yazıyordu; ÖLÇÜLDÜ, gerçek
+    dosyalar yalnız okunarak: satırların en az üçte biri testlerdendi.
+    Taze süreç: sıra bağımsız ve GERÇEK günlüğe hiçbir kolda dokunmuyor,
+    çünkü "üretim" yolu da geçici bir dizin.
+    """
+    import subprocess
+    import sys
+    pytest.importorskip("PyQt6")
+    kok = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    uretim = tmp_path / "uretim"
+    kod = (
+        "import os, sys\n"
+        "os.environ.setdefault('QT_QPA_PLATFORM', 'offscreen')\n"
+        "sys.path.insert(0, %r)\n"
+        "sys.path.insert(0, %r)\n"
+        "import core.log as L\n"
+        "L.LOG_DIR = %r\n"
+        "L.LOG_FILE = os.path.join(L.LOG_DIR, 'latex-editor.log')\n"
+        "import conftest\n"
+        "L.get_logger('test').info('test kaydi')\n"
+    ) % (kok, os.path.join(kok, "tests"), str(uretim))
+    r = subprocess.run([sys.executable, "-c", kod], cwd=kok, capture_output=True,
+                       text=True, encoding="utf-8", errors="replace", timeout=120)
+    assert r.returncode == 0, r.stderr[-800:]
+    assert not (uretim / "latex-editor.log").exists()
