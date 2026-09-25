@@ -15,6 +15,7 @@ from core.bibtex import RE_GIRDI_ANAHTARI
 from core.engine_detector import kok_belge
 from core.fs_ops import coz_adiyla, lf_ye_indir
 from core.log import get_logger
+from core.latex_utils import sozel_soy, strip_comments, verb_bosalt
 from core.latex_refs import (
     CITE_KOMUTLARI, REF_ARALIK_KOMUTLARI, REF_KOMUTLARI,
     bibitem_anahtarlari_satirda, collect_citable_keys,
@@ -835,14 +836,30 @@ class EditorWidget(QsciScintilla):
         self._beginend_ranges.append((byte_start, byte_len))
 
     def _get_beginend_tags(self):
-        """Dokümandaki tüm \\begin{X}/\\end{X} tag'leri (satır, char_baş, char_son, kind, ad)."""
+        """Dokümandaki tüm \\begin{X}/\\end{X} tag'leri (satır, char_baş, char_son, kind, ad).
+
+        Yalnız TeX'in çalıştırdığı etiketler: yorumdakiler ve sözel ortam ya
+        da \\verb içindekiler sayılmıyor (depodaki kural, bkz. latex_refs:
+        önce yorum, sonra sözel içerik; hepsi satır ve sütunu koruyor).
+        ÖLÇÜLDÜ (2026-09-25, kehanet gerçek TeX'in ortam kancaları): yorumda
+        kalan bir `%\\begin{figure}` dıştaki çiftin vurgusunu SİLİYOR ya da
+        eşi yorumun içinde gösteriyordu; verbatim örneği ve `\\verb` de öyle.
+        `\\verb` gövdesi yorumdan ÖNCE boşaltılıyor: `\\verb|%|` içindeki
+        yüzde yorum değil, yoksa satırın arkası (çalışan etiket) siliniyordu.
+        """
         if self._beginend_tags_cache is None:
             tags = []
             # Tek self.text() çek + Python'da split: eski kod her satırda ayrı
-            # self.text(ln) (n Scintilla çağrısı) yapıyordu. split('\n') Scintilla
-            # satır sayısına en yakın (sondaki boş satırı korur).
+            # self.text(ln) (n Scintilla çağrısı) yapıyordu. Scintilla YALNIZ
+            # CR'yi de satır sonu sayıyor: onu taşıyan (ya da `\r\r\n`) belgede
+            # split('\n') satır numaralarını kaydırıyor ve eş başka satırda
+            # vurgulanıyordu (ölçüldü, aynı gün). Yalnız o belgede çevriliyor;
+            # LF ve CRLF'de split('\n') zaten Scintilla'nın satırlarını veriyor.
             full = self.text()
-            for ln, line_text in enumerate(full.split('\n')):
+            if full.count('\r') != full.count('\r\n'):
+                full = re.sub(r'\r(?!\n)', '\n', full)
+            for ln, line_text in enumerate(
+                    sozel_soy(strip_comments(verb_bosalt(full))).split('\n')):
                 for m in _BEGINEND_RE.finditer(line_text):
                     tags.append((ln, m.start(), m.end(), m.group(1), m.group(2)))
             self._beginend_tags_cache = tags
@@ -882,11 +899,14 @@ class EditorWidget(QsciScintilla):
 
     def _find_matching_tag(self, cur):
         """Yığın (stack) ile eşleşen tag'i bul. İç içe ve farklı adları sayar."""
-        cur_line, _, _, kind, name = cur
+        cur_line, cur_start, _, kind, name = cur
         tags = self._get_beginend_tags()
         cur_idx = None
+        # Satır VE sütun: aynı satırda aynı etiket iki kez geçebiliyor
+        # (yan yana iki `\begin{tabular}` hücresi). Yalnız satıra bakılınca
+        # ikincideki imleç birincinin eşini vurguluyordu (ölçüldü 2026-09-25).
         for i, (ln, s, e, k, n) in enumerate(tags):
-            if ln == cur_line and k == kind and n == name:
+            if ln == cur_line and s == cur_start and k == kind and n == name:
                 cur_idx = i
                 break
         if cur_idx is None:

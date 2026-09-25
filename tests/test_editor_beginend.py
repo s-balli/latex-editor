@@ -4,6 +4,8 @@
 adları sayarak) bulunur ve ikisi indicator ile vurgulanır.
 """
 
+import re
+
 import pytest
 
 try:
@@ -189,3 +191,56 @@ def test_cache_invalidated_on_text_change(qapp):
     assert ed._beginend_tags_cache is not None
     ed.setText("\\begin{b}\n\\end{b}")
     assert ed._beginend_tags_cache is None  # textChanged -> invalid
+
+
+# --- Eş TeX'in eşlediği etiket (kehanet: ortam kancaları, 2026-09-25) ---
+
+
+def test_AYNI_satirda_IKINCI_etiketin_esi_KENDI_esi():
+    r"""Satırda aynı etiket iki kez: ikincideki imleç KENDİ eşini buluyor.
+
+    Yan yana iki `\begin{tabular}` hücresi. Eşleşme yalnız satıra bakıyordu
+    ve ikinci `\begin`in eşi birincinin `\end`i çıkıyordu.
+    """
+    satir = ("\\begin{tabular}{c}a\\end{tabular} & "
+             "\\begin{tabular}{c}b\\end{tabular}\\\\")
+    ed = _setup("\\begin{tabular}{cc}\n" + satir + "\n\\end{tabular}")
+    b2 = satir.find("\\begin", satir.find("\\end"))
+    e2 = satir.find("\\end", b2)
+    cur = (1, b2, b2 + len("\\begin{tabular}"), "begin", "tabular")
+    assert ed._find_matching_tag(cur) == (1, e2, e2 + len("\\end{tabular}"))
+
+
+@pytest.mark.parametrize("metin, imlec_satir, es_satir", [
+    ("\\begin{figure}\n%\\begin{figure}[h]\nX\n\\end{figure}", 3, 0),
+    ("\\begin{itemize}\n\\item a\n%\\end{itemize}\n\\end{itemize}", 0, 3),
+    ("\\begin{itemize}\n\\begin{verbatim}\n\\begin{itemize}\n"
+     "\\end{verbatim}\n\\end{itemize}", 4, 0),
+    ("\\begin{itemize}\n\\item \\verb|\\end{itemize}|\n\\end{itemize}", 0, 2),
+    # `\verb|%|` içindeki yüzde yorum DEĞİL: arkasındaki etiket çalışıyor
+    ("\\verb|%| \\begin{itemize}\n\\end{itemize}", 1, 0),
+], ids=["yorumdaki_begin", "yorumdaki_end", "verbatim", "verb", "verb_icinde_yuzde"])
+def test_YORUM_ve_SOZEL_icindeki_etiket_eslesmeye_KATILMIYOR(metin, imlec_satir, es_satir):
+    r"""TeX'in çalıştırmadığı etiket eşleşmeyi bozmuyor.
+
+    Yorumda kalan bir `%\begin{figure}` dıştaki çiftin vurgusunu siliyor ya
+    da eşi yorumun içinde gösteriyordu; verbatim örneği ve `\verb` de öyle.
+    """
+    ed = _setup(metin)
+    m = re.match(r"\\(begin|end)\{(\w+)\}", ed.text(imlec_satir))
+    es = ed._find_matching_tag((imlec_satir, 0, m.end(), m.group(1), m.group(2)))
+    assert es is not None and es[0] == es_satir
+
+
+@pytest.mark.parametrize("eol", ["\r\r\n", "\r"], ids=["cr_cr_lf", "yalniz_cr"])
+def test_YALNIZ_CR_iceren_belgede_es_DOGRU_satirda(eol):
+    r"""Scintilla yalnız CR'yi de satır sonu sayıyor; eş onun satırında.
+
+    Yalnız '\n' ile bölünce satır numaraları kayıyor ve eş başka bir
+    satırda (`\item a` üzerinde) vurgulanıyordu.
+    """
+    ed = _setup(eol.join(["\\begin{itemize}", "\\item a", "\\end{itemize}", ""]))
+    end_satiri = next(s for s in range(ed.lines())
+                      if ed.text(s).startswith("\\end{itemize}"))
+    es = ed._find_matching_tag((0, 0, len("\\begin{itemize}"), "begin", "itemize"))
+    assert es == (end_satiri, 0, len("\\end{itemize}"))

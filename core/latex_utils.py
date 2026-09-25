@@ -120,6 +120,17 @@ def sozel_soy(text: str) -> str:
         lambda m: (m.group(0)[:m.start(2) - m.start(0)]
                    + _bosluga_cevir(m.group(2))
                    + m.group(0)[m.end(2) - m.start(0):]), text)
+    return verb_bosalt(text)
+
+
+def verb_bosalt(text: str) -> str:
+    r"""Yalnız satır içi ``\verb`` GÖVDESİNİ boşluğa çevir (uzunluk korunur).
+
+    ``strip_comments``ten ÖNCE gerektiğinde: ``\verb|%|`` içindeki yüzde
+    yorum başlatmıyor, ``strip_comments`` ise satırı orada kesiyor ve
+    arkasındaki çalışan kodu siliyor (ölçüldü 2026-09-25, eşleşen
+    \begin/\end vurgusunda).
+    """
     return _RE_VERB.sub(_verb_bosalt, text)
 
 
