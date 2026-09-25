@@ -46,6 +46,17 @@ def label_gecerli_mi(key: str) -> bool:
 # KAYNAK; lexer (desktop/syntax), anahat ve referans denetimi buradan alıyor.
 # Liste bir kez kopyalanıp ayrışmıştı: `comment`, `BVerbatim`, `LVerbatim` ve
 # `listing` anahatta eksikti (ölçüldü 2026-09-06, dördü de sızıyordu).
+#
+# `alltt` BİLEREK burada, tam doğru olmasa da. TeX'te içindeki komutlar
+# (\label, \ref, \cite, \begin) ÇALIŞIYOR, yalnız `%` ve `$` düz karakter
+# (ölçüldü 2026-09-25, gerçek pdflatex'in .aux'u). Listede durduğu için o
+# komutlar görünmüyor: Referans Denetimi oradaki etikete giden \ref'i
+# "tanımsız" sayıyor. Listeden çıkarmak ise `%`yi yorum, `$`ı matematik
+# yapar; ortam çoğunlukla kod ve kabuk oturumu göstermek için kullanılıyor
+# (`$ ls`), yani renklendirme ve yazım denetimi bozulur. "Görüntüde sözel,
+# denetimde komutlu" diye ayırmak da tek liste kuralına istisna açar.
+# 132 şablonun hiçbirinde yok. Karar değişirse bu kural ve kapısı
+# (test_file_watch_outline) birlikte ele alınmalı.
 VERB_ENVS = ("verbatim", "verbatim*", "lstlisting", "minted", "alltt",
              "comment", "Verbatim", "BVerbatim", "LVerbatim", "listing")
 
