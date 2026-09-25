@@ -1423,6 +1423,33 @@ class TestSozelIcerikReferansDegil:
         assert cikti.count("\n") == metin.count("\n")
 
 
+class TestYuzdeYorumBaslatmayanYapilar:
+    r"""`\url`/`\href` adresindeki ve `\verb` gövdesindeki yüzde yorum DEĞİL.
+
+    ÖLÇÜLDÜ (2026-09-25, kehanet gerçek pdflatex'in .aux'u): aynı satırdaki
+    `\label` ve `\cite` canlı; yorum soyma satırı yüzdede kesiyordu ve
+    Referans Denetimi o etikete giden `\ref`i "tanımsız" diye bildiriyordu.
+    """
+
+    @pytest.mark.parametrize("satir", [
+        "\\url{https://tr.wikipedia.org/wiki/%C3%87ay} \\label{e}",
+        "\\verb|50%| oran \\label{e}",
+        "\\href{https://x.org/a%20b}{metin} \\label{e}",
+    ], ids=["url", "verb", "href"])
+    def test_arkasindaki_etiket_TANIMSIZ_sayilmiyor(self, tmp_path, satir):
+        yol = tmp_path / "d.tex"
+        yol.write_text(satir + "\nBkz. \\ref{e}.\n", encoding="utf-8")
+        d = latex_refs.audit_references(yol.read_text(encoding="utf-8"), str(yol))
+        assert "e" not in d.undefined_refs
+
+    def test_GERCEK_yorumdaki_etiket_hala_TANIMSIZ(self, tmp_path):
+        """Karşı kol: yorum soyma kapanmadı."""
+        yol = tmp_path / "d.tex"
+        yol.write_text("metin % \\label{e}\nBkz. \\ref{e}.\n", encoding="utf-8")
+        d = latex_refs.audit_references(yol.read_text(encoding="utf-8"), str(yol))
+        assert "e" in d.undefined_refs
+
+
 class TestSinifDosyasindaKaynakcaBildirimi:
 
     def test_CLS_icindeki_addbibresource_bulunuyor(self, tmp_path):

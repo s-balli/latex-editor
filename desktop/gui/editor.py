@@ -15,7 +15,7 @@ from core.bibtex import RE_GIRDI_ANAHTARI
 from core.engine_detector import kok_belge
 from core.fs_ops import coz_adiyla, lf_ye_indir
 from core.log import get_logger
-from core.latex_utils import sozel_soy, strip_comments, verb_bosalt
+from core.latex_utils import sozel_soy, strip_comments
 from core.latex_refs import (
     CITE_KOMUTLARI, REF_ARALIK_KOMUTLARI, REF_KOMUTLARI,
     bibitem_anahtarlari_satirda, collect_citable_keys,
@@ -864,8 +864,8 @@ class EditorWidget(QsciScintilla):
         ÖLÇÜLDÜ (2026-09-25, kehanet gerçek TeX'in ortam kancaları): yorumda
         kalan bir `%\\begin{figure}` dıştaki çiftin vurgusunu SİLİYOR ya da
         eşi yorumun içinde gösteriyordu; verbatim örneği ve `\\verb` de öyle.
-        `\\verb` gövdesi yorumdan ÖNCE boşaltılıyor: `\\verb|%|` içindeki
-        yüzde yorum değil, yoksa satırın arkası (çalışan etiket) siliniyordu.
+        `\\verb|%|` içindeki yüzde yorum değil; strip_comments bunu biliyor
+        (gerekçe ve ölçüm orada), satırın arkasındaki etiket kalıyor.
         """
         if self._beginend_tags_cache is None:
             tags = []
@@ -879,7 +879,7 @@ class EditorWidget(QsciScintilla):
             if full.count('\r') != full.count('\r\n'):
                 full = re.sub(r'\r(?!\n)', '\n', full)
             for ln, line_text in enumerate(
-                    sozel_soy(strip_comments(verb_bosalt(full))).split('\n')):
+                    sozel_soy(strip_comments(full)).split('\n')):
                 for m in _BEGINEND_RE.finditer(line_text):
                     tags.append((ln, m.start(), m.end(), m.group(1), m.group(2)))
             self._beginend_tags_cache = tags

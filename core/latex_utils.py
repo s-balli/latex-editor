@@ -120,17 +120,6 @@ def sozel_soy(text: str) -> str:
         lambda m: (m.group(0)[:m.start(2) - m.start(0)]
                    + _bosluga_cevir(m.group(2))
                    + m.group(0)[m.end(2) - m.start(0):]), text)
-    return verb_bosalt(text)
-
-
-def verb_bosalt(text: str) -> str:
-    r"""Yalnız satır içi ``\verb`` GÖVDESİNİ boşluğa çevir (uzunluk korunur).
-
-    ``strip_comments``ten ÖNCE gerektiğinde: ``\verb|%|`` içindeki yüzde
-    yorum başlatmıyor, ``strip_comments`` ise satırı orada kesiyor ve
-    arkasındaki çalışan kodu siliyor (ölçüldü 2026-09-25, eşleşen
-    \begin/\end vurgusunda).
-    """
     return _RE_VERB.sub(_verb_bosalt, text)
 
 
@@ -147,11 +136,23 @@ def _verb_bosalt(m) -> str:
     return ham[:bas] + " " * (son - bas) + ham[son:]
 
 
-def strip_comments(text: str) -> str:
-    """Yorum satırlarını ve satır içi yorumları kaldır.
+# Yüzdenin YORUM BAŞLATMADIĞI adres: `\url{...}` ve `\href{...}{metin}`in
+# ilk argümanı. TeX onları özel kodlarla okuyor; yüzde kodlu Türkçe harf
+# (`%C3%87`) orada sıradan.
+_RE_ADRES = re.compile(r"\\(?:url|href)\s*\{[^}]*\}")
 
-    \\% kaçırılmış yüzde işaretlerini korur.
+
+def strip_comments(text: str) -> str:
+    r"""Yorum satırlarını ve satır içi yorumları kaldır.
+
+    \% kaçırılmış yüzde işaretlerini korur.
     Satır yapısını (girintiler dahil) korur, sadece yorum kısmını kaldırır.
+
+    ``\verb`` gövdesindeki ve ``\url``/``\href`` adresindeki yüzde YORUM
+    DEĞİL. Satır orada kesiliyordu ve arkasındaki çalışan kod siliniyordu.
+    ÖLÇÜLDÜ (2026-09-25, kehanet gerçek pdflatex'in .aux'u): üç satırda da
+    ``\cite`` ve ``\label`` canlıydı, Referans Denetimi ise o etiketlere
+    giden ``\ref``leri "tanımsız" diye bildiriyor, tamamlama önermiyordu.
     """
     result = []
     for line in text.split('\n'):
@@ -164,6 +165,12 @@ def strip_comments(text: str) -> str:
         clean = []
         i = 0
         while i < len(line):
+            if line[i] == '\\':
+                m = _RE_VERB.match(line, i) or _RE_ADRES.match(line, i)
+                if m:
+                    clean.append(m.group(0))
+                    i = m.end()
+                    continue
             if line[i] == '\\' and i + 1 < len(line):
                 clean.append(line[i:i + 2])
                 i += 2
