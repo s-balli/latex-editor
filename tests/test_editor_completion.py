@@ -12,6 +12,7 @@ import pytest
 try:
     from PyQt6.QtCore import QEvent, Qt
     from PyQt6.QtGui import QKeyEvent
+    from PyQt6.QtTest import QTest
     from PyQt6.QtWidgets import QApplication
     from PyQt6.Qsci import QsciScintilla
     from gui.editor import EditorWidget, _LATEX_ENVIRONMENTS
@@ -223,6 +224,21 @@ def test_manual_suppressed_in_comment(qapp):
     ed.setCursorPosition(0, len("% \\fra"))
     ed._check_autocomplete(manual=True)
     assert not _autoc_active(ed)
+
+
+def test_YORUMDA_harf_harf_YAZARKEN_de_liste_ACILMIYOR(qapp):
+    r"""C.8 yazarken de: az önce yazılan harf henüz stilsizdi ve yorumda da
+    liste açılıyordu (ölçüldü 2026-09-25, görünür gerçek pencere, tuşlar
+    arası 30 ms). Karşı kol: aynı tuşlar kod satırında listeyi açıyor."""
+    ed = _editor()
+    ed.setText("% yorum\nkod")
+    _style_all(ed)
+    ed.setCursorPosition(0, len("% yorum"))
+    QTest.keyClicks(ed, " \\fra")
+    assert not _autoc_active(ed)
+    ed.setCursorPosition(1, len("kod"))
+    QTest.keyClicks(ed, " \\fra")
+    assert _autoc_active(ed)
 
 
 def test_completion_outside_comment(qapp):

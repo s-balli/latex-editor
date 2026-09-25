@@ -9,8 +9,12 @@ aynı komut tutarlı olur (ikisi de çiftlenmiş ayraç verir).
 import pytest
 
 try:
+    from PyQt6.QtCore import QEvent, Qt
+    from PyQt6.QtGui import QKeyEvent
+    from PyQt6.QtTest import QTest
     from PyQt6.QtWidgets import QApplication
     from PyQt6.Qsci import QsciScintilla
+    from core.fs_ops import lf_ye_indir
     from gui.editor import EditorWidget
 except ImportError:  # pragma: no cover
     pytest.skip("PyQt6 / gui.editor import edilemiyor", allow_module_level=True)
@@ -423,3 +427,89 @@ def test_bib_VE_bibitem_BIRLIKTE_oneriliyor(qapp, tmp_path):
     ed = EditorWidget()
     assert ed.open_file(str(yol))
     assert _cite_onerileri(ed, "ek") == ["ek1", "ek2", "ekbib"]
+
+
+# --- Gerçek tuşlarla, harf harf (2026-09-25 ölçümleri) ---
+
+
+def _yaz(ed, metin):
+    """Harf harf yaz. ASCII dışı harf QTest ile GÖNDERİLEMİYOR: QTest onu
+    Latin-1'e çevirip kendi içinde çöküyor (düz QLineEdit'te bile, ölçüldü);
+    gerçek platformun yaptığı gibi metni taşıyan bir KeyPress gidiyor."""
+    for ch in metin:
+        if ch.isascii():
+            QTest.keyClicks(ed, ch)
+            continue
+        for tur in (QEvent.Type.KeyPress, QEvent.Type.KeyRelease):
+            QApplication.sendEvent(ed, QKeyEvent(
+                tur, Qt.Key.Key_unknown, Qt.KeyboardModifier.NoModifier, ch))
+
+
+@pytest.mark.parametrize("komut", ["\\centering", "\\item"],
+                         ids=["yalniz_tam", "tam_ve_uzun_aday"])
+def test_TAM_yazilan_komuttan_sonra_Enter_YENI_SATIR_aciyor(qapp, komut):
+    r"""Tam komut + Enter: yeni satır, komut değişmeden.
+
+    Bir önceki harfin listesi açık kalıyordu: `\centering` + Enter satır
+    açmıyordu, `\item` + Enter `\item[]` (madde imi kayboluyor) oluyordu.
+    """
+    ed = _editor()
+    _yaz(ed, komut)
+    QTest.keyClick(ed, Qt.Key.Key_Return)
+    assert lf_ye_indir(ed.text()).split("\n") == [komut, ""]
+
+
+def test_TAM_komutta_Ctrl_Space_uzun_adaylari_HALA_gosteriyor(qapp):
+    r"""Elle istenen liste kapanmıyor: `\in` + Ctrl+Space `\int`, `\infty`..."""
+    ed = _editor()
+    _yaz(ed, "\\in")
+    QTest.keyClick(ed, Qt.Key.Key_Space, Qt.KeyboardModifier.ControlModifier)
+    assert ed.isListActive()
+
+
+def test_TURKCE_harfli_yol_onekinde_liste_aciliyor_ve_kabul_DOGRU(qapp, tmp_path):
+    r"""Scintilla'ya yazılan uzunluk BAYT: `\input{bö` listesi açılıyor.
+
+    Karakter sayısı verilince Scintilla kelimeyi yanlış yerden alıp listeyi
+    hemen kapatıyordu; ASCII önekte açılıyordu.
+    """
+    (tmp_path / "bölümler").mkdir()
+    (tmp_path / "bölümler" / "giriş.tex").write_text("g\n", encoding="utf-8")
+    yol = tmp_path / "main.tex"
+    yol.write_text("x\n", encoding="utf-8", newline="")
+    ed = EditorWidget()
+    assert ed.open_file(str(yol))
+    ed.setCursorPosition(1, 0)
+    _yaz(ed, "\\input{bö")
+    assert ed.isListActive()
+    QTest.keyClick(ed, Qt.Key.Key_Return)
+    assert _line(ed, 1) == "\\input{bölümler/giriş}"
+
+
+_ATIF_BELGESI = ("\\begin{thebibliography}{9}\\bibitem{knuth84} K."
+                 "\\bibitem{lamport94} L.\\end{thebibliography}\n")
+
+
+@pytest.mark.parametrize("yazilan", ["\\cite{knuth84, la", "\\cite[s.~5]{la"],
+                         ids=["virgulden_sonra_bosluk", "istege_bagli_arguman"])
+def test_ATIF_tetikleyicisi_LaTeXin_kabul_ettigi_bicimlerde_aciliyor(qapp, yazilan):
+    r"""`\cite{a, b` ve `\cite[s.~5]{b`: iki biçim de gerçek pdflatex'te
+    çözülüyor (ölçüldü) ama liste açılmıyordu."""
+    ed = _editor()
+    ed.setText(_ATIF_BELGESI)
+    ed.setCursorPosition(1, 0)
+    _yaz(ed, yazilan)
+    assert ed.isListActive()
+
+
+def test_TURKCE_harfle_baslayan_etiket_ONERILIYOR(qapp):
+    r"""Etiket kuralı Türkçe harfi kabul ediyor (tablo sihirbazı da üretiyor)
+    ama `\ref{ş` liste açmıyordu; kabul de baytla doğru olmalı."""
+    ed = _editor()
+    ed.setText("\\label{şekil-a}\n")
+    ed.setCursorPosition(1, 0)
+    _yaz(ed, "\\ref{ş")
+    assert ed.isListActive()
+    QTest.keyClick(ed, Qt.Key.Key_Return)
+    assert _line(ed, 1) == "\\ref{şekil-a}"
+

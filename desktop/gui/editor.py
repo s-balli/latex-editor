@@ -53,13 +53,21 @@ _RE_REFARG = re.compile(
 _RE_CITEARG = re.compile(
     komut_alternatifi(CITE_KOMUTLARI) + r'\s*(?:\[[^\]]*\]\s*)*\{([^}]*)\}')
 # Tamamlama tetikleyicileri: imleç açılış kümesinden hemen sonra.
+# Anahtardaki harf UNICODE harfi (`\w`), ASCII değil: etiket kuralı
+# core.latex_utils'te öyle ve tablo sihirbazı Türkçe harfli etiket üretiyor.
+# Atıfta virgülden sonra boşluk olabiliyor. ÖLÇÜLDÜ (2026-09-25, gerçek
+# pdflatex iki biçimi de çözüyor): `\ref{ş` ve `\cite{a, b` liste
+# açmıyordu, `\ref{s` ve `\cite{a,b` açıyordu.
 _RE_REF_TETIK = re.compile(
-    komut_alternatifi(REF_KOMUTLARI) + r'\{([A-Za-z0-9_:.\-]*)$')
+    komut_alternatifi(REF_KOMUTLARI) + r'\{([\w:.\-]*)$')
 _RE_REF_ARALIK_TETIK = re.compile(
     komut_alternatifi(REF_ARALIK_KOMUTLARI)
-    + r'\{[^{}]*\}\{([A-Za-z0-9_:.\-]*)$')
+    + r'\{[^{}]*\}\{([\w:.\-]*)$')
+# İsteğe bağlı argüman (`\cite[s.~5]{`, `\citep[bkz.][]{`) Alt+tık desenindeki
+# gibi atlanıyor; tetikleyici onu tanımıyordu, liste açılmıyordu (ölçüldü).
 _RE_CITE_TETIK = re.compile(
-    komut_alternatifi(CITE_KOMUTLARI) + r'\{([A-Za-z0-9_:.,\-]*)$')
+    komut_alternatifi(CITE_KOMUTLARI)
+    + r'\s*(?:\[[^\]]*\]\s*)*\{([\w:.\-]*(?:,\s*[\w:.\-]*)*)$')
 # .bib girdi anahtarı (@article{key,): Alt+tık ile makaledeki \cite yerine git.
 # Desen core.bibtex'ten geliyor, kopyası TUTULMUYOR: burada kendi kopyası
 # vardı ve ikisi `@tur(...)` parantezli biçimde ayrışıyordu (bkz. oradaki not).
@@ -479,9 +487,7 @@ class EditorWidget(QsciScintilla):
         # bozmuyor; `alltt` içinde ise \begin gerçekten çalışıyor.
         if not has_sel and text == '}':
             m = re.search(r'\\begin\{([A-Za-z]+\*?)$', self._text_before_cursor())
-            if m and self.SendScintilla(
-                    QsciScintilla.SCI_GETSTYLEAT,
-                    self._cursor_byte_pos() - 1) != LatexLexer.COMMENT:
+            if m and self._soldaki_stil() != LatexLexer.COMMENT:
                 self._insert_begin_end(m.group(1))
                 return True
 
@@ -616,9 +622,7 @@ class EditorWidget(QsciScintilla):
         line, col = self.getCursorPosition()
         # Yorum/verbatim içinde komut tamamlaması yapma (C.8)
         if col > 0:
-            style_before = self.SendScintilla(
-                QsciScintilla.SCI_GETSTYLEAT, self._cursor_byte_pos() - 1)
-            if style_before in (LatexLexer.COMMENT, LatexLexer.VERBATIM):
+            if self._soldaki_stil() in (LatexLexer.COMMENT, LatexLexer.VERBATIM):
                 return
         line_text = self.text(line)
         text_before = line_text[:col]
@@ -675,6 +679,15 @@ class EditorWidget(QsciScintilla):
             hi = bisect.bisect_left(_LATEX_COMMANDS, word[:-1] + chr(ord(word[-1]) + 1))
         else:
             hi = len(_LATEX_COMMANDS)
+        # Yazılan zaten TAM bir komut: liste kapanıyor (elle açılış hariç).
+        # Bir önceki harfin listesi açık kalıyordu ve Enter onu kabul
+        # ediyordu. ÖLÇÜLDÜ (2026-09-25, gerçek tuşlar): `\centering`,
+        # `\hline` + Enter yeni satır açmıyordu (396 komutun 372'si böyle);
+        # `\item` + Enter `\item[]` (madde imi kayboluyor), `\par` + Enter
+        # `\paragraph{}` oluyordu.
+        if not manual and word in _LATEX_COMMANDS[lo:hi]:
+            self.cancelList()
+            return
         matches = [cmd for cmd in _LATEX_COMMANDS[lo:hi] if cmd != word]
         if not matches:
             return
@@ -695,7 +708,13 @@ class EditorWidget(QsciScintilla):
             return
         self.SendScintilla(QsciScintilla.SCI_AUTOCSETSEPARATOR, ord(' '))
         entries = " ".join(matches).encode('utf-8')
-        self.SendScintilla(QsciScintilla.SCI_AUTOCSHOW, len(typed), entries)
+        # Yazılan uzunluğu BAYT (Scintilla konumu bayt). Karakter sayısı
+        # verilince Türkçe harfli önekte Scintilla kelimeyi yanlış yerden
+        # alıyor, eşleşme bulamayıp listeyi hemen kapatıyordu. ÖLÇÜLDÜ
+        # (2026-09-25): `\input{bö` ve `\includegraphics{şe` hiç liste
+        # açmıyordu, ASCII önek açıyordu.
+        self.SendScintilla(QsciScintilla.SCI_AUTOCSHOW,
+                           len(typed.encode('utf-8')), entries)
 
     def _show_env_completion(self, typed: str, manual: bool):
         """\\begin{ / \\end{ sonrası yaygın ortam adlarını tamamlar (C.6).
@@ -744,7 +763,8 @@ class EditorWidget(QsciScintilla):
 
     def _show_cite_completion(self, typed: str):
         r"""\cite{...} için .bib anahtarlarını öner (key1,key2 çoklu destek)."""
-        partial = typed.rsplit(',', 1)[-1]   # son virgülden sonraki segment
+        # son virgülden sonraki segment; `a, b` biçiminde baştaki boşluk düşer
+        partial = typed.rsplit(',', 1)[-1].lstrip()
         try:
             keys = self._projeden(collect_citable_keys)
         except Exception:
@@ -879,6 +899,25 @@ class EditorWidget(QsciScintilla):
         line_byte_start = self.SendScintilla(QsciScintilla.SCI_POSITIONFROMLINE, line)
         lt = self.text(line)
         return line_byte_start + len(lt[:index].encode("utf-8"))
+
+    def _soldaki_stil(self) -> int:
+        """İmlecin solundaki karakterin lexer stili; okumadan ÖNCE imlece
+        kadar stillendiriliyor.
+
+        Stil boyamayla geliyor, yani az önce yazılan harf henüz stilsiz (0).
+        C.8 tam o harfe bakıyordu: ÖLÇÜLDÜ (2026-09-25, görünür gerçek
+        pencere, tuşlar arası 30 ms) yorum satırında `\\fra` yazınca liste
+        AÇILIYORDU. \\end ekleme kuralı da araya boyama girmeden gelen
+        tuşta aynı yere düşüyordu. Stillendirme satır başından imlece,
+        kısa; boyama kalanını her zamanki gibi yapıyor.
+        """
+        pos = self._cursor_byte_pos()
+        if pos <= 0:
+            return LatexLexer.DEFAULT
+        son = self.SendScintilla(QsciScintilla.SCI_GETENDSTYLED)
+        if son < pos:
+            self.lexer().styleText(son, pos)
+        return self.SendScintilla(QsciScintilla.SCI_GETSTYLEAT, pos - 1)
 
     def _update_beginend_highlight(self, line: int, index: int):
         """İmleç bir \\begin{X}/\\end{X} üzerindeyse eşleşen tag'i vurgula."""
