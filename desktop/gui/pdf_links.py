@@ -118,17 +118,32 @@ def resolve_dest_scroll_xy(pdf_raw, dest, g, scale: float):
     `pdflscape` tam da bunu yapıyor, ve içindekiler ile çapraz başvuru
     bağlantıları o sayfalara gidiyor.
     """
+    return gorunumden_kaydirma(*hedef_gorunumu(dest), g, scale)
+
+
+def hedef_gorunumu(dest) -> tuple:
+    """Destination'ın görünümü: (mod, parametreler listesi)."""
     num_params = ctypes.c_ulong()
     params = (ctypes.c_float * 4)()
     view_mode = _pdfium_raw.FPDFDest_GetView(dest, ctypes.byref(num_params), params)
+    return view_mode, list(params)[:num_params.value]
+
+
+def gorunumden_kaydirma(view_mode, params, g, scale: float):
+    """Görünümden (mod, parametreler) sayfa içi (x, y) piksel konumu.
+
+    Bağlantı hedefi ile yer imi AYNI dönüşümü kullanıyor (gerekçeler
+    yukarıda, `resolve_dest_scroll_xy`). Yer imi eskiden yalnız sayfaya
+    gidiyordu, bağlantı başlığa (bkz. `_bookmarks`).
+    """
     donme = g[0]
 
-    if view_mode == _pdfium_raw.PDFDEST_VIEW_XYZ and num_params.value >= 2:
+    if view_mode == _pdfium_raw.PDFDEST_VIEW_XYZ and len(params) >= 2:
         x, y = params[0], params[1]
         if y >= 0:
             gx, gy = gorsele(g, x, y, scale)
             return _sinirla(gx), _sinirla(gy)
-    elif view_mode == _pdfium_raw.PDFDEST_VIEW_FITH and num_params.value >= 1:
+    elif view_mode == _pdfium_raw.PDFDEST_VIEW_FITH and len(params) >= 1:
         y = params[0]
         if y >= 0:
             # 90/270'te dikey konumu x belirliyor (bkz. dönüşüm tablosu),

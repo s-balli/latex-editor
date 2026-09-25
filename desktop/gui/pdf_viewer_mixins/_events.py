@@ -10,7 +10,8 @@ from gui.pdfium_lock import pdfium_lock
 from gui.pdf_donusum import geometri, kullaniciya
 
 from gui.pdf_links import (
-    get_link_at_point, resolve_link_action, resolve_dest_scroll_xy, get_dest_page_index,
+    get_link_at_point, resolve_link_action, get_dest_page_index,
+    gorunumden_kaydirma, hedef_gorunumu,
 )
 
 _logger = get_logger("pdf_viewer")
@@ -181,9 +182,13 @@ class PdfEventsMixin:
     def _goto_dest(self, dest):
         with pdfium_lock:
             page_idx = get_dest_page_index(self._pdf.raw, dest)
-        if page_idx < 0 or page_idx >= self._page_count:
+            mod, parametreler = hedef_gorunumu(dest)
+        self._gorunume_git(page_idx, mod, parametreler)
+
+    def _gorunume_git(self, idx, mod, parametreler):
+        """`idx` sayfasında hedef görünüme git: iç bağlantı ve yer imi AYNI yol."""
+        if idx is None or idx < 0 or idx >= self._page_count:
             return
-        idx = page_idx
         label = self._page_labels[idx]
 
         if label.pixmap() is None or label.pixmap().isNull():
@@ -194,8 +199,8 @@ class PdfEventsMixin:
             # geometri(): dönme + DÖNDÜRÜLMEMİŞ boyut. Eskiden buraya
             # get_height() (GÖRSEL yükseklik) veriliyordu; /Rotate'li sayfada
             # bağlantı bambaşka bir yere gidiyordu (bkz. pdf_links).
-            hedef_x, hedef_y = resolve_dest_scroll_xy(
-                self._pdf.raw, dest, geometri(self._pdf[idx]), scale)
+            hedef_x, hedef_y = gorunumden_kaydirma(
+                mod, parametreler, geometri(self._pdf[idx]), scale)
 
         # Dual modda label satır widget'ının çocuğudur: pos() satıra göre olur.
         # _synctex.py'deki gibi pages_widget'e göre hesapla; yatayı da
