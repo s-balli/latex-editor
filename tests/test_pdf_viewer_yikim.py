@@ -30,6 +30,12 @@ _COCUK = textwrap.dedent('''
     os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
     sys.path.insert(0, os.path.join(r"{kok}", "desktop"))
     sys.path.insert(0, r"{kok}")
+    # Günlük hapiste (conftest._gunlugu_hapset); alt süreç conftest'i görmüyor
+    # ve gerçek kullanıcının günlüğüne yazıyordu (ölçüldü 2026-09-25: tam
+    # takım başına iki "başlatıldı" satırı, ikisi de bu çocuktan).
+    import core.log as _gunluk
+    _gunluk.LOG_DIR = r"{gunluk}"
+    _gunluk.LOG_FILE = os.path.join(_gunluk.LOG_DIR, "latex-editor.log")
     from PyQt6.QtWidgets import QApplication
     app = QApplication([])
     from gui.pdf_viewer import PdfViewer
@@ -48,9 +54,12 @@ _COCUK = textwrap.dedent('''
 
 def _kos(tmp_path, kip):
     cy = tmp_path / "cocuk.py"
-    cy.write_text(_COCUK.format(kok=_ROOT), encoding="utf-8")
+    gunluk = tmp_path / "gunluk"
+    cy.write_text(_COCUK.format(kok=_ROOT, gunluk=gunluk), encoding="utf-8")
     r = subprocess.run([sys.executable, str(cy), kip], capture_output=True,
                        text=True, encoding="utf-8", errors="replace", timeout=180)
+    # Çocuğun günlüğü hapiste yazıldı mı: yazılmadıysa gerçek dosyaya gitmiştir.
+    assert (gunluk / "latex-editor.log").exists(), r.stderr[-400:]
     return r
 
 
