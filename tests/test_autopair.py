@@ -203,6 +203,48 @@ def test_YORUMDA_begin_kapanisi_end_EKLEMIYOR(qapp):
     assert ed.text() == "% not: \\begin{itemize}"
 
 
+@pytest.mark.parametrize("metin, imlec, yazilan, beklenen", [
+    ("a ", 2, "(", "a "),
+    ("a ", 2, "[", "a "),
+    ("a ", 2, "{", "a "),
+    ("a ", 2, "$", "a "),
+    ("x \\$$y", 4, "", "x \\$y"),     # `\$` düz karakter: arkasındaki $ çift değil
+], ids=["parantez", "koseli", "suslu", "dolar", "kacisli_dolar"])
+def test_ACILIS_yazilip_Backspace_ile_silinince_KAPANIS_da_gidiyor(qapp, metin, imlec, yazilan, beklenen):
+    r"""Açılış yazılıp hemen silinince kapanış kalıyordu. ÖLÇÜLDÜ (2026-09-25,
+    gerçek pdflatex): `$` yazıp silmek tek `$` bırakıyor, "Missing $ inserted"."""
+    ed = _editor()
+    ed.setText(metin)
+    ed.setCursorPosition(0, imlec)
+    if yazilan:
+        QTest.keyClicks(ed, yazilan)
+    QTest.keyClick(ed, Qt.Key.Key_Backspace)
+    assert ed.text() == beklenen
+
+
+@pytest.mark.parametrize("metin, satir, sutun, yeni, beklenen", [
+    # Ortamın adı `}` dahil silinip AYNI adla yeniden yazılıyor: ikinci \end yok
+    ("\\begin{document}\n\\begin{itemize\n\\item a\n\\end{itemize}\n\\end{document}",
+     1, len("\\begin{itemize"), "}",
+     ["\\begin{document}", "\\begin{itemize}", "\\item a", "\\end{itemize}",
+      "\\end{document}"]),
+    # Karşı kol: belgenin İÇİNDE yeni ortam, \end hâlâ ekleniyor
+    ("\\begin{document}\n\\begin{center\n\\end{document}",
+     1, len("\\begin{center"), "}",
+     ["\\begin{document}", "\\begin{center}", "\t", "\\end{center}",
+      "\\end{document}"]),
+], ids=["ayni_ad_yeniden", "yeni_ortam_karsi_kol"])
+def test_ESKI_end_BEKLERKEN_ikincisi_EKLENMIYOR(qapp, metin, satir, sutun, yeni, beklenen):
+    r"""ÖLÇÜLDÜ (2026-09-25, gerçek pdflatex): aynı adı yeniden yazmak bile
+    ikinci `\end{itemize}` ekleyip `\item`leri ortamın dışına itiyordu
+    ("perhaps a missing \item")."""
+    ed = _editor()
+    ed.setText(metin)
+    ed.setCursorPosition(satir, sutun)
+    QTest.keyClicks(ed, yeni)
+    assert lf_ye_indir(ed.text()).split("\n") == beklenen
+
+
 @pytest.mark.parametrize("on, yazilan", [
     ("", "\\begin{figure}"),                     # \end bloğu ekleniyor
     ("\\label{fig:abc}\n", "\\ref{fig:abc}"),    # kapanış atlanıyor

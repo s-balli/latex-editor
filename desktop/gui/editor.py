@@ -17,7 +17,7 @@ from core.fs_ops import coz_adiyla, lf_ye_indir
 from core.log import get_logger
 from core.latex_utils import sozel_soy, strip_comments
 from core.latex_refs import (
-    CITE_KOMUTLARI, REF_ARALIK_KOMUTLARI, REF_KOMUTLARI,
+    CITE_KOMUTLARI, COKLU_REF_KOMUTLARI, REF_ARALIK_KOMUTLARI, REF_KOMUTLARI,
     bibitem_anahtarlari_satirda, collect_citable_keys,
     collect_image_paths, collect_input_paths, collect_labels,
     komut_alternatifi,
@@ -63,6 +63,10 @@ _RE_REF_TETIK = re.compile(
 _RE_REF_ARALIK_TETIK = re.compile(
     komut_alternatifi(REF_ARALIK_KOMUTLARI)
     + r'\{[^{}]*\}\{([\w:.\-]*)$')
+# cleveref listesinin sonraki anahtarları (`\cref{fig:a,fi`); ayraç boşluksuz
+# virgül (gerekçe COKLU_REF_KOMUTLARI'nda). Liste açılmıyordu (ölçüldü).
+_RE_REF_LISTE_TETIK = re.compile(
+    komut_alternatifi(COKLU_REF_KOMUTLARI) + r'\{(?:[\w:.\-]*,)+([\w:.\-]*)$')
 # İsteğe bağlı argüman (`\cite[s.~5]{`, `\citep[bkz.][]{`) Alt+tık desenindeki
 # gibi atlanıyor; tetikleyici onu tanımıyordu, liste açılmıyordu (ölçüldü).
 _RE_CITE_TETIK = re.compile(
@@ -425,6 +429,10 @@ class EditorWidget(QsciScintilla):
         if (event.modifiers() & Qt.KeyboardModifier.ControlModifier and
                 event.key() == Qt.Key.Key_Space):
             self._check_autocomplete(manual=True)
+        elif (event.key() == Qt.Key.Key_Backspace
+              and event.modifiers() == Qt.KeyboardModifier.NoModifier
+              and self._cifti_sil()):
+            pass
         elif self._handle_autopair(event):
             # Tuşu editör kendisi işledi (çift, atlama, \end bloğu): yazılan
             # kelime bitti, tamamlama listesi kapanmalı. Açık kalınca sonraki
@@ -488,6 +496,13 @@ class EditorWidget(QsciScintilla):
         if not has_sel and text == '}':
             m = re.search(r'\\begin\{([A-Za-z]+\*?)$', self._text_before_cursor())
             if m and self._soldaki_stil() != LatexLexer.COMMENT:
+                # Eski \end yerinde bekliyorsa (ortamın adı `}` dahil silinip
+                # yeniden yazıldı) İKİNCİSİ eklenmiyor, `}` olduğu gibi yazılıyor.
+                # ÖLÇÜLDÜ (2026-09-25, gerçek pdflatex): aynı adı yeniden
+                # yazmak bile ikinci `\end{itemize}` ekleyip `\item`leri
+                # ortamın dışına itiyordu ("perhaps a missing \item").
+                if self._yetim_end_var():
+                    return False
                 self._insert_begin_end(m.group(1))
                 return True
 
@@ -572,6 +587,53 @@ class EditorWidget(QsciScintilla):
         self.setCursorPosition(line, index + 1)
         self.endUndoAction()
 
+    def _cifti_sil(self) -> bool:
+        """İmleç boş bir çiftin ARASINDAYSA Backspace ikisini birden siler.
+
+        Açılış yazılıp hemen silinince kapanış kalıyordu. ÖLÇÜLDÜ
+        (2026-09-25, gerçek pdflatex): `$` yazıp silmek belgede tek `$`
+        bırakıyor, "Missing $ inserted". Tek undo adımı; `\\$` düz karakter,
+        onun arkasındaki `$` çiftin açılışı değil.
+        """
+        if self.hasSelectedText():
+            return False
+        once = self._text_before_cursor()
+        if not once or _PAIRS.get(once[-1]) != self._char_after_cursor():
+            return False
+        onceki = once[:-1]
+        if once[-1] == '$' and (len(onceki) - len(onceki.rstrip('\\'))) % 2:
+            return False
+        line, index = self.getCursorPosition()
+        self.beginUndoAction()
+        self.setSelection(line, index - 1, line, index + 1)
+        self.removeSelectedText()
+        self.endUndoAction()
+        return True
+
+    def _yetim_end_var(self) -> bool:
+        """İmleçten sonraki ilk DERİNLİK-0 `\\end` çevreleyen ortamın değil mi.
+
+        Öyleyse o, adı az önce silinen \\begin'in eski eşi: yeni bir \\end
+        eklemek ikinciyi yaratıyor. Eşi bu dosyada olmayan kapanış
+        (kökteki `\\begin{document}`in `\\end`i gibi) da buraya düşüyor; o
+        zaman yalnız otomatik ekleme atlanıyor, hiçbir şey değiştirilmiyor.
+        """
+        line, col = self.getCursorPosition()
+        acik, derinlik = [], 0
+        for ln, s, _e, tur, ad in self._get_beginend_tags():
+            if (ln, s) < (line, col):
+                if tur == "begin":
+                    acik.append(ad)
+                elif acik and acik[-1] == ad:
+                    acik.pop()
+            elif tur == "begin":
+                derinlik += 1
+            elif derinlik:
+                derinlik -= 1
+            else:
+                return not (acik and acik[-1] == ad)
+        return False
+
     def _smart_indent_after_enter(self):
         """Enter'da önceki satır \\begin{X} ile bitiyorsa yeni satırı +1 girintile (C.9).
 
@@ -638,7 +700,8 @@ class EditorWidget(QsciScintilla):
         # açılmalı; o kol yalnız aralık komutlarına özel, yoksa `\ref{a}{`
         # gibi bir yazımda da açılırdı.
         ref = (_RE_REF_TETIK.search(text_before)
-               or _RE_REF_ARALIK_TETIK.search(text_before))
+               or _RE_REF_ARALIK_TETIK.search(text_before)
+               or _RE_REF_LISTE_TETIK.search(text_before))
         if ref:
             self._show_ref_completion(ref.group(1))
             return

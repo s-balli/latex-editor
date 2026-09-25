@@ -502,6 +502,24 @@ def test_ATIF_tetikleyicisi_LaTeXin_kabul_ettigi_bicimlerde_aciliyor(qapp, yazil
     assert ed.isListActive()
 
 
+@pytest.mark.parametrize("yazilan, liste", [
+    ("\\cref{fig:a,ta", True),       # cleveref listesi: ikinci anahtar
+    ("\\ref{fig:a,ta", False),       # \ref tek anahtar alıyor
+], ids=["cref_listesi", "ref_tek_anahtar"])
+def test_CREF_listesinde_SONRAKI_anahtar_da_oneriliyor(qapp, yazilan, liste):
+    r"""`\cref{a,b}` iki etikete gidiyor (gerçek pdflatex: "figs. 1 and 2"),
+    ikinci anahtar için liste açılmıyordu. `\ref{a,b}` ise "a,b" adlı tek
+    etikete bakıyor; orada liste açılmamalı."""
+    ed = _editor()
+    ed.setText("\\label{fig:a}\\label{tab:b}\n")
+    ed.setCursorPosition(1, 0)
+    _yaz(ed, yazilan)
+    assert ed.isListActive() is liste
+    if liste:
+        QTest.keyClick(ed, Qt.Key.Key_Return)
+        assert _line(ed, 1) == "\\cref{fig:a,tab:b}"
+
+
 def test_TURKCE_harfle_baslayan_etiket_ONERILIYOR(qapp):
     r"""Etiket kuralı Türkçe harfi kabul ediyor (tablo sihirbazı da üretiyor)
     ama `\ref{ş` liste açmıyordu; kabul de baytla doğru olmalı."""

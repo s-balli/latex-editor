@@ -1015,6 +1015,12 @@ _RE_REFUSE = re.compile(
 # tamamlama açılmıyor, Alt+tık tanıma gitmiyor, F2 anahtarı görmüyordu.
 REF_KOMUTLARI = _REF_ARALIK_KOMUTLARI + _REF_TEKIL_KOMUTLARI
 REF_ARALIK_KOMUTLARI = _REF_ARALIK_KOMUTLARI
+# Virgüllü LİSTE alan referans komutları (cleveref). `\ref{a,b}` "a,b" adlı
+# tek etikete bakıyor; bunlar iki etikete. Ayraç BOŞLUKSUZ virgül: ÖLÇÜLDÜ
+# (2026-09-25, gerçek pdflatex) `\cref{fig:a,fig:b}` "figs. 1 and 2",
+# `\cref{fig:a, fig:b}` "fig. 1 and ??" veriyor (boşluk anahtara dahil).
+COKLU_REF_KOMUTLARI = ("cref", "Cref", "cpageref", "Cpageref",
+                       "labelcref", "labelcpageref")
 CITE_KOMUTLARI = _CITE_KOMUTLARI
 # Yazım denetimi de bu aileyi okuyor: argümanı anahtar, düz metin değil.
 COKLU_CITE_KOMUTLARI = _COKLU_CITE_KOMUTLARI
