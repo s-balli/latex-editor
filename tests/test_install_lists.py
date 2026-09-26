@@ -192,6 +192,10 @@ def test_landing_page_yeni_ozellikleri_iceriyor():
         # değişmemişti.
         "Spell check", "Yazım denetimi",
         "Autosave", "Otomatik kaydetme",
+        # 2026-09-26 turu: v1.1.0 bölüm dosyasından derlemeyi getirmişti,
+        # kart hâlâ yalnız `% !TEX root`u anlatıyordu (düz düzen bu turda
+        # düzeldi, bkz. engine_detector.kok_belge).
+        "\\input/\\include chain", "\\input/\\include zincirinden",
     ):
         assert beklenen in sayfa, f"tanıtım sayfasında yok: {beklenen}"
 
