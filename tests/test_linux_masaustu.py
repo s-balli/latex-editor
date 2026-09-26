@@ -131,13 +131,27 @@ def test_METAINFO_en_ustteki_surum_VERSION_ile_ayni():
     assert re.fullmatch(r"\d{4}-\d{2}-\d{2}", surumler[0].get("date") or "")
 
 
+def test_METAINFO_ESKI_appstreamcli_ile_de_paketleniyor():
+    """Yayın koşucusu ubuntu-22.04 ve orada appstreamcli 0.15. O sürüm
+    `url type="vcs-browser"`a UYARI veriyor (appimagetool uyarıda
+    paketlemeyi durduruyor) ve `<developer>` etiketini tanımıyor. ÖLÇÜLDÜ
+    (2026-09-26, geçici PR ön uçuşu, appstreamcli kurulu kol): "Failed to
+    validate AppStream information"; yerelde 1.0.2 ise ikisini de temiz
+    geçirmişti. CI'da appstreamcli yok, o yüzden bu kapı statik."""
+    kok = _metainfo()
+    assert kok.find("url[@type='vcs-browser']") is None
+    assert kok.find("developer") is None
+    assert kok.findtext("developer_name"), "geliştirici bilgisi yok"
+
+
 @pytest.mark.skipif(shutil.which("appstreamcli") is None,
                     reason="appstreamcli yok (CI makinesinde de yok)")
 def test_METAINFO_appstreamcli_validate_tree_TEMIZ(tmp_path):
     """appimagetool'un koşturduğu doğrulamanın aynısı, yapının kuracağı
     dizin düzeniyle. Kırılırsa: appstreamcli kurulu makinede AppImage
     paketlemesi durur. Ağ kapalı: görselin varlığını yukarıdaki kapı
-    depodan sınıyor."""
+    depodan sınıyor. Buradaki sürüm makineye göre değişiyor (WSL 1.0.2,
+    Ubuntu 22.04 0.15); eski sürümün kuralı bir üstteki kapıda."""
     for alt in ("usr/share/applications", "usr/share/metainfo",
                 "usr/share/icons/hicolor/256x256/apps"):
         (tmp_path / alt).mkdir(parents=True)
