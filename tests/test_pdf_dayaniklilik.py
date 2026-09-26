@@ -135,7 +135,7 @@ def test_bozuk_sayfa_zoom_dugmesini_oldurmuyor(viewer):
 def test_bozuk_sayfa_sunum_modunu_oldurmuyor(viewer, qapp):
     viewer.enter_presentation()
     qapp.processEvents()
-    viewer._pdf = _PatlayanBelge(viewer._pdf, viewer._current_page)
+    viewer._pdf = _PatlayanBelge(viewer._pdf, viewer._sunum_sayfasi)
     viewer._pres_cache.clear()
 
     viewer._presentation_render()        # istisna dışarı çıkmamalı
@@ -606,16 +606,16 @@ def test_sunum_GEZINMESI_hala_calisiyor(viewer, qapp):
     qapp.processEvents()
     try:
         viewer._presentation_key_event(_tus(K.Key_Right))
-        assert viewer._current_page == 1, viewer._current_page
+        assert viewer._sunum_sayfasi == 1, viewer._sunum_sayfasi
         viewer._presentation_key_event(_tus(K.Key_Left))
-        assert viewer._current_page == 0, viewer._current_page
+        assert viewer._sunum_sayfasi == 0, viewer._sunum_sayfasi
         viewer._presentation_key_event(_tus(K.Key_End))
-        assert viewer._current_page == 1, viewer._current_page
+        assert viewer._sunum_sayfasi == 1, viewer._sunum_sayfasi
         viewer._presentation_key_event(_tus(K.Key_Home))
-        assert viewer._current_page == 0, viewer._current_page
+        assert viewer._sunum_sayfasi == 0, viewer._sunum_sayfasi
         # sinirda durmali
         viewer._presentation_key_event(_tus(K.Key_Left))
-        assert viewer._current_page == 0, viewer._current_page
+        assert viewer._sunum_sayfasi == 0, viewer._sunum_sayfasi
     finally:
         viewer._presentation_key_event(_tus(K.Key_Escape))
         qapp.processEvents()
@@ -673,7 +673,7 @@ def test_sunum_TUSU_eventFilter_uzerinden_geliyor(viewer, qapp):
         yutuldu = viewer.eventFilter(viewer._presentation_label,
                                      _tus(K.Key_Right))
         assert yutuldu is True, "olay yutulmadi, altta baska bir sey isliyor"
-        assert viewer._current_page == 1
+        assert viewer._sunum_sayfasi == 1
     finally:
         viewer._presentation_key_event(_tus(K.Key_Escape))
         qapp.processEvents()
@@ -689,10 +689,10 @@ def test_sunum_SOL_tik_ileri_SAG_tik_geri(viewer, qapp):
     try:
         assert viewer.eventFilter(viewer._presentation_label,
                                   _fare(Qt.MouseButton.LeftButton)) is True
-        assert viewer._current_page == 1, "sol tik ileri gitmedi"
+        assert viewer._sunum_sayfasi == 1, "sol tik ileri gitmedi"
         viewer.eventFilter(viewer._presentation_label,
                            _fare(Qt.MouseButton.RightButton))
-        assert viewer._current_page == 0, "sag tik geri gitmedi"
+        assert viewer._sunum_sayfasi == 0, "sag tik geri gitmedi"
     finally:
         viewer._presentation_key_event(_tus(K.Key_Escape))
         qapp.processEvents()
@@ -707,11 +707,11 @@ def test_sunum_tikta_SINIRDA_duruyor(viewer, qapp):
     try:
         viewer.eventFilter(viewer._presentation_label,
                            _fare(Qt.MouseButton.RightButton))
-        assert viewer._current_page == 0, "ilk sayfada geri gitti"
-        viewer._current_page = viewer._page_count - 1
+        assert viewer._sunum_sayfasi == 0, "ilk sayfada geri gitti"
+        viewer._sunum_sayfasi = viewer._page_count - 1
         viewer.eventFilter(viewer._presentation_label,
                            _fare(Qt.MouseButton.LeftButton))
-        assert viewer._current_page == viewer._page_count - 1, \
+        assert viewer._sunum_sayfasi == viewer._page_count - 1, \
             "son sayfada ileri gitti"
     finally:
         viewer._presentation_key_event(_tus(K.Key_Escape))
@@ -731,7 +731,7 @@ def test_sunum_tikta_GORUNTU_gercekten_degisiyor(viewer, qapp):
         viewer.eventFilter(viewer._presentation_label,
                            _fare(Qt.MouseButton.LeftButton))
         qapp.processEvents()
-        assert viewer._current_page == 1
+        assert viewer._sunum_sayfasi == 1
         assert _sunum_ozeti(viewer) != ilk, "sayfa degisti ama goruntu ayni"
     finally:
         viewer._presentation_key_event(_tus(K.Key_Escape))
@@ -748,6 +748,280 @@ def test_sunum_DISINDA_fare_sunum_yoluna_girmiyor(viewer, qapp):
                        _fare(Qt.MouseButton.LeftButton))
     qapp.processEvents()
     assert viewer._current_page == 0
+
+
+# =====================================================================
+# Sunum modunun kalan açıkları (ölçüldü 2026-09-26)
+#
+# Gerçek pencerede, iki gerçek ekranda (2560x1080 ve 1920x1080) ve gerçek
+# pdflatex beamer çıktısıyla:
+#
+#   kumanda tuşları    PageDown, PageUp ve Backspace hiçbir şey yapmıyordu
+#   derleme bitince    sayfa 0'a dönüyor, ekranda eski PDF'in karesi kalıyordu
+#   dışarıdan kapatma  Alt+F4 ve görev çubuğu `_presentation_mode`u açık
+#                      bırakıyordu
+#   beamer slaytı      ekran yüksekliğinin %70.9-75.6'sı (3.0 ölçek tavanı)
+#   iki ekran          sunum pencerenin değil birincil ekranın üstünde
+#   ana pencere        kapanınca sunum açık kalıyor, süreç sürüyordu
+#
+# Kehanet her yerde EKRANDAKİ KARE: sayaç değil, kullanıcının gördüğü şey.
+# =====================================================================
+
+
+def _gonder(hedef, k):
+    """Tuşu GERÇEK olay yolundan gönder (uygulama ve pencere süzgeçleri)."""
+    QApplication.sendEvent(hedef, _tus(k))
+
+
+def _slayt_pdf(yol, onek, sayfa, kutu=(400, 300)):
+    """Her sayfası FARKLI yazı taşıyan (`<onek>-<n>`) elle kurulmuş PDF."""
+    nesneler = [b"<</Type/Catalog/Pages 2 0 R>>", None,
+                b"<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>"]
+    kids = []
+    for i in range(sayfa):
+        icerik = ("BT /F1 60 Tf 30 100 Td (%s-%d) Tj ET" % (onek, i + 1)).encode()
+        nesneler.append(b"<</Length %d>>stream\n" % len(icerik) + icerik +
+                        b"\nendstream")
+        nesneler.append(("<</Type/Page/Parent 2 0 R/MediaBox[0 0 %s %s]"
+                         "/Resources<</Font<</F1 3 0 R>>>>/Contents %d 0 R>>"
+                         % (kutu[0], kutu[1], len(nesneler))).encode())
+        kids.append(b"%d 0 R" % len(nesneler))
+    nesneler[1] = (b"<</Type/Pages/Kids[" + b" ".join(kids) +
+                   b"]/Count %d>>" % sayfa)
+    out = bytearray(b"%PDF-1.4\n")
+    yerler = []
+    for i, n in enumerate(nesneler, start=1):
+        yerler.append(len(out))
+        out += b"%d 0 obj" % i + n + b"endobj\n"
+    xref = len(out)
+    out += b"xref\n0 %d\n0000000000 65535 f \n" % (len(nesneler) + 1)
+    for y in yerler:
+        out += b"%010d 00000 n \n" % y
+    out += (b"trailer<</Size %d/Root 1 0 R>>\nstartxref\n%d\n%%%%EOF\n"
+            % (len(nesneler) + 1, xref))
+    with open(yol, "wb") as f:
+        f.write(bytes(out))
+
+
+def _slayt_kareleri(qapp, yol):
+    """Kehanet: belge TEMİZ bir görüntüleyicide baştan gezilince her karesi."""
+    v = PdfViewer(theme=THEMES["dark"])
+    try:
+        assert v.load_pdf(yol)
+        v.enter_presentation()
+        qapp.processEvents()
+        kareler = [_sunum_ozeti(v)]
+        for _ in range(v._page_count - 1):
+            _gonder(v._presentation_widget, _K().Key_Right)
+            kareler.append(_sunum_ozeti(v))
+        assert len(set(kareler)) == len(kareler), "kareler ayırt edilemiyor"
+        return kareler
+    finally:
+        v.exit_presentation()
+        v.shutdown()
+        v.close()
+        qapp.processEvents()
+
+
+@gui
+@pytest.mark.parametrize("tus_adi, bas, son", [
+    ("Key_PageDown", 0, 1),
+    ("Key_PageUp", 1, 0),
+    ("Key_Backspace", 1, 0),
+])
+def test_SUNUM_KUMANDASININ_tuslari_slayti_degistiriyor(viewer, qapp, tus_adi,
+                                                        bas, son):
+    """Kumandalar ileri/geri için PageDown/PageUp gönderiyor; Backspace ortak
+    "geri" tuşu. Kırılırsa: tuş yine yutuluyor demektir."""
+    K = _K()
+    viewer.enter_presentation()
+    qapp.processEvents()
+    try:
+        kareler = [_sunum_ozeti(viewer)]
+        _gonder(viewer._presentation_widget, K.Key_Right)
+        kareler.append(_sunum_ozeti(viewer))
+        assert kareler[0] != kareler[1], "kapı boş koşuyor: kareler aynı"
+        if bas == 0:
+            _gonder(viewer._presentation_widget, K.Key_Left)
+        _gonder(viewer._presentation_widget, getattr(K, tus_adi))
+        assert _sunum_ozeti(viewer) == kareler[son], (
+            "%s sayfa %d'den %d'ye götürmedi" % (tus_adi, bas + 1, son + 1))
+    finally:
+        viewer.exit_presentation()
+        qapp.processEvents()
+
+
+@gui
+def test_SUNUM_SURERKEN_derleme_bitince_AYNI_slaytta_TAZE_kareyle(qapp,
+                                                                 tmp_path):
+    """compile_ops._on_compile_finished: `load_pdf`, ardından ileri arama.
+
+    Kırılırsa: sunum yine ana görüntüleyicinin sayfasını izliyor demektir;
+    yükleme onu 0'a çekiyordu, ileri arama imlecin sayfasına götürüyordu.
+    """
+    K = _K()
+    yol = str(tmp_path / "slayt.pdf")
+    _slayt_pdf(yol, "A", 4)
+    v = PdfViewer(theme=THEMES["dark"])
+    try:
+        assert v.load_pdf(yol)
+        v.enter_presentation()
+        qapp.processEvents()
+        _gonder(v._presentation_widget, K.Key_Right)
+        _gonder(v._presentation_widget, K.Key_Right)        # 3. slayt
+
+        _slayt_pdf(yol, "B", 4)          # derleme aynı dosyayı yeniden yazdı
+        yeni = _slayt_kareleri(qapp, yol)
+        assert v.load_pdf(yol)
+        v.scroll_to_position(1, 10.0, 10.0)  # imleç 1. sayfada
+        qapp.processEvents()
+        assert _sunum_ozeti(v) == yeni[2], "3. slaytın YENİ karesi değil"
+        v.enter_presentation()          # ana pencerede yeniden F5 (iki ekran)
+        qapp.processEvents()
+        assert _sunum_ozeti(v) == yeni[2], "yeniden F5 sunumu başka sayfaya attı"
+
+        _gonder(v._presentation_widget, K.Key_Right)
+        assert _sunum_ozeti(v) == yeni[3], "Sağ tuşu 4. slayta gitmedi"
+    finally:
+        v.exit_presentation()
+        v.shutdown()
+        v.close()
+        qapp.processEvents()
+
+
+@gui
+def test_SUNUM_penceresi_DISARIDAN_kapaninca_cikis_calisiyor(viewer, qapp):
+    """Windows'ta Alt+F4 ve görev çubuğu, Linux'ta pencere yöneticisi.
+
+    `close()` aynı QCloseEvent yolu; gerçek pencereye Alt+F4 ve WM_CLOSE
+    gönderilerek de ölçüldü. Kırılırsa: pencere kapanıyor, sunum açık
+    sanılıyor ve ana görüntüleyici sunumun kaldığı sayfaya gitmiyor.
+    """
+    viewer.enter_presentation()
+    qapp.processEvents()
+    _gonder(viewer._presentation_widget, _K().Key_Right)    # 2. sayfa
+    try:
+        viewer._presentation_widget.close()
+        qapp.processEvents()
+
+        assert viewer._presentation_mode is False, "sunum açık sanılıyor"
+        assert viewer._presentation_widget is None
+        assert viewer._current_page == 1, viewer._current_page
+    finally:
+        # Kırılınca sunum penceresi süzgeciyle kalıyor; fixture görüntüleyiciyi
+        # yok edince süreç 0xC0000409 ile düşüyor ve kalan testler koşmuyordu
+        # (ölçüldü: HEAD'de).
+        viewer.exit_presentation()
+        qapp.processEvents()
+
+
+@gui
+@pytest.mark.parametrize("en, boy", [(362.835, 272.126), (453.543, 255.118)],
+                         ids=["beamer_4_3", "beamer_16_9"])
+def test_BEAMER_slayti_ekrani_DOLDURUYOR(qapp, tmp_path, en, boy):
+    """Sayfa boyları gerçek pdflatex beamer çıktısının (4:3 ve 16:9).
+
+    Kırılırsa: ölçekte yine sabit bir tavan var demektir; 3.0 tavanıyla
+    1080 px'lik ekranda 817 ve 766 px çıkıyordu.
+    """
+    yol = str(tmp_path / "beamer.pdf")
+    _slayt_pdf(yol, "S", 1, kutu=(en, boy))
+    v = PdfViewer(theme=THEMES["dark"])
+    try:
+        assert v.load_pdf(yol)
+        yukseklik = _slayt_yuksekligi(v, qapp, _SahteEkran(1080, 1080, w=1920))
+    finally:
+        v.shutdown()
+        v.close()
+        qapp.processEvents()
+    assert 0.97 * 1080 <= yukseklik <= 1080, yukseklik
+
+
+_IKI_EKRAN_COCUK = r'''
+import os, sys
+os.chdir(sys.argv[1])
+# Yol GÖRELİ: "C:"deki iki nokta Qt'nin platform argümanlarını bölüyor
+# (ölçüldü: mutlak yolla süreç hiçbir şey yazmadan 127 ile çıkıyor).
+os.environ["QT_QPA_PLATFORM"] = "offscreen:configfile=ekranlar.json"
+sys.path[:0] = [sys.argv[2], os.path.join(sys.argv[2], "desktop")]
+import core.log as _gunluk
+_gunluk.LOG_DIR = sys.argv[1]
+_gunluk.LOG_FILE = os.path.join(_gunluk.LOG_DIR, "latex-editor.log")
+from PyQt6.QtWidgets import QApplication, QVBoxLayout, QWidget
+app = QApplication([])
+if len(app.screens()) != 2:
+    print("EKRANLAR_KURULAMADI", len(app.screens()))
+    sys.exit(0)
+from gui.pdf_viewer import PdfViewer
+from gui.theme import THEMES
+ikinci = app.screens()[1].geometry()
+kap = QWidget()
+v = PdfViewer(theme=THEMES["dark"])
+QVBoxLayout(kap).addWidget(v)
+kap.setGeometry(ikinci.x() + 100, ikinci.y() + 50, 900, 650)
+kap.show()
+app.processEvents()
+assert v.load_pdf(sys.argv[3])
+v.enter_presentation()
+app.processEvents()
+print("SONUC", v.screen().name(), v._presentation_widget.screen().name(),
+      v._presentation_label.pixmap().height())
+v.exit_presentation()
+v.shutdown()
+'''
+
+
+@gui
+def test_IKI_EKRANDA_sunum_PENCERENIN_ekraninda_aciliyor(tmp_path):
+    """Qt'nin ekransız platformu İKİ sanal ekranla kuruluyor (JSON yapılandırma).
+
+    Gerçek iki ekranda ölçüldü: uygulama ikinci ekrandayken sunum birincilde
+    açılıyordu. Kırılırsa: sunum yine pencerenin ekranını dinlemiyor ya da
+    kare o ekrana göre çizilmiyor demektir.
+    """
+    import json
+    import subprocess
+    import sys
+    (tmp_path / "ekranlar.json").write_text(json.dumps({"screens": [
+        {"name": "BIRINCIL", "x": 0, "y": 0, "width": 2560, "height": 1080,
+         "logicalDpi": 96, "logicalBaseDpi": 96, "dpr": 1},
+        {"name": "IKINCI", "x": 2560, "y": 0, "width": 1366, "height": 768,
+         "logicalDpi": 96, "logicalBaseDpi": 96, "dpr": 1}]}), encoding="utf-8")
+    cocuk = tmp_path / "cocuk.py"
+    cocuk.write_text(_IKI_EKRAN_COCUK, encoding="utf-8")
+    kok = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    pdf = os.path.join(kok, "tests", "veri", "arama_ornegi.pdf")
+    r = subprocess.run([sys.executable, str(cocuk), str(tmp_path), kok, pdf],
+                       capture_output=True, text=True, encoding="utf-8",
+                       errors="replace", timeout=120)
+    # Çocuğun günlüğü hapiste yazıldı mı: yazılmadıysa gerçek dosyaya gitmiştir
+    assert (tmp_path / "latex-editor.log").exists(), r.stderr[-400:]
+    if "EKRANLAR_KURULAMADI" in r.stdout:
+        pytest.skip("bu Qt sürümü ekransız platformda çok ekranı kurmuyor")
+    satir = [s for s in r.stdout.splitlines() if s.startswith("SONUC")]
+    assert satir, (r.stdout[-400:], r.stderr[-400:])
+    _, viewer_ekrani, sunum_ekrani, boy = satir[0].split()
+    assert viewer_ekrani == "IKINCI", "kapı boş koşuyor: pencere 2. ekranda değil"
+    assert sunum_ekrani == "IKINCI", "sunum %s ekranında açıldı" % sunum_ekrani
+    assert int(boy) <= 768, "kare ikinci ekrana sığmıyor: %s px" % boy
+
+
+@gui
+def test_KAPANISTA_sunum_penceresi_de_kapaniyor(viewer, qapp):
+    """MainWindow.closeEvent `shutdown()` çağırıyor. Sunum ayrı bir üst düzey
+    pencere: açık kalırsa Qt son pencerenin kapandığını görmüyor ve süreç
+    sürüyordu (ölçüldü, gerçek app.exec() döngüsünde)."""
+    viewer.enter_presentation()
+    qapp.processEvents()
+    assert viewer._presentation_widget is not None, "kapı boş koşuyor"
+    try:
+        viewer.shutdown()
+        qapp.processEvents()
+        assert viewer._presentation_mode is False
+        assert viewer._presentation_widget is None, "sunum penceresi açık kaldı"
+    finally:
+        viewer.exit_presentation()      # bkz. DISARIDAN kapısındaki not
+        qapp.processEvents()
 
 
 # =====================================================================

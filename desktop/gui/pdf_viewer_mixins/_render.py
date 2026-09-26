@@ -78,6 +78,10 @@ class PdfRenderMixin:
             self._restore_search()      # açık arama derlemeyi atlatsın
             self._update_nav()
             QTimer.singleShot(50, self._render_visible)
+            # Sunum sürerken biten derleme: sunum aynı sayfada kalıp YENİ
+            # belgeden çiziliyor (bkz. _presentation.enter_presentation).
+            if self._presentation_mode:
+                self._sunum_git(self._sunum_sayfasi)
             self._btn_save.setEnabled(True)
             _logger.info("PDF yüklendi: %s (%d sayfa)", path, self._page_count)
             return True
@@ -169,6 +173,16 @@ class PdfRenderMixin:
             sw.stop()
             if sw.isRunning():
                 sw.wait(6000)
+        # Sunum AYRI bir üst düzey pencere ve kapanışta açık kalıyordu; Qt
+        # "son pencere kapandı" demediği için süreç de sürüyordu. ÖLÇÜLDÜ
+        # (2026-09-26, gerçek app.exec() döngüsü, Windows ve offscreen): sunum
+        # yokken üst pencere kapanınca süreç 0.3 sn'de bitti, sunum açıkken
+        # 1.5 sn sonra slayt hâlâ ekrandaydı ve süreç ancak Esc'ten sonra
+        # bitti. İki ekranlı düzende ana pencere sunumun yanında açık duruyor.
+        # İşçilerden SONRA: `__del__` yolunda Qt nesneleri silinmiş olabilir
+        # ve buradaki bir hata işçi durdurmayı atlatmamalı.
+        if getattr(self, "_presentation_mode", False):
+            self.exit_presentation()
 
     # Tek karo olarak render edilen sayfa icin ust sinir. Olculdu (2026-09-02):
     # A0 afis 3x yakinlastirmada 162.7 megapiksel ve +1031 MB; /MediaBox'i

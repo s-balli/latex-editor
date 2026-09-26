@@ -30,15 +30,19 @@ class PdfEventsMixin:
             self._presentation_key_event(event)
             return True
         if event.type() == QEvent.Type.MouseButtonPress:
-            if event.button() == Qt.MouseButton.LeftButton and self._current_page < self._page_count - 1:
-                self._current_page += 1
-                self._update_nav()
-                self._presentation_render()
-            elif event.button() == Qt.MouseButton.RightButton and self._current_page > 0:
-                self._current_page -= 1
-                self._update_nav()
-                self._presentation_render()
+            if event.button() == Qt.MouseButton.LeftButton:
+                self._sunum_git(self._sunum_sayfasi + 1)
+            elif event.button() == Qt.MouseButton.RightButton:
+                self._sunum_git(self._sunum_sayfasi - 1)
             return True
+        if event.type() == QEvent.Type.Close:
+            # Pencere Esc dışında da kapanıyor: Windows'ta Alt+F4 ve görev
+            # çubuğu, Linux'ta pencere yöneticisi. Bu yol çıkışı çalıştırmıyordu.
+            # ÖLÇÜLDÜ (2026-09-26, gerçek pencereye Alt+F4 ve WM_CLOSE): pencere
+            # kapandı, `_presentation_mode` açık kaldı; ana görüntüleyicinin
+            # sayacı 7. sayfayı yazarken görüntü 4. sayfadaydı.
+            self.exit_presentation()
+            return False
         if event.type() == QEvent.Type.MouseMove:
             return True
         return super().eventFilter(self._presentation_widget, event)
