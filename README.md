@@ -6,6 +6,7 @@
 [![Downloads](https://img.shields.io/github/downloads/s-balli/latex-editor/total)](https://github.com/s-balli/latex-editor/releases)
 
 [![LaTeX Editor | AlternativeTo](https://alternativeto.net/static/badges/badge-compact-color.svg)](https://alternativeto.net/software/latex-editor/about/?utm_source=badge&utm_medium=referral)
+[![AppImageHub](https://img.shields.io/badge/AppImageHub-LaTeX_Editor-1e88e5?logo=linux&logoColor=white)](https://appimage.github.io/LaTeX_Editor/)
 
 > 🌐 **Landing page:** https://s-balli.github.io/latex-editor/
 
@@ -32,7 +33,7 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 | Platform | File | Requirement |
 |----------|------|-------------|
 | **Windows** | `LaTeX_Editor_v*_Windows.exe` (portable) | [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) + TeX Live |
-| **Linux** | `LaTeX_Editor_v*_Linux_x86_64.AppImage` | TeX Live |
+| **Linux** | `LaTeX_Editor_v*_Linux_x86_64.AppImage` (also on [AppImageHub](https://appimage.github.io/LaTeX_Editor/)) | TeX Live |
 
 ➜ **[Download (Releases) page](https://github.com/s-balli/latex-editor/releases)**
 
@@ -49,6 +50,19 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 ---
 
 ## Version History
+
+### v1.1.1: On Stage
+
+- **Presenter remotes did not work.** Remotes send Page Down and Page Up, and presentation mode ignored both, as well as Backspace. They now change slides.
+- **A compile finishing during a talk sent the presentation back.** With the talk on slide 6, a compile that finished in the background left the old PDF's slide on screen and the next key went to slide 2. The presentation now stays on its slide and shows the new PDF; a forward search, or scrolling the viewer on a second screen, no longer moves it either.
+- **Beamer slides did not fill the screen.** A fixed scale limit kept 4:3 slides at 76% and 16:9 slides at 71% of the screen height (38% and 36% on 4K). They now fill 98%.
+- **Links on slides now work.** The table of contents, `\beamergotobutton` buttons, the navigation symbols and `\href` addresses used to advance to the next slide; they now go to their target. Clicking anywhere else still advances. The mouse wheel changes slides, and the cursor hides after three seconds without movement.
+- **Presenting on two screens.** The presentation opened on the primary screen even when the application window was on the other one; it now opens where the window is. Closing it with Alt+F4 or from the taskbar left the application believing it was still presenting, and closing the main window during a talk left the slide on screen and the process running.
+- **The PDF was blurry on high-DPI screens.** Pages were drawn at the screen's logical resolution and scaled up: at 200% scaling the preview kept 52% of the sharpness of a native rendering, presentation mode 37%. Pages are now drawn for the screen's pixel density (100% at 125% and 200% scaling, 91% at 150%), and moving the window to a screen with a different scale redraws them.
+- **Chapters next to the main file could not be compiled.** v1.1.0 made a chapter file build the whole document, but only when the chapter sat in a subfolder; a chapter in the same folder as `main.tex` still said it cannot be compiled. Both layouts now work.
+- **The Linux menu showed a Turkish-only description.** English desktops and the AppImageHub catalog showed "LaTeX editörü ve derleyici". The description is now English with a Turkish translation, and the AppImage carries AppStream information: license, homepage and screenshot.
+- **Now on AppImageHub**: https://appimage.github.io/LaTeX_Editor/
+- **4328 tests** (4302 in v1.1.0)
 
 ### v1.1.0: Chapter by Chapter
 

@@ -6,6 +6,7 @@
 [![Downloads](https://img.shields.io/github/downloads/s-balli/latex-editor/total)](https://github.com/s-balli/latex-editor/releases)
 
 [![LaTeX Editor | AlternativeTo](https://alternativeto.net/static/badges/badge-compact-color.svg)](https://alternativeto.net/software/latex-editor/about/?utm_source=badge&utm_medium=referral)
+[![AppImageHub](https://img.shields.io/badge/AppImageHub-LaTeX_Editor-1e88e5?logo=linux&logoColor=white)](https://appimage.github.io/LaTeX_Editor/)
 
 > 🌐 **Tanıtım sayfası:** https://s-balli.github.io/latex-editor/
 
@@ -32,7 +33,7 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 | Platform | Dosya | Gereksinim |
 |----------|-------|------------|
 | **Windows** | `LaTeX_Editor_v*_Windows.exe` (portable) | [WSL](https://learn.microsoft.com/en-us/windows/wsl/install) + TeX Live |
-| **Linux** | `LaTeX_Editor_v*_Linux_x86_64.AppImage` | TeX Live |
+| **Linux** | `LaTeX_Editor_v*_Linux_x86_64.AppImage` ([AppImageHub](https://appimage.github.io/LaTeX_Editor/)'da da var) | TeX Live |
 
 ➜ **[Download (Releases) sayfası](https://github.com/s-balli/latex-editor/releases)**
 
@@ -49,6 +50,19 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 ---
 
 ## Sürüm Geçmişi
+
+### v1.1.1: Sahnede
+
+- **Sunum kumandaları çalışmıyordu.** Kumandalar Page Down ve Page Up gönderiyor; sunum modu ikisini de, Backspace'i de yok sayıyordu. Artık slayt değiştiriyorlar.
+- **Sunum sürerken biten derleme sunumu geri götürüyordu.** Konuşma 6. slayttayken arkada biten bir derleme ekranda eski PDF'in slaytını bırakıyor, sonraki tuş 2. slayda gidiyordu. Sunum artık slaytında kalıp yeni PDF'i gösteriyor; ileri arama ya da ikinci ekranda görüntüleyiciyi kaydırmak da onu oynatmıyor.
+- **Beamer slaytları ekranı doldurmuyordu.** Sabit bir ölçek sınırı 4:3 slaytı ekran yüksekliğinin %76'sında, 16:9 slaytı %71'inde tutuyordu (4K'da %38 ve %36). Artık %98'ini dolduruyorlar.
+- **Slayttaki bağlantılar artık çalışıyor.** İçindekiler, `\beamergotobutton` düğmeleri, gezinme simgeleri ve `\href` adresleri sonraki slayda geçiyordu; artık hedeflerine gidiyorlar. Başka bir yere tıklamak yine ileri götürüyor. Fare tekerleği slayt değiştiriyor, imleç üç saniye kıpırdamayınca gizleniyor.
+- **İki ekranda sunum.** Uygulama penceresi öbür ekrandayken bile sunum birincil ekranda açılıyordu; artık pencerenin olduğu ekranda açılıyor. Alt+F4 ya da görev çubuğuyla kapatınca uygulama sunumun sürdüğünü sanıyordu; konuşma sırasında ana pencereyi kapatmak slaytı ekranda bırakıp süreci çalışır tutuyordu.
+- **Yüksek DPI ekranda PDF bulanıktı.** Sayfalar ekranın mantıksal çözünürlüğünde çizilip büyütülüyordu: %200 ölçekte önizleme yerel bir çizimin netliğinin %52'sini, sunum modu %37'sini taşıyordu. Sayfalar artık ekranın piksel yoğunluğunda çiziliyor (%125 ve %200'de %100, %150'de %91); pencere başka ölçekli bir ekrana taşınınca yeniden çiziliyor.
+- **Ana dosyanın yanındaki bölümler derlenemiyordu.** v1.1.0 bölüm dosyasından bütün belgeyi derlemeyi getirmişti, ama yalnız bölüm bir alt klasördeyse; `main.tex` ile aynı klasördeki bölüm hâlâ derlenemez diyordu. İki düzen de artık çalışıyor.
+- **Linux menüsünde açıklama yalnız Türkçeydi.** İngilizce masaüstleri ve AppImageHub kataloğu "LaTeX editörü ve derleyici" gösteriyordu. Açıklama artık İngilizce, Türkçe karşılığıyla; AppImage AppStream bilgisi de taşıyor: lisans, ana sayfa ve ekran görüntüsü.
+- **Artık AppImageHub'da**: https://appimage.github.io/LaTeX_Editor/
+- **4328 test** (v1.1.0'da 4302)
 
 ### v1.1.0: Bölüm Bölüm
 

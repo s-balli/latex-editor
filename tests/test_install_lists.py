@@ -196,6 +196,11 @@ def test_landing_page_yeni_ozellikleri_iceriyor():
         # kart hâlâ yalnız `% !TEX root`u anlatıyordu (düz düzen bu turda
         # düzeldi, bkz. engine_detector.kok_belge).
         "\\input/\\include chain", "\\input/\\include zincirinden",
+        # v1.1.1: sunum modu ve yüksek DPI; ikisi de fix( olarak geldi,
+        # git tarihine bakan kapı onları göremiyordu.
+        "A presenter remote", "Sunum kumandası",
+        "high-DPI screens", "yüksek DPI ekranlarda",
+        "appimage.github.io/LaTeX_Editor",
     ):
         assert beklenen in sayfa, f"tanıtım sayfasında yok: {beklenen}"
 
