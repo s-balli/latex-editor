@@ -1,6 +1,6 @@
 """PDF görüntüleyici — mixin kompozisyonu ile modüler yapı."""
 
-from PyQt6.QtCore import pyqtSignal, QTimer
+from PyQt6.QtCore import pyqtSignal, QEvent, QTimer
 from PyQt6.QtGui import QPixmap, QKeySequence
 from PyQt6.QtWidgets import QWidget, QLabel
 
@@ -86,6 +86,15 @@ class PdfViewer(
             self._copy_selection()
             return
         super().keyPressEvent(event)
+
+    def event(self, event):
+        # Pencere başka çarpanlı bir ekrana geçti (ör. %150'lik dizüstünden
+        # %100'lük harici ekrana): kareler eski yoğunlukta kalmasın. Qt bunu
+        # changeEvent'e DEĞİL event'e veriyor (ölçüldü, Qt 6.11).
+        if (event.type() == QEvent.Type.DevicePixelRatioChange
+                and getattr(self, "_pdf", None)):
+            self._kareleri_yeniden_ciz()
+        return super().event(event)
 
     def closeEvent(self, event):
         """Kapanırken işçileri durdur.

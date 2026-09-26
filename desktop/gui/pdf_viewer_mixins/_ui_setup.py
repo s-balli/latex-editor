@@ -443,20 +443,29 @@ class PdfUISetupMixin:
 
     def _toggle_invert(self, checked: bool):
         self._invert_colors = checked
-        self._pres_cache.clear()
         self._kaydirma_zemini()
+        self._kareleri_yeniden_ciz()
+        if self._presentation_mode:
+            self._presentation_render()
+
+    def _kareleri_yeniden_ciz(self):
+        """Sayfa karelerini at, görünenleri yeniden çizdir.
+
+        İki çağıran: renk tersi ve ekran çarpanının değişmesi (pencere başka
+        çarpanlı bir ekrana geçti, bkz. PdfViewer.event).
+        """
+        ters = self._invert_colors
+        self._pres_cache.clear()
         for i, label in enumerate(self._page_labels):
             if i >= self._page_count:
                 break
             label.setPixmap(QPixmap())
             label.setStyleSheet(
-                f"background: {'#000' if checked else self._theme['bg_pdf_placeholder']}; "
-                f"border: 1px solid {'#222' if checked else self._theme['border_input']};"
+                f"background: {'#000' if ters else self._theme['bg_pdf_placeholder']}; "
+                f"border: 1px solid {'#222' if ters else self._theme['border_input']};"
             )
         from PyQt6.QtCore import QTimer
         QTimer.singleShot(50, self._render_visible)
-        if self._presentation_mode:
-            self._presentation_render()
 
     # Mesaj etiketi de _page_labels'a giriyor ve pixmap'i hiç olmuyor;
     # apply_theme'in "pixmap'siz etiket = sayfa yer tutucusu" varsayımı onu

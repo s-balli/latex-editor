@@ -773,19 +773,36 @@ def _gonder(hedef, k):
     QApplication.sendEvent(hedef, _tus(k))
 
 
-def _slayt_pdf(yol, onek, sayfa, kutu=(400, 300)):
-    """Her sayfası FARKLI yazı taşıyan (`<onek>-<n>`) elle kurulmuş PDF."""
+def _slayt_pdf(yol, onek, sayfa, kutu=(400, 300), baglantilar=()):
+    """Her sayfası FARKLI yazı taşıyan (`<onek>-<n>`) elle kurulmuş PDF.
+
+    `baglantilar`: (sayfa, (x0, y0, x1, y1), hedef) üçlüleri; hedef bir
+    sayfa indisiyse belge içi bağlantı, dizgiyse adres (URI).
+    """
     nesneler = [b"<</Type/Catalog/Pages 2 0 R>>", None,
                 b"<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>"]
+    # Sayfa i'nin nesnesi 5 + 2i (önünde içerik akışı), eklentiler en sonda.
+    ilk_ek = 4 + 2 * sayfa
+    ekler, ek_nesneler = {}, []
+    for j, (si, (x0, y0, x1, y1), hedef) in enumerate(baglantilar):
+        eylem = (b"/Dest[%d 0 R/XYZ null null null]" % (5 + 2 * hedef)
+                 if isinstance(hedef, int)
+                 else b"/A<</S/URI/URI(%s)>>" % hedef.encode())
+        ek_nesneler.append(b"<</Type/Annot/Subtype/Link/Rect[%d %d %d %d]"
+                           b"/Border[0 0 0]%s>>" % (x0, y0, x1, y1, eylem))
+        ekler.setdefault(si, []).append(b"%d 0 R" % (ilk_ek + j))
     kids = []
     for i in range(sayfa):
         icerik = ("BT /F1 60 Tf 30 100 Td (%s-%d) Tj ET" % (onek, i + 1)).encode()
         nesneler.append(b"<</Length %d>>stream\n" % len(icerik) + icerik +
                         b"\nendstream")
+        ek = (b"/Annots[" + b" ".join(ekler[i]) + b"]") if i in ekler else b""
         nesneler.append(("<</Type/Page/Parent 2 0 R/MediaBox[0 0 %s %s]"
-                         "/Resources<</Font<</F1 3 0 R>>>>/Contents %d 0 R>>"
-                         % (kutu[0], kutu[1], len(nesneler))).encode())
+                         "/Resources<</Font<</F1 3 0 R>>>>/Contents %d 0 R"
+                         % (kutu[0], kutu[1], len(nesneler))).encode()
+                        + ek + b">>")
         kids.append(b"%d 0 R" % len(nesneler))
+    nesneler += ek_nesneler
     nesneler[1] = (b"<</Type/Pages/Kids[" + b" ".join(kids) +
                    b"]/Count %d>>" % sayfa)
     out = bytearray(b"%PDF-1.4\n")
@@ -1021,6 +1038,140 @@ def test_KAPANISTA_sunum_penceresi_de_kapaniyor(viewer, qapp):
         assert viewer._presentation_widget is None, "sunum penceresi açık kaldı"
     finally:
         viewer.exit_presentation()      # bkz. DISARIDAN kapısındaki not
+        qapp.processEvents()
+
+
+# ---------------------------------------------------------------------
+# Sunumda fare (ölçüldü 2026-09-26, gerçek pdflatex beamer çıktısı; bağlantılar
+# ham pdfium'dan sayıldı): içindekiler girdileri, `\beamergotobutton` ve
+# gezinme simgeleri hedefe değil sonraki slayta gidiyordu, `\href` tarayıcıyı
+# açmıyordu; tekerlek hiçbir şey yapmıyordu; imleç slaytın üstünde kalıyordu.
+# ---------------------------------------------------------------------
+
+_BAG_GIT = (40, 40, 160, 90)            # 1. sayfada, 3. sayfaya gidiyor
+_BAG_WEB = (220, 40, 340, 90)           # 1. sayfada, adres
+_ADRES = "https://example.com/slayt"
+
+
+def _baglantili_sunum(qapp, tmp_path):
+    yol = str(tmp_path / "baglantili.pdf")
+    _slayt_pdf(yol, "L", 3, baglantilar=[(0, _BAG_GIT, 2), (0, _BAG_WEB, _ADRES)])
+    kareler = _slayt_kareleri(qapp, yol)
+    v = PdfViewer(theme=THEMES["dark"])
+    assert v.load_pdf(yol)
+    v.enter_presentation()
+    qapp.processEvents()
+    return v, kareler
+
+
+def _fare_olayi(lb, tur, x, y, dugme=None):
+    """Sunum etiketine GERÇEK olay yolundan fare olayı; (x, y) PDF noktası."""
+    from PyQt6.QtCore import QPointF, Qt
+    from PyQt6.QtGui import QMouseEvent
+    olcek = lb.width() / 400.0                     # _slayt_pdf kutusu 400x300
+    p = QPointF(x * olcek, (300 - y) * olcek)
+    d = dugme or Qt.MouseButton.NoButton
+    QApplication.sendEvent(lb, QMouseEvent(tur, p, lb.mapToGlobal(p), d, d,
+                                           Qt.KeyboardModifier.NoModifier))
+
+
+def _orta(r):
+    return (r[0] + r[2]) / 2, (r[1] + r[3]) / 2
+
+
+@gui
+@pytest.mark.parametrize("nokta, beklenen", [
+    (_orta(_BAG_GIT), "3. sayfa"),
+    (_orta(_BAG_WEB), "tarayıcı"),
+    ((200, 200), "sonraki"),
+])
+def test_SUNUMDA_slayttaki_BAGLANTI_calisiyor(qapp, tmp_path, monkeypatch,
+                                              nokta, beklenen):
+    """Kırılırsa: sol tık yine her yerde "ileri" demektir. Bağlantısız yere
+    tık ileri gitmeye DEVAM etmeli (son durum)."""
+    import webbrowser
+    from PyQt6.QtCore import QEvent, Qt
+    acilan = []
+    monkeypatch.setattr(webbrowser, "open", lambda u, *a, **k: acilan.append(u))
+    v, kareler = _baglantili_sunum(qapp, tmp_path)
+    try:
+        _fare_olayi(v._presentation_label, QEvent.Type.MouseButtonPress,
+                    *nokta, Qt.MouseButton.LeftButton)
+        qapp.processEvents()
+        ekran = _sunum_ozeti(v)
+        if beklenen == "3. sayfa":
+            assert ekran == kareler[2], "bağlantı hedefine gitmedi"
+        elif beklenen == "tarayıcı":
+            assert acilan == [_ADRES], acilan
+            assert ekran == kareler[0], "adres açılırken slayt değişti"
+        else:
+            assert ekran == kareler[1] and not acilan
+    finally:
+        v.exit_presentation()
+        v.shutdown()
+        v.close()
+        qapp.processEvents()
+
+
+@gui
+def test_SUNUMDA_tekerlek_CENTIK_basina_bir_slayt(viewer, qapp):
+    """Fare çentiği 120; dokunmatik yüzey küçük adımlar gönderiyor ve
+    çentik dolana kadar biriktirilmeli (her kıpırtı bir slayt atlatmasın)."""
+    from PyQt6.QtCore import QPoint, QPointF, Qt
+    from PyQt6.QtGui import QWheelEvent
+    kareler = _slayt_kareleri(qapp, viewer._pdf_path)
+    viewer.enter_presentation()
+    qapp.processEvents()
+    lb = viewer._presentation_label
+
+    def teker(*adimlar):
+        for d in adimlar:
+            QApplication.sendEvent(lb, QWheelEvent(
+                QPointF(20, 20), lb.mapToGlobal(QPointF(20, 20)), QPoint(0, 0),
+                QPoint(0, d), Qt.MouseButton.NoButton,
+                Qt.KeyboardModifier.NoModifier, Qt.ScrollPhase.NoScrollPhase,
+                False))
+        return _sunum_ozeti(viewer)
+
+    try:
+        assert teker(-120) == kareler[1], "aşağı çentik ileri gitmedi"
+        assert teker(120) == kareler[0], "yukarı çentik geri gitmedi"
+        assert teker(-15, -15, -15) == kareler[0], "yarım çentik slayt atlattı"
+        assert teker(*[-15] * 5) == kareler[1], "biriken çentik ileri gitmedi"
+    finally:
+        viewer.exit_presentation()
+        qapp.processEvents()
+
+
+@gui
+def test_SUNUMDA_imlec_bekleyince_GIZLENIYOR_titreme_geri_getirmiyor(
+        qapp, tmp_path, monkeypatch):
+    """Kırılırsa: imleç slaytın üstünde kalıyor ya da eli faredeki
+    kullanıcının 1-2 piksellik kıpırtısı onu hiç gizletmiyor (gerçek
+    pencerede ölçüldü: beş saniyede sekiz kıpırtı)."""
+    from PyQt6.QtCore import QEvent, Qt
+    from PyQt6.QtTest import QTest
+    import gui.pdf_viewer_mixins._presentation as sunum
+    monkeypatch.setattr(sunum, "_IMLEC_BEKLEME_MS", 50, raising=False)
+    v, _ = _baglantili_sunum(qapp, tmp_path)
+    lb = v._presentation_label
+    sekil = lambda: lb.cursor().shape()          # noqa: E731
+    hareket = QEvent.Type.MouseMove
+    try:
+        _fare_olayi(lb, hareket, 200, 200)
+        assert sekil() == Qt.CursorShape.ArrowCursor
+        QTest.qWait(250)
+        assert sekil() == Qt.CursorShape.BlankCursor, "imleç gizlenmedi"
+        _fare_olayi(lb, hareket, 200.5, 200)      # ~1 piksel: titreme
+        assert sekil() == Qt.CursorShape.BlankCursor, "titreme imleci getirdi"
+        _fare_olayi(lb, hareket, 180, 200)        # gerçek hareket
+        assert sekil() == Qt.CursorShape.ArrowCursor, "hareket imleci getirmedi"
+        _fare_olayi(lb, hareket, *_orta(_BAG_GIT))
+        assert sekil() == Qt.CursorShape.PointingHandCursor, "bağlantıda el yok"
+    finally:
+        v.exit_presentation()
+        v.shutdown()
+        v.close()
         qapp.processEvents()
 
 

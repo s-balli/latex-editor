@@ -179,6 +179,8 @@ class _Gorucu:
     """Yalnız tıklama dallanmasını koşturan iskelet."""
 
     _handle_link_click = PdfEventsMixin._handle_link_click
+    # Dallanma bu yöntemde; sunum da aynı yoldan açıyor (bkz. _events)
+    _baglantiyi_ac = PdfEventsMixin._baglantiyi_ac
     _guvensiz_baglanti = PdfEventsMixin._guvensiz_baglanti
 
     def __init__(self):

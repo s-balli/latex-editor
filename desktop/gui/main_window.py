@@ -997,7 +997,7 @@ class MainWindow(
         middle += "<span style='color:" + dim + "'>" + _("Sayfaları yan yana ikişerli gösterin.") + "</span>"
         middle += "<br><br>"
         middle += "<b>" + _("Sunum Modu") + " (F5)</b><br>"
-        middle += "<span style='color:" + dim + "'>" + _("Tam ekran sunum. Sol/sağ tık veya ok tuşları ile gezin.") + "</span>"
+        middle += "<span style='color:" + dim + "'>" + _("Tam ekran sunum. Ok tuşları, Page Up/Page Down (sunum kumandası), fare tekerleği ya da sol/sağ tık ile gezin; slayttaki bağlantılar tıklanınca açılır.") + "</span>"
         middle += "<br><br>"
         middle += "<b>" + _("PDF Renk Tersi") + "</b><br>"
         middle += "<span style='color:" + dim + "'>" + _("PDF renklerini ters çevirerek koyu modda görüntüleyin.") + "</span>"

@@ -12,6 +12,7 @@ from PyQt6.QtCore import QCoreApplication
 _ = lambda s: QCoreApplication.translate("PdfViewer", s)
 
 from core.log import get_logger
+from gui.pdf_render import tam_mantiksal_boy
 from gui.pdf_render_worker import PdfRenderWorker
 from gui.pdfium_lock import pdfium_lock
 
@@ -214,6 +215,26 @@ class PdfRenderMixin:
         boyut = self._sayfa_pt.get(index)
         return self._tavanli_olcek(*boyut) if boyut else 1.5 * self._zoom
 
+    def _cizim_olcegi(self, index: int) -> float:
+        """Sayfanın FİZİKSEL piksel ölçeği: `_olcek` x ekran çarpanı.
+
+        Kare mantıksal ölçekte çiziliyor ve yüksek DPI ekranda Qt onu
+        büyütüyordu: bulanık. ÖLÇÜLDÜ (2026-09-26, gerçek Windows,
+        QT_SCALE_FACTOR=2; kehanet aynı sayfanın pdfium'la fiziksel
+        çözünürlükte çizimi): görünümün kenar enerjisi kehanetin %52'si,
+        sunumun %38'i; çarpan 1'de ikisi de %100. Etiket boyu ve bütün
+        koordinat dönüşümleri `_olcek`le MANTIKSAL kalıyor, yalnız kare
+        yoğunlaşıyor (QPixmap.setDevicePixelRatio).
+
+        Piksel tavanı fiziksel piksele uygulanıyor: tavana dayanan dev sayfa
+        ekran çarpanının altında çiziliyor ve Qt onu etiket boyuna getiriyor.
+        """
+        olcek = self._olcek(index) * self.devicePixelRatioF()
+        boyut = self._sayfa_pt.get(index)
+        if boyut and boyut[0] > 0 and boyut[1] > 0:
+            olcek = min(olcek, (self._MAX_PIKSEL / (boyut[0] * boyut[1])) ** 0.5)
+        return olcek
+
     def _get_page_size(self, index: int):
         if not self._pdf or index >= self._page_count:
             return (100, 100)
@@ -295,19 +316,23 @@ class PdfRenderMixin:
         if not self._pdf or index >= self._page_count:
             return
         self._render_worker.submit(self._render_gen, index,
-                                   self._olcek(index), self._invert_colors)
+                                   self._cizim_olcegi(index), self._invert_colors)
 
     def _on_render_result(self, gen: int, index: int, scale: float,
                           invert: bool, image: QImage):
         if gen != self._render_gen or not self._pdf:
             return                      # doküman değişti/yenilendi: bayat sonuç
-        if scale != self._olcek(index) or invert != self._invert_colors:
-            return                      # zoom/renk tercihi değişti: bayat sonuç
+        if scale != self._cizim_olcegi(index) or invert != self._invert_colors:
+            return                      # zoom/renk/ekran çarpanı değişti: bayat
         if index >= len(self._page_labels):
             return
         label = self._page_labels[index]
         if label.pixmap() is None or label.pixmap().isNull():
-            label.setPixmap(QPixmap.fromImage(image))
+            oran = scale / self._olcek(index)
+            kare = QPixmap.fromImage(tam_mantiksal_boy(
+                image, oran, label.width(), label.height()))
+            kare.setDevicePixelRatio(oran)
+            label.setPixmap(kare)
             label.setStyleSheet("")
 
     def _ilk_gorunur_aday(self, scroll_y: int) -> int:

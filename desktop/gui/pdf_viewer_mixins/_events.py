@@ -22,18 +22,29 @@ class PdfEventsMixin:
 
     def eventFilter(self, obj, event):
         if self._presentation_mode and obj in (self._presentation_widget, self._presentation_label):
-            return self._handle_presentation_event(event)
+            return self._handle_presentation_event(event, obj)
         return self._handle_page_event(event, obj)
 
-    def _handle_presentation_event(self, event) -> bool:
+    def _handle_presentation_event(self, event, obj) -> bool:
         if event.type() == QEvent.Type.KeyPress:
             self._presentation_key_event(event)
             return True
         if event.type() == QEvent.Type.MouseButtonPress:
             if event.button() == Qt.MouseButton.LeftButton:
-                self._sunum_git(self._sunum_sayfasi + 1)
+                # Slayttaki bağlantı açılıyor, gerisi "ileri". Tıklama her
+                # yerde ileriydi: ÖLÇÜLDÜ (2026-09-26, gerçek pdflatex beamer
+                # çıktısı, bağlantılar ham pdfium'dan sayıldı) içindekiler
+                # girdileri, `\beamergotobutton` düğmeleri ve gezinme
+                # simgeleri hedeflerine değil sonraki slayta gidiyordu,
+                # `\href` tarayıcıyı açmıyordu.
+                bag = self._sunum_baglantisi(event, obj)   # sayfa bag[1]'de canlı
+                if not (bag and self._baglantiyi_ac(bag[0], self._sunum_hedefine)):
+                    self._sunum_git(self._sunum_sayfasi + 1)
             elif event.button() == Qt.MouseButton.RightButton:
                 self._sunum_git(self._sunum_sayfasi - 1)
+            return True
+        if event.type() == QEvent.Type.Wheel:
+            self._sunum_tekerlek(event.angleDelta().y())
             return True
         if event.type() == QEvent.Type.Close:
             # Pencere Esc dışında da kapanıyor: Windows'ta Alt+F4 ve görev
@@ -44,6 +55,7 @@ class PdfEventsMixin:
             self.exit_presentation()
             return False
         if event.type() == QEvent.Type.MouseMove:
+            self._sunum_imleci_goster(event, obj)
             return True
         return super().eventFilter(self._presentation_widget, event)
 
@@ -152,21 +164,29 @@ class PdfEventsMixin:
         result = self._link_at_pos(pos, obj)
         if not result:
             return
-        _, link, _page_ref = result
+        self._baglantiyi_ac(result[1], self._goto_dest)
+
+    def _baglantiyi_ac(self, link, hedefe_git) -> bool:
+        """Bağlantının eylemini yap; yapılacak bir eylem yoksa False.
+
+        Ana görüntüleyici ve sunum AYNI yoldan: yalnız belge içi hedefe
+        gitmek farklı (`hedefe_git`), adres süzgeci ve uyarı ortak.
+        """
         # Kilit yalnız pdfium çağrısını sarar: webbrowser.open ve _goto_dest
         # dışarıda kalmalı (ikisi de uzun sürebilir, _goto_dest ayrıca render
-        # işçisinin _cond'una dokunuyor — kilit sırası bozulmasın).
+        # işçisinin _cond'una dokunuyor; kilit sırası bozulmasın).
         with pdfium_lock:
             resolved = resolve_link_action(self._pdf.raw, link)
         if not resolved:
-            return
+            return False
         kind, data = resolved
         if kind == "uri":
             webbrowser.open(data)
         elif kind == "guvensiz_uri":
             self._guvensiz_baglanti(data)
         elif kind in ("goto", "dest"):
-            self._goto_dest(data)
+            hedefe_git(data)
+        return True
 
     def _guvensiz_baglanti(self, ham: str):
         """Açılmayan bağlantıyı SESSİZCE geçme.
