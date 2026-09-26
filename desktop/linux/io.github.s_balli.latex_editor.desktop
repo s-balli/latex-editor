@@ -1,10 +1,12 @@
 [Desktop Entry]
 Name=LaTeX Editor
-Comment=LaTeX editörü ve derleyici
+Comment=LaTeX editor with live PDF preview
+Comment[tr]=Canlı PDF önizlemeli LaTeX editörü
 Exec=latex-editor %F
 Icon=latex-editor
 Type=Application
 Categories=Development;IDE;
 MimeType=text/x-tex;
 Keywords=latex;tex;editor;pdf;
+Keywords[tr]=latex;tex;editör;pdf;tez;
 StartupNotify=true

@@ -975,7 +975,7 @@ latex-editor/
 │   ├── syntax/
 │   │   └── latex_lexer.py   # LaTeX sözdizimi renklendirme
 │   ├── translations/        # .ts (kaynak) + .qm (derlenmiş) çeviri dosyaları
-│   ├── linux/               # AppRun, .desktop, ikonlar
+│   ├── linux/               # AppRun, .desktop, AppStream bilgisi, ikonlar
 │   └── *.bat                # Windows build/launcher betikleri
 ├── scripts/
 │   └── update_translations.sh  # .ts üret + .qm derle betiği

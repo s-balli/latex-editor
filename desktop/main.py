@@ -131,16 +131,25 @@ def _register_file_association():
             _kacisli = exe_path
             for _ozel in ("\\", '"', "`", "$"):
                 _kacisli = _kacisli.replace(_ozel, "\\" + _ozel)
+            # Alanlar desktop/linux/io.github.s_balli.latex_editor.desktop ile
+            # AYNI (Exec hariç); tests/test_linux_masaustu.py ikisinin
+            # ayrışmasını yakalıyor. Dosya ADI bilerek eski: güncelleyen
+            # kullanıcıda menüde ikinci bir girdi oluşmasın.
+            # Varsayılan açıklama İngilizce: yalnız Türkçe yazılıydı ve
+            # İngilizce masaüstünde menüde, AppImageHub kataloğunda da Türkçe
+            # görünüyordu.
             desktop_content = (
                 "[Desktop Entry]\n"
                 "Name=LaTeX Editor\n"
-                "Comment=LaTeX editörü ve derleyici\n"
+                "Comment=LaTeX editor with live PDF preview\n"
+                "Comment[tr]=Canlı PDF önizlemeli LaTeX editörü\n"
                 f'Exec="{_kacisli}" %F\n'
                 "Icon=latex-editor\n"
                 "Type=Application\n"
                 "Categories=Development;IDE;\n"
                 "MimeType=text/x-tex;\n"
                 "Keywords=latex;tex;editor;pdf;\n"
+                "Keywords[tr]=latex;tex;editör;pdf;tez;\n"
                 "StartupNotify=true\n"
             )
             # encoding AÇIK. İçerik ASCII dışı taşıyor ("editörü") ve Desktop

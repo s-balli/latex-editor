@@ -53,8 +53,18 @@ echo "[3/5] Desktop dosyası ve ikon yerleştiriliyor..."
 cp linux/AppRun "$APPDIR/AppRun"
 chmod +x "$APPDIR/AppRun"
 
-cp linux/latex-editor.desktop "$APPDIR/latex-editor.desktop"
-cp linux/latex-editor.desktop "$APPDIR/usr/share/applications/latex-editor.desktop"
+# Masaustu dosyasi ve AppStream bilgisi AYNI ters alan adli kimligi tasiyor.
+# appimagetool metainfo'yu masaustu dosyasinin adiyla ariyor ve appstreamcli
+# kuruluysa `validate-tree` ile dogruluyor; uyari bile paketlemeyi durduruyor.
+# Olculdu (2026-09-26, appstreamcli 1.0.2): latex-editor adiyla iki yol da
+# uyari verdi (metainfo-filename-cid-mismatch, cid-desktopapp-is-not-rdns),
+# cikis kodu 3; ikisi de bu kimlikle adlaninca temiz. CI makinesinde
+# appstreamcli yok, yani orada bu denetim hic kosmuyordu.
+MASAUSTU_ID="io.github.s_balli.latex_editor"
+cp "linux/${MASAUSTU_ID}.desktop" "$APPDIR/${MASAUSTU_ID}.desktop"
+cp "linux/${MASAUSTU_ID}.desktop" "$APPDIR/usr/share/applications/${MASAUSTU_ID}.desktop"
+mkdir -p "$APPDIR/usr/share/metainfo"
+cp "linux/${MASAUSTU_ID}.appdata.xml" "$APPDIR/usr/share/metainfo/${MASAUSTU_ID}.appdata.xml"
 
 # İkon: SVG -> PNG (inkscape ile, metin sigmasi icin genis viewBox)
 if command -v inkscape &>/dev/null; then

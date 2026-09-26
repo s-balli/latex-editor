@@ -974,7 +974,7 @@ latex-editor/
 │   ├── syntax/
 │   │   └── latex_lexer.py   # LaTeX syntax highlighting
 │   ├── translations/        # .ts (source) + .qm (compiled) translation files
-│   ├── linux/               # AppRun, .desktop, icons
+│   ├── linux/               # AppRun, .desktop, AppStream metainfo, icons
 │   └── *.bat                # Windows build/launcher scripts
 ├── scripts/
 │   └── update_translations.sh  # .ts generate + .qm compile script
