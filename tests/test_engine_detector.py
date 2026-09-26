@@ -641,3 +641,48 @@ def test_KOK_BELGE_yalniz_zincirdeki_dosya_icin_koke_cikiyor(tmp_path):
     assert kok_belge(str(bolum)) == str(tmp_path / "main.tex")
     assert kok_belge(str(poster)) == str(poster)
     assert kok_belge(str(taslak)) == str(taslak)
+
+
+@pytest.mark.parametrize("komut", ["input", "include"])
+def test_KOK_ILE_AYNI_klasordeki_bolum_koke_derleniyor(tmp_path, komut):
+    """Düz düzen: `main.tex` yanında `giris.tex`, `% !TEX root` yok. Arama
+    üst dizinden başladığı için kök hiç bulunmuyordu; bölümde derleme "Bu
+    dosya derlenemez" diyor, ağaç bölümü yeşil göstermiyordu. ÖLÇÜLDÜ
+    (2026-09-26, kehanet gerçek pdflatex: `main.pdf` bölümün metnini
+    taşıyor). Kırılırsa: düz düzende bölümden derlenemiyor demektir.
+
+    Son satır aşırı düzeltme kapısı: aynı klasördeki, köke bağlı OLMAYAN
+    taslak yine derlenemez kalmalı."""
+    from core.engine_detector import derleme_hedefi
+
+    (tmp_path / "main.tex").write_text(
+        "\\documentclass{article}\n\\begin{document}\n\\%s{giris}\n"
+        "\\end{document}\n" % komut, encoding="utf-8")
+    bolum = tmp_path / "giris.tex"
+    bolum.write_text("Giriş metni.\n", encoding="utf-8")
+    taslak = tmp_path / "taslak.tex"
+    taslak.write_text("taslak\n", encoding="utf-8")
+
+    assert derleme_hedefi(str(bolum)) == (str(tmp_path / "main.tex"), "")
+    hedef, sebep = derleme_hedefi(str(taslak))
+    assert hedef == "" and sebep, "köke bağlı olmayan taslak derlenebilir sayıldı"
+
+
+def test_KOK_BELGE_ust_dizindeki_kok_bolum_klasorundekinden_ONCE(tmp_path):
+    """Bölümün KENDİ klasörüne üst dizinlerden SONRA bakılıyor: bölüm
+    klasöründe onu da içeren ikinci bir belge (tek bölümlük önizleme)
+    olduğunda bugün seçilen ana kök değişmemeli. Kırılırsa: iç içe düzende
+    derleme ana tezi değil önizlemeyi derliyor demektir."""
+    from core.engine_detector import kok_belge
+
+    (tmp_path / "main.tex").write_text(
+        "\\documentclass{book}\n\\begin{document}\n\\input{Chapters/c1}\n"
+        "\\end{document}\n", encoding="utf-8")
+    (tmp_path / "Chapters").mkdir()
+    bolum = tmp_path / "Chapters" / "c1.tex"
+    bolum.write_text("metin\n", encoding="utf-8")
+    (tmp_path / "Chapters" / "a_onizleme.tex").write_text(
+        "\\documentclass{article}\n\\begin{document}\n\\input{c1}\n"
+        "\\end{document}\n", encoding="utf-8")
+
+    assert kok_belge(str(bolum)) == str(tmp_path / "main.tex")

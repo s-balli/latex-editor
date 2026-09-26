@@ -125,9 +125,9 @@ def kok_belge(tex_path: str) -> str:
     r"""``tex_path`` hangi belgenin parçası: derlenen KÖK belgenin yolu.
 
     Sıra: dosya kendisi derlenebiliyorsa kendisi; `% !TEX root` varsa o;
-    yoksa üst dizinlerdeki derlenebilir .tex dosyalarından `\input` /
-    `\include` zinciri bu dosyayı içeren ilki. Hiçbiri tutmazsa dosyanın
-    kendisi.
+    yoksa üst dizinlerdeki, onlarda da yoksa dosyanın KENDİ dizinindeki
+    derlenebilir .tex dosyalarından `\input` / `\include` zinciri bu
+    dosyayı içeren ilki. Hiçbiri tutmazsa dosyanın kendisi.
 
     NEDEN. LaTeX dosya yollarını KÖK belgenin dizinine göre çözüyor, alt
     dosyanınkine göre değil. ÖLÇÜLDÜ (2026-09-23, 39 şablon): alt klasörde
@@ -144,21 +144,39 @@ def kok_belge(tex_path: str) -> str:
     kok = detect_root(tex_path)
     if kok:
         return kok
-    dizin = os.path.dirname(os.path.abspath(tex_path))
+    kendi = os.path.dirname(os.path.abspath(tex_path))
+    dizin = kendi
     for _ in range(_KOK_ARAMA_KADEMESI):
         ust = os.path.dirname(dizin)
         if ust == dizin:
             break
         dizin = ust
-        try:
-            adlar = sorted(os.listdir(dizin))
-        except OSError:
-            continue
-        for ad in adlar:
-            aday = os.path.join(dizin, ad)
-            if ad.lower().endswith(".tex") and _zincirde_mi(aday, tex_path):
-                return aday
-    return tex_path
+        kok = _dizindeki_kok(dizin, tex_path)
+        if kok:
+            return kok
+    # Düz düzen: kök bölümle AYNI klasörde (`main.tex` yanında `giris.tex`).
+    # Arama üst dizinden başladığı için bu düzen hiç bulunmuyordu. ÖLÇÜLDÜ
+    # (2026-09-26, kehanet gerçek pdflatex: `main.pdf` bölümün metnini
+    # taşıyor): bölümde derleme "Bu dosya derlenemez" dedi, ağaç bölümü
+    # yeşil göstermedi; alt klasördeki bölümde ikisi de doğruydu. Üst
+    # dizinlerden SONRA bakılıyor: bugün kökü bulunan iç içe düzenlerde sonuç
+    # değişmesin (bölüm klasöründe onu da içeren ikinci bir belge olabilir,
+    # ör. tek bölümlük önizleme).
+    return _dizindeki_kok(kendi, tex_path) or tex_path
+
+
+def _dizindeki_kok(dizin: str, tex_path: str) -> str:
+    """``dizin``deki derlenebilir .tex'lerden zinciri ``tex_path``i içeren
+    ilki (ad sırasıyla); yoksa boş dizge."""
+    try:
+        adlar = sorted(os.listdir(dizin))
+    except OSError:
+        return ""
+    for ad in adlar:
+        aday = os.path.join(dizin, ad)
+        if ad.lower().endswith(".tex") and _zincirde_mi(aday, tex_path):
+            return aday
+    return ""
 
 
 def derleme_hedefi(tex_path: str) -> tuple[str, str]:
