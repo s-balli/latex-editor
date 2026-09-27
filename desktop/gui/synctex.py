@@ -3,6 +3,7 @@
 import os
 import subprocess
 import sys
+import time
 from dataclasses import dataclass
 
 from core.log import get_logger
@@ -156,11 +157,58 @@ def forward_search(tex_path: str, line: int, col: int, pdf_path: str,
     return _forward_native(tex_path, line, col, pdf_path, synctex_dir)
 
 
+# Ters aramada komşu noktalar (punto, sözcük ölçeğinde): sonuç boşsa ya da
+# sayfanın gönderilme konumuysa sırayla bunlara bakılıyor.
+_KOMSULAR = (-8, 8, -16, 16)
+
+# Ek sorguların (köşe ve komşular) süre bütçesi. Sıcak WSL'de sorgu ~85 ms,
+# yerlide ~10 ms. İlk sorgu bundan uzun sürdüyse (soğuk WSL, asılı süreç)
+# ek sorgu yapılmıyor: tek tıklama altı kez zaman aşımı beklemesin.
+_EK_SORGU_BUTCESI = 1.5
+
+
 def reverse_search(page: int, x: float, y: float, pdf_path: str,
                    synctex_dir: str = "") -> ReverseResult | None:
-    if _PLATFORM == "win32":
-        return _reverse_wsl(page, x, y, pdf_path, synctex_dir)
-    return _reverse_native(page, x, y, pdf_path, synctex_dir)
+    """PDF noktasının kaynak dosyası ve satırı.
+
+    LuaTeX sayfayı gönderirken oluşan bazı düğümlere O ANKİ giriş konumunu
+    yazıyor: paragrafların içinde sayfanın gönderildiği satırı (çoğu zaman
+    sonraki bölümün dosyası) gösteren kayıtlar var, o noktaya tıklamak
+    başka bir dosyaya atlıyordu. ÖLÇÜLDÜ (2026-09-27, gerçek derleme, üç
+    bölüm dosyalı beş sayfalık tez, her cümle kendi satırında, karakterlerin
+    üstüne 464-467 tıklama, doğru satır):
+
+        motor                   eskiden   şimdi
+        lualatex (varsayılan)   406       460
+        lualatex + fontspec     410       463
+        pdflatex                464       464
+        xelatex                 465       465
+
+    Başka dosya ya da sonuçsuz: LuaTeX'te 38 ve 34'ten 3'e. Sayfanın gönderilme
+    konumunu köşe sorgusu veriyor (sayfanın dış kutusu). Sonuç o konumsa ya
+    da boşsa yandaki noktalara bakılıyor, sonuç ancak komşu FARKLI bir konum
+    verirse değişiyor. Ölçümde pdflatex ve xelatex bu yola hiç girmedi;
+    maliyet tıklama başına bir köşe sorgusu.
+    """
+    tek = _reverse_wsl if _PLATFORM == "win32" else _reverse_native
+    t0 = time.monotonic()
+    sonuc = tek(page, x, y, pdf_path, synctex_dir)
+    if sonuc is ARAC_YOK or time.monotonic() - t0 > _EK_SORGU_BUTCESI:
+        return sonuc
+    bitis = time.monotonic() + _EK_SORGU_BUTCESI
+    gonderilme = tek(page, 1.0, 1.0, pdf_path, synctex_dir)
+    if not sonuc or _ayni_konum(sonuc, gonderilme):
+        for dx in _KOMSULAR:
+            if time.monotonic() > bitis:
+                break
+            komsu = tek(page, x + dx, y, pdf_path, synctex_dir)
+            if komsu and not _ayni_konum(komsu, gonderilme):
+                return komsu
+    return sonuc
+
+
+def _ayni_konum(a, b) -> bool:
+    return bool(a) and bool(b) and (a.file_path, a.line) == (b.file_path, b.line)
 
 
 # Bu dosyadaki dört subprocess.run çağrısı da encoding="utf-8" GEÇMEK ZORUNDA.

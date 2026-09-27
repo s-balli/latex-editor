@@ -249,20 +249,109 @@ def test_TERS_ayristirici_TEK_kayitta_degismedi():
 # --- Ters arama: koordinat KESİRLİ, yol WSL-UNC'ye geri dönüyor (2026-09-12) ---
 
 def _komutu_yakala(monkeypatch, platform, x, y, pdf, cikti):
-    """Ters aramayı koş, synctex'e giden komutu ve sonucu döndür."""
+    """Ters aramayı koş; tıklamanın KENDİ sorgusunu (ilk komut) ve sonucu
+    döndür. Sonraki komutlar köşe ve komşu sorguları (bkz. reverse_search)."""
     from unittest.mock import patch
     from types import SimpleNamespace
 
     yakalanan = {}
 
     def sahte_run(cmd, **k):
-        yakalanan["cmd"] = cmd
+        yakalanan.setdefault("cmd", cmd)
         return SimpleNamespace(returncode=0, stdout=cikti, stderr="")
 
     monkeypatch.setattr(st, "_PLATFORM", platform)
     with patch("gui.synctex.subprocess.run", side_effect=sahte_run):
         sonuc = st.reverse_search(1, x, y, pdf)
     return yakalanan["cmd"], sonuc
+
+
+# --- Ters arama: sayfanın gönderilme konumu ve komşu noktalar (2026-09-27) ---
+
+_GONDERILME = ("/mnt/c/p/yontem.tex", 3)     # köşe sorgusunun cevabı
+_DOGRU = ("/mnt/c/p/giris.tex", 6)
+
+
+def _ters_senaryo(monkeypatch, platform, harita, varsayilan=None):
+    """Noktaya göre cevap veren sahte synctex ile ters aramayı koş.
+
+    `harita`: {x: (dosya, satır) ya da None}; köşe sorgusu x=1.0.
+    Döner: ((dosya adı, satır) ya da None, sorulan x'ler sırasıyla).
+    """
+    from types import SimpleNamespace
+    from unittest.mock import patch
+
+    sorulan = []
+
+    def sahte_run(cmd, **k):
+        x = round(float(cmd[cmd.index("-o") + 1].split(":")[1]), 1)
+        sorulan.append(x)
+        kayit = harita.get(x, varsayilan)
+        if kayit is None:                          # synctex "eşleşme yok"
+            return SimpleNamespace(returncode=255, stdout="", stderr="")
+        return SimpleNamespace(returncode=0, stderr="", stdout=(
+            "SyncTeX result begin\nInput:%s\nLine:%d\nColumn:-1\n"
+            "SyncTeX result end\n" % kayit))
+
+    monkeypatch.setattr(st, "_PLATFORM", platform)
+    pdf = r"C:\p\main.pdf" if platform == "win32" else "/mnt/c/p/main.pdf"
+    with patch("gui.synctex.subprocess.run", side_effect=sahte_run):
+        s = st.reverse_search(1, 100.0, 200.0, pdf)
+    if not s:
+        return None, sorulan
+    return (s.file_path.replace("\\", "/").rsplit("/", 1)[-1], s.line), sorulan
+
+
+@pytest.mark.parametrize("platform", _PLATFORMLAR)
+def test_TERS_GONDERILME_konumu_komsudan_duzeltiliyor(monkeypatch, platform):
+    """LuaTeX, sayfa gönderilirken oluşan düğümlere o anki giriş konumunu
+    yazıyor; o noktaya tıklamak sonraki bölümün dosyasına atlıyordu
+    (ölçüm `reverse_search` docstring'inde). Tıklanan nokta sayfanın
+    gönderilme konumunu verirse komşu noktanın cevabı alınıyor."""
+    sonuc, sorulan = _ters_senaryo(monkeypatch, platform, {
+        1.0: _GONDERILME, 100.0: _GONDERILME, 92.0: _GONDERILME,
+        108.0: _DOGRU})
+    assert sonuc == ("giris.tex", 6), "gönderilme konumu dönüyor"
+    assert sorulan == [100.0, 1.0, 92.0, 108.0]
+
+
+@pytest.mark.parametrize("platform", _PLATFORMLAR)
+def test_TERS_metin_GERCEKTEN_o_satirdaysa_sonuc_degismiyor(monkeypatch,
+                                                           platform):
+    """Aşırı düzeltme kolu: sayfa tam o satırın metninde bölündüyse komşular
+    da aynı konumu veriyor ve sonuç değişmiyor."""
+    sonuc, sorulan = _ters_senaryo(monkeypatch, platform, {},
+                                   varsayilan=_GONDERILME)
+    assert sonuc == ("yontem.tex", 3)
+    assert sorulan == [100.0, 1.0, 92.0, 108.0, 84.0, 116.0]
+
+
+@pytest.mark.parametrize("platform", _PLATFORMLAR)
+def test_TERS_BOS_sonuc_komsudan_kurtariliyor(monkeypatch, platform):
+    """LuaTeX'te bazı noktalar hiç kayıt vermiyordu (ölçümde 3/464)."""
+    sonuc, _sorulan = _ters_senaryo(monkeypatch, platform, {
+        1.0: _GONDERILME, 100.0: None, 92.0: None, 108.0: _DOGRU})
+    assert sonuc == ("giris.tex", 6)
+
+
+@pytest.mark.parametrize("platform", _PLATFORMLAR)
+def test_TERS_dogru_sonucta_TEK_ek_sorgu(monkeypatch, platform):
+    """Maliyet kapısı: pdflatex ve xelatex'te tıklama gönderilme konumunu
+    vermiyor (ölçümde hiç); köşe sorgusundan başka sorgu yapılmıyor."""
+    sonuc, sorulan = _ters_senaryo(monkeypatch, platform, {
+        1.0: _GONDERILME, 100.0: _DOGRU})
+    assert sonuc == ("giris.tex", 6)
+    assert sorulan == [100.0, 1.0]
+
+
+def test_TERS_ilk_sorgu_YAVASSA_ek_sorgu_yok(monkeypatch):
+    """Soğuk WSL ya da asılı süreç: ilk sorgu bütçeden uzun sürdüyse ek
+    sorgu yapılmıyor, yoksa tek tıklama altı kez zaman aşımı bekliyordu."""
+    monkeypatch.setattr(st, "_EK_SORGU_BUTCESI", -1.0)
+    sonuc, sorulan = _ters_senaryo(monkeypatch, "linux", {
+        1.0: _GONDERILME, 100.0: _GONDERILME, 92.0: _DOGRU})
+    assert sonuc == ("yontem.tex", 3)
+    assert sorulan == [100.0]
 
 
 @pytest.mark.parametrize("platform", _PLATFORMLAR)

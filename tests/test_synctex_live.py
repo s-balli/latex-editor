@@ -289,3 +289,135 @@ class TestSembolikBagliYol:
 
         yok = os.path.join("olmayan_dizin_12345", "yok.tex")
         assert _gercek_yol(yok)
+
+
+# --- Çok dosyalı proje: ters arama başka dosyaya atlamamalı (2026-09-27) ---
+#
+# LuaTeX, sayfa gönderilirken oluşan bazı düğümlere o anki giriş konumunu
+# yazıyor. Paragrafların içinde sayfanın gönderildiği satırı (burada ikinci
+# bölümün `\newpage` satırı) gösteren kayıtlar var ve o noktaya tıklamak
+# başka dosyaya gidiyordu (bkz. `gui.synctex.reverse_search`). Kehanet
+# pdfium: tıklanan cümlenin PDF'teki kutusu ve kaynak satırı.
+
+_COK_KOK = "\n".join([
+    r"\documentclass{article}",
+    r"\begin{document}",
+    r"Kok metni QXKOK01 burada.",
+    "",
+    r"\input{bolumler/giris}",
+    r"\input{bolumler/yontem}",
+    "",
+    r"Son metin QXKOK02 burada.",
+    r"\end{document}",
+]) + "\n"
+_COK_GIRIS = "\n".join([
+    r"\section{Giris}",
+    r"Birinci satir QXGIR01 burada.",
+    r"Ikinci satir QXGIR02 devam ediyor.",
+    "",
+    r"Yeni paragraf QXGIR03 burada.",
+]) + "\n"
+_COK_YONTEM = "\n".join([
+    r"\section{Yontem}",
+    r"Yontem metni QXYON01 burada.",
+    r"\newpage",
+    r"Sonraki sayfa QXYON02 burada.",
+]) + "\n"
+_COK_CUMLELER = {                       # cümle -> (dosya, satır)
+    "Kok metni QXKOK01 burada.": ("main.tex", 3),
+    "Son metin QXKOK02 burada.": ("main.tex", 8),
+    "Birinci satir QXGIR01 burada.": ("bolumler/giris.tex", 2),
+    "Ikinci satir QXGIR02 devam ediyor.": ("bolumler/giris.tex", 3),
+    "Yeni paragraf QXGIR03 burada.": ("bolumler/giris.tex", 5),
+    "Yontem metni QXYON01 burada.": ("bolumler/yontem.tex", 2),
+    "Sonraki sayfa QXYON02 burada.": ("bolumler/yontem.tex", 4),
+}
+
+
+@pytest.fixture(scope="module", params=["lualatex", "pdflatex"])
+def cok_dosyali(request):
+    """(motor, proje dizini, pdf, synctex dizini); lualatex varsayılan motor."""
+    d = tempfile.mkdtemp(prefix="synctex_cok_")
+    for ad, icerik in (("main.tex", _COK_KOK),
+                       ("bolumler/giris.tex", _COK_GIRIS),
+                       ("bolumler/yontem.tex", _COK_YONTEM)):
+        yol = os.path.join(d, *ad.split("/"))
+        os.makedirs(os.path.dirname(yol), exist_ok=True)
+        with open(yol, "w", encoding="utf-8", newline="\n") as f:
+            f.write(icerik)
+    komut = _derleme_komutu(os.path.join(d, "main.tex"))
+    if request.param == "pdflatex":
+        komut.append("--pdflatex")
+    r = subprocess.run(komut, capture_output=True, text=True, timeout=300,
+                       encoding="utf-8", errors="replace")
+    pdf = os.path.join(d, "main.pdf")
+    assert r.returncode == 0 and os.path.exists(pdf), r.stdout[-400:]
+    sdir = tempfile.mkdtemp(prefix="synctex_cok_gz_")
+    shutil.move(os.path.join(d, "main.synctex.gz"),
+                os.path.join(sdir, "main.synctex.gz"))
+    yield request.param, d, pdf, sdir
+    shutil.rmtree(d, ignore_errors=True)
+    shutil.rmtree(sdir, ignore_errors=True)
+
+
+def _cumle_kutulari(pdf):
+    """Cümle -> (sayfa, sol, alt, sağ, üst, sayfa yüksekliği); pdfium kilit
+    altında (görüntüleyici kuran testlerin kuralı, bkz. test_pdfium_lock)."""
+    import pypdfium2 as pdfium
+    from gui.pdfium_lock import pdfium_lock
+    sonuc = {}
+    with pdfium_lock:
+        belge = pdfium.PdfDocument(pdf)
+        try:
+            for i in range(len(belge)):
+                sayfa = belge[i]
+                tp = sayfa.get_textpage()
+                for cumle in _COK_CUMLELER:
+                    arama = tp.search(cumle, match_case=True)
+                    bul = arama.get_next()
+                    arama.close()
+                    if bul and cumle not in sonuc:
+                        kk = [tp.get_charbox(k)
+                              for k in range(bul[0], sum(bul))]
+                        sonuc[cumle] = (i + 1, min(b[0] for b in kk),
+                                        min(b[1] for b in kk),
+                                        max(b[2] for b in kk),
+                                        max(b[3] for b in kk),
+                                        sayfa.get_height())
+                tp.close()
+                sayfa.close()
+        finally:
+            belge.close()
+    return sonuc
+
+
+def test_COK_DOSYALI_projede_ters_arama_baska_dosyaya_atlamiyor(cok_dosyali):
+    r"""Her cümleye soldan sağa beş noktadan tıklanıyor.
+
+    Kırılırsa (lualatex): bölüm sonundaki ya da ortasındaki bir cümleye
+    tıklamak sayfanın gönderildiği satıra, burada `yontem.tex`in `\newpage`
+    satırına atlıyor demektir. Düzeltmeden önce 35 tıklamanın ikisi öyleydi.
+    Satır komşu olabilir (iki kaynak satırının birleştiği paragraf sınırı,
+    pdflatex'te de var); dosya değişmemeli.
+    """
+    motor, d, pdf, sdir = cok_dosyali
+    kutular = _cumle_kutulari(pdf)
+    assert len(kutular) == len(_COK_CUMLELER), "kapı boş: cümle bulunamadı"
+    yanlis, dogru = [], 0
+    for cumle, (dosya, satir) in _COK_CUMLELER.items():
+        sayfa, sol, alt, sag, ust, h = kutular[cumle]
+        beklenen = os.path.normcase(os.path.join(d, *dosya.split("/")))
+        for k in range(5):
+            x = sol + 1 + (sag - sol - 2) * k / 4.0
+            t = reverse_search(sayfa, x, h - (alt + ust) / 2, pdf, sdir)
+            if not t or os.path.normcase(os.path.normpath(
+                    t.file_path)) != beklenen:
+                yanlis.append("%s nokta %d -> %s" % (
+                    cumle.split()[2], k, "%s:%d" % (t.file_path, t.line)
+                    if t else "sonuç yok"))
+            elif t.line == satir:
+                dogru += 1
+    assert not yanlis, "%s: başka dosyaya ya da hiçbir yere: %s" % (
+        motor, yanlis)
+    assert dogru >= 5 * len(_COK_CUMLELER) - 3, "%s: doğru satır %d" % (
+        motor, dogru)
