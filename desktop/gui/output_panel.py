@@ -56,6 +56,10 @@ def _hint_templates() -> dict:
 
 class OutputPanel(QWidget):
     error_clicked = pyqtSignal(str, int)  # file_path, line_number
+    # Hatalar listesi: satır DERLEME ANININ satırı. Metin o zamandan beri
+    # değişmiş olabilir; ana pencere onu hata işaretinin güncel satırına
+    # çeviriyor. Öteki listelerin satırı o anki metne ait, error_clicked.
+    derleme_hatasi_tiklandi = pyqtSignal(str, int)
     # Sürüm geçmişi eylemleri: (aksiyon, sha) — "restore" | "diff"
     version_action = pyqtSignal(str, str)
     # Ortam Denetimi satırına tıklandı (bağlamsal tetik)
@@ -828,7 +832,7 @@ class OutputPanel(QWidget):
         if data:
             file_path, line = data
             if line and line > 0:
-                self.error_clicked.emit(file_path or "", line)
+                self.derleme_hatasi_tiklandi.emit(file_path or "", line)
 
     def _on_result_click(self, item: QListWidget):
         """Uyarı/Öneri öğesine tıkla → (dosya, satır)'a atla (satır > 0 ise)."""

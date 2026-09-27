@@ -130,3 +130,136 @@ def test_unresolvable_path_shows_not_found(tmp_path, qapp):
     s._goto_next_error()
     assert s.goto_calls == []
     assert "konumu bulunamadı" in s._status.msg
+
+
+# =====================================================================
+# Gerçek pencere: derlemeden sonra metin değişince F4, işaret ve panel
+# =====================================================================
+
+_KAYNAK = ("\\documentclass{article}\n\\begin{document}\nbir\n\n"
+           "Burada \\hatabir var.\n\niki\n\nBurada \\hataiki var.\n"
+           "\\end{document}\n")
+
+
+def _cikti(bir, iki):
+    """Gerçek derle.sh çıktısının biçimi (2026-09-27, WSL'de pdflatex). Yol
+    göreli; `_on_compile_finished` onu derlenen belgenin klasörüne çözüyor."""
+    return ("./main.tex:%d: Undefined control sequence.\nl.%d Burada \\hatabir\n"
+            "./main.tex:%d: Undefined control sequence.\nl.%d Burada \\hataiki\n"
+            % (bir, bir, iki, iki))
+
+
+def _isaretli(ed):
+    return [i + 1 for i in range(ed.lines()) if _markers(ed, i) & _ERR_BIT]
+
+
+def _satiri(ed, jeton):
+    """Kehanet: hatanın METNİ editörün o anki metninde hangi satırda."""
+    return [i + 1 for i in range(ed.lines()) if jeton in ed.text(i)][0]
+
+
+def _derlenmis(ana_pencere, tmp_path):
+    from PyQt6.QtWidgets import QApplication
+    from core.log_parser import parse_output
+
+    tex = tmp_path / "main.tex"
+    tex.write_text(_KAYNAK, encoding="utf-8")
+    w = ana_pencere(open_file=str(tex))
+    w.show()
+    w.activateWindow()
+    QApplication.processEvents()
+    w._compile_target = str(tex)
+    w._on_compile_finished(parse_output(_cikti(5, 9), str(tex)))
+    ed = w._current_editor()
+    assert _isaretli(ed) == [5, 9]
+    return w, ed
+
+
+def _onsoze_satir_ekle(ed, n=1):
+    """Kullanıcının onarımı, gerçek tuşla: `\\documentclass` satırının
+    sonunda Enter. İki hata da n satır aşağı kayıyor."""
+    from PyQt6.QtCore import Qt
+    from PyQt6.QtTest import QTest
+
+    QTest.keyClick(ed, Qt.Key.Key_Home, Qt.KeyboardModifier.ControlModifier)
+    QTest.keyClick(ed, Qt.Key.Key_End)
+    for _ in range(n):
+        QTest.keyClick(ed, Qt.Key.Key_Return)
+    assert (_satiri(ed, "\\hatabir"), _satiri(ed, "\\hataiki")) == (5 + n, 9 + n)
+
+
+def test_satir_eklenince_F4_ve_isaretler_METINLE_gidiyor(ana_pencere,
+                                                         tmp_path):
+    """Hatayı onarmak için önsöze satır ekleyen kullanıcı F4'e basıyor.
+    ÖLÇÜLDÜ (2026-09-27, gerçek pencere, Ctrl+B ile gerçek derleme):
+    işaretler metinle doğru kaydı (6, 10), F4 ise derleme anının satırına
+    (9) gitti ve işaretleri 5 ile 9'a geri koydu; sekme gidip gelmek de
+    öyle. Kehanet hatanın metni; tuş kısayol eşleştirmesinden geçiyor."""
+    from PyQt6.QtCore import Qt
+    from PyQt6.QtTest import QTest
+    from PyQt6.QtWidgets import QApplication
+
+    w, ed = _derlenmis(ana_pencere, tmp_path)
+    _onsoze_satir_ekle(ed)
+    QTest.keyClick(w, Qt.Key.Key_F4)
+    QTest.keyClick(w, Qt.Key.Key_F4)
+    assert ed.getCursorPosition()[0] + 1 == _satiri(ed, "\\hataiki")
+    assert _isaretli(ed) == [6, 10]
+
+    baska = tmp_path / "baska.tex"
+    baska.write_text("x\n", encoding="utf-8")
+    w._open_file_in_editor(str(baska))
+    w._editor_tabs.setCurrentWidget(ed)
+    QApplication.processEvents()
+    assert _isaretli(ed) == [6, 10]
+
+
+def test_panelde_hataya_tiklamak_KAYAN_satira_gidiyor(ana_pencere, tmp_path):
+    """Hatalar listesindeki satır derleme anının satırı; tıklama da F4 gibi
+    işaretin güncel satırına gitmeli. ÖLÇÜLDÜ (aynı gün): 9'a gidiyordu."""
+    from PyQt6.QtCore import Qt
+    from PyQt6.QtTest import QTest
+
+    w, ed = _derlenmis(ana_pencere, tmp_path)
+    _onsoze_satir_ekle(ed)
+    liste = w._output_panel._error_list
+    QTest.mouseClick(liste.viewport(), Qt.MouseButton.LeftButton,
+                     Qt.KeyboardModifier.NoModifier,
+                     liste.visualItemRect(liste.item(1)).center())
+    assert ed.getCursorPosition()[0] + 1 == _satiri(ed, "\\hataiki")
+
+
+def test_diskten_yuklenince_isaretler_DERLEME_satirina_donuyor(ana_pencere,
+                                                                tmp_path):
+    """`open_file` ("Diskten Yükle") `setText` ile işaretleri SİLİYOR,
+    tutamaç -1 dönüyor. İşaret bir kez konup bırakılsaydı bir daha hiç
+    görünmezdi: silinmişse derleme anının satırına yeniden konuyor ve F4
+    oraya gidiyor (diskteki metin derleme anının metni)."""
+    w, ed = _derlenmis(ana_pencere, tmp_path)
+    _onsoze_satir_ekle(ed)
+    ed.open_file(ed.file_path)
+    assert _isaretli(ed) == []
+    w._goto_next_error()
+    assert ed.getCursorPosition()[0] + 1 == _satiri(ed, "\\hatabir") == 5
+    assert _isaretli(ed) == [5, 9]
+
+
+def test_yeni_derlemede_ARKA_sekmenin_eski_isareti_kullanilmiyor(ana_pencere,
+                                                                 tmp_path):
+    """Çok dosyalı projede derleme çoğu zaman bölümden başlıyor ve ana belge
+    arka sekmede ÖNCEKİ derlemenin işaretleriyle kalıyor. Önsöze dört satır
+    eklenince birinci hata 9'a indi; eski derlemenin "9" işareti ise artık
+    ikinci hatanın (13) üstünde. Yeni derlemenin F4'ü eski tutamacı
+    kullanırsa 9 yerine 13'e gider."""
+    from core.log_parser import parse_output
+
+    w, ed = _derlenmis(ana_pencere, tmp_path)
+    _onsoze_satir_ekle(ed, 4)
+    bolum = tmp_path / "bolum.tex"
+    bolum.write_text("x\n", encoding="utf-8")
+    w._open_file_in_editor(str(bolum))
+    w._on_compile_finished(parse_output(_cikti(9, 13), w._compile_target))
+    w._goto_next_error()
+    assert w._current_editor() is ed
+    assert ed.getCursorPosition()[0] + 1 == _satiri(ed, "\\hatabir") == 9
+    assert _isaretli(ed) == [9, 13]

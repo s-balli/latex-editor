@@ -269,7 +269,7 @@ def test_hata_tiklamasi_SATIRSIZ_bulguda_atlamiyor(qapp):
     it.setData(Qt.ItemDataRole.UserRole, ("", 0))
     p._error_list.addItem(it)
     yayilan = []
-    p.error_clicked.connect(lambda f, l: yayilan.append((f, l)))
+    p.derleme_hatasi_tiklandi.connect(lambda f, l: yayilan.append((f, l)))
 
     p._on_error_click(it)
 
@@ -277,17 +277,21 @@ def test_hata_tiklamasi_SATIRSIZ_bulguda_atlamiyor(qapp):
 
 
 def test_hata_tiklamasi_SATIR_varsa_yayiyor(qapp):
-    """Aşırı düzeltme kapısı."""
+    """Aşırı düzeltme kapısı. Satır derleme anının satırı; yalnız kendi
+    sinyaliyle gidiyor ki ana pencere onu hata işaretinin güncel satırına
+    çevirsin (error_clicked öteki listelerin, çevrilmeden gidiyor)."""
     p = _panel()
     it = QListWidgetItem("hata")
     it.setData(Qt.ItemDataRole.UserRole, ("C:/x/a.tex", 12))
     p._error_list.addItem(it)
-    yayilan = []
-    p.error_clicked.connect(lambda f, l: yayilan.append((f, l)))
+    yayilan, cevrilmeyen = [], []
+    p.derleme_hatasi_tiklandi.connect(lambda f, l: yayilan.append((f, l)))
+    p.error_clicked.connect(lambda f, l: cevrilmeyen.append((f, l)))
 
     p._on_error_click(it)
 
     assert yayilan == [("C:/x/a.tex", 12)]
+    assert cevrilmeyen == []
 
 
 def test_MAKRO_icindeki_tanimsiz_komutta_ipucu_ASIL_sucluyu_gosteriyor(qapp):

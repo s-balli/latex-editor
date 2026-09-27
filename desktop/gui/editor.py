@@ -173,11 +173,16 @@ class EditorWidget(QsciScintilla):
         """Derleme hatalarının gutter işaretlerini temizle."""
         self.markerDeleteAll(self._ERR_MARKER)
 
-    def add_error_marker(self, line_1based: int):
-        """Belirli bir satıra hata işareti koy (gutter). 1-based satır."""
+    def add_error_marker(self, line_1based: int) -> int:
+        """Belirli bir satıra hata işareti koy (gutter). 1-based satır.
+
+        Scintilla tutamacını döndürür (satır yoksa -1): işaret metinle
+        birlikte kayıyor, `markerLine(tutamaç)` GÜNCEL satırını veriyor.
+        """
         ln = line_1based - 1
         if 0 <= ln < self.lines():
-            self.markerAdd(ln, self._ERR_MARKER)
+            return self.markerAdd(ln, self._ERR_MARKER)
+        return -1
 
     @staticmethod
     def _hex_to_scintilla(hex_color: str) -> int:

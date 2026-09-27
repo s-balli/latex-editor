@@ -730,18 +730,65 @@ class CompileOpsMixin:
         adı taşıyor (`chapter1.tex`). ÖLÇÜLDÜ (2026-09-24, gerçek derle.sh):
         işaret açık sekmede HİÇ görünmedi; harfler aynıyken görünüyor.
         Karar dosya başına bir kez, hata başına değil.
+
+        İşaretler bir derleme için editör başına BİR KEZ konuyor, sonra
+        metinle birlikte kayıyor (Scintilla) ve F4 onların güncel satırına
+        gidiyor (`_guncel_hata_satiri`). Eskiden her çağrıda silinip derleme
+        anının satırlarına yeniden konuyordu. ÖLÇÜLDÜ (2026-09-27, gerçek
+        pencere, Ctrl+B ile gerçek derleme, gerçek F4): hatayı onarmak için
+        önsöze satır ekleyen kullanıcıda işaretler doğru kaydı (6, 10), F4
+        ise 9. satıra gitti ve işaretleri 5 ile 9'a geri koydu; sekme
+        değiştirmek de öyle. Tutamaç silinmişse yeniden konuyor: `setText`
+        (diskten yeniden yükleme) işaretleri siliyor, satır düzenlemesi
+        silmiyor.
         """
         editor = self._current_editor()
         if not isinstance(editor, EditorWidget):
             return
+        hatalar = getattr(self, "_last_errors", [])
+        if (getattr(editor, "_isaretli_hatalar", None) is hatalar
+                and all(editor.markerLine(h) >= 0
+                        for h in editor._hata_tutamaclari.values())):
+            return
         editor.clear_error_markers()
+        tutamaclar = {}
         bu_dosya = {}
-        for e in getattr(self, "_last_errors", []):
+        for e in hatalar:
             if e.file_path not in bu_dosya:
                 bu_dosya[e.file_path] = ayni_dosya_mi(e.file_path,
                                                       editor.file_path)
             if bu_dosya[e.file_path]:
-                editor.add_error_marker(e.line_number)
+                h = editor.add_error_marker(e.line_number)
+                if h >= 0:
+                    tutamaclar[e.line_number] = h
+        editor._isaretli_hatalar = hatalar
+        editor._hata_tutamaclari = tutamaclar
+
+    def _guncel_hata_satiri(self, dosya: str, satir: int) -> int:
+        """Son derlemenin `dosya:satir` hatası ŞİMDİ hangi satırda.
+
+        İşaretliyse işaretin satırı. İşaret yoksa (dosya açık değil, sekme
+        derlemeden beri öne gelmedi ya da metin yeniden yüklendi) derleme
+        anının satırı; sekme öne gelince işaret de oraya konuyor, ikisi
+        tutarlı kalıyor.
+        """
+        ed = self._editor_by_path(dosya) if dosya else None
+        if (ed is not None
+                and getattr(ed, "_isaretli_hatalar", None) is self._last_errors
+                and satir in ed._hata_tutamaclari):
+            ln = ed.markerLine(ed._hata_tutamaclari[satir])
+            if ln >= 0:
+                return ln + 1
+        return satir
+
+    def _derleme_hatasina_git(self, dosya: str, satir: int):
+        """Hatalar listesinde tıklanan hataya git.
+
+        Listedeki satır DERLEME ANININ satırı; F4 gibi işaretin güncel
+        satırına çevriliyor. Öteki listeler (yazım, proje araması, denetim)
+        o anki metnin satırını taşıyor ve doğrudan `_goto_line`a gidiyor.
+        """
+        self._goto_line(dosya, self._guncel_hata_satiri(dosya, satir))
 
     def _goto_next_error(self):
         self._goto_error(step=1)
@@ -763,9 +810,10 @@ class CompileOpsMixin:
         if not e.file_path or not os.path.isfile(e.file_path):
             self._status.showMessage(_("Hata konumu bulunamadı"))
             return
-        self._goto_line(e.file_path, e.line_number)
+        satir = self._guncel_hata_satiri(e.file_path, e.line_number)
+        self._goto_line(e.file_path, satir)
         self._refresh_error_markers()
-        self._status.showMessage(_("Satır") + f" {e.line_number}: {e.message}")
+        self._status.showMessage(_("Satır") + f" {satir}: {e.message}")
 
     def _toggle_auto(self):
         self._auto_compile = not self._auto_compile

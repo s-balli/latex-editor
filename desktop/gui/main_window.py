@@ -623,6 +623,8 @@ class MainWindow(
         self._file_tree.file_open_requested.connect(self._open_file_in_editor)
         self._file_tree.compile_requested.connect(self._compile_file)
         self._output_panel.error_clicked.connect(self._goto_line)
+        self._output_panel.derleme_hatasi_tiklandi.connect(
+            self._derleme_hatasina_git)
         self._output_panel.version_action.connect(self._on_version_action)
         self._output_panel.env_check_requested.connect(self._open_env_doctor)
         self._output_panel.project_search_requested.connect(
