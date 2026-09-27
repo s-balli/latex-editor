@@ -7,7 +7,7 @@ import re
 import stat
 from pathlib import Path
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QColor, QPalette
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
@@ -40,6 +40,119 @@ _CLOSE_FOR_OPEN = {'{': '}', '[': ']'}
 
 # Eşleşen \begin{X} / \end{X} tag'lerini yakala (C.11)
 _BEGINEND_RE = re.compile(r'\\(begin|end)\s*\{([A-Za-z]+\*?)\}')
+
+
+def _yalniz_cr_cevir(full: str) -> str:
+    """Scintilla YALNIZ CR'yi de satır sonu sayıyor; `split('\\n')` saymıyor.
+    Onu taşıyan belgede satırlar kaymasın diye `\\n`e çevir (LF ve CRLF
+    belgede metin olduğu gibi dönüyor)."""
+    if full.count('\r') != full.count('\r\n'):
+        full = re.sub(r'\r(?!\n)', '\n', full)
+    return full
+
+
+def _beginend_etiketleri(full: str) -> list[tuple[int, int, int, str, str]]:
+    """Metindeki \\begin{X}/\\end{X}: (satır, char_baş, char_son, kind, ad).
+
+    Kural ve gerekçesi `EditorWidget._get_beginend_tags`ta; eşleşme vurgusu
+    ve katlama aynı listeyi kullanıyor.
+    """
+    tags = []
+    for ln, line_text in enumerate(
+            sozel_soy(strip_comments(_yalniz_cr_cevir(full))).split('\n')):
+        for m in _BEGINEND_RE.finditer(line_text):
+            tags.append((ln, m.start(), m.end(), m.group(1), m.group(2)))
+    return tags
+
+
+# Scintilla katlama düzeyi: taban ve "bu satır bir bölge açıyor" bayrağı
+_KATLAMA_TABANI = 0x400          # SC_FOLDLEVELBASE
+_KATLAMA_BASLIGI = 0x2000        # SC_FOLDLEVELHEADERFLAG
+
+
+def katlama_bolgeleri(full: str, etiketler=None) -> list[tuple[int, int]]:
+    r"""Katlanabilir bölgeler: (açan satır, son satır), 0 tabanlı, son dahil.
+
+    İki kaynak, ikisi de deponun var olan tarayıcısı:
+      - ortamlar: `\begin{X}` ve eşi `\end{X}` (vurgunun kuralı: ada göre
+        yığın; yorum, sözel ortam ve `\verb` dışı). `\end` satırı dahil.
+      - başlıklar: anahat panelinin gördükleri (`anahat_girdileri`). Başlık,
+        kendisiyle aynı ya da üst düzeydeki sonraki başlığa kadar sürüyor;
+        `\section` altındaki `\subsection`ları da kapatıyor.
+    Başlık bölgesi ortamı KESMİYOR: içinde durduğu ortam kapanmadan
+    (`\end{document}` dahil) ve bölgeden uzun süren bir ortamın `\begin`inden
+    önce bitiyor. Kesseydi Scintilla iki bölgeyi birleştirirdi; önsözdeki
+    bir tanımın `\section`ı bütün belgeyi katlardı.
+    """
+    from gui.outline import anahat_girdileri
+
+    full = _yalniz_cr_cevir(full)
+    if etiketler is None:
+        etiketler = _beginend_etiketleri(full)
+    ortamlar, acik = [], {}
+    for ln, _bas, _son, tur, ad in etiketler:
+        if tur == "begin":
+            acik.setdefault(ad, []).append(ln)
+        elif acik.get(ad):
+            bas = acik[ad].pop()
+            if ln > bas:
+                ortamlar.append((bas, ln))
+    ortamlar.sort()
+
+    basliklar = anahat_girdileri(full)
+    # Her başlık için kendisiyle aynı ya da üst düzeydeki SONRAKİ başlığın
+    # satırı (yoksa belge sonu). Sondan başa yığınla, doğrusal.
+    sinir = [full.count('\n') + 1] * len(basliklar)
+    yigin = []
+    for i in range(len(basliklar) - 1, -1, -1):
+        while yigin and basliklar[yigin[-1]][1] > basliklar[i][1]:
+            yigin.pop()
+        if yigin:
+            sinir[i] = basliklar[yigin[-1]][0]
+        yigin.append(i)
+
+    bolgeler = list(ortamlar)
+    j, icinde = 0, []
+    for i, (ln, _duzey, _etiket) in enumerate(basliklar):
+        son = sinir[i] - 1
+        while j < len(ortamlar) and ortamlar[j][0] < ln:
+            icinde.append(ortamlar[j])
+            j += 1
+        icinde = [o for o in icinde if o[1] > ln]      # başlığı içerenler
+        for _b, e in icinde:
+            son = min(son, e - 1)
+        k = j
+        while k < len(ortamlar) and ortamlar[k][0] <= son:
+            if ortamlar[k][1] > son:                    # bölgeden uzun süren
+                son = ortamlar[k][0] - 1
+                break
+            k += 1
+        if son > ln:
+            bolgeler.append((ln, son))
+    return bolgeler
+
+
+def katlama_duzeyleri(full: str, etiketler=None) -> list[int]:
+    """Her satırın Scintilla katlama düzeyi (SCI_SETFOLDLEVEL değeri).
+
+    Satırın düzeyi, onu GÖVDESİNDE taşıyan bölge sayısı; bölgeyi açan satır
+    başlık bayrağı alıyor. Scintilla başlığın altında düzeyi ondan büyük
+    süren satırları katlıyor.
+    """
+    full = _yalniz_cr_cevir(full)
+    n = full.count('\n') + 1
+    fark = [0] * (n + 1)
+    acanlar = set()
+    for bas, son in katlama_bolgeleri(full, etiketler):
+        fark[bas + 1] += 1
+        fark[son + 1] -= 1
+        acanlar.add(bas)
+    duzeyler, derinlik = [], 0
+    for i in range(n):
+        derinlik += fark[i]
+        d = _KATLAMA_TABANI + derinlik
+        duzeyler.append(d | _KATLAMA_BASLIGI if i in acanlar else d)
+    return duzeyler
 
 # Alt+tık ile \ref/\cite tanıma git: tıklanan konumdaki argümanı yakala.
 # (cite ailesi opsiyonel [...] argümanları olabilir: \citep[see][]{key})
@@ -142,7 +255,23 @@ class EditorWidget(QsciScintilla):
         self.SendScintilla(QsciScintilla.SCI_INDICSETSTYLE, self._beginend_indicator,
                            QsciScintilla.INDIC_FULLBOX)
         self.SendScintilla(QsciScintilla.SCI_INDICSETALPHA, self._beginend_indicator, 60)
+        # Katlama düzeylerini özel lexer KOYMUYOR, `_katlamayi_guncelle`
+        # koyuyor. ÖLÇÜLDÜ (2026-09-27): kenar ilk sürümden beri açıktı ama
+        # hiçbir satırda katlama noktası yoktu (\begin ve \section dahil).
+        # Her tuşta bütün belgeyi taramamak için kısa bir bekleme.
         self.setFolding(QsciScintilla.FoldStyle.PlainFoldStyle, 2)
+        self._katlama_zamanlayici = QTimer(self)
+        self._katlama_zamanlayici.setSingleShot(True)
+        self._katlama_zamanlayici.setInterval(300)
+        self._katlama_zamanlayici.timeout.connect(self._katlamayi_guncelle)
+        self.textChanged.connect(self._katlama_zamanlayici.start)
+        # Gizli satırdaki değişiklik o satırı AÇSIN. ÖLÇÜLDÜ (aynı gün,
+        # gerçek tuş): katlı bölümdeki bir düzenlemeyi Ctrl+Z ile geri almak
+        # metni ve imleci gizli satırda bırakıyordu. Scintilla bunu
+        # SCN_NEEDSHOWN ile soruyor, QScintilla yanıtlamıyor; bu bayrakla
+        # Scintilla satırı kendisi gösteriyor.
+        self.SendScintilla(QsciScintilla.SCI_SETAUTOMATICFOLD,
+                           QsciScintilla.SC_AUTOMATICFOLD_SHOW)
         self.setWrapMode(QsciScintilla.WrapMode.WrapWord)
         self.setTabWidth(4)
         self.setIndentationGuides(True)
@@ -159,6 +288,18 @@ class EditorWidget(QsciScintilla):
         # Popup seçimi keyPressEvent'i atladığı için normal autopair tetiklenmez;
         # bu yüzden tamamlama sinyalinde manuel kapatıyoruz.
         self.SCN_AUTOCCOMPLETED.connect(self._on_autoc_completed)
+
+    def _katlamayi_guncelle(self):
+        """Katlama düzeylerini metinden yeniden kur; yalnız değişen satırlar.
+
+        Başlık bayrağını yitiren KATLI satırı QScintilla kendisi açıyor
+        (`foldChanged`), yani silinen `\\begin`in altındaki satırlar gizli
+        kalmıyor.
+        """
+        duzeyler = katlama_duzeyleri(self.text(), self._get_beginend_tags())
+        for i, d in enumerate(duzeyler):
+            if self.SendScintilla(QsciScintilla.SCI_GETFOLDLEVEL, i) != d:
+                self.SendScintilla(QsciScintilla.SCI_SETFOLDLEVEL, i, d)
 
     def _update_margin_width(self):
         """Satır numarası margin'ini satır sayısına göre dinamik genişlet (C.10).
@@ -206,6 +347,15 @@ class EditorWidget(QsciScintilla):
         self.setSelectionBackgroundColor(c("accent_selection"))
         self.setSelectionForegroundColor(c("fg_bright"))
         self.setFoldMarginColors(c("bg_primary"), c("bg_primary"))
+        # Katlama işaretleri (25-31): artı/eksi çokgeninin kenarı FORE, içi
+        # BACK. QScintilla'nın öntanımlısı beyaz kenarlı siyah; işaret satır
+        # numarası renginde olsun.
+        for isaret in range(QsciScintilla.SC_MARKNUM_FOLDEREND,
+                            QsciScintilla.SC_MARKNUM_FOLDEROPEN + 1):
+            self.SendScintilla(QsciScintilla.SCI_MARKERSETFORE, isaret,
+                               s("bg_primary"))
+            self.SendScintilla(QsciScintilla.SCI_MARKERSETBACK, isaret,
+                               s("fg_line_numbers"))
         self.setCaretLineBackgroundColor(c("bg_hover"))
 
         pal = self.palette()
@@ -936,21 +1086,14 @@ class EditorWidget(QsciScintilla):
         (gerekçe ve ölçüm orada), satırın arkasındaki etiket kalıyor.
         """
         if self._beginend_tags_cache is None:
-            tags = []
             # Tek self.text() çek + Python'da split: eski kod her satırda ayrı
             # self.text(ln) (n Scintilla çağrısı) yapıyordu. Scintilla YALNIZ
             # CR'yi de satır sonu sayıyor: onu taşıyan (ya da `\r\r\n`) belgede
             # split('\n') satır numaralarını kaydırıyor ve eş başka satırda
-            # vurgulanıyordu (ölçüldü, aynı gün). Yalnız o belgede çevriliyor;
-            # LF ve CRLF'de split('\n') zaten Scintilla'nın satırlarını veriyor.
-            full = self.text()
-            if full.count('\r') != full.count('\r\n'):
-                full = re.sub(r'\r(?!\n)', '\n', full)
-            for ln, line_text in enumerate(
-                    sozel_soy(strip_comments(full)).split('\n')):
-                for m in _BEGINEND_RE.finditer(line_text):
-                    tags.append((ln, m.start(), m.end(), m.group(1), m.group(2)))
-            self._beginend_tags_cache = tags
+            # vurgulanıyordu (ölçüldü, aynı gün). Yalnız o belgede çevriliyor
+            # (`_yalniz_cr_cevir`); LF ve CRLF'de split('\n') zaten
+            # Scintilla'nın satırlarını veriyor.
+            self._beginend_tags_cache = _beginend_etiketleri(self.text())
         return self._beginend_tags_cache
 
     def _tag_byte_range(self, line: int, char_start: int, char_end: int) -> tuple[int, int]:

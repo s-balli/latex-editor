@@ -752,6 +752,11 @@ class FindReplaceBar(QWidget):
         s1, c1 = self._satir_sutun(metin, secim[0])
         s2, c2 = self._satir_sutun(metin, secim[1])
         self._editor.setSelection(s1, c1, s2, c2)
+        # Kod katlamasıyla gizlenmiş satırdaki eşleşme açılsın: setSelection
+        # açmıyor. Scintilla motorunun yolunu findFirst'ün `show` bayrağı
+        # açıyor; bu yol onu kullanmıyor.
+        for satir in range(s1, s2 + 1):
+            self._editor.ensureLineVisible(satir)
         return True
 
     def _degistir(self, yeni: str):
