@@ -267,6 +267,24 @@ class TestOzet:
         g = parse_entries("@article{k, title={Uzun\n   bir\n   başlık}}")[0]
         assert ozet(g)[4] == "Uzun bir başlık"
 
+    @pytest.mark.parametrize("ham,beklenen", [
+        ("Classical NF-κB Activation Regulates NF-κB-dependent CXCL12",
+         "Classical NF-κB Activation Regulates NF-κB-dependent CXCL12"),
+        ("Mixed-Phase TiO₂ for Solar Photocatalysis",
+         "Mixed-Phase TiO₂ for Solar Photocatalysis"),
+        ("doped TiO\n    <sub>2</sub>\n    on their", "doped TiO₂ on their"),
+        ("Ca²⁺ and Δ9-THC with ≤ 2 ′ marks", "Ca²⁺ and Δ9-THC with ≤ 2 ′ marks"),
+        ("NF-κB activation <i>via</i> the IκB", "NF-κB activation via the IκB"),
+    ])
+    def test_DOI_girdisinin_basligi_SEKMEDE_okunur(self, ham, beklenen):
+        r"""Kaynakça sekmesi bu özeti gösteriyor. ÖLÇÜLDÜ (2026-09-27, gerçek
+        pencere): Unicode çevirisinden sonra DOI girdisi sekmede
+        "NF-$\kappa$B", "TiO\textsubscript2" diye görünüyordu; öncesinde
+        "NF-κB", "TiO₂". Girdi `normallestir`den geçip özetleniyor."""
+        from core.bibtex import normallestir
+        metin, _a = normallestir("@article{k, title={%s}, year={2020}}" % ham)
+        assert ozet(parse_entries(metin)[0])[4] == beklenen
+
     def test_ozet_sirasi(self):
         g = parse_entries(
             "@inproceedings{He2016, author={He, K}, title={T}, year={2016}}")[0]
@@ -366,9 +384,12 @@ class TestNormallestir:
         assert baslik("$50%$ deger") == r"$50\%$ deger"
 
     @staticmethod
-    def _baslik(t):
-        m, _a = normallestir("@article{k, title={%s}, year={2020}}" % t)
-        return re.search(r"title = \{(.*)\},\n", m).group(1)
+    def _alan(t, ad="note"):
+        """Alanın normalleştirilmiş değeri. Çeviri kapıları `note` ile
+        koşuyor: `title` ayrıca büyük harf koruması alıyor (kendi kapısı var)."""
+        m, _a = normallestir(
+            "@article{k, title={T}, %s={%s}, year={2020}}" % (ad, t))
+        return re.search(r"  %s = \{(.*)\},\n" % ad, m).group(1)
 
     @pytest.mark.parametrize("ham,beklenen", [
         ("Classical NF-κB Activation", "Classical NF-{$\\kappa$}B Activation"),
@@ -393,7 +414,7 @@ class TestNormallestir:
         10'unun derlemesi "Unicode character κ not set up" ile DÜŞÜYORDU,
         lualatex'te aynı 10'unda karakter SESSİZCE kayboluyordu. Çevrilen
         küme tahmin değil: 112 aday tek tek derlendi (bkz. core/bibtex)."""
-        assert self._baslik(ham) == beklenen
+        assert self._alan(ham) == beklenen
 
     @pytest.mark.parametrize("ham,beklenen", [
         # Gerçek kayıtlar (10.1021/..., 10.1002/pssr.201409365, 10.1039/c6ra07993h)
@@ -415,7 +436,44 @@ class TestNormallestir:
         19 kaydın 9'u). Wiley ve RSC etiketi girintili veriyor; alt simgeden
         önceki girinti yapışık, kapanıştan sonraki noktalamadan (orta tire
         dahil) önce yapışık, yoksa boşluk ("TiO₂ on their")."""
-        assert self._baslik(ham) == beklenen
+        assert self._alan(ham) == beklenen
+
+    @pytest.mark.parametrize("ham,beklenen", [
+        # Gerçek kayıtlar (10.1074/jbc.m110.147207, 10.1007/978-3-642-72511-1_17,
+        # 10.1016/j.imlet.2011.01.011, 10.1385/1-59259-274-0:105 ...)
+        ("Classical NF-κB Activation Regulates NF-κB-dependent CXCL12 Expression",
+         "Classical {NF}-{{$\\kappa$}B} Activation Regulates "
+         "{NF}-{{$\\kappa$}B}-dependent {CXCL12} Expression"),
+        ("Ca2+/Calmodulin-Sensitive Na+/K+-ATPase Activity",
+         "{Ca2+}/Calmodulin-Sensitive {Na+}/{K+}-{ATPase} Activity"),
+        ("A novel association between filamin A and CD28",
+         "A novel association between filamin {A} and {CD28}"),
+        ("Nuclear Factor-κB (NF-κB) in Mononuclear Cells (MNC)",
+         "Nuclear Factor-{{$\\kappa$}B} ({NF}-{{$\\kappa$}B}) in Mononuclear "
+         "Cells ({MNC})"),
+        ("ChemInform Abstract: Semiconductor\N{EM DASH}Metal Nanocomposites",
+         "{ChemInform} Abstract: Semiconductor\N{EM DASH}Metal Nanocomposites"),
+        ("doped TiO\n    <sub>2</sub>\n    on their",
+         "doped {TiO}\\textsubscript{2} on their"),
+        # Kapanış etiketindeki `/` kelimeyi BÖLMÜYOR (10.1021/scimeetings...)
+        ("Synthesis of Ag@TiO<sub>2</sub> composite",
+         "Synthesis of {Ag@TiO\\textsubscript{2}} composite"),
+        # Aşırı düzeltme: başlık düzeninin büyük harfi, ilk kelimedeki tek
+        # harf ve zaten korunmuş kelime DOKUNULMADAN kalıyor
+        ("Phase-Selective Engineering of Mixed-Phase Catalysts",
+         "Phase-Selective Engineering of Mixed-Phase Catalysts"),
+        ("A Review of Deep Learning", "A Review of Deep Learning"),
+        ("The {BERT} Model", "The {BERT} Model"),
+    ])
+    def test_BASLIKTA_kisaltma_ve_formul_KUCULTMEYE_karsi_korunuyor(
+            self, ham, beklenen):
+        r"""plain, abbrv, unsrt, plainnat başlığı küçültüyor; Crossref
+        başlığında koruma yok. ÖLÇÜLDÜ (2026-09-27, 21 gerçek kayıt plain.bst
+        ile derlenip basılan metin ELLE yazılmış cümle düzeniyle
+        karşılaştırılarak): 47 kelimenin harfi bozuluyordu ("nf-κb", "tio2",
+        "cd28", "Malt lymphoma"); korumayla 5 kaldı, beşi de yalnız baş harfi
+        büyük (Wnt) ya da noktalamadan sonra gelen kelime."""
+        assert self._alan(ham, "title") == beklenen
 
     def test_ADRES_ve_KIMLIK_alani_CEVRILMIYOR(self):
         r"""Adres ve DOI metin değil: `<211::AID-JBM11>` SICI DOI'lerinin

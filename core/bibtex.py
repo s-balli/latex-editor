@@ -253,8 +253,10 @@ def ozet(girdi: BibGirdi) -> tuple[str, str, str, str, str]:
 
     Değerler ham; yalnız gösterim için kısaltılıyor. Başlıktaki koruma
     parantezleri (`{BERT}`) atılıyor: kullanıcı okuyacak, dizgi motoru değil.
+    `normallestir`in ürettiği LaTeX de okunur metne dönüyor (`_latex_okunur`).
     """
-    baslik = girdi.alanlar.get("title", "").replace("{", "").replace("}", "")
+    baslik = _latex_okunur(girdi.alanlar.get("title", ""))
+    baslik = baslik.replace("{", "").replace("}", "")
     return (girdi.anahtar, girdi.tur,
             yazar_kisalt(girdi.alanlar.get("author")
                          or girdi.alanlar.get("editor", "")),
@@ -479,6 +481,61 @@ _RE_GIRINTI = re.compile(r"\s*\n\s*")
 # Adres ve kimlik alanları metin değil; LaTeX'e çevrilmiyor.
 _KIMLIK_ALANI = frozenset(["url", "doi", "isbn", "issn", "eprint"])
 
+# BÜYÜK HARF KORUMASI. plain, abbrv, unsrt, plainnat gibi stiller makale
+# başlığını küçültüyor (`change.case$ "t"`) ve Crossref başlığında koruma
+# parantezi yok. ÖLÇÜLDÜ (2026-09-27, 21 gerçek kayıt plain.bst ile derlenip
+# basılan metin ELLE yazılmış cümle düzeniyle karşılaştırılarak): 45 kelimenin
+# harfi bozuluyordu ("nf-κb", "tio2", "cd28", "Malt lymphoma").
+#
+# Kelime tire ve eğik çizgiden parçalanıyor; parça şu üç durumda `{}` içine
+# alınıyor: ilk harfinden SONRA büyük harf var (NF, TiO, κB, CXCL12,
+# ChemInform); büyük harfle birlikte rakam ya da yük işareti var (Ca2+, Na+,
+# Dishevelled1); başlığın ilk kelimesi değilken tek büyük harf (filamin A,
+# K-ATPase). Yalnız baş harfi büyük parça (Phase-Selective, Wnt) korunmuyor:
+# başlık düzeni ile özel ad ayırt edilemiyor, onu stil küçültüyor.
+_RE_KORUMA_AYIRAC = re.compile(
+    r"([-/\N{HYPHEN}\N{NON-BREAKING HYPHEN}\N{EN DASH}\N{EM DASH}](?![^<]*>))")
+_RE_HAM_ETIKET = re.compile(r"</?[a-z]+>")
+_KORUMA_ON = "([\"'\N{LEFT DOUBLE QUOTATION MARK}"
+_KORUMA_SON = ")]\"'.,;:!?\N{RIGHT DOUBLE QUOTATION MARK}"
+_YUK = "+\N{MINUS SIGN}\N{SUPERSCRIPT PLUS SIGN}\N{SUPERSCRIPT MINUS}" \
+       "\N{SUBSCRIPT PLUS SIGN}\N{SUBSCRIPT MINUS}"
+
+
+def _parca_koru(parca: str, ilk: bool) -> str:
+    """Tek parçayı (tiresiz) gerekiyorsa `{}` içine al; noktalama dışarıda."""
+    i, j = 0, len(parca)
+    while i < j and parca[i] in _KORUMA_ON:
+        i += 1
+    while j > i and parca[j - 1] in _KORUMA_SON:
+        j -= 1
+    cekirdek = parca[i:j]
+    gorunen = _RE_HAM_ETIKET.sub("", cekirdek)
+    if any(c in gorunen for c in "${}\\"):
+        return parca                        # zaten LaTeX ya da korumalı
+    buyuk = [k for k, c in enumerate(gorunen) if c.isupper()]
+    if not buyuk:
+        return parca
+    ilk_harf = next(k for k, c in enumerate(gorunen) if c.isalpha())
+    if (any(k > ilk_harf for k in buyuk)
+            or any(c.isdigit() or c in _YUK for c in gorunen)
+            or (len(gorunen) == 1 and not ilk)):
+        return parca[:i] + "{" + cekirdek + "}" + parca[j:]
+    return parca
+
+
+def _buyuk_harf_koru(baslik: str) -> str:
+    """Başlıktaki kısaltma, formül ve simgeleri stilin küçültmesinden koru."""
+    sayac = [0]
+
+    def kelime(m):
+        ilk = sayac[0] == 0
+        sayac[0] += 1
+        return "".join(p if _RE_KORUMA_AYIRAC.fullmatch(p) else _parca_koru(p, ilk)
+                       for p in _RE_KORUMA_AYIRAC.split(m.group(0)))
+
+    return re.sub(r"\S+", kelime, baslik)
+
 
 def _unicode_latex(deger: str) -> str:
     """Motorların basamadığı ölçülen karakterleri LaTeX'e çevir.
@@ -510,6 +567,32 @@ def _unicode_latex(deger: str) -> str:
     return "".join(parcalar)
 
 
+# Kaynakça SEKMESİ için ters yön: `normallestir`in ürettiği LaTeX okunur
+# metne dönüyor. ÖLÇÜLDÜ (2026-09-27, gerçek pencere): Unicode çevirisinden
+# sonra sekmede "NF-$\kappa$B" ve "TiO\textsubscript2" görünüyordu, öncesinde
+# "NF-κB" ve "TiO₂". Tablolar yukarıdakilerle aynı (tek kaynak).
+_YUNAN_TERS = {}
+for _harf, _ad in _YUNAN.items():
+    _YUNAN_TERS.setdefault(_ad, _harf)      # \Delta: Δ (∆ değil)
+_MAT_TERS = {v.lstrip("\\"): k for k, v in _SIMGE_MAT.items()}
+_ALT_TERS = {v: k for k, v in _ALT.items()}
+_UST_TERS = {v: k for k, v in _UST.items()}
+_RE_MAT_TEK = re.compile(r"\$\\?([A-Za-z]+|'{1,2}|-) ?\$")
+_RE_ALT_UST = re.compile(r"\\text(sub|super)script\{([^{}]*)\}")
+_RE_BICIM = re.compile(r"\\(?:textit|textbf|textsc|texttt|underline|emph)\{([^{}]*)\}")
+
+
+def _latex_okunur(metin: str) -> str:
+    """`{$\\kappa$}`, `\\textsubscript{2}`, `\\textit{via}` -> κ, ₂, via."""
+    metin = _RE_MAT_TEK.sub(
+        lambda m: _YUNAN_TERS.get(m.group(1)) or _MAT_TERS.get(m.group(1))
+        or m.group(0), metin)
+    metin = _RE_ALT_UST.sub(lambda m: "".join(
+        (_ALT_TERS if m.group(1) == "sub" else _UST_TERS).get(c, c)
+        for c in m.group(2)), metin)
+    return _RE_BICIM.sub(r"\1", metin).replace(r"\,", " ")
+
+
 def _jats_latex(deger: str) -> str:
     """Biçim etiketlerini LaTeX'e çevir; girintiyi etiketlerle birlikte çöz."""
     if "<" not in deger:
@@ -527,6 +610,10 @@ def _jats_latex(deger: str) -> str:
 
 def _deger_duzelt(ad: str, deger: str) -> str:
     """Alan değerinin ölçülen kusurlarını gider."""
+    if ad == "title":
+        # İlk adım: yalnız `{}` ekliyor, sonraki kaçış ve çeviriler
+        # parantezin İÇİNDE çalışıyor (`{NF}-{κB}` -> `{NF}-{{$\kappa$}B}`).
+        deger = _buyuk_harf_koru(deger)
     if ad == "pages":
         # Crossref sayfa aralığını ORTA TİRE (U+2013) ile veriyor.
         # plain.bst aralığı `--` ile tanıyor; tire kalınca çıktıya

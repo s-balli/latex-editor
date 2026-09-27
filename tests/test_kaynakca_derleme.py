@@ -12,9 +12,12 @@ derleniyor; basılan kaynakça pdfium ile okunuyor. ÖLÇÜLDÜ, düzeltmeden ö
   lualatex  derleniyor ama κ ve ₂ SESSİZCE yok ("NF-B", "tio for")
   ikisi     `<sub>2</sub>` olduğu gibi basılıyor
 
+plain.bst başlığı küçültüyor; koruma olmadan "nf-κb" ve "tio2" basılıyordu
+(ölçüldü, 21 kayıtta 47 kelime).
+
 `test_bibtex` dönüşümü DİZGE olarak sabitliyor; burası üretilen LaTeX'in iki
-motorda da gerçekten derlendiğini soruyor (tanımsız bir makro, eksik paket
-ya da plain.bst'nin küçük harfe çevirmesi dizge testinden kaçar).
+motorda da gerçekten derlendiğini ve basılan harfleri soruyor (tanımsız bir
+makro, eksik paket ya da stilin küçültmesi dizge testinden kaçar).
 """
 
 import os
@@ -44,10 +47,13 @@ _KAYITLAR = [
     "TiO₂ for Efficient Solar Photocatalysis}, publisher={Cassyni}, "
     "author={Jadhav, Amol}, year={2026}, month=Sept }\n",
 ]
+# Geniş sayfa: her girdi tek satır. Satır sonuna düşen tire pdfium'dan U+0002
+# geliyor ve açık tireyle ayırt edilemiyor ("NF-" + satır + "κB").
+_GENIS = "\\usepackage[paperwidth=150cm,paperheight=20cm,margin=1cm]{geometry}\n"
 _ONSOZ = {
     "pdflatex": "\\documentclass{article}\n\\usepackage[T1]{fontenc}\n"
-                "\\usepackage[utf8]{inputenc}\n",
-    "lualatex": "\\documentclass{article}\n\\usepackage{fontspec}\n",
+                "\\usepackage[utf8]{inputenc}\n" + _GENIS,
+    "lualatex": "\\documentclass{article}\n\\usepackage{fontspec}\n" + _GENIS,
 }
 
 
@@ -91,10 +97,13 @@ def test_DOI_kaynagi_iki_motorda_HATASIZ_ve_EKSIKSIZ_basiliyor(motor):
     # pdfium satır sonu tiresini U+0002 veriyor; bitişik harf (fi, ffi) bazı
     # dağıtımların yazı tipinde metne hiç dönmüyor (MiKTeX: "e cient"), o
     # yüzden denetlenen parçalarda bitişik harf yok.
-    metin = re.sub(r"\s+", " ", metin.replace("\x02", "")).lower()
+    metin = re.sub(r"\s+", " ", metin.replace("\x02", ""))
     # ÖNKOŞUL: kaynakça basıldı; yoksa aşağıdakiler boşa geçer
-    assert "madge" in metin and "jadhav" in metin, metin[:300]
-    assert "nf-κb" in metin, metin[:600]
-    assert "mixed-phase tio2 for" in metin and "doped tio2 on their" in metin, \
+    assert "Madge" in metin and "Jadhav" in metin, metin[:300]
+    # Harf DUYARLI: plain.bst başlığın gerisini küçültüyor, kısaltma ve
+    # formül korunmuş kalmalı
+    assert "Classical NF-κB activation" in metin, metin[:600]
+    assert "NF-κB-dependent CXCL12 expression" in metin, metin[:600]
+    assert "mixed-phase TiO2 for" in metin and "doped TiO2 on their" in metin, \
         metin[:600]
     assert "sub>" not in metin
