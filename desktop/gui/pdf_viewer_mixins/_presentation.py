@@ -19,6 +19,15 @@ _ILERI = (Qt.Key.Key_Right, Qt.Key.Key_Space, Qt.Key.Key_Down,
           Qt.Key.Key_PageDown)
 _GERI = (Qt.Key.Key_Left, Qt.Key.Key_Up, Qt.Key.Key_PageUp,
          Qt.Key.Key_Backspace)
+_GEZINME = _ILERI + _GERI + (Qt.Key.Key_Home, Qt.Key.Key_End)
+
+# Karartma (PowerPoint'te B ya da nokta): slayt gizleniyor, zemin siyah.
+# Kumanda klavye gibi tuşun ABD düzenindeki KONUMUNU gönderiyor, karakteri
+# bilgisayarın düzeni belirliyor. ÖLÇÜLDÜ (2026-09-27, gerçek pencere,
+# Türkçe Q): kumandanın noktası o konumda "ç" üretiyor ve Qt'ye Ç olarak
+# geliyor, klavyenin kendi noktası başka tuşta. Ç bu yüzden de karartıyor;
+# sunumda başka bir anlamı yok.
+_KARARTMA = (Qt.Key.Key_B, Qt.Key.Key_Period, Qt.Key.Key_Ccedilla)
 
 # İmleç bu kadar hareketsiz kalınca slaytın üstünden kalkıyor.
 _IMLEC_BEKLEME_MS = 3000
@@ -60,6 +69,7 @@ class PdfPresentationMixin:
             self._presentation_label.setMouseTracking(True)
             self._presentation_label.installEventFilter(self)
             self._sunum_teker = 0
+            self._sunum_karartildi = False
             # İmleç slaytın üstünde kalıcı duruyordu. Üç saniye hareketsiz
             # kalınca gizleniyor, fare kıpırdayınca geri geliyor (slayt
             # gösterisi programlarının alışılmış davranışı).
@@ -96,6 +106,15 @@ class PdfPresentationMixin:
         """Sunumu `hedef` sayfaya götür ve çiz; sınırlarda durur."""
         self._sunum_sayfasi = max(0, min(hedef, self._page_count - 1))
         self._presentation_render()
+
+    def _sunum_karart(self, karanlik: bool):
+        """Slaytı gizle ya da geri getir; pencerenin zemini siyah.
+
+        Karartılmışken çizim sürüyor (arkada biten derleme karenin yerine
+        yenisini koyuyor), etiket gizli kaldığı için ekran siyah kalıyor.
+        """
+        self._sunum_karartildi = karanlik
+        self._presentation_label.setVisible(not karanlik)
 
     def _sunum_baglantisi(self, olay, nesne, bekle: bool = True):
         """Sunum karesinde farenin altındaki (bağlantı, sayfa); yoksa None.
@@ -252,6 +271,13 @@ class PdfPresentationMixin:
         key = event.key()
         if key == Qt.Key.Key_Escape:
             self.exit_presentation()
+        elif key in _KARARTMA:
+            self._sunum_karart(not self._sunum_karartildi)
+        elif self._sunum_karartildi and key in _GEZINME:
+            # Karartılmışken gezinme önce slaytı geri getiriyor, sayfayı
+            # değiştirmiyor: kumandada "ileri"ye basan konuşmacı dinleyiciye
+            # kaldığı slaytı gösteriyor, arada bir slayt atlanmıyor.
+            self._sunum_karart(False)
         elif key in _ILERI:
             self._sunum_git(self._sunum_sayfasi + 1)
         elif key in _GERI:

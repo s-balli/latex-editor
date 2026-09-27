@@ -452,7 +452,13 @@ class MainWindow(
 
         # Görünüm menüsü
         view_menu = menubar.addMenu(_("&Görünüm"))
-        self._add_action(view_menu, _("&Sunum Modu"), self._pdf_viewer.enter_presentation, "F5")
+        sunum = self._add_action(view_menu, _("&Sunum Modu"),
+                                 self._pdf_viewer.enter_presentation)
+        # Kumandanın başlat düğmesi F5 ya da Shift+F5 gönderiyor (PowerPoint'te
+        # "geçerli slayttan başlat"). Sunum zaten geçerli sayfadan başlıyor,
+        # ikisi aynı işi yapıyor. ÖLÇÜLDÜ (2026-09-27, gerçek pencereye gerçek
+        # tuş): F5 sunumu açıyordu, Shift+F5 açmıyordu.
+        sunum.setShortcuts([QKeySequence("F5"), QKeySequence("Shift+F5")])
         view_menu.addSeparator()
         theme_menu = view_menu.addMenu(_("&Tema"))
         self._theme_actions = {}
@@ -877,7 +883,7 @@ class MainWindow(
         html += "Shift+F4 · " + _("Önceki Hata") + "<br><br>"
         html += "<b>" + _("Diğer") + "</b><br>"
         html += "Esc · " + _("Derlemeyi Durdur") + "<br>"
-        html += "F5 · " + _("Sunum Modu") + "<br>"
+        html += "F5, Shift+F5 · " + _("Sunum Modu") + "<br>"
         html += "Ctrl+" + _("Fare Tekerleği") + " · " + _("PDF Yakınlaştır") + "<br><br>"
         html += "<b>SyncTeX (PDF ↔ " + _("Kaynak") + ")</b><br>"
         html += "Ctrl+" + _("Tıklama") + " (" + _("Editör") + ") · " + _("PDF'te konumu göster") + "<br>"
@@ -996,8 +1002,8 @@ class MainWindow(
         middle += "<b>" + _("Çift Sayfa Görünümü") + "</b><br>"
         middle += "<span style='color:" + dim + "'>" + _("Sayfaları yan yana ikişerli gösterin.") + "</span>"
         middle += "<br><br>"
-        middle += "<b>" + _("Sunum Modu") + " (F5)</b><br>"
-        middle += "<span style='color:" + dim + "'>" + _("Tam ekran sunum. Ok tuşları, Page Up/Page Down (sunum kumandası), fare tekerleği ya da sol/sağ tık ile gezin; slayttaki bağlantılar tıklanınca açılır.") + "</span>"
+        middle += "<b>" + _("Sunum Modu") + " (F5, Shift+F5)</b><br>"
+        middle += "<span style='color:" + dim + "'>" + _("Tam ekran sunum. Ok tuşları, Page Up/Page Down (sunum kumandası), fare tekerleği ya da sol/sağ tık ile gezin; B ya da nokta ekranı karartır; slayttaki bağlantılar tıklanınca açılır.") + "</span>"
         middle += "<br><br>"
         middle += "<b>" + _("PDF Renk Tersi") + "</b><br>"
         middle += "<span style='color:" + dim + "'>" + _("PDF renklerini ters çevirerek koyu modda görüntüleyin.") + "</span>"

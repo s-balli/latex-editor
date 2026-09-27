@@ -232,6 +232,15 @@ def _kisayol_kayitlari(kaynak: str):
                     dizi = _dizge(kw.value)
             if dizi:
                 eylemler.append(dizi)
+        elif (isinstance(f, ast.Attribute) and f.attr == "setShortcuts"
+                and node.args and isinstance(node.args[0], ast.List)):
+            # Bir eyleme birden çok dizi (sunum: F5 ve Shift+F5)
+            for oge in node.args[0].elts:
+                if (isinstance(oge, ast.Call) and oge.args
+                        and getattr(oge.func, "id", "") == "QKeySequence"):
+                    d = _dizge(oge.args[0])
+                    if d:
+                        eylemler.append(d)
         elif isinstance(f, ast.Name) and f.id == "QShortcut" and node.args:
             ilk = node.args[0]
             if (isinstance(ilk, ast.Call)
@@ -269,6 +278,44 @@ def test_hicbir_kisayol_iki_kez_kaydedilmiyor():
         f"tetiklemez: {cakisan}. Menüdeki QAction'ı app_shortcut=True ile "
         "bırakın, ayrı QShortcut'ı silin."
     )
+
+
+@pytest.mark.parametrize("dizi", ["F5", "Shift+F5"])
+def test_SUNUM_baslat_tuslari_gecerli_sayfadan_aciyor(ana_pencere, tmp_path,
+                                                     dizi):
+    """Kumandanın başlat düğmesi F5 ya da Shift+F5 gönderiyor (PowerPoint'te
+    "geçerli slayttan başlat"). ÖLÇÜLDÜ (2026-09-27, gerçek pencereye gerçek
+    tuş): Shift+F5 sunumu açmıyordu. Tuş QTest ile kısayol eşleştirmesinden
+    geçiyor; eylemi doğrudan tetiklemek o yolu sınamazdı."""
+    import pypdfium2
+    from PyQt6.QtGui import QKeySequence
+    from PyQt6.QtTest import QTest
+    from PyQt6.QtWidgets import QApplication
+    from gui.pdfium_lock import pdfium_lock
+
+    yol = str(tmp_path / "slayt.pdf")
+    with pdfium_lock:
+        belge = pypdfium2.PdfDocument.new()
+        for _ in range(5):
+            belge.new_page(400, 300)
+        belge.save(yol)
+        belge.close()
+    w = ana_pencere()
+    v = w._pdf_viewer
+    assert v.load_pdf(yol)
+    w.show()
+    w.activateWindow()
+    QApplication.processEvents()
+    assert QApplication.activeWindow() is w, "pencere etkin değil, kapı boş"
+    v._current_page = 3
+    birlesim = QKeySequence(dizi)[0]
+    try:
+        QTest.keyClick(w, birlesim.key(), birlesim.keyboardModifiers())
+        assert v.in_presentation, "%s sunumu açmadı" % dizi
+        assert v._sunum_sayfasi == 3, "sunum geçerli sayfadan başlamadı"
+    finally:
+        v.exit_presentation()
+        QApplication.processEvents()
 
 
 # --- FileTree sinyalleri MainWindow'a bağlanmış mı ---

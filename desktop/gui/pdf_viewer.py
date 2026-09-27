@@ -74,6 +74,7 @@ class PdfViewer(
         self._presentation_mode = False
         # Sunumun KENDI sayfasi (bkz. _presentation.enter_presentation)
         self._sunum_sayfasi = 0
+        self._sunum_karartildi = False
         self._presentation_widget: QWidget | None = None
         self._presentation_label: QLabel | None = None
         self._theme = theme or {}

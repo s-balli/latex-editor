@@ -38,6 +38,10 @@ class PdfEventsMixin:
         if event.type() == QEvent.Type.KeyPress:
             self._presentation_key_event(event)
             return True
+        if (self._sunum_karartildi and event.type() in (
+                QEvent.Type.MouseButtonPress, QEvent.Type.Wheel)):
+            self._sunum_karart(False)       # tuşlardaki gibi: önce slayt
+            return True
         if event.type() == QEvent.Type.MouseButtonPress:
             if event.button() == Qt.MouseButton.LeftButton:
                 # Slayttaki bağlantı açılıyor, gerisi "ileri". Tıklama her

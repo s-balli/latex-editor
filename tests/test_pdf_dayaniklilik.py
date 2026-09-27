@@ -868,6 +868,90 @@ def test_SUNUM_KUMANDASININ_tuslari_slayti_degistiriyor(viewer, qapp, tus_adi,
         qapp.processEvents()
 
 
+def _slayt_gorunuyor(v):
+    """Kehanet: sunum penceresinin GÖRÜNTÜSÜNDE siyah olmayan nokta var mı.
+
+    Etiketin karesine bakmak yetmiyor: karartılınca kare yerinde kalıyor,
+    yalnız görünmüyor.
+    """
+    img = v._presentation_widget.grab().toImage()
+    for y in range(0, img.height(), 5):
+        for x in range(0, img.width(), 5):
+            c = img.pixelColor(x, y)
+            if c.red() or c.green() or c.blue():
+                return True
+    return False
+
+
+@gui
+@pytest.mark.parametrize("tus_adi", ["Key_B", "Key_Period", "Key_Ccedilla"])
+def test_SUNUM_KUMANDASININ_karartma_dugmesi_ekrani_karartip_geri_getiriyor(
+        viewer, qapp, tus_adi):
+    """Karartma düğmesi B ya da nokta gönderiyor; Türkçe Q'da kumandanın
+    noktası Qt'ye Ç olarak geliyor (ölçüldü, bkz. _presentation._KARARTMA).
+    Kırılırsa: tuş yine yutuluyor ya da ekrana yansımıyor demektir."""
+    K = _K()
+    viewer.enter_presentation()
+    qapp.processEvents()
+    try:
+        kare = _sunum_ozeti(viewer)
+        assert _slayt_gorunuyor(viewer), "kapı boş koşuyor: slayt görünmüyor"
+        _gonder(viewer._presentation_widget, getattr(K, tus_adi))
+        assert not _slayt_gorunuyor(viewer), "%s ekranı karartmadı" % tus_adi
+        _gonder(viewer._presentation_widget, getattr(K, tus_adi))
+        assert _slayt_gorunuyor(viewer), "%s slaytı geri getirmedi" % tus_adi
+        assert _sunum_ozeti(viewer) == kare, "karartma sayfayı değiştirdi"
+    finally:
+        viewer.exit_presentation()
+        qapp.processEvents()
+
+
+@gui
+def test_KARARTILMISKEN_gezinme_ayni_slayti_getiriyor_Esc_cikiyor(viewer,
+                                                                 qapp):
+    """Karartılmışken tuş, tıklama ya da tekerlek slaytı sayfayı değiştirmeden
+    geri getiriyor; arkada biten derleme karartmayı bozmuyor; Esc yine
+    çıkıyor ve sonraki sunum karanlık başlamıyor."""
+    from PyQt6.QtCore import QPoint, QPointF, Qt
+    from PyQt6.QtGui import QWheelEvent
+    K = _K()
+    viewer.enter_presentation()
+    qapp.processEvents()
+    try:
+        w = viewer._presentation_widget
+        ilk = _sunum_ozeti(viewer)
+        teker = QWheelEvent(QPointF(20, 20), QPointF(20, 20), QPoint(0, 0),
+                            QPoint(0, -120), Qt.MouseButton.NoButton,
+                            Qt.KeyboardModifier.NoModifier,
+                            Qt.ScrollPhase.NoScrollPhase, False)
+        for ad, girdi in (("Sağ ok", _tus(K.Key_Right)),
+                          ("sol tık", _fare(Qt.MouseButton.LeftButton)),
+                          ("tekerlek", teker)):
+            _gonder(w, K.Key_B)
+            assert not _slayt_gorunuyor(viewer), "karartılmadı"
+            QApplication.sendEvent(w, girdi)
+            assert _slayt_gorunuyor(viewer), "%s slaytı geri getirmedi" % ad
+            assert _sunum_ozeti(viewer) == ilk, \
+                "%s karanlıkta sayfa değiştirdi" % ad
+
+        _gonder(w, K.Key_B)
+        assert viewer.load_pdf(viewer._pdf_path)      # arkada biten derleme
+        qapp.processEvents()
+        assert not _slayt_gorunuyor(viewer), "yeniden yükleme karartmayı bozdu"
+
+        _gonder(w, K.Key_Escape)
+        assert not viewer.in_presentation, "karanlıkta Esc çıkmadı"
+        viewer.enter_presentation()
+        qapp.processEvents()
+        assert _slayt_gorunuyor(viewer), "yeni sunum karanlık başladı"
+        # Durum da sıfırlanmış olmalı: yoksa ilk B hiçbir şey yapmıyor
+        _gonder(viewer._presentation_widget, K.Key_B)
+        assert not _slayt_gorunuyor(viewer), "yeni sunumda ilk B karartmadı"
+    finally:
+        viewer.exit_presentation()
+        qapp.processEvents()
+
+
 @gui
 def test_SUNUM_SURERKEN_derleme_bitince_AYNI_slaytta_TAZE_kareyle(qapp,
                                                                  tmp_path):
