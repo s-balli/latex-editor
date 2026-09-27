@@ -177,6 +177,10 @@ jobs:
     #   test_pdf_baglanti_derleme.py : iç bağlantı hedefe mi götürüyor
     #                            (pdflscape ile /Rotate 90 sayfa; hedefin yeri
     #                            render edilen piksellerden okunuyor)
+    #   test_kaynakca_derleme.py : DOI ile eklenen kaynak iki motorda da
+    #                            derleniyor mu (Crossref'in κ, ₂ ve <sub>2</sub>
+    #                            başlıkları pdflatex'i düşürüyor, lualatex'te
+    #                            sessizce kayboluyordu)
     # Paket seti test belgelerinin gerçek bağımlılıkları: article
     # (latex-base), fontspec (latex-recommended), biblatex+biber
     # (bibtex-extra), minted+Pygments (latex-extra + python3-pygments);
@@ -252,7 +256,7 @@ jobs:
       - name: Install Python dependencies
         run: pip install -r desktop/requirements.txt pytest
 
-      - name: Gerçek TeX entegrasyon testleri (derle.sh + SyncTeX + tablo + ipucu + baglanti)
+      - name: Gerçek TeX entegrasyon testleri (derle.sh + SyncTeX + tablo + ipucu + baglanti + kaynakca)
         env:
           QT_QPA_PLATFORM: offscreen
-        run: python -m pytest tests/test_derle_sh.py tests/test_synctex_live.py tests/test_tablo_derleme.py tests/test_ipucu_derleme.py tests/test_pdf_baglanti_derleme.py -v
+        run: python -m pytest tests/test_derle_sh.py tests/test_synctex_live.py tests/test_tablo_derleme.py tests/test_ipucu_derleme.py tests/test_pdf_baglanti_derleme.py tests/test_kaynakca_derleme.py -v

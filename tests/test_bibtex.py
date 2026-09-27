@@ -365,6 +365,74 @@ class TestNormallestir:
         # `%` matematikte DE kaçırılıyor
         assert baslik("$50%$ deger") == r"$50\%$ deger"
 
+    @staticmethod
+    def _baslik(t):
+        m, _a = normallestir("@article{k, title={%s}, year={2020}}" % t)
+        return re.search(r"title = \{(.*)\},\n", m).group(1)
+
+    @pytest.mark.parametrize("ham,beklenen", [
+        ("Classical NF-κB Activation", "Classical NF-{$\\kappa$}B Activation"),
+        ("Mixed-Phase TiO₂ for Solar", "Mixed-Phase TiO\\textsubscript{2} for Solar"),
+        ("Ca²⁺ sinyali", "Ca\\textsuperscript{2+} sinyali"),
+        # plain.bst başlığı küçültüyor: korumasız `$\Delta$` `$\delta$` olurdu
+        ("Δ9-THC", "{$\\Delta$}9-THC"),
+        # Latin harfiyle aynı görünen büyük Yunan harfinin makrosu yok
+        ("Α-helix", "A-helix"),
+        ("3′-UTR ve ≤ 2", "3{$'$}-UTR ve {$\\leq$} 2"),
+        ("10 nm", "10\\,nm"),
+        # Matematik bölgesinde `$` yeniden açılmıyor
+        ("$α$ ve α", "$\\alpha $ ve {$\\alpha$}"),
+        # İki motorun da BASTIKLARI dokunulmadan kalıyor (uzun ve orta tire,
+        # kısa tire, tırnak, simgeler)
+        ("Semiconductor\N{EM DASH}Metal “Colorful” ‐ \N{EN DASH} ± × ° µ",
+         "Semiconductor\N{EM DASH}Metal “Colorful” ‐ \N{EN DASH} ± × ° µ"),
+    ])
+    def test_UNICODE_basilamayan_simge_LaTeXe_cevriliyor(self, ham, beklenen):
+        r"""Crossref başlığı `NF-κB`, `TiO₂` diye veriyor. ÖLÇÜLDÜ
+        (2026-09-27, 19 gerçek kayıt, uygulamanın boru hattı): pdflatex'te
+        10'unun derlemesi "Unicode character κ not set up" ile DÜŞÜYORDU,
+        lualatex'te aynı 10'unda karakter SESSİZCE kayboluyordu. Çevrilen
+        küme tahmin değil: 112 aday tek tek derlendi (bkz. core/bibtex)."""
+        assert self._baslik(ham) == beklenen
+
+    @pytest.mark.parametrize("ham,beklenen", [
+        # Gerçek kayıtlar (10.1021/..., 10.1002/pssr.201409365, 10.1039/c6ra07993h)
+        ("Synthesis of Ag@TiO<sub>2</sub> composite",
+         "Synthesis of Ag@TiO\\textsubscript{2} composite"),
+        ("doped TiO\n                    <sub>2</sub>\n                    on their",
+         "doped TiO\\textsubscript{2} on their"),
+        ("A transparent TiO\n  <sub>2</sub>\n  \N{EN DASH}C@TiO\n  <sub>2</sub>"
+         "\n  \N{EN DASH}graphene",
+         "A transparent TiO\\textsubscript{2}\N{EN DASH}C@TiO\\textsubscript{2}"
+         "\N{EN DASH}graphene"),
+        ("NF-κB activation\n   <i>via</i>\n   the IκB",
+         "NF-{$\\kappa$}B activation \\textit{via} the I{$\\kappa$}B"),
+        # Aşırı düzeltme kapısı: düz karşılaştırma etiket değil
+        ("x<y and y>z", "x<y and y>z"),
+    ])
+    def test_JATS_etiketi_ve_girintisi_LaTeXe_cevriliyor(self, ham, beklenen):
+        r"""`TiO<sub>2</sub>` iki motorda da OLDUĞU GİBİ basılıyordu (ölçüldü,
+        19 kaydın 9'u). Wiley ve RSC etiketi girintili veriyor; alt simgeden
+        önceki girinti yapışık, kapanıştan sonraki noktalamadan (orta tire
+        dahil) önce yapışık, yoksa boşluk ("TiO₂ on their")."""
+        assert self._baslik(ham) == beklenen
+
+    def test_ADRES_ve_KIMLIK_alani_CEVRILMIYOR(self):
+        r"""Adres ve DOI metin değil: `<211::AID-JBM11>` SICI DOI'lerinin
+        parçası, adresteki Yunan harfi bağlantının parçası."""
+        m, _a = normallestir(
+            "@article{k, title={β-catenin}, year={2020},"
+            " doi={10.1002/(SICI)1097-4636(199602)30:2<211::AID-JBM11>3.0.CO;2-N},"
+            " url={https://ornek.org/β-catenin}}")
+        assert "doi = {10.1002/(SICI)1097-4636(199602)30:2<211::AID-JBM11>3.0.CO;2-N}" in m
+        assert "url = {https://ornek.org/β-catenin}" in m
+        assert "title = {{$\\beta$}-catenin}" in m
+
+    def test_DORT_harfli_eylul_ayi_korunuyor(self):
+        """Crossref `month=Sept` döndürüyor; tabloda yokken ay atılıyordu."""
+        metin, _a = normallestir("@article{k, title={T}, year={2026}, month=Sept}")
+        assert "month = sep," in metin
+
     def test_sayfa_araligi_cift_tire(self):
         """plain.bst aralığı `--` ile tanıyor; orta tirede 'page' (tekil) yazıyor."""
         metin, _a = normallestir(IEEE_HAM)

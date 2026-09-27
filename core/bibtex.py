@@ -289,6 +289,9 @@ for _i, _uzun in enumerate(
     _kisa = _uzun[:3]
     _AYLAR[_uzun] = _kisa
     _AYLAR[_kisa] = _kisa
+# Crossref dört harfli "Sept" de döndürüyor (ölçüldü, 10.52843/cassyni.qb211x);
+# tabloda yokken ay sessizce atılıyordu.
+_AYLAR["sept"] = "sep"
 
 # BibTeX anahtarında güvenle kullanılabilecek karakterler. Crossref doi.org
 # yolunda anahtar olarak URL döndürebiliyor
@@ -421,6 +424,106 @@ _RE_MATEMATIK = re.compile(r"(\$[^$]*\$)")
 _RE_METIN_OZEL = re.compile(r"(?<!\\)([#_^])")
 _METIN_KACIS = {"#": r"\#", "_": r"\_", "^": r"\^{}"}
 
+# UNICODE VE JATS. Crossref başlığı olduğu gibi veriyor: `NF-κB`, `TiO₂`,
+# `TiO<sub>2</sub>`, `<i>via</i>`. ÖLÇÜLDÜ (2026-09-27), 19 gerçek kayıt
+# (uygulamanın aldığı ham BibTeX) uygulamanın boru hattıyla (derle.sh,
+# bibtex) iki motorda derlenip basılan kaynakça pdfium ile okunarak:
+#   Yunan harfi, alt simge -> pdflatex: "Unicode character κ (U+03BA) not set
+#                             up", derleme DÜŞÜYOR (19 girdinin 10'u);
+#                             lualatex: derleniyor ama karakter SESSİZCE
+#                             yok ("NF-B", "tio for"; yine 10)
+#   <sub>2</sub>           -> iki motorda da etiket OLDUĞU GİBİ basılıyor (9)
+# Liste tahmin değil: 112 aday karakter tek tek derlendi; pdflatex (T1 +
+# utf8) 81'ini, lualatex (Latin Modern) 66'sını basamıyor. Aşağıdakiler o
+# iki kümenin birleşimi. İkisinin de bastıkları (orta ve uzun tire, ‐ → ±
+# × ° µ, tırnak) DOKUNULMADAN kalıyor.
+#
+# Üretilen matematik `{...}` içinde: plain.bst başlığı küçük harfe çeviriyor
+# ve korumasız `$\Delta$` `$\delta$` olurdu (ham `Δ`ya dokunmuyordu).
+_YUNAN = dict(zip(
+    "αβγδεζηθικλμνξπρςστυφχψωϑϕϖϰϱϵΓΔΘΛΞΠΣΥΦΨΩ∆",
+    r"alpha beta gamma delta varepsilon zeta eta theta iota kappa lambda mu nu"
+    r" xi pi rho varsigma sigma tau upsilon varphi chi psi omega vartheta phi"
+    r" varpi kappa varrho epsilon Gamma Delta Theta Lambda Xi Pi Sigma Upsilon"
+    r" Phi Psi Omega Delta".split()))
+# Latin harfiyle AYNI görünen büyük Yunan harflerinin makrosu yok (`\Alpha`
+# tanımsız); küçük omikron da öyle.
+_YUNAN_LATIN = dict(zip("ΑΒΕΖΗΙΚΜΝΟΡΤΧο", "ABEZHIKMNOPTXo"))
+_SIMGE_MAT = {"′": "'", "″": "''", "↔": r"\leftrightarrow", "⇒": r"\Rightarrow",
+              "−": "-", "∓": r"\mp", "∞": r"\infty", "∼": r"\sim",
+              "≈": r"\approx", "≠": r"\neq", "≤": r"\leq", "≥": r"\geq"}
+_SIMGE_METIN = {" ": r"\,", " ": r"\,", "‒": "--"}
+_ALT = dict(zip("₀₁₂₃₄₅₆₇₈₉₊₋", "0123456789+-"))
+_UST = dict(zip("⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻", "0123456789+-"))
+_RE_ALT = re.compile("[%s]+" % "".join(_ALT))
+_RE_UST = re.compile("[%s]+" % "".join(_UST))
+_RE_MAT_SIMGE = re.compile("[%s]" % re.escape(
+    "".join(_YUNAN) + "".join(_SIMGE_MAT)))
+# Crossref'in başlıkta izin verdiği biçim etiketleri. Karşılığı olmayanlar
+# (`ovl`, `font`, MathML) atılıp içerikleri kalıyor. Liste BİLİNEN adlarla
+# sınırlı: başlıktaki düz bir karşılaştırma ("x<y and y>z") etiket değil.
+_JATS = {"sub": r"\textsubscript{%s}", "sup": r"\textsuperscript{%s}",
+         "i": r"\textit{%s}", "b": r"\textbf{%s}", "scp": r"\textsc{%s}",
+         "tt": r"\texttt{%s}", "u": r"\underline{%s}"}
+_RE_JATS = re.compile(r"<(%s)>(.*?)</\1>" % "|".join(_JATS), re.S)
+_RE_ETIKET = re.compile(
+    r"</?(?:%s|ovl|font|mml:[\w.-]+|inline-formula|alternatives)"
+    r"(?:\s[^<>]*)?/?>" % "|".join(_JATS))
+# Wiley ve RSC kayıtları JATS'ı GİRİNTİLİ veriyor ("TiO\n      <sub>2</sub>\n
+# on their"). Alt/üst simgeden önceki girinti yapışık (TiO₂); kapanıştan
+# sonraki, ardından noktalama (orta tire dahil) gelirse yapışık, yoksa boşluk.
+_RE_GIRINTI_ONCE = re.compile(r"\s*\n\s*(?=<su[bp]>)")
+_RE_GIRINTI_SONRA = re.compile(
+    r"(?<=</sub>|</sup>)\s*\n\s*(?=[\N{EN DASH}\N{EM DASH}\-),.;:/])")
+_RE_GIRINTI = re.compile(r"\s*\n\s*")
+# Adres ve kimlik alanları metin değil; LaTeX'e çevrilmiyor.
+_KIMLIK_ALANI = frozenset(["url", "doi", "isbn", "issn", "eprint"])
+
+
+def _unicode_latex(deger: str) -> str:
+    """Motorların basamadığı ölçülen karakterleri LaTeX'e çevir.
+
+    Matematik bölgesinde (`$...$`) `$` açılmıyor, komut doğrudan yazılıyor.
+    """
+    parcalar = []
+    for p in _RE_MATEMATIK.split(deger):
+        mat = p.startswith("$")
+        for eski, yeni in _YUNAN_LATIN.items():
+            p = p.replace(eski, yeni)
+        for eski, yeni in _SIMGE_METIN.items():
+            p = p.replace(eski, yeni)
+        if mat:
+            p = _RE_MAT_SIMGE.sub(lambda m: "\\" + _YUNAN[m.group(0)] + " "
+                                  if m.group(0) in _YUNAN
+                                  else _SIMGE_MAT[m.group(0)] + " ", p)
+            p = _RE_ALT.sub(lambda m: "_{%s}" % "".join(_ALT[c] for c in m.group(0)), p)
+            p = _RE_UST.sub(lambda m: "^{%s}" % "".join(_UST[c] for c in m.group(0)), p)
+        else:
+            p = _RE_MAT_SIMGE.sub(lambda m: "{$%s$}" % (
+                "\\" + _YUNAN[m.group(0)] if m.group(0) in _YUNAN
+                else _SIMGE_MAT[m.group(0)]), p)
+            p = _RE_ALT.sub(lambda m: r"\textsubscript{%s}" % "".join(
+                _ALT[c] for c in m.group(0)), p)
+            p = _RE_UST.sub(lambda m: r"\textsuperscript{%s}" % "".join(
+                _UST[c] for c in m.group(0)), p)
+        parcalar.append(p)
+    return "".join(parcalar)
+
+
+def _jats_latex(deger: str) -> str:
+    """Biçim etiketlerini LaTeX'e çevir; girintiyi etiketlerle birlikte çöz."""
+    if "<" not in deger:
+        return deger
+    deger = _RE_GIRINTI_ONCE.sub("", deger)
+    deger = _RE_GIRINTI_SONRA.sub("", deger)
+    deger = _RE_GIRINTI.sub(" ", deger)
+    for _ in range(3):                      # iç içe etiket (`<i><sub>`)
+        yeni = _RE_JATS.sub(lambda m: _JATS[m.group(1)] % m.group(2), deger)
+        if yeni == deger:
+            break
+        deger = yeni
+    return _RE_ETIKET.sub("", deger)
+
 
 def _deger_duzelt(ad: str, deger: str) -> str:
     """Alan değerinin ölçülen kusurlarını gider."""
@@ -436,9 +539,12 @@ def _deger_duzelt(ad: str, deger: str) -> str:
     deger = re.sub(r"(?<!\\)%", r"\\%", deger)
     # `# _ ^` yalnız MATEMATİK DIŞINDA kaçırılıyor; `$...$` bölgesi
     # dokunulmadan geçiyor (gerekçe aşağıda).
-    return "".join(p if p.startswith("$") else _RE_METIN_OZEL.sub(
+    deger = "".join(p if p.startswith("$") else _RE_METIN_OZEL.sub(
         lambda m: _METIN_KACIS[m.group(1)], p)
         for p in _RE_MATEMATIK.split(deger))
+    if ad in _KIMLIK_ALANI:
+        return deger
+    return _unicode_latex(_jats_latex(deger))
 
 
 def normallestir(ham: str, *, mevcut_anahtarlar=()) -> tuple[str, str]:
