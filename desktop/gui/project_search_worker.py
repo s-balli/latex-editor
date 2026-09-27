@@ -51,14 +51,17 @@ class ProjectSearchWorker(QThread):
         super().__init__()
         self._cond = threading.Condition()
         self._stop = False
-        # (search_id, kok, sorgu, buyuk_kucuk_duyarli)
-        self._job: tuple[int, str, str, bool] | None = None
+        # (search_id, kok, sorgu, buyuk_kucuk_duyarli, acik_metinler)
+        self._job: tuple[int, str, str, bool, dict] | None = None
 
     # --- UI thread'inden ---
 
-    def search(self, search_id: int, kok: str, sorgu: str, case_sensitive: bool):
+    def search(self, search_id: int, kok: str, sorgu: str, case_sensitive: bool,
+               acik: dict | None = None):
+        """`acik`: açık sekmelerin metni, istek anının kopyası (işçi Qt
+        editörüne dokunamaz)."""
         with self._cond:
-            self._job = (search_id, kok, sorgu, case_sensitive)
+            self._job = (search_id, kok, sorgu, case_sensitive, acik or {})
             self._cond.notify_all()
 
     def stop(self):
@@ -84,7 +87,7 @@ class ProjectSearchWorker(QThread):
                     return
                 job, self._job = self._job, None
 
-            search_id, kok, sorgu, cs = job
+            search_id, kok, sorgu, cs, acik = job
             iptal_edildi = False
 
             def _iptal():
@@ -100,7 +103,7 @@ class ProjectSearchWorker(QThread):
 
             try:
                 bulgular, kesildi = search_project(
-                    kok, sorgu, case_sensitive=cs, iptal=_iptal)
+                    kok, sorgu, case_sensitive=cs, iptal=_iptal, acik=acik)
             except Exception:
                 # Tarama hiçbir koşulda işçiyi düşürmemeli: kök silinmiş
                 # olabilir, izin kalkmış olabilir. Boş sonuç dönmek, thread'i

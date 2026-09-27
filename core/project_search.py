@@ -231,7 +231,7 @@ def iter_project_files(root: str, uzantilar=KAYNAK_UZANTILARI):
 def search_project(root: str, query: str, *, case_sensitive: bool = False,
                    limit: int = VARSAYILAN_SINIR,
                    uzantilar=KAYNAK_UZANTILARI,
-                   iptal=None) -> tuple[list[Bulgu], bool]:
+                   iptal=None, acik: dict | None = None) -> tuple[list[Bulgu], bool]:
     """Kök altındaki dosyalarda `query` düz metnini ara.
 
     Döner: (bulgular, kesildi). `kesildi` True ise sınıra takılmıştır ve
@@ -239,6 +239,11 @@ def search_project(root: str, query: str, *, case_sensitive: bool = False,
 
     `iptal` verilirse her dosyadan önce çağrılır; True dönerse arama durur
     (arka plan işçisi için: yeni sorgu geldiğinde eskisi boşuna sürmesin).
+
+    `acik`: açık sekmelerin metni, {yol: metin}; o dosyalarda disk yerine
+    aranıyor. Arama diski okuyordu ve kaydedilmemiş metin hiç bulunmuyor,
+    yalnız diskte kalan metin bulunuyordu (ölçüldü 2026-09-27, gerçek
+    pencere, üç kirli sekme).
 
     Bir satırda birden fazla eşleşme varsa her biri ayrı bulgudur; satırın
     metni hepsinde aynıdır ama `col` farklıdır, yani tıklayınca doğru sütuna
@@ -249,20 +254,23 @@ def search_project(root: str, query: str, *, case_sensitive: bool = False,
 
     aranan = query if case_sensitive else kucult(query)
     bulgular: list[Bulgu] = []
+    acik = {os.path.normcase(os.path.abspath(y)): m for y, m in (acik or {}).items()}
 
     for yol in iter_project_files(root, uzantilar):
         if iptal is not None and iptal():
             return bulgular, True
-        try:
-            if os.path.getsize(yol) > _MAX_DOSYA_BAYT:
+        metin = acik.get(os.path.normcase(os.path.abspath(yol)))
+        if metin is None:
+            try:
+                if os.path.getsize(yol) > _MAX_DOSYA_BAYT:
+                    continue
+                with open(yol, "rb") as f:
+                    ham = f.read()
+            except OSError:
+                # Okunamayan dosya aramayı düşürmez: izin yok, kilitli, ya da
+                # yürüyüşle okuma arasında silinmiş olabilir.
                 continue
-            with open(yol, "rb") as f:
-                ham = f.read()
-        except OSError:
-            # Okunamayan dosya aramayı düşürmez: izin yok, kilitli, ya da
-            # yürüyüşle okuma arasında silinmiş olabilir.
-            continue
-        metin = coz(ham)
+            metin = coz(ham)
         # BOM ATILIYOR: bildirilen sütun EDİTÖRÜN GÖSTERDİĞİ metne göre
         # olmak zorunda, tıklayınca oraya gidiliyor. Çözücü zincirde
         # `utf-8-sig` yok, yani BOM metne U+FEFF olarak giriyor ve 1. satırın

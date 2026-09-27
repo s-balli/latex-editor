@@ -582,6 +582,9 @@ class _AramaStub:
     def _current_editor(self):
         return None
 
+    def _acik_metinler(self):
+        return {}
+
 
 class TestMixin:
 
@@ -596,7 +599,7 @@ class TestMixin:
     def test_kok_dosya_agacindan_gelir(self, panel, proje):
         s = self._stub(panel, proje)
         s._on_project_search_requested("hedef", False)
-        assert s.istekler == [(1, proje, "hedef", False)]
+        assert s.istekler == [(1, proje, "hedef", False, {})]
 
     def test_klasor_yoksa_uyarir_ve_arama_yapmaz(self, panel):
         s = self._stub(panel, "")
@@ -749,7 +752,7 @@ class TestKokDisiTespiti:
 
         s = self._stub(panel, kok, acik)
         s._on_project_search_requested("paragraf", False)
-        assert s.istekler == [(1, kok, "paragraf", False)]
+        assert s.istekler == [(1, kok, "paragraf", False, {})]
         # İşçi 0 döndürür (o kökte gerçekten yok); panel bunu AÇIKLAMALI
         s._on_project_search_done(1, [], False)
         durum = panel._psearch_status.text()

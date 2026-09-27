@@ -11,6 +11,7 @@ import time
 from dataclasses import dataclass, field
 
 from core.bibtex import RE_GIRDI_ANAHTARI
+from core.fs_ops import acik_metin, metni_oku
 from core.input_parser import parse_inputs
 from core.latex_utils import sozel_soy, strip_comments
 
@@ -115,6 +116,10 @@ def collect_labels(content: str, base_path: str) -> list[str]:
     labels = set(_extract_labels(content))
     bdir = _base_dir(base_path)
     for path in _flatten_input_paths(content, bdir):
+        acik = acik_metin(path)             # açık sekme: önbellek diske ait
+        if acik is not None:
+            labels.update(_extract_labels(acik))
+            continue
         try:
             mtime = os.path.getmtime(path)
         except OSError:
@@ -124,8 +129,7 @@ def collect_labels(content: str, base_path: str) -> list[str]:
             file_labels = cached[1]
         else:
             try:
-                with open(path, 'r', encoding='utf-8', errors='replace') as f:
-                    file_labels = _extract_labels(f.read())
+                file_labels = _extract_labels(metni_oku(path))
             except OSError:
                 continue
             _cache_put(_label_file_cache, path, (mtime, file_labels))
@@ -262,8 +266,7 @@ def parse_bibitems(content: str, base_path: str) -> list[tuple[str, str, int, st
     bdir = _base_dir(base_path)
     for yol in _flatten_input_paths(content, bdir):
         try:
-            with open(yol, 'r', encoding='utf-8', errors='replace') as f:
-                kaynaklar.append((yol, f.read()))
+            kaynaklar.append((yol, metni_oku(yol)))
         except OSError:
             continue
 
@@ -371,9 +374,7 @@ def _sinif_dosyalarinda_ara(bdir: str, ayikla) -> list:
             if not ad.lower().endswith((".cls", ".sty")):
                 continue
             try:
-                with open(os.path.join(dizin, ad), encoding="utf-8",
-                          errors="replace") as f:
-                    metin = f.read()
+                metin = metni_oku(os.path.join(dizin, ad))
             except OSError:
                 continue
             bulunan = ayikla(strip_comments(metin), bdir)
@@ -524,8 +525,7 @@ def _tam_belge_mi(tex_yolu: str) -> bool:
     bir belgede süzgeci boşa düşürüyordu.
     """
     try:
-        with open(tex_yolu, "r", encoding="utf-8", errors="replace") as f:
-            bas = f.read(8192)
+        bas = metni_oku(tex_yolu)[:8192]
     except OSError:
         return False
     m = _RE_BELGE_SINIFI.search(bas)
@@ -626,6 +626,9 @@ def collect_image_paths(base_path: str) -> list[str]:
 
 def _bib_dosya_anahtarlari(bib_path: str) -> list[str]:
     """Tek bir .bib dosyasının anahtarları (mtime önbellekli)."""
+    acik = acik_metin(bib_path)             # açık sekme: önbellek diske ait
+    if acik is not None:
+        return sorted({m.group(1).strip() for m in RE_GIRDI_ANAHTARI.finditer(acik)})
     try:
         mtime = os.path.getmtime(bib_path)
     except OSError:
@@ -634,8 +637,8 @@ def _bib_dosya_anahtarlari(bib_path: str) -> list[str]:
     if cached and cached[0] == mtime:
         return cached[1]
     try:
-        with open(bib_path, 'r', encoding='utf-8', errors='replace') as f:
-            keys = sorted({m.group(1).strip() for m in RE_GIRDI_ANAHTARI.finditer(f.read())})
+        keys = sorted({m.group(1).strip()
+                       for m in RE_GIRDI_ANAHTARI.finditer(metni_oku(bib_path))})
     except OSError:
         return []
     _cache_put(_bib_cache, bib_path, (mtime, keys))
@@ -713,8 +716,7 @@ def find_label_location(content: str, base_path: str, key: str) -> tuple[str, in
     bdir = _base_dir(base_path)
     for path in _flatten_input_paths(content, bdir):
         try:
-            with open(path, 'r', encoding='utf-8', errors='replace') as f:
-                t = f.read()
+            t = metni_oku(path)
         except OSError:
             continue
         loc = _label_line_in(t, key)
@@ -733,8 +735,7 @@ def find_cite_location(content: str, base_path: str, key: str) -> tuple[str, int
     pat = re.compile(r'@\w+\s*[{(]\s*' + re.escape(key) + r'\s*,')
     for bib_path in find_bib_paths(content, base_path):
         try:
-            with open(bib_path, 'r', encoding='utf-8', errors='replace') as f:
-                text = f.read()
+            text = metni_oku(bib_path)
         except OSError:
             continue
         for i, ln in enumerate(text.split('\n'), start=1):
@@ -782,8 +783,7 @@ def find_bibitem_location(content: str, base_path: str, key: str) -> tuple[str, 
     bdir = _base_dir(base_path)
     for path in _flatten_input_paths(content, bdir):
         try:
-            with open(path, 'r', encoding='utf-8', errors='replace') as f:
-                t = f.read()
+            t = metni_oku(path)
         except OSError:
             continue
         loc = _bibitem_line_in(t, key)
@@ -936,8 +936,7 @@ def find_cite_usage(bib_path: str, key: str) -> tuple[str, int] | None:
             if not duz_dosya_mi(path):
                 continue
             try:
-                with open(path, 'r', encoding='utf-8', errors='replace') as f:
-                    text = f.read()
+                text = metni_oku(path)
             except OSError:
                 continue
             temiz = strip_comments(text)
@@ -1154,8 +1153,7 @@ def _chain_texts(content: str, base_path: str) -> list[tuple[str, str]]:
     out: list[tuple[str, str]] = []
     for path in _flatten_input_paths(content, bdir):
         try:
-            with open(path, 'r', encoding='utf-8', errors='replace') as f:
-                out.append((path, strip_comments(f.read())))
+            out.append((path, strip_comments(metni_oku(path))))
         except OSError:
             continue
     return out
@@ -1258,8 +1256,7 @@ def bib_key_locations(content: str, base_path: str) -> dict[str, tuple[str, int]
     out: dict[str, tuple[str, int]] = {}
     for bib_path in find_bib_paths(content, base_path):
         try:
-            with open(bib_path, 'r', encoding='utf-8', errors='replace') as f:
-                text = f.read()
+            text = metni_oku(bib_path)
         except OSError:
             continue
         for i, ln in enumerate(text.split('\n'), start=1):

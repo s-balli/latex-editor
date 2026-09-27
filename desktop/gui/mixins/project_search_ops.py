@@ -125,15 +125,17 @@ class ProjectSearchMixin:
             return
         self._psearch_id += 1
         self._psearch_root = root
+        # Kaydedilmemiş sekmeler de aransın; sonuç satırı da bu metne ait.
+        self._psearch_acik = self._acik_metinler()
         self._project_search_worker.search(
-            self._psearch_id, root, sorgu, case_sensitive)
+            self._psearch_id, root, sorgu, case_sensitive, self._psearch_acik)
 
     def _on_project_search_done(self, search_id: int, bulgular: list, kesildi: bool):
         if search_id != self._psearch_id:
             return          # bayat sonuç: kullanıcı yeni sorgu yazmış
         uyari = self._kok_disinda_mi(self._psearch_root) if not bulgular else ""
         self._output_panel.show_project_search(
-            bulgular, kesildi, self._psearch_root, uyari)
+            bulgular, kesildi, self._psearch_root, uyari, self._psearch_acik)
         _logger.info("Projede ara: %d bulgu%s, kök: %s", len(bulgular),
                      " (kırpıldı)" if kesildi else "", self._psearch_root)
 

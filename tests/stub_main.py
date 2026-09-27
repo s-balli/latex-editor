@@ -120,5 +120,10 @@ class StubMain:
                 return ed
         return None
 
+    def _acik_metinler(self):
+        """MainWindow'daki `_acik_metinler`in stub karşılığı: {yol: metin}."""
+        return {ed.file_path: ed.text() for ed in self._editors
+                if getattr(ed, "file_path", "") and callable(getattr(ed, "text", None))}
+
     def _maybe_auto_audit(self):
         pass  # CompileOpsMixin kalıtan stub'larda gerçek metot ezer

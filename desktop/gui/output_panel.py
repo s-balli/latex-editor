@@ -507,11 +507,13 @@ class OutputPanel(QWidget):
         `metinler`: üreticinin diskten değil ARABELLEKTEN okuduğu metinler
         (denetimde kök, yazımda sekme); verilmeyen yol diskten okunuyor.
         """
-        metinler = metinler or {}
+        bul = {os.path.normcase(os.path.abspath(y)): m
+               for y, m in (metinler or {}).items()}
         sonuc = {}
         for yol in yollar:
             if yol and yol not in sonuc:
-                sonuc[yol] = metinler[yol] if yol in metinler else _diskten(yol)
+                metin = bul.get(os.path.normcase(os.path.abspath(yol)))
+                sonuc[yol] = metin if metin is not None else _diskten(yol)
         return _Taban(sonuc)
 
     def _guncel_satir(self, item, yol: str, satir: int) -> int:
@@ -573,7 +575,7 @@ class OutputPanel(QWidget):
         self._psearch_input.selectAll()
 
     def show_project_search(self, bulgular, kesildi: bool, kok: str = "",
-                            uyari: str = ""):
+                            uyari: str = "", metinler: dict | None = None):
         """Proje araması sonuçlarını göster.
 
         Öğe metni "yol:satır  içerik"; UserRole'de (mutlak yol, satır) durur,
@@ -585,7 +587,7 @@ class OutputPanel(QWidget):
         self.set_project_search_root(kok)
         self._psearch_list.clear()
         renk = QColor(self._theme.get("fg_primary", "#000000"))
-        taban = self._taban(b.path for b in bulgular)
+        taban = self._taban((b.path for b in bulgular), metinler)
         for b in bulgular:
             gosterilen = b.path
             if kok:

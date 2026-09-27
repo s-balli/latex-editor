@@ -13,6 +13,7 @@ yaratan makinede değil karşı taraftaki makinede patlıyor.
 """
 
 import codecs
+import contextlib
 import difflib
 import os
 import re
@@ -197,6 +198,47 @@ def lf_ye_indir(metin: str) -> str:
     return (metin.replace("\r\r\n", "\n")
                  .replace("\r\n", "\n")
                  .replace("\r", "\n"))
+
+
+# --- Açık sekmelerin kaydedilmemiş metni ---
+#
+# Proje okumaları (referans zinciri, kaynakça) diski okuyordu: kirli sekmedeki
+# kaydedilmemiş etiket, kaynak ve metin görünmüyordu. `acik_metinlerle` bloğu
+# boyunca `metni_oku` o yollarda diski değil sekmenin metnini döndürüyor. Blok
+# GUI iş parçacığında, eşzamanlı çağrının çevresinde kuruluyor; arka plan
+# işçisi (proje araması) metinleri kendi argümanıyla alıyor.
+_ACIK: dict[str, str] = {}
+
+
+def _acik_anahtari(yol: str) -> str:
+    return os.path.normcase(os.path.abspath(yol))
+
+
+@contextlib.contextmanager
+def acik_metinlerle(metinler: dict):
+    """{yol: metin}; metin diskten metin kipinde okunmuş gibi LF'ye iniyor."""
+    onceki = dict(_ACIK)
+    _ACIK.update({_acik_anahtari(y): lf_ye_indir(m) for y, m in metinler.items()})
+    try:
+        yield
+    finally:
+        _ACIK.clear()
+        _ACIK.update(onceki)
+
+
+def acik_metin(yol: str) -> str | None:
+    """Yol `acik_metinlerle` bloğunda verildiyse metni, değilse None."""
+    return _ACIK.get(_acik_anahtari(yol)) if _ACIK else None
+
+
+def metni_oku(yol: str) -> str:
+    """Açık sekmenin metni, yoksa disk (UTF-8, çözülemeyen bayt yerine
+    U+FFFD). Disk okunamazsa OSError."""
+    metin = acik_metin(yol)
+    if metin is not None:
+        return metin
+    with open(yol, "r", encoding="utf-8", errors="replace") as f:
+        return f.read()
 
 
 # Satır sonu Scintilla gibi sayılıyor: `\r\n`, yalnız `\r` ve `\n`.

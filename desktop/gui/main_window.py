@@ -7,7 +7,7 @@ import threading
 import time
 from html import escape as _kacir
 
-from core.fs_ops import KAYNAK_UZANTILARI
+from core.fs_ops import KAYNAK_UZANTILARI, acik_metinlerle
 from core.latex_refs import IMG_EXTS
 from core.updater import CACHE_INTERVAL
 from core.version import VERSION
@@ -1179,15 +1179,18 @@ class MainWindow(
         if not ed or not ed.file_path or not key:
             return
         content = ed.text()
-        if kind == "label":
-            loc = find_label_location(content, ed.file_path, key)
-        elif kind == "cite":
-            loc = find_cite_location(content, ed.file_path, key)
-            # .bib yoksa / anahtar .bib'te yoksa: el ile kaynakça (\bibitem) fallback
-            if loc is None:
-                loc = find_bibitem_location(content, ed.file_path, key)
-        else:  # cite-usage: .bib girdisinden makalede \cite edildiği yere
-            loc = find_cite_usage(ed.file_path, key)
+        # Öteki bölümler ve .bib kaydedilmemiş sekmeden okunuyor: arabellekteki
+        # etiket "Tanım bulunamadı" diyordu (ölçüldü 2026-09-27).
+        with acik_metinlerle(self._acik_metinler()):
+            if kind == "label":
+                loc = find_label_location(content, ed.file_path, key)
+            elif kind == "cite":
+                loc = find_cite_location(content, ed.file_path, key)
+                # .bib yoksa / anahtar .bib'te yoksa: el ile kaynakça (\bibitem) fallback
+                if loc is None:
+                    loc = find_bibitem_location(content, ed.file_path, key)
+            else:  # cite-usage: .bib girdisinden makalede \cite edildiği yere
+                loc = find_cite_usage(ed.file_path, key)
         if loc:
             path, line = loc
             self._goto_line(path, line)

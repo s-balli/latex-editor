@@ -4,6 +4,7 @@ import re
 from pathlib import Path
 import logging
 
+from core.fs_ops import metni_oku
 from core.latex_utils import strip_comments
 
 _logger = logging.getLogger("latex_editor.input_parser")
@@ -72,8 +73,7 @@ def parse_inputs(content: str, base_dir: str, visited: set | None = None,
 
         children = []
         try:
-            with open(full_path, 'r', encoding='utf-8', errors='replace') as f:
-                child_content = f.read()
+            child_content = metni_oku(full_path)
             children = parse_inputs(child_content, os.path.dirname(full_path),
                                     visited, root_dir)
         except Exception as e:

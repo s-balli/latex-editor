@@ -13,7 +13,7 @@ from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from core.bibtex import RE_GIRDI_ANAHTARI
 from core.engine_detector import kok_belge
-from core.fs_ops import coz_adiyla, lf_ye_indir
+from core.fs_ops import acik_metinlerle, coz_adiyla, lf_ye_indir, metni_oku
 from core.log import get_logger
 from core.latex_utils import sozel_soy, strip_comments
 from core.latex_refs import (
@@ -985,16 +985,20 @@ class EditorWidget(QsciScintilla):
         etiketleri oradan görünüyor. ÖLÇÜLDÜ (2026-09-23, tez düzeni):
         bölümde `\ref{` yalnız bölümün kendi etiketini, `\cite{` hiçbir
         anahtarı önermiyordu. Belgenin kendisi ARABELLEKTEN okunuyor ki
-        kaydedilmemiş etiket de gelsin; kök diskten (bkz. kok_belge).
+        kaydedilmemiş etiket de gelsin; kök ve öteki bölümler de açık
+        sekmeleriyle (pencerenin `_acik_metinler`i). ÖLÇÜLDÜ (2026-09-27):
+        kirli bölümde silinen etiket önerilmeye devam ediyor, yenisi
+        önerilmiyordu.
         """
-        sonuc = set(topla(self.text(), self._file_path))
-        kok = kok_belge(self._file_path) if self._file_path else ""
-        if kok and os.path.normcase(kok) != os.path.normcase(self._file_path):
-            try:
-                with open(kok, "r", encoding="utf-8", errors="replace") as f:
-                    sonuc |= set(topla(f.read(), kok))
-            except OSError:
-                pass
+        acik = getattr(self.window(), "_acik_metinler", None)
+        with acik_metinlerle(acik() if callable(acik) else {}):
+            sonuc = set(topla(self.text(), self._file_path))
+            kok = kok_belge(self._file_path) if self._file_path else ""
+            if kok and os.path.normcase(kok) != os.path.normcase(self._file_path):
+                try:
+                    sonuc |= set(topla(metni_oku(kok), kok))
+                except OSError:
+                    pass
         return sorted(sonuc)
 
     def _show_ref_completion(self, typed: str):

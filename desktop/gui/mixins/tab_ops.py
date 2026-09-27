@@ -220,6 +220,21 @@ class TabOpsMixin:
                 return editor
         return None
 
+    def _acik_metinler(self) -> dict:
+        """KAYDEDİLMEMİŞ sekmelerin metni, {yol: metin}.
+
+        Proje okumaları (arama, denetim, kaynakça, tanıma git, tamamlama)
+        bununla kirli sekmeyi görüyor; bkz. `core.fs_ops.acik_metinlerle`.
+        Kayıtlı sekme diskle aynı ve onu mtime önbellekli disk yolu okuyor.
+        ÖLÇÜLDÜ (açık 10 bölüm, 1,7 MB): hepsini vermek \\ref tamamlamasını
+        her tuşta 28 ms'den 46 ms'ye çıkarıyordu; yalnız kirlileri vermek
+        (ikisi kirli) 3 ms ekliyor.
+        """
+        editorler = (self._editor_tabs.widget(i)
+                     for i in range(self._editor_tabs.count()))
+        return {e.file_path: e.text() for e in editorler
+                if isinstance(e, EditorWidget) and e.file_path and e.isModified()}
+
     def _add_tab_close_button(self, index: int):
         btn = QToolButton()
         btn.setFixedSize(18, 18)

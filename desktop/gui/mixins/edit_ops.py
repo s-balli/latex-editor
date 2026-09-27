@@ -5,6 +5,7 @@ import os
 from PyQt6.QtWidgets import QDialog, QInputDialog, QApplication, QMessageBox
 from PyQt6.QtCore import QCoreApplication
 
+from core.fs_ops import acik_metin, acik_metinlerle
 from core.latex_utils import label_gecerli_mi
 from core.log import get_logger
 
@@ -290,7 +291,15 @@ class EditOpsMixin:
         yok. BibTeX'i yeniden yazmak yorumları, `@string` makrolarını ve
         büyük harf koruma parantezlerini bozma riski taşıyor; dosyayı
         editörde açmak zaten mümkün.
+
+        Kaydedilmemiş sekmeler de okunuyor, .bib dahil. ÖLÇÜLDÜ (2026-09-27,
+        gerçek pencere): kirli .bib'e eklenen girdi sekmede görünmüyordu.
         """
+        acik = self._acik_metinler()
+        with acik_metinlerle(acik):
+            self._kaynakcayi_doldur(acik)
+
+    def _kaynakcayi_doldur(self, acik: dict):
         from core.bibtex import ozet, parse_entries
         from core.latex_refs import find_bib_path, parse_bibitems
         from core.project_search import coz
@@ -305,18 +314,20 @@ class EditOpsMixin:
         taban, icerik = self._proje_tabani(editor)
         yol = find_bib_path(icerik, taban)
         if yol:
-            try:
-                with open(yol, "rb") as f:
-                    ham = f.read()
-            except OSError as e:
-                _logger.warning("Kaynakça okunamadı: %s | %s", yol, e)
-                self._output_panel.show_bibliography(
-                    [], _("Kaynakça dosyası okunamadı"))
-                return
-            girdiler = parse_entries(coz(ham))
+            metin = acik_metin(yol)
+            if metin is None:
+                try:
+                    with open(yol, "rb") as f:
+                        metin = coz(f.read())
+                except OSError as e:
+                    _logger.warning("Kaynakça okunamadı: %s | %s", yol, e)
+                    self._output_panel.show_bibliography(
+                        [], _("Kaynakça dosyası okunamadı"))
+                    return
+            girdiler = parse_entries(metin)
             self._output_panel.show_bibliography(
                 [(ozet(g), yol, g.satir) for g in girdiler],
-                _("kaynakçada girdi yok"))
+                _("kaynakçada girdi yok"), metinler=acik)
             self._status.showMessage(
                 _("Kaynakça: {n} girdi · {d}").format(
                     n=len(girdiler), d=os.path.basename(yol)))
@@ -327,7 +338,8 @@ class EditOpsMixin:
         elle = parse_bibitems(icerik, taban)
         if elle:
             self._output_panel.show_bibliography(
-                [self._bibitem_satiri(x) for x in elle], metinler={taban: icerik})
+                [self._bibitem_satiri(x) for x in elle],
+                metinler={**acik, taban: icerik})
             self._status.showMessage(
                 _("Kaynakça: {n} girdi (elle yazılmış)").format(n=len(elle)))
             return
@@ -581,8 +593,14 @@ class EditOpsMixin:
             self._status.showMessage(_("Önce bir .tex dosyası açın"))
             return
         taban, icerik = self._proje_tabani(editor)
-        warnings, suggestions, c = self._collect_audit_items(icerik, taban)
-        self._output_panel.show_audit(warnings, suggestions, {taban: icerik})
+        # Bölüm dosyaları ve .bib de kaydedilmemiş sekmeden okunuyor. ÖLÇÜLDÜ
+        # (2026-09-27, gerçek pencere, üç kirli sekme): denetim arabellekte
+        # tanımlı etikete ve kaynağa "tanımsız" diyor, arabellekte silinen
+        # etiketi ve yeni yazılan \ref'i görmüyordu.
+        acik = self._acik_metinler()
+        with acik_metinlerle(acik):
+            warnings, suggestions, c = self._collect_audit_items(icerik, taban)
+        self._output_panel.show_audit(warnings, suggestions, {**acik, taban: icerik})
         if not warnings and not suggestions:
             self._status.showMessage(_("Referans denetimi: sorun yok"))
         else:
