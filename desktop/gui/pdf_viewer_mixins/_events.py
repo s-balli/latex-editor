@@ -21,6 +21,15 @@ _ = lambda s: QCoreApplication.translate("PdfViewer", s)  # noqa: E731
 class PdfEventsMixin:
 
     def eventFilter(self, obj, event):
+        if event.type() == QEvent.Type.Resize and obj is self._cubuk:
+            # Yalnız GENİŞLİK değişince. Araç göstermek görünür pencerede üst
+            # yerleşimleri eşzamanlı etkinleştiriyor ve düğme boyları farklı
+            # olduğundan çubuğun YÜKSEKLİĞİ değişiyor; her Resize'da sığdırmak
+            # kendini sonsuza dek çağırıyordu. ÖLÇÜLDÜ (2026-09-27, küresel
+            # stil sayfasıyla): Windows'ta yığın taşması, 0xC00000FD.
+            if event.size().width() != event.oldSize().width():
+                self._cubugu_sigdir()
+            return False
         if self._presentation_mode and obj in (self._presentation_widget, self._presentation_label):
             return self._handle_presentation_event(event, obj)
         return self._handle_page_event(event, obj)

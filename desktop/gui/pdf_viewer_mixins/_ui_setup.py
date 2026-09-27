@@ -3,15 +3,24 @@
 import os
 import sys
 
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import QPoint, Qt
 from PyQt6.QtGui import QPixmap
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QPushButton, QLabel,
-    QScrollArea, QFileDialog, QLineEdit, QMessageBox,
+    QScrollArea, QFileDialog, QLineEdit, QMessageBox, QMenu,
 )
 
 from PyQt6.QtCore import QCoreApplication
 _ = lambda s: QCoreApplication.translate("PdfViewer", s)
+
+# Bölme daralınca araçlar bu sırayla "»" menüsüne gidiyor: önce en geniş ve
+# en az kullanılanlar. Yakınlaştırma üçlüsü birlikte gidiyor, yüzde etiketi
+# düğmeleri olmadan anlamsız. Gezinme (önceki, sayfa, sonraki) hiç gitmiyor.
+_TASMA_SIRASI = (
+    ("_btn_save",), ("_btn_dual",), ("_btn_bookmarks",), ("_btn_invert",),
+    ("_btn_search",), ("_btn_fit_p",), ("_btn_fit_w",), ("_btn_present",),
+    ("_btn_zoom_out", "_lbl_zoom", "_btn_zoom_in"),
+)
 
 
 class PdfUISetupMixin:
@@ -38,6 +47,7 @@ class PdfUISetupMixin:
 
         self._btn_zoom_out = QPushButton("-")
         self._btn_zoom_out.setFixedWidth(30)
+        self._btn_zoom_out.setToolTip(_("Uzaklaştır"))
         self._btn_zoom_out.clicked.connect(self.zoom_out)
 
         self._lbl_zoom = QLabel("100%")
@@ -46,6 +56,7 @@ class PdfUISetupMixin:
 
         self._btn_zoom_in = QPushButton("+")
         self._btn_zoom_in.setFixedWidth(30)
+        self._btn_zoom_in.setToolTip(_("Yakınlaştır"))
         self._btn_zoom_in.clicked.connect(self.zoom_in)
 
         from PyQt6.QtGui import QIcon, QPainter, QPen, QColor, QPixmap
@@ -109,6 +120,7 @@ class PdfUISetupMixin:
         # yazılınca yazı tipi, ölçekleme (DPI) ya da yeni bir çeviri
         # etiketi uzattığında da kırpılmıyor.
         self._kaydet_genisligini_ayarla()
+        self._btn_save.setToolTip(_("PDF'i Farklı Kaydet"))
         self._btn_save.clicked.connect(self._save_as)
         self._btn_save.setEnabled(False)
 
@@ -211,9 +223,21 @@ class PdfUISetupMixin:
         self._btn_search.clicked.connect(self._toggle_search_bar)
         toolbar.addWidget(self._btn_search)
 
+        # Bölmeye sığmayan araçlar buradan açılıyor (bkz. _cubugu_sigdir)
+        self._btn_tasma = QPushButton("»")
+        self._btn_tasma.setFixedWidth(30)
+        self._btn_tasma.setToolTip(_("Diğer araçlar"))
+        self._btn_tasma.clicked.connect(self._tasma_menusunu_ac)
+        self._btn_tasma.hide()
+        self._tasma_menusu = QMenu(self)
+        toolbar.addWidget(self._btn_tasma)
+
         toolbar_widget = QWidget()
         toolbar_widget.setLayout(toolbar)
         layout.addWidget(toolbar_widget)
+        # Genişliği her değiştiğinde araçlar yeniden sığdırılıyor
+        self._cubuk = toolbar_widget
+        toolbar_widget.installEventFilter(self)
 
         # Arama çubuğu (başlangıçta gizli)
         self._init_search_state()
@@ -352,6 +376,62 @@ class PdfUISetupMixin:
         """
         self._btn_save.setFixedWidth(
             max(110, self._btn_save.sizeHint().width()))
+
+    def _cubugu_sigdir(self):
+        """Bölmeye sığmayan araçları "»" menüsüne taşı.
+
+        Çubuğun asgari genişliği 745 px (İngilizce) ile 749 px (Türkçe),
+        görüntüleyicininki 250 px. Qt dar çubukta sabit genişlikli düğmelerin
+        yerini daralmış boylarına göre hesaplıyor ama düğmelerin kendisi
+        daralamıyor: düğmeler üst üste biniyor, sayfa etiketi kırpılıyordu.
+        ÖLÇÜLDÜ (2026-09-27, gerçek pencere ve Segoe UI, iki dilde): ilk
+        açılışta PDF bölmesi pencerenin yarısı, varsayılan 1400 px'lik
+        pencerede 695 px ve "Farklı Kaydet" ters çevirme düğmesinin 21-23 px
+        üstündeydi; 1280'de iki, 1024'te üç, 800'de on bir çakışma vardı.
+        AppImageHub'ın 800x600'lük ekran görüntüsünde görülmüştü.
+
+        Ölçüt Qt'nin KENDİ asgari genişliği: yazı tipi, ölçek ya da çeviri
+        değişince de doğru kalıyor. Gizlenen araç menüde (bkz.
+        `_tasma_menusunu_ac`).
+        """
+        lay = self._cubuk.layout()
+        gruplar = [[getattr(self, ad) for ad in grup] for grup in _TASMA_SIRASI]
+        for grup in gruplar:
+            for oge in grup:
+                oge.show()
+        self._btn_tasma.hide()
+        # Hepsi gizlendiği halde sığmıyorsa (en dar bölme, çok uzun sayfa
+        # etiketi) Qt açığı en büyük ögeden, yani etiketten alıyor: etiket
+        # kırpılıyor, düğmeler yerinde kalıyor.
+        for grup in gruplar:
+            lay.invalidate()
+            if lay.minimumSize().width() <= self._cubuk.width():
+                return
+            for oge in grup:
+                oge.hide()
+            self._btn_tasma.show()
+
+    def _tasma_menusunu_ac(self):
+        """Gizlenen araçların menüsü; girdi düğmesine basılmış gibi çalışır.
+
+        Her açılışta yeniden kuruluyor: etkinlik ve işaret durumu (ters
+        çevirme, yer imleri, çift sayfa) düğmeninkinden ayrışmasın.
+        """
+        menu = self._tasma_menusu
+        menu.clear()
+        lay = self._cubuk.layout()
+        for i in range(lay.count()):
+            dugme = lay.itemAt(i).widget()
+            if (not isinstance(dugme, QPushButton) or dugme is self._btn_tasma
+                    or not dugme.isHidden()):
+                continue
+            eylem = menu.addAction(dugme.icon(), dugme.toolTip() or dugme.text())
+            eylem.setEnabled(dugme.isEnabled())
+            eylem.setCheckable(dugme.isCheckable())
+            eylem.setChecked(dugme.isChecked())
+            eylem.triggered.connect(dugme.click)
+        menu.popup(self._btn_tasma.mapToGlobal(
+            QPoint(0, self._btn_tasma.height())))
 
     def apply_theme(self, t: dict):
         self._theme = t

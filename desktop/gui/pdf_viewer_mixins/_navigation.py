@@ -18,6 +18,9 @@ class PdfNavigationMixin:
             size = os.path.getsize(self._pdf_path)
             pages += f"  ({size / 1024:.0f} KB)"
         self._lbl_page.setText(pages)
+        # Etiket uzayınca (sayfa numarası, dosya boyutu) çubuk yeniden
+        # sığdırılıyor; yoksa etiket kırpılır, komşusu üstüne biner.
+        self._cubugu_sigdir()
         self._lbl_zoom.setText(f"{int(self._zoom * 100)}%")
         self._btn_prev.setEnabled(self._current_page > 0)
         self._btn_next.setEnabled(self._current_page < self._page_count - 1)

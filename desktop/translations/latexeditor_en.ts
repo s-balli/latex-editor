@@ -4,7 +4,7 @@
   <context>
     <name>App</name>
     <message>
-        <location filename="../main.py" line="285" />
+        <location filename="../main.py" line="294" />
         <source>Uygulama zaten çalışıyor ama yanıt vermiyor.
 Açık pencereyi kullanın ya da uygulamayı kapatıp yeniden başlatın.</source>
         <translation>The application is already running but is not responding.
@@ -2906,87 +2906,103 @@ Dictionary folder: {dizin}</translation>
         <translation>Copy</translation>
     </message>
     <message>
-        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="32" />
+        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="41" />
         <source>Sayfa 0 / 0</source>
         <translation>Page 0 / 0</translation>
     </message>
     <message>
-        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="69" />
+        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="50" />
+        <source>Uzaklaştır</source>
+        <translation>Zoom Out</translation>
+    </message>
+    <message>
+        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="59" />
+        <source>Yakınlaştır</source>
+        <translation>Zoom In</translation>
+    </message>
+    <message>
+        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="80" />
         <source>Genişliğe Sığdır</source>
         <translation>Fit to Width</translation>
     </message>
     <message>
-        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="91" />
+        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="102" />
         <source>Sayfaya Sığdır</source>
         <translation>Fit to Page</translation>
     </message>
     <message>
-        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="98" />
+        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="109" />
         <source>💾 Farklı Kaydet</source>
         <translation>💾 Save As</translation>
     </message>
     <message>
-        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="128" />
-        <source>PDF renklerini ters çevir</source>
-        <translation>Invert PDF colors</translation>
-    </message>
-    <message>
-        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="131" />
-        <source>⛶ Sunum</source>
-        <translation>⛶ Present</translation>
-    </message>
-    <message>
-        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="133" />
-        <source>Sunum modu (F5)</source>
-        <translation>Presentation mode (F5)</translation>
-    </message>
-    <message>
-        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="153" />
-        <source>Yer İmleri</source>
-        <translation>Bookmarks</translation>
-    </message>
-    <message>
-        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="191" />
-        <source>Çift Sayfa</source>
-        <translation>Two Pages</translation>
-    </message>
-    <message>
-        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="203" />
-        <source>PDF'te Ara (Ctrl+F)</source>
-        <translation>Search in PDF (Ctrl+F)</translation>
-    </message>
-    <message>
-        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="224" />
-        <source>PDF'te ara...</source>
-        <translation>Search in PDF...</translation>
-    </message>
-    <message>
-        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="236" />
-        <source>Önceki</source>
-        <translation>Previous</translation>
-    </message>
-    <message>
-        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="245" />
-        <source>Sonraki</source>
-        <translation>Next</translation>
-    </message>
-    <message>
-        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="486" />
+        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="575" />
+        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="123" />
         <source>PDF'i Farklı Kaydet</source>
         <translation>Save PDF As</translation>
     </message>
     <message>
-        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="486" />
+        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="140" />
+        <source>PDF renklerini ters çevir</source>
+        <translation>Invert PDF colors</translation>
+    </message>
+    <message>
+        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="143" />
+        <source>⛶ Sunum</source>
+        <translation>⛶ Present</translation>
+    </message>
+    <message>
+        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="145" />
+        <source>Sunum modu (F5)</source>
+        <translation>Presentation mode (F5)</translation>
+    </message>
+    <message>
+        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="165" />
+        <source>Yer İmleri</source>
+        <translation>Bookmarks</translation>
+    </message>
+    <message>
+        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="203" />
+        <source>Çift Sayfa</source>
+        <translation>Two Pages</translation>
+    </message>
+    <message>
+        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="215" />
+        <source>PDF'te Ara (Ctrl+F)</source>
+        <translation>Search in PDF (Ctrl+F)</translation>
+    </message>
+    <message>
+        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="229" />
+        <source>Diğer araçlar</source>
+        <translation>More tools</translation>
+    </message>
+    <message>
+        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="248" />
+        <source>PDF'te ara...</source>
+        <translation>Search in PDF...</translation>
+    </message>
+    <message>
+        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="260" />
+        <source>Önceki</source>
+        <translation>Previous</translation>
+    </message>
+    <message>
+        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="269" />
+        <source>Sonraki</source>
+        <translation>Next</translation>
+    </message>
+    <message>
+        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="575" />
         <source>PDF Dosyaları (*.pdf)</source>
         <translation>PDF Files (*.pdf)</translation>
     </message>
     <message>
-        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="505" />
+        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="594" />
         <source>PDF Kaydedilemedi</source>
         <translation>PDF Not Saved</translation>
     </message>
     <message>
-        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="506" />
+        <location filename="../gui/pdf_viewer_mixins/_ui_setup.py" line="595" />
         <source>PDF şu konuma kopyalanamadı:
 
 {d}
@@ -2999,12 +3015,12 @@ Dictionary folder: {dizin}</translation>
 {e}</translation>
     </message>
     <message>
-        <location filename="../gui/pdf_viewer_mixins/_events.py" line="201" />
+        <location filename="../gui/pdf_viewer_mixins/_events.py" line="204" />
         <source>Bağlantı Açılmadı</source>
         <translation>Link Not Opened</translation>
     </message>
     <message>
-        <location filename="../gui/pdf_viewer_mixins/_events.py" line="202" />
+        <location filename="../gui/pdf_viewer_mixins/_events.py" line="205" />
         <source>Bu bağlantı bir web adresi değil, o yüzden açılmadı:
 
 {u}
@@ -3017,7 +3033,7 @@ Yalnızca http, https ve mailto bağlantıları açılıyor.</source>
 Only http, https and mailto links are opened.</translation>
     </message>
     <message>
-        <location filename="../gui/pdf_viewer_mixins/_render.py" line="98" />
+        <location filename="../gui/pdf_viewer_mixins/_render.py" line="99" />
         <source>PDF açılamadı, derleme başarısız olmuş veya dosya bozuk olabilir.</source>
         <translation>Could not open PDF, compilation may have failed or the file may be corrupted.</translation>
     </message>
