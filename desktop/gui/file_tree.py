@@ -204,6 +204,8 @@ class FileTree(QWidget):
         # ~5-15 ms). Denetimler event loop'a küçük gruplar halinde iade
         # edilir; yeşil renkler kademeli dolar.
         self._pending_checks: list[tuple[QTreeWidgetItem, str]] = []
+        # Kök aramasının önbelleği: her yenilemede boşalıyor (bkz. refresh)
+        self._kok_onbellegi: dict = {}
         self._check_timer = QTimer(self)
         self._check_timer.setInterval(30)
         self._check_timer.timeout.connect(self._process_pending_checks)
@@ -445,6 +447,10 @@ class FileTree(QWidget):
         # Bekleyen kademeli denetimler eski (silinecek) öğelere bağlı — temizle
         self._pending_checks.clear()
         self._check_timer.stop()
+        # Kök zincirleri bu yenileme boyunca bir kez kuruluyor; dosyalar
+        # değişince izleyici yeniden `refresh` çağırıyor, önbellek tazeleniyor.
+        # Ölçüm engine_detector._zincirde_mi'de (4.7 sn takılma, 8321 okuma).
+        self._kok_onbellegi = {}
         self._update_watcher()
         self._tree.clear()
         # `\input` ağacına DOKUNULMUYOR. O, klasörün değil AÇIK BELGENİN
@@ -471,7 +477,7 @@ class FileTree(QWidget):
         del self._pending_checks[:5]
         for item, path in batch:
             try:
-                ok = _derleme_hedefi(path)[0] != ""
+                ok = _derleme_hedefi(path, self._kok_onbellegi)[0] != ""
             except Exception as e:
                 # Denetim düşerse dosya "derlenemez" renginde kalır; sebebi
                 # görünmezdi. exc_info YOK: bu kod her dosya için koşuyor,

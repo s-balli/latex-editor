@@ -686,3 +686,46 @@ def test_KOK_BELGE_ust_dizindeki_kok_bolum_klasorundekinden_ONCE(tmp_path):
         "\\end{document}\n", encoding="utf-8")
 
     assert kok_belge(str(bolum)) == str(tmp_path / "main.tex")
+
+
+def test_ONBELLEKLI_kok_aramasi_onbelleksizle_AYNI(tmp_path):
+    """Dosya ağacı her `.tex` için kök arıyor ve zincirler bir kez kurulsun
+    diye önbellek veriyor (ölçüm `_zincirde_mi` docstring'inde). Önbellek
+    sonucu değiştirmemeli: her dosya için önbellekli ve önbelleksiz cevap
+    aynı. Proje kök aramanın kollarını taşıyor: alt klasör ve düz düzen, iç
+    içe bölüm, sahipsiz taslak, `% !TEX root`, bölüm klasöründe onu içeren
+    ikinci belge (yalnız KENDİ dizininde bulunan kök) ve kendi başına
+    derlenen belge."""
+    from core.engine_detector import derleme_hedefi
+
+    (tmp_path / "main.tex").write_text(
+        "\\documentclass{book}\n\\begin{document}\n\\include{Chapters/c1}\n"
+        "\\input{giris}\n\\end{document}\n", encoding="utf-8")
+    (tmp_path / "giris.tex").write_text("giris\n", encoding="utf-8")
+    (tmp_path / "taslak.tex").write_text("taslak\n", encoding="utf-8")
+    # Derlenemeyen ama bölümü içeren not; adı sırada `main.tex`ten önce
+    (tmp_path / "a_notlar.tex").write_text("\\input{giris}\n",
+                                           encoding="utf-8")
+    bolumler = tmp_path / "Chapters"
+    (bolumler / "alt").mkdir(parents=True)
+    (bolumler / "c1.tex").write_text("metin\n\\input{Chapters/alt/s1}\n",
+                                     encoding="utf-8")
+    (bolumler / "alt" / "s1.tex").write_text("alt\n", encoding="utf-8")
+    (bolumler / "c2.tex").write_text("bagimsiz\n", encoding="utf-8")
+    (bolumler / "a_onizleme.tex").write_text(
+        "\\documentclass{article}\n\\begin{document}\n\\input{c2}\n"
+        "\\end{document}\n", encoding="utf-8")
+    (bolumler / "k.tex").write_text("% !TEX root = ../main.tex\nmetin\n",
+                                    encoding="utf-8")
+
+    onbellek = {}
+    for yol in sorted(str(p) for p in tmp_path.rglob("*.tex")):
+        assert derleme_hedefi(yol, onbellek) == derleme_hedefi(yol), yol
+    assert derleme_hedefi(str(bolumler / "c2.tex"), onbellek)[0] == \
+        str(bolumler / "a_onizleme.tex"), "kapı boş: kendi dizinindeki kök"
+    assert len(onbellek) >= 2, "kapı boş: önbellek kullanılmadı"
+    # İki yolun ORTAK parçası da doğru olmalı (yukarıdaki eşitlik onu
+    # göremez): derlenemeyen not köke aday değil, iç içe bölüm ana köke.
+    ana = str(tmp_path / "main.tex")
+    assert derleme_hedefi(str(tmp_path / "giris.tex"), {})[0] == ana
+    assert derleme_hedefi(str(bolumler / "alt" / "s1.tex"), {})[0] == ana

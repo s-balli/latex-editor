@@ -395,6 +395,89 @@ def test_tree_refresh_keeps_queue_consistent(qapp, tmp_path):
     assert _spin(qapp, lambda: not tree._pending_checks)
 
 
+def _tez_projesi(kok, bolum):
+    """`main.tex` + `Chapters/` altında bölümler, her bölümde bir alt bölüm."""
+    girisler = "\n".join("\\include{Chapters/ch%02d}" % i
+                         for i in range(1, bolum + 1))
+    (kok / "main.tex").write_text(
+        "\\documentclass{report}\n\\begin{document}\n%s\n\\end{document}\n"
+        % girisler, encoding="utf-8")
+    (kok / "Chapters" / "sections").mkdir(parents=True)
+    for i in range(1, bolum + 1):
+        (kok / "Chapters" / ("ch%02d.tex" % i)).write_text(
+            "\\chapter{Bolum %d}\nmetin\n\\input{Chapters/sections/s%02d}\n"
+            % (i, i), encoding="utf-8")
+        (kok / "Chapters" / "sections" / ("s%02d.tex" % i)).write_text(
+            "alt\n", encoding="utf-8")
+
+
+def _denetimleri_bitir(tree):
+    while tree._pending_checks:
+        tree._process_pending_checks()
+
+
+def test_agac_renklendirmesi_dosya_basina_SABIT_okuma(qapp, tmp_path,
+                                                     monkeypatch):
+    """Renklendirme her `.tex` için kök arıyor ve kökün zinciri her seferinde
+    baştan kuruluyordu: okuma dosya sayısının karesiyle büyüyordu. ÖLÇÜLDÜ
+    (2026-09-27, Windows, gerçek dosya ağacı, 40 bölüm + 40 alt bölüm): 8321
+    dosya açıldı, arayüz 4.7 sn beşerli partilerle takıldı, en uzun donma
+    766 ms. Yenileme başına önbellekle 362 açılış, 0.7 sn, en uzun 186 ms.
+
+    Kapı süreye değil OKUMA SAYISINA bakıyor: süre makineye bağlı, okuma
+    sayısı değil. Önbelleksiz yol bu projede `.tex` başına ~40 dosya açıyor.
+    """
+    import builtins
+    from gui.file_tree import FileTree
+
+    _tez_projesi(tmp_path, 20)
+    tex_sayisi = sum(1 for _ in tmp_path.rglob("*.tex"))
+    acilan = [0]
+    gercek_open = builtins.open
+
+    def sayan_open(*a, **k):
+        acilan[0] += 1
+        return gercek_open(*a, **k)
+
+    tree = FileTree(theme=THEMES["dark"])
+    monkeypatch.setattr(builtins, "open", sayan_open)
+    try:
+        tree.set_root(str(tmp_path))
+        _denetimleri_bitir(tree)
+    finally:
+        monkeypatch.setattr(builtins, "open", gercek_open)
+    assert acilan[0] <= 8 * tex_sayisi, (
+        "renklendirme %d .tex için %d dosya açtı" % (tex_sayisi, acilan[0]))
+
+
+def test_agac_yenilenince_kok_onbellegi_TAZELENIYOR(qapp, tmp_path):
+    """Önbellek yenileme başına: köke yeni bir `\\input` eklenip ağaç
+    yenilenince (izleyici bunu dosya değişince yapıyor) yeni bölüm yeşile
+    dönmeli. Önbellek bayat kalsaydı eski zincirle boyanırdı."""
+    from PyQt6.QtGui import QColor
+    from gui.file_tree import FileTree
+
+    belge = ("\\documentclass{article}\n\\begin{document}\n%s\n"
+             "\\end{document}\n")
+    (tmp_path / "main.tex").write_text(belge % "\\input{a}", encoding="utf-8")
+    (tmp_path / "a.tex").write_text("a\n", encoding="utf-8")
+    (tmp_path / "b.tex").write_text("b\n", encoding="utf-8")
+    yesil = QColor(THEMES["dark"]["sem_compilable"]).name()
+
+    tree = FileTree(theme=THEMES["dark"])
+    tree.set_root(str(tmp_path))
+    _denetimleri_bitir(tree)
+    assert _tree_items(tree)["📄 b.tex"].foreground(0).color().name() != \
+        yesil, "kapı boş: b köke bağlanmadan yeşil"
+
+    (tmp_path / "main.tex").write_text(belge % "\\input{a}\n\\input{b}",
+                                       encoding="utf-8")
+    tree.refresh()
+    _denetimleri_bitir(tree)
+    assert _tree_items(tree)["📄 b.tex"].foreground(0).color().name() == \
+        yesil, "yenilemeden sonra eski zincirle boyandı"
+
+
 # ======================================================================
 # main_window: pandoc kontrolü bayrak + tooltip günceller
 # ======================================================================

@@ -121,7 +121,7 @@ def detect_root_from_head(head: str, tex_path: str) -> str:
 _KOK_ARAMA_KADEMESI = 3
 
 
-def kok_belge(tex_path: str) -> str:
+def kok_belge(tex_path: str, onbellek: dict | None = None) -> str:
     r"""``tex_path`` hangi belgenin parçası: derlenen KÖK belgenin yolu.
 
     Sıra: dosya kendisi derlenebiliyorsa kendisi; `% !TEX root` varsa o;
@@ -138,6 +138,9 @@ def kok_belge(tex_path: str) -> str:
 
     Dizge değil DOSYA karşılaştırılıyor (`samefile`): macOS'un öntanımlı
     birimi harf duyarsız ve `\input`taki yazım dosya adından farklı olabilir.
+
+    ``onbellek`` (boş bir sözlük) birçok dosya art arda sorulacaksa veriliyor:
+    her aday kökün zinciri bir kez kuruluyor (bkz. `_zincirde_mi`).
     """
     if can_compile(tex_path)[0]:
         return tex_path
@@ -151,7 +154,7 @@ def kok_belge(tex_path: str) -> str:
         if ust == dizin:
             break
         dizin = ust
-        kok = _dizindeki_kok(dizin, tex_path)
+        kok = _dizindeki_kok(dizin, tex_path, onbellek)
         if kok:
             return kok
     # Düz düzen: kök bölümle AYNI klasörde (`main.tex` yanında `giris.tex`).
@@ -162,10 +165,11 @@ def kok_belge(tex_path: str) -> str:
     # dizinlerden SONRA bakılıyor: bugün kökü bulunan iç içe düzenlerde sonuç
     # değişmesin (bölüm klasöründe onu da içeren ikinci bir belge olabilir,
     # ör. tek bölümlük önizleme).
-    return _dizindeki_kok(kendi, tex_path) or tex_path
+    return _dizindeki_kok(kendi, tex_path, onbellek) or tex_path
 
 
-def _dizindeki_kok(dizin: str, tex_path: str) -> str:
+def _dizindeki_kok(dizin: str, tex_path: str,
+                   onbellek: dict | None = None) -> str:
     """``dizin``deki derlenebilir .tex'lerden zinciri ``tex_path``i içeren
     ilki (ad sırasıyla); yoksa boş dizge."""
     try:
@@ -174,12 +178,14 @@ def _dizindeki_kok(dizin: str, tex_path: str) -> str:
         return ""
     for ad in adlar:
         aday = os.path.join(dizin, ad)
-        if ad.lower().endswith(".tex") and _zincirde_mi(aday, tex_path):
+        if ad.lower().endswith(".tex") and _zincirde_mi(aday, tex_path,
+                                                        onbellek):
             return aday
     return ""
 
 
-def derleme_hedefi(tex_path: str) -> tuple[str, str]:
+def derleme_hedefi(tex_path: str,
+                   onbellek: dict | None = None) -> tuple[str, str]:
     r"""(derlenecek belge, hata mesajı): ``tex_path`` derlenmek istenince.
 
     Kendisi derlenebiliyorsa kendisi, değilse kök belgesi (`% !TEX root`
@@ -196,7 +202,7 @@ def derleme_hedefi(tex_path: str) -> tuple[str, str]:
     ok, msg = can_compile(tex_path)
     if ok:
         return tex_path, ""
-    kok = kok_belge(tex_path)
+    kok = kok_belge(tex_path, onbellek)
     if kok != tex_path:
         return kok, ""
     return "", msg
@@ -254,25 +260,58 @@ def paket_yukleme_yeri(kok: str, paket_yolu: str) -> tuple[str, int] | None:
     return None
 
 
-def _zincirde_mi(kok: str, tex_path: str) -> bool:
-    """``kok`` derlenebilir bir belge ve zinciri ``tex_path``i içeriyor mu."""
+def _zincirde_mi(kok: str, tex_path: str,
+                 onbellek: dict | None = None) -> bool:
+    r"""``kok`` derlenebilir bir belge ve zinciri ``tex_path``i içeriyor mu.
+
+    Zincir her çağrıda baştan kuruluyordu: `parse_inputs` kökü ve bağlı her
+    dosyayı yeniden okuyor. Dosya ağacı her `.tex` için soruyor, yani kırk
+    bölümlü tezde okuma dosya sayısının karesiyle büyüyordu. ÖLÇÜLDÜ
+    (2026-09-27, Windows, gerçek dosya ağacı, 40 bölüm + 40 alt bölüm):
+    renklendirme 8321 dosya açtı, arayüz 4.7 sn boyunca beşerli partilerle
+    takıldı, en uzun donma 766 ms. ``onbellek`` verilince her aday kökün
+    zinciri bir kez kuruluyor.
+    """
+    if onbellek is None:
+        kimlikler = _zincir_kimlikleri(kok)
+    else:
+        anahtar = os.path.normcase(os.path.abspath(kok))
+        if anahtar not in onbellek:
+            onbellek[anahtar] = _zincir_kimlikleri(kok)
+        kimlikler = onbellek[anahtar]
+    if not kimlikler:
+        return False
+    try:
+        st = os.stat(tex_path)
+    except OSError:
+        return False
+    return (st.st_dev, st.st_ino) in kimlikler
+
+
+def _zincir_kimlikleri(kok: str) -> frozenset:
+    """``kok`` derlenebilirse zincirindeki dosyaların kimlikleri, değilse boş.
+
+    Kimlik `samefile`ın karşılaştırdığı (aygıt, düğüm) ikilisi: harf duyarsız
+    birimde farklı yazılmış yol da aynı dosyaya çıkıyor.
+    """
     try:
         with open(kok, "r", encoding="utf-8", errors="replace") as f:
             icerik = f.read()
     except OSError:
-        return False
+        return frozenset()
     if not _check_compilable_content(icerik)[0]:
-        return False
+        return frozenset()
+    kimlikler = set()
     yigin = parse_inputs(icerik, os.path.dirname(os.path.abspath(kok)))
     while yigin:
         ref = yigin.pop()
         yigin.extend(ref.get("children") or [])
         try:
-            if os.path.samefile(ref["path"], tex_path):
-                return True
+            st = os.stat(ref["path"])
         except OSError:
             continue
-    return False
+        kimlikler.add((st.st_dev, st.st_ino))
+    return frozenset(kimlikler)
 
 
 # `\documentclass[...,pdftex,...]{...}`: yazar sürücüyü AÇIKÇA söylüyor ve
