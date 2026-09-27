@@ -265,3 +265,34 @@ def test_EDITORUN_eklemesinden_sonra_Enter_listeyi_KABUL_ETMIYOR(qapp, on, yazil
     QTest.keyClicks(ed, "}")
     QTest.keyClick(ed, Qt.Key.Key_Return)
     assert yazilan in lf_ye_indir(ed.text()).split("\n")
+
+
+# --- Ctrl ile gelen metin yazılmıyor, AltGr ile gelen yazılıyor ---
+
+
+# (key, text, değiştiriciler) GERÇEK Windows klavye eşleyicisinden ölçüldü
+# (2026-09-27, 041f Türkçe Q, kendi pencereye WM_KEYDOWN). Ctrl basılıyken
+# text() tuşun Shift'siz karakteri; AltGr Windows'ta Ctrl+Alt geliyor.
+_C = Qt.KeyboardModifier.ControlModifier
+_S = Qt.KeyboardModifier.ShiftModifier
+
+
+@pytest.mark.parametrize("key, metin, mods, beklenen", [
+    (Qt.Key.Key_7, "7", _C, "ab"),
+    (Qt.Key.Key_Plus, "4", _C | _S, "ab"),                 # Ctrl++
+    (Qt.Key.Key_Asterisk, "*", _C | Qt.KeyboardModifier.KeypadModifier, "ab"),
+    (Qt.Key.Key_BraceLeft, "{", _C | Qt.KeyboardModifier.AltModifier, "ab{}"),
+], ids=["ctrl_7", "ctrl_shift_4", "ctrl_yildiz", "altgr_7"])
+def test_Ctrl_ile_gelen_metin_YAZILMIYOR_AltGr_ile_gelen_yaziliyor(qapp, key, metin,
+                                                                  mods, beklenen):
+    """QScintilla bağlı olmayan Ctrl tuşunun metnini yazıyordu: Türkçe Q'da harf
+    dışı 44 Ctrl ve Ctrl+Shift basışının 35'i belgeye karakter koydu. Kural
+    Qt'nin kendi metin kutularınınki (QTBUG-35734); Ctrl+* olayına Qt sayısal
+    tuş takımı bayrağı koyuyor, o da sayılmıyor."""
+    from PyQt6.QtCore import QEvent
+    from PyQt6.QtGui import QKeyEvent
+    ed = _editor()
+    ed.setText("ab")
+    _cursor_end(ed)
+    QApplication.sendEvent(ed, QKeyEvent(QEvent.Type.KeyPress, key, mods, metin))
+    assert ed.text(0) == beklenen

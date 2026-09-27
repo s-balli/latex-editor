@@ -8,7 +8,7 @@ import stat
 from pathlib import Path
 
 from PyQt6.QtCore import Qt, QTimer
-from PyQt6.QtGui import QColor, QPalette
+from PyQt6.QtGui import QColor, QKeyEvent, QPalette
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from core.bibtex import RE_GIRDI_ANAHTARI
@@ -40,6 +40,25 @@ _CLOSE_FOR_OPEN = {'{': '}', '[': ']'}
 
 # Eşleşen \begin{X} / \end{X} tag'lerini yakala (C.11)
 _BEGINEND_RE = re.compile(r'\\(begin|end)\s*\{([A-Za-z]+\*?)\}')
+
+_CTRL = Qt.KeyboardModifier.ControlModifier
+_CTRL_SHIFT = _CTRL | Qt.KeyboardModifier.ShiftModifier
+
+
+def _ctrl_metni(event) -> bool:
+    """Olay Ctrl ya da Ctrl+Shift ile gelmiş yazdırılabilir metin mi taşıyor.
+
+    Qt'nin kendi metin kutularının kuralı (QInputControl::isAcceptableInput,
+    QTBUG-35734): bu metin yazılmaz. AltGr (Windows'ta Ctrl+Alt) yazar;
+    Türkçe Q'da { [ ] } \\ $ @ # onunla yazılıyor. Qt'den tek fark sayısal
+    tuş takımı bayrağının sayılmaması: Qt Türkçe Q'da ana bloktaki `*`
+    tuşunu da öyle işaretliyor ve Bul kutusu Ctrl+* ile `*` yazıyor
+    (ölçüldü 2026-09-27).
+    """
+    metin = event.text()
+    mods = event.modifiers() & ~Qt.KeyboardModifier.KeypadModifier
+    return (bool(metin) and metin[0].isprintable()
+            and mods in (_CTRL, _CTRL_SHIFT))
 
 
 def _yalniz_cr_cevir(full: str) -> str:
@@ -588,6 +607,15 @@ class EditorWidget(QsciScintilla):
               and event.modifiers() == Qt.KeyboardModifier.NoModifier
               and self._cifti_sil()):
             pass
+        elif _ctrl_metni(event):
+            # Ctrl'lü tuşun METNİ yazılmıyor, komutu (Ctrl+Z, Ctrl+-) çalışıyor.
+            # QScintilla bağlı olmayan tuşun metnini yazıyordu; Windows'ta Ctrl
+            # basılıyken o metin tuşun Shift'siz karakteri. ÖLÇÜLDÜ (2026-09-27,
+            # gerçek pencere, 041f Türkçe Q): harf dışı 44 Ctrl ve Ctrl+Shift
+            # basışının 35'i belgeye karakter yazdı (Ctrl+1 "1", Ctrl++ yani
+            # Ctrl+Shift+4 "4", Ctrl+ş "ş"); Bul kutusu aynı tuşlarda boş kaldı.
+            super().keyPressEvent(
+                QKeyEvent(event.type(), event.key(), event.modifiers(), ""))
         elif self._handle_autopair(event):
             # Tuşu editör kendisi işledi (çift, atlama, \end bloğu): yazılan
             # kelime bitti, tamamlama listesi kapanmalı. Açık kalınca sonraki

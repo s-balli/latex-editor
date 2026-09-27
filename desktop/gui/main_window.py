@@ -1380,10 +1380,15 @@ class MainWindow(
             return True
 
         mods = event.modifiers()
-        # Ctrl+/ — klavye düzeninden bağımsız (text "/" olan her tuşu yakala)
+        # Ctrl+/: `/` yazan tuş, Shift gerekse de (Türkçe Q'da Shift+7).
+        # Windows'ta Ctrl basılıyken text() tuşun SHIFT'SİZ karakteri, key()
+        # ise yazılan karakter. ÖLÇÜLDÜ (2026-09-27, gerçek
+        # pencere, 041f Türkçe Q): Ctrl+Shift+7 `key=/ text=7` geliyordu; eski
+        # koşul (Shift yok, text "/") tutmuyor, QScintilla tuşu kelime parçası
+        # SEÇİMİNE çeviriyordu ve sonraki tuş seçileni siliyordu. Kısayol bu
+        # düzende yalnız sayısal tuş takımından basılabiliyordu.
         if (mods & Qt.KeyboardModifier.ControlModifier and
-                not (mods & Qt.KeyboardModifier.ShiftModifier) and
-                event.text() == "/"):
+                event.key() == Qt.Key.Key_Slash):
             if self._current_editor():
                 self._toggle_comment()
                 return True

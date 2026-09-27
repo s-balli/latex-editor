@@ -20,11 +20,15 @@ editörleri conftest'teki fixture topluyor.
 import pytest
 
 try:
+    from PyQt6.QtCore import QEvent, Qt
+    from PyQt6.QtGui import QKeyEvent
     from PyQt6.QtWidgets import QApplication
     from gui.editor import EditorWidget
     from gui.mixins.edit_ops import EditOpsMixin
 except ImportError:  # pragma: no cover
     pytest.skip("PyQt6 / gui import edilemiyor", allow_module_level=True)
+
+_CTRL = Qt.KeyboardModifier.ControlModifier
 
 
 @pytest.fixture(scope="session")
@@ -154,3 +158,29 @@ def test_TEK_SATIRLIK_secim_yorumlaniyor(qapp):
     tek satırda da doğru çalıştığı.
     """
     assert _toggle("bir\niki\nuc\n", secim=(1, 0, 1, 3)) == "bir\n%iki\nuc\n"
+
+
+# --- Kısayolu tanıma: `/` yazan tuş, Shift gerekse de ---
+
+
+# (key, text, değiştiriciler) GERÇEK Windows klavye eşleyicisinden ölçüldü
+# (2026-09-27, 041f Türkçe Q, kendi pencereye WM_KEYDOWN). Ctrl basılıyken
+# text() tuşun Shift'siz karakteri, key() ise yazılan karakter.
+@pytest.mark.parametrize("key, metin, mods, yorumlanir", [
+    (Qt.Key.Key_Slash, "7", _CTRL | Qt.KeyboardModifier.ShiftModifier, True),
+    (Qt.Key.Key_Slash, "/", _CTRL | Qt.KeyboardModifier.KeypadModifier, True),
+    (Qt.Key.Key_7, "7", _CTRL, False),
+], ids=["ctrl_shift_7", "ctrl_numpad_bolu", "ctrl_7"])
+def test_Ctrl_egik_cizgi_TURKCE_Q_duzeninde_de_yorumluyor(qapp, key, metin, mods,
+                                                         yorumlanir):
+    """Koşul "Shift yok ve text '/'" idi. Türkçe Q'da `/` Shift+7 ile yazılıyor:
+    kısayol yalnız sayısal tuş takımından basılabiliyordu, Ctrl+Shift+7'yi
+    QScintilla kelime parçası SEÇİMİNE çeviriyordu."""
+    from gui.main_window import MainWindow
+    ed = EditorWidget()
+    ed.setText("Metin\n")
+    ed.setCursorPosition(0, 2)
+    olay = QKeyEvent(QEvent.Type.KeyPress, key, mods, metin)
+    tuketti = MainWindow._handle_app_key_shortcut(_Pencere(ed), olay)
+    assert (tuketti, ed.text(0)) == (yorumlanir,
+                                     "%Metin\n" if yorumlanir else "Metin\n")
