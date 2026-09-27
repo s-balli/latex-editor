@@ -681,3 +681,79 @@ class TestOnarilmisArama:
         """
         for sozcuk in birlesik_metin(ham).split():
             assert _sayfada_bul(ham, sozcuk), (ham, sozcuk)
+
+
+# =====================================================================
+# Satır sonu (2026-09-27): pdfium bölünmüş sözcüğü U+0002 ile birleşik,
+# satır sonunu boşluk yerine CRLF olarak veriyor. Ölçüm
+# gui/pdf_metin.arama_metni'de: pdflatex T1'de sözcük geçişlerinin %15'i,
+# iki sözcüklük ifadelerin %36'sı bulunamıyordu.
+# =====================================================================
+
+
+class TestSatirSonu:
+
+    def test_BOLUNMUS_sozcuk_bulunuyor_ve_aralik_tireyi_kapsiyor(self):
+        r"""Kırılırsa: satır sonunda bölünen her sözcük aramada kaçıyor.
+
+        Aralık tireyi de kapsıyor: vurgu iki satırdaki harfleri ve satır
+        sonundaki tire glifini çiziyor (U+0002'nin kutusu tirenin kutusu).
+        """
+        ham = "bu karşılaştırılabi\x02lirlik tezin"
+        (aralik,) = _sayfada_bul(ham, "karşılaştırılabilirlik")
+        assert ham[aralik[0]:aralik[1]] == "karşılaştırılabi\x02lirlik"
+
+    @pytest.mark.parametrize("ham", ["veri profil\r\nşekil model",
+                                     "veri profil\nşekil model"])
+    def test_SATIRI_ASAN_ifade_bulunuyor(self, ham):
+        r"""Kırılırsa: satır sonuna düşen iki sözcüklük ifade bulunamıyor."""
+        (aralik,) = _sayfada_bul(ham, "profil şekil")
+        assert ham[aralik[0]:aralik[1]].split() == ["profil", "şekil"]
+
+    def test_OT1_aksani_ve_bolunme_AYNI_sozcukte(self):
+        """İki onarım birlikte: haritaların birleşimi ham aralığı veriyor.
+        Küçük harfte aksan harften ÖNCE geliyor (ölçülen OT1 çıktısı:
+        `paramet\\x02relendirilmi¸s ger¸...`)."""
+        ham = "bu ger¸cekle¸s\x02tirilmesi zor"
+        (aralik,) = _sayfada_bul(ham, "gerçekleştirilmesi")
+        assert ham[aralik[0]:aralik[1]] == "ger¸cekle¸s\x02tirilmesi"
+
+    def test_KOPYALAMA_denetim_karakteri_birakmiyor(self):
+        """Bölünmüş sözcüğü kopyalayan kullanıcı araya U+0002 yapıştırıyordu."""
+        assert birlesik_metin("karşılaştırılabi\x02lirlik") == \
+            "karşılaştırılabilirlik"
+
+    def test_GERCEK_pdfte_kaynaktaki_her_gecis_bulunuyor(self):
+        """Gerçek pdflatex çıktısı (tests/veri/tireli_arama.*): kaynaktaki
+        her sözcük ve ardışık sözcük ikilisi, kaynakta kaç kez geçiyorsa PDF'te
+        o kadar bulunmalı. Beklenen sayıyı uygulamanın kendi eşleştiricisi
+        kaynak metinde veriyor. pdfium satır sonu biçimini değiştirirse bu
+        kapı da düşer."""
+        import os
+        import pypdfium2
+        from core.project_search import eslesme_ofsetleri
+        from gui.pdfium_lock import pdfium_lock
+
+        kok = os.path.join(os.path.dirname(__file__), "veri", "tireli_arama")
+        with open(kok + ".tex", encoding="utf-8") as f:
+            govde = f.read().split("\\begin{document}")[1]
+        govde = " ".join(govde.split("\\end{document}")[0].split())
+        with pdfium_lock:
+            belge = pypdfium2.PdfDocument(kok + ".pdf")
+            try:
+                assert len(belge) == 1, "fikstür tek sayfa olmalı"
+                ham = belge[0].get_textpage().get_text_bounded()
+            finally:
+                belge.close()
+        assert "\x02" in ham and "\r\n" in ham, \
+            "kapı boş: fikstürde bölünme ya da satır sonu yok"
+        cumleler = [c.split() for c in govde.split(".") if c.strip()]
+        sorgular = {w for c in cumleler for w in c} | {
+            " ".join(c[i:i + 2]) for c in cumleler for i in range(len(c) - 1)}
+        kacan = {}
+        for q in sorgular:
+            beklenen = len(list(eslesme_ofsetleri(govde, q)))
+            bulunan = len(_sayfada_bul(ham, q))
+            if bulunan < beklenen:
+                kacan[q] = (beklenen, bulunan)
+        assert not kacan, "PDF'te bulunamayan geçişler (beklenen, bulunan): %s" % kacan

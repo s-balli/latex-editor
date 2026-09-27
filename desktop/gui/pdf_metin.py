@@ -167,7 +167,58 @@ def birlesik_metin(text: str) -> str:
 
     Harita gerekmediği için toplu NFC burada serbest ve gerekli: kopyalanan
     metin başka programlara gidiyor, orada birleşik biçim bekleniyor.
+
+    Satır sonu tiresi (U+0002, bkz. `arama_metni`) atılıyor: bölünmüş bir
+    sözcüğü kopyalayan kullanıcı araya görünmez bir denetim karakteri
+    yapıştırıyordu.
     """
+    text = text.replace(_SATIR_SONU_TIRESI, "")
     if not any(a in text for a in _AKSAN_BIRLESIK):
         return unicodedata.normalize("NFC", text)
     return unicodedata.normalize("NFC", aksanlari_birlestir(text)[0])
+
+
+# pdfium satır sonundaki tireyi U+0002 olarak veriyor ve iki yarıyı araya
+# satır sonu koymadan birleştiriyor (ölçüm `arama_metni`nde).
+_SATIR_SONU_TIRESI = "\x02"
+
+
+def arama_metni(ham: str) -> tuple[str, list[tuple[int, int]] | None]:
+    r"""PDF sayfa metninin ARANACAK hâli ve ham indis haritası.
+
+    Üç onarım: satır sonu tiresi atılıyor, satır sonları (`\r\n`, `\n`,
+    `\r`) tek boşluk oluyor, ayrık aksanlar birleşiyor (`aksanlari_birlestir`).
+    Harita onunki gibi: her karakter için onu üreten HAM aralık, onaracak bir
+    şey yoksa ``None``.
+
+    pdfium bölünmüş sözcüğü `karşılaştırılabi\x02lirlik` diye veriyor, satır
+    sonunu da boşluk yerine `\r\n` diye. ÖLÇÜLDÜ (2026-09-27, gerçek derleme,
+    7 cm sütunlu Türkçe belge, kaynaktaki her sözcük ve ardışık sözcük ikilisi
+    arandı): pdflatex T1'de 1659 sözcük geçişinin 252'si, 849 ikilinin 309'u
+    bulunamıyordu; lualatex ve xelatex'te de aynı, OT1'de 130 ve 237.
+    Bitişik harfler (fi, fl) kayıp değil: dört birleşimde de ayrı harf.
+    """
+    if _SATIR_SONU_TIRESI not in ham and "\r" not in ham and "\n" not in ham:
+        return aksanlari_birlestir(ham)
+    out: list[str] = []
+    harita: list[tuple[int, int]] = []
+    i, n = 0, len(ham)
+    while i < n:
+        ch = ham[i]
+        if ch == _SATIR_SONU_TIRESI:
+            i += 1
+            continue
+        if ch in "\r\n":
+            j = i + 2 if ham.startswith("\r\n", i) else i + 1
+            out.append(" ")
+            harita.append((i, j))
+            i = j
+            continue
+        out.append(ch)
+        harita.append((i, i + 1))
+        i += 1
+    metin = "".join(out)
+    onarilmis, aksan = aksanlari_birlestir(metin)
+    if aksan is None:
+        return metin, harita
+    return onarilmis, [(harita[b][0], harita[s - 1][1]) for b, s in aksan]

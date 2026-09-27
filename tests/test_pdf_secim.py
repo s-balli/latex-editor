@@ -411,6 +411,40 @@ def _arama_kur(qapp, v, uzunluk=5):
 
 class TestAramaVurgusu:
 
+    def test_SATIRI_ASAN_eslesmede_satir_sonuna_leke_yok(self, qapp):
+        """Satırı aşan ifade artık bulunuyor (test_pdf_search_worker
+        TestSatirSonu); aralık pdfium'un ürettiği CR/LF'i de kapsıyor ve
+        ölçüldü, onların kutusu sıfır boyutlu. Vurgu yalnız kutusu olan
+        karakterlere çizilmeli; yoksa her biri 2x4 piksele büyütülüp satır
+        sonuna leke olarak çıkıyordu. Gerçek pdflatex çıktısı:
+        tests/veri/tireli_arama.pdf."""
+        yol = os.path.join(os.path.dirname(__file__), "veri",
+                           "tireli_arama.pdf")
+        v = _viewer(qapp, yol, render_bekle=False)
+        try:
+            with pdfium_lock:
+                tp = v._pdf[0].get_textpage()
+                ham = tp.get_text_bounded()
+                i = ham.index("\r\n")
+                bas = ham.rfind(" ", 0, i) + 1
+                bit = ham.index(" ", i + 2)
+                kutulu = 0
+                for k in range(bas, bit):
+                    sol, alt, sag, ust = tp.get_charbox(k, loose=True)
+                    kutulu += sag > sol or ust > alt
+            assert kutulu < bit - bas, "kapı boş: aralıkta kutusuz karakter yok"
+            v._search_results = [(0, bas, bit - bas)]
+            v._search_index = 0
+            v._show_search_result(0)
+            qapp.processEvents()
+            assert len(v._search_highlights) == kutulu, (
+                "%d kutulu karakter, %d vurgu (satır sonuna leke)"
+                % (kutulu, len(v._search_highlights)))
+        finally:
+            v.shutdown()
+            v.deleteLater()
+            qapp.processEvents()
+
     def test_pixmap_yokken_de_vurgu_ciziliyor(self, qapp, duz_pdf):
         v = _viewer(qapp, duz_pdf, render_bekle=False)
         try:

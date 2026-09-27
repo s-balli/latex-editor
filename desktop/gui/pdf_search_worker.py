@@ -21,7 +21,7 @@ import pypdfium2  # type: ignore
 from PyQt6.QtCore import QThread, pyqtSignal
 
 from core.project_search import eslesme_ofsetleri
-from gui.pdf_metin import aksanlari_birlestir
+from gui.pdf_metin import arama_metni
 # Açılış deneme sınırı İKİZLE paylaşılıyor, kopyalanmıyor: iki işçi aynı
 # dosyayı aynı anda açıyor ve ayrı sayı tutmaları, bu dosyanın düştüğü
 # tuzağın (ikizin aldığı dersi almamak) ta kendisi olurdu.
@@ -48,9 +48,10 @@ def _sayfada_bul(ham: str, sorgu: str) -> list[tuple[int, int]]:
 
     Dönen aralık HAM metne ait olmak zorunda: vurgu `get_charbox` ile ham
     karakter indisinden çiziliyor. Onarılmış metinde indis kayıyor, o yüzden
-    `aksanlari_birlestir` haritayı da veriyor.
+    `arama_metni` haritayı da veriyor. Satır sonunda bölünmüş sözcükler ve
+    satırı aşan ifadeler de onun sayesinde bulunuyor (ölçüm orada).
     """
-    onarilmis, harita = aksanlari_birlestir(ham)
+    onarilmis, harita = arama_metni(ham)
     # Aralık `eslesme_ofsetleri`den geliyor, `len(sorgu)` ile hesaplanmıyor:
     # harf katlaması uzunluğu koruyabilir de korumayabilir de (bkz.
     # core/project_search._katlanmis).

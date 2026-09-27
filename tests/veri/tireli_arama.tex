@@ -1,0 +1,34 @@
+% Test verisi: PDF'te aramanin satir sonu kapisinin kaynagi.
+%
+% NEDEN VAR. pdfium satir sonunda tireyle bolunmus sozcugu
+% `karsilastirilabi\x02lirlik` diye (U+0002, satir sonu koymadan), satir
+% sonunu da bosluk yerine `\r\n` diye veriyor. Arama ikisini de bulamiyordu
+% (olcum `gui.pdf_metin.arama_metni`de). Kapi GERCEK pdfium ciktisina
+% bakiyor: pdfium bu bicimi degistirirse kapi da duser.
+%
+% Dar sutun ve uzun sozcukler bolunmeyi garantiliyor; TEK sayfa, cunku
+% arama sayfa basina yapiliyor ve sayfa sonunda bolunen sozcuk bu kapinin
+% konusu degil. Govdede yalniz duz sozcuk ve nokta var: kapi beklenen
+% gecisleri bu dosyanin govdesinden sayiyor.
+%
+% YENIDEN URETMEK ICIN (T1 + Turkce babel, Turkce tezlerin olagan duzeni):
+%     pdflatex -output-directory=tests/veri tests/veri/tireli_arama.tex
+% (yardimci dosyalar .gitignore'da; depoda .tex ve .pdf duruyor.)
+\documentclass{article}
+\usepackage[T1]{fontenc}
+\usepackage[turkish]{babel}
+\usepackage[paperwidth=10cm,paperheight=24cm,textwidth=5cm,top=1cm,bottom=1cm]{geometry}
+\pagestyle{empty}
+\begin{document}
+Karşılaştırılabilirlik ve sürdürülebilirlik bu tezin iki temel ölçütüdür.
+Uygulanabilirliğinin değerlendirilmesinde istatistiksel yöntemler kullanıldı.
+
+Yapılandırılmış veriler bilgisayarlaştırılmış bir sistemde toplandı ve
+parametrelendirilmiş modeller gerçekleştirilmesi zor deneylerde sınandı.
+
+Çözümlenebilirlik hesaplanabilirlik ile birlikte ele alındı. Coğrafi
+fotoğraflar ve fiziksel ölçümler üniversite laboratuvarında incelendi.
+
+Öğrencilerin katılımıyla yürütülen çalışmada karşılaştırılabilirlik yeniden
+değerlendirildi ve sürdürülebilirlik için yeni bir yaklaşım geliştirildi.
+\end{document}

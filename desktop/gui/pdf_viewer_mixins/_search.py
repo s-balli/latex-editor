@@ -151,6 +151,10 @@ class PdfSearchMixin:
                         left, bottom, right, top = textpage.get_charbox(ci, loose=True)
                     except Exception:
                         continue
+                    # Satır sonu (pdfium'un ürettiği CR/LF) kutusuz geliyor;
+                    # satırı aşan eşleşmede satır sonuna leke çizilmesin.
+                    if right <= left and top <= bottom:
+                        continue
                     # PDF koordinatları: origin sol-alt ve y yukarı; Qt'de
                     # sol-üst ve y aşağı. /Rotate varsa eksenler de takas
                     # oluyor (bkz. gui/pdf_donusum.py).
