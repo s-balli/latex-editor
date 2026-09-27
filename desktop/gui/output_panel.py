@@ -12,6 +12,7 @@ from PyQt6.QtWidgets import (
 )
 
 from core.error_hints import get_hint
+from core.fs_ops import coz, satiri_esle
 from core.log_parser import CompileResult
 from core.yazim import SUNULAN_DILLER
 from PyQt6.QtCore import QCoreApplication
@@ -54,11 +55,35 @@ def _hint_templates() -> dict:
     }
 
 
+# Öğenin, listenin KURULDUĞU metni (`_Taban`); bkz. `OutputPanel._taban`.
+# +1 Öneriler'de ipucu işareti (`_IPUCU_ROLE`), o yüzden +2.
+_TABAN = Qt.ItemDataRole.UserRole + 2
+
+
+class _Taban:
+    """Bir listenin kurulduğu metinler, {yol: metin}; öğeler aynı nesneyi
+    paylaşıyor. Sözlük doğrudan verilmiyor: Qt her öğeye ayrı kopyalıyor."""
+    __slots__ = ("metinler",)
+
+    def __init__(self, metinler: dict):
+        self.metinler = metinler
+
+
+def _diskten(yol: str) -> str | None:
+    try:
+        with open(yol, "rb") as f:
+            return coz(f.read())
+    except OSError:
+        return None
+
+
 class OutputPanel(QWidget):
+    # Öteki listeler (uyarı, denetim, arama, yazım, kaynakça): satır panelde
+    # bugünkü metne çevrilmiş olarak gidiyor (bkz. `_guncel_satir`).
     error_clicked = pyqtSignal(str, int)  # file_path, line_number
     # Hatalar listesi: satır DERLEME ANININ satırı. Metin o zamandan beri
     # değişmiş olabilir; ana pencere onu hata işaretinin güncel satırına
-    # çeviriyor. Öteki listelerin satırı o anki metne ait, error_clicked.
+    # çeviriyor.
     derleme_hatasi_tiklandi = pyqtSignal(str, int)
     # Sürüm geçmişi eylemleri: (aksiyon, sha) — "restore" | "diff"
     version_action = pyqtSignal(str, str)
@@ -85,6 +110,10 @@ class OutputPanel(QWidget):
 
     # Doktor satırının UserRole işareti: (dosya, satır) demetiyle karışmasın
     _ENV_DOCTOR_TAG = "__env_doctor__"
+
+    # Açık sekmenin metnini veren işlev, (yol) -> metin ya da None; ana
+    # pencere bağlıyor. Sekme açık değilse satır diskteki metne çevriliyor.
+    acik_metin = None
 
     # Öneriler sekmesindeki BAZI satırlar ipucu (motor önerisi, "derlenemez").
     # apply_theme onları sem_hint'te bırakmalı; geri kalanı listenin kendi
@@ -371,6 +400,7 @@ class OutputPanel(QWidget):
         self._tabs.setTabText(self._error_tab_index, _("Hatalar ({n})").format(n=len(result.errors)))
 
         # Uyarılar
+        taban = self._taban(w.file_path for w in result.warnings)
         for w in result.warnings:
             line_info = (self._satir_oneki(w.file_path, w.line_number)
                          if w.line_number else "")
@@ -382,6 +412,7 @@ class OutputPanel(QWidget):
             if hint:
                 item.setToolTip(hint)
             item.setData(Qt.ItemDataRole.UserRole, (w.file_path, w.line_number))
+            item.setData(_TABAN, taban)
             self._warn_list.addItem(item)
         self._tabs.setTabText(self._warn_tab_index, _("Uyarılar ({n})").format(n=len(result.warnings)))
 
@@ -418,23 +449,18 @@ class OutputPanel(QWidget):
             self._tabs.setCurrentIndex(self._warn_tab_index)
 
     def show_audit(self, warnings: list[tuple[str, str, int]],
-                   suggestions: list[tuple[str, str, int]]):
+                   suggestions: list[tuple[str, str, int]],
+                   metinler: dict | None = None):
         """Referans denetimi bulgularını tıklanabilir öğeler olarak göster.
 
         Öğeler (metin, dosya, satır) üçlüsü; warnings Uyarılar, suggestions
         Öneriler sekmesine gider. İkisi de boşsa tek satır 'sorun yok' mesajı
         Öneriler'de gösterilir. Tıklanınca error_clicked sinyali ile editöre
-        atlanır (satır > 0 olan öğeler).
+        atlanır (satır > 0 olan öğeler). `metinler`: denetimin okuduğu
+        arabellek (bkz. `_taban`).
         """
         self.clear()
-        for text, path, line in warnings:
-            item = QListWidgetItem(text)
-            item.setData(Qt.ItemDataRole.UserRole, (path, line))
-            self._warn_list.addItem(item)
-        for text, path, line in suggestions:
-            item = QListWidgetItem(text)
-            item.setData(Qt.ItemDataRole.UserRole, (path, line))
-            self._suggest_list.addItem(item)
+        self._denetim_ekle(warnings, suggestions, metinler)
         if not warnings and not suggestions:
             self._suggest_list.addItem(QListWidgetItem(_("Sorun bulunamadı, tüm \\ref/\\cite anahtarları tanımlı.")))
         self._tabs.setTabText(self._warn_tab_index, _("Uyarılar ({n})").format(n=len(warnings)))
@@ -449,16 +475,55 @@ class OutputPanel(QWidget):
         temizlemez ve sekme odağını değiştirmez (derleme hataları öncelikli
         kalır). Sekme başlıklarındaki sayılar güncellenir.
         """
-        for text, path, line in warnings:
-            item = QListWidgetItem(text)
-            item.setData(Qt.ItemDataRole.UserRole, (path, line))
-            self._warn_list.addItem(item)
-        for text, path, line in suggestions:
-            item = QListWidgetItem(text)
-            item.setData(Qt.ItemDataRole.UserRole, (path, line))
-            self._suggest_list.addItem(item)
+        self._denetim_ekle(warnings, suggestions)
         self._tabs.setTabText(self._warn_tab_index, _("Uyarılar ({n})").format(n=self._warn_list.count()))
         self._tabs.setTabText(self._suggest_tab_index, _("Öneriler ({n})").format(n=self._suggest_list.count()))
+
+    def _denetim_ekle(self, warnings, suggestions, metinler=None):
+        taban = self._taban((p for _t, p, _s in warnings + suggestions), metinler)
+        for liste, ogeler in ((self._warn_list, warnings),
+                              (self._suggest_list, suggestions)):
+            for text, path, line in ogeler:
+                item = QListWidgetItem(text)
+                item.setData(Qt.ItemDataRole.UserRole, (path, line))
+                item.setData(_TABAN, taban)
+                liste.addItem(item)
+
+    # --- Satırın bugünkü metne çevrilmesi ---
+
+    @staticmethod
+    def _taban(yollar, metinler=None) -> _Taban:
+        """Listenin KURULDUĞU metin, yol başına. Tıklanınca satır bundan
+        bugünkü metne çevriliyor (`_guncel_satir`).
+
+        Satır liste kurulduğu anın metnine ait; kullanıcı sonra yukarıya satır
+        ekleyince öğe eski satıra gidiyordu. Derleme, proje araması, kaynakça
+        ve denetimin bölüm dosyaları DİSKİ okuyor: kirli sekmede satır daha
+        baştan kayıktı. ÖLÇÜLDÜ (2026-09-27, gerçek pencere, Ctrl+B ile gerçek
+        derleme, gerçek tıklama, LF ve CRLF; kehanet öğenin metninin
+        editördeki satırı): 14 adımın 11'inde yanlış satır, doğrular yalnız
+        dosyanın ilk açılışı.
+
+        `metinler`: üreticinin diskten değil ARABELLEKTEN okuduğu metinler
+        (denetimde kök, yazımda sekme); verilmeyen yol diskten okunuyor.
+        """
+        metinler = metinler or {}
+        sonuc = {}
+        for yol in yollar:
+            if yol and yol not in sonuc:
+                sonuc[yol] = metinler[yol] if yol in metinler else _diskten(yol)
+        return _Taban(sonuc)
+
+    def _guncel_satir(self, item, yol: str, satir: int) -> int:
+        """Öğenin satırı BUGÜNKÜ metinde: açık sekmenin metni, yoksa disk."""
+        taban = item.data(_TABAN)
+        eski = taban.metinler.get(yol) if taban is not None else None
+        if eski is None:
+            return satir
+        yeni = self.acik_metin(yol) if self.acik_metin is not None else None
+        if yeni is None:
+            yeni = _diskten(yol)
+        return satiri_esle(eski, yeni, satir) if yeni is not None else satir
 
     # --- Projede Ara ---
 
@@ -520,6 +585,7 @@ class OutputPanel(QWidget):
         self.set_project_search_root(kok)
         self._psearch_list.clear()
         renk = QColor(self._theme.get("fg_primary", "#000000"))
+        taban = self._taban(b.path for b in bulgular)
         for b in bulgular:
             gosterilen = b.path
             if kok:
@@ -529,6 +595,7 @@ class OutputPanel(QWidget):
                     pass
             item = QListWidgetItem(f"{gosterilen}:{b.line}  {b.text}")
             item.setData(Qt.ItemDataRole.UserRole, (b.path, b.line))
+            item.setData(_TABAN, taban)
             item.setForeground(renk)
             self._psearch_list.addItem(item)
 
@@ -576,18 +643,22 @@ class OutputPanel(QWidget):
         self._yazim_durum.setText(mesaj)
         self._yazim_dugme.setEnabled(not mesaj)
 
-    def show_yazim(self, bulgular, dosya_yolu: str, toplam_kelime: int = 0):
+    def show_yazim(self, bulgular, dosya_yolu: str, toplam_kelime: int = 0,
+                   metin: str | None = None):
         """Yazım bulgularını göster.
 
         Öğe metni "satır:sütun  kelime"; UserRole'de (dosya, satır) durur,
         yani tıklama mevcut error_clicked yoluna düşüp _goto_line'a gider.
+        `metin`: denetlenen arabellek (bkz. `_taban`).
         """
         self._yazim_list.clear()
         self._yazim_dugme.setEnabled(True)
         renk = QColor(self._theme.get("fg_primary", "#000000"))
+        taban = self._taban([dosya_yolu], {} if metin is None else {dosya_yolu: metin})
         for b in bulgular:
             item = QListWidgetItem("%d:%d  %s" % (b.satir, b.sutun, b.kelime))
             item.setData(Qt.ItemDataRole.UserRole, (dosya_yolu, b.satir))
+            item.setData(_TABAN, taban)
             item.setForeground(renk)
             self._yazim_list.addItem(item)
 
@@ -672,7 +743,7 @@ class OutputPanel(QWidget):
         if veri:
             path, line = veri
             if path and line:
-                self.error_clicked.emit(path, line)
+                self.error_clicked.emit(path, self._guncel_satir(anahtar, path, line))
 
     def clear_bibliography(self):
         """Tabloyu boşalt (kök/dosya değişince bayat liste kalmasın)."""
@@ -681,10 +752,12 @@ class OutputPanel(QWidget):
         self._bib_status.setText("")
         self._tabs.setTabText(self._bib_tab_index, _("Kaynakça"))
 
-    def show_bibliography(self, satirlar, uyari: str = ""):
+    def show_bibliography(self, satirlar, uyari: str = "",
+                          metinler: dict | None = None):
         """Kaynakça listesini göster.
 
         `satirlar`: ((anahtar, tür, yazar, yıl, başlık), dosya, satır) üçlüleri.
+        `metinler`: elle yazılmış kaynakçada okunan arabellek (bkz. `_taban`).
 
         Yol SATIR BAŞINA geliyor, tek bir .bib yolu değil: elle yazılmış
         kaynakçada (`\\bibitem`) girdiler \\input zincirindeki FARKLI
@@ -703,12 +776,14 @@ class OutputPanel(QWidget):
         renk = QColor(self._theme.get("fg_primary", "#000000"))
 
         self._bib_table.setRowCount(len(satirlar))
+        taban = self._taban((yol for _o, yol, _s in satirlar), metinler)
         for r, (ozet, yol, satir) in enumerate(satirlar):
             for c, metin in enumerate(ozet):
                 hucre = QTableWidgetItem(metin)
                 hucre.setForeground(renk)
                 if c == 0:
                     hucre.setData(Qt.ItemDataRole.UserRole, (yol, satir))
+                    hucre.setData(_TABAN, taban)
                 self._bib_table.setItem(r, c, hucre)
         self._bib_table.setSortingEnabled(True)
         self._bib_table.resizeColumnsToContents()
@@ -843,7 +918,8 @@ class OutputPanel(QWidget):
         if data:
             file_path, line = data
             if line and line > 0:
-                self.error_clicked.emit(file_path or "", line)
+                self.error_clicked.emit(file_path or "",
+                                        self._guncel_satir(item, file_path, line))
 
     def _on_list_context_menu(self, pos):
         list_widget = self.sender()

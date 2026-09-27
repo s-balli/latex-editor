@@ -307,7 +307,7 @@ class YazimOpsMixin:
         bulgular = self._yazim_denetleyici.denetle_kelimeler(
             kelimeler, buyuk_atla=True)
         toplam = sum(1 for k in kelimeler if len(k.kelime) >= 3)
-        self._output_panel.show_yazim(bulgular, ed.file_path or "", toplam)
+        self._output_panel.show_yazim(bulgular, ed.file_path or "", toplam, metin)
 
     # -- sağ tık --
     def _on_yazim_oneri(self, kelime: str, dosya: str = ""):

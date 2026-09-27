@@ -327,7 +327,7 @@ class EditOpsMixin:
         elle = parse_bibitems(icerik, taban)
         if elle:
             self._output_panel.show_bibliography(
-                [self._bibitem_satiri(x) for x in elle])
+                [self._bibitem_satiri(x) for x in elle], metinler={taban: icerik})
             self._status.showMessage(
                 _("Kaynakça: {n} girdi (elle yazılmış)").format(n=len(elle)))
             return
@@ -582,7 +582,7 @@ class EditOpsMixin:
             return
         taban, icerik = self._proje_tabani(editor)
         warnings, suggestions, c = self._collect_audit_items(icerik, taban)
-        self._output_panel.show_audit(warnings, suggestions)
+        self._output_panel.show_audit(warnings, suggestions, {taban: icerik})
         if not warnings and not suggestions:
             self._status.showMessage(_("Referans denetimi: sorun yok"))
         else:

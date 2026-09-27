@@ -785,8 +785,8 @@ class CompileOpsMixin:
         """Hatalar listesinde tıklanan hataya git.
 
         Listedeki satır DERLEME ANININ satırı; F4 gibi işaretin güncel
-        satırına çevriliyor. Öteki listeler (yazım, proje araması, denetim)
-        o anki metnin satırını taşıyor ve doğrudan `_goto_line`a gidiyor.
+        satırına çevriliyor. Öteki listelerin satırını panel kendisi
+        çeviriyor (bkz. `OutputPanel._taban`).
         """
         self._goto_line(dosya, self._guncel_hata_satiri(dosya, satir))
 

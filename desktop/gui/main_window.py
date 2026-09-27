@@ -623,6 +623,7 @@ class MainWindow(
         self._file_tree.file_open_requested.connect(self._open_file_in_editor)
         self._file_tree.compile_requested.connect(self._compile_file)
         self._output_panel.error_clicked.connect(self._goto_line)
+        self._output_panel.acik_metin = self._acik_metin
         self._output_panel.derleme_hatasi_tiklandi.connect(
             self._derleme_hatasina_git)
         self._output_panel.version_action.connect(self._on_version_action)
@@ -1152,6 +1153,11 @@ class MainWindow(
             hedef.setCursorPosition(line - 1, 0)
             hedef.ensureLineVisible(line - 1)
             hedef.setFocus()
+
+    def _acik_metin(self, yol: str) -> str | None:
+        """Yol sekmede açıksa bugünkü metni (sonuç listelerinin satır çevirisi)."""
+        ed = self._editor_by_path(yol)
+        return ed.text() if ed is not None else None
 
     def _goto_outline_line(self, line: int):
         editor = self._current_editor()

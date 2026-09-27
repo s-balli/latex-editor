@@ -289,6 +289,38 @@ class TestLfYeIndir:
             % suclular)
 
 
+# --- Sonuç listesinin satırı bugünkü metne (2026-09-27) ---
+
+
+_METIN = "\n".join(["\\section{Giris}", "", "Birinci \\ref{a} burada.", "",
+                    "Ikinci satir.", "\\end{document}"])
+
+
+class TestSatiriEsle:
+    @pytest.mark.parametrize("yeni, satir, beklenen", [
+        (_METIN, 3, 3),                                           # degisiklik yok
+        ("% ek\n% ek\n" + _METIN, 3, 5),                          # uste 2 satir
+        (_METIN + "\n% alt", 3, 3),                               # alta satir
+        ("% ek\n" + _METIN.replace("Ikinci", "% alt\nIkinci"), 3, 4),  # uste ve alta
+        ("% ek\n" + _METIN.replace("Birinci \\ref{a} burada.\n", ""), 3, 4),  # silindi: yerine kayan
+        (_METIN.replace("Birinci \\ref{a}", "% yeni\nBirinci \\ref{b}"), 3, 4),
+        (_METIN.replace("\n", "\r\n"), 5, 5),                     # yalniz satir sonu farkli
+        (_METIN, 99, 99),                                         # aralik disi
+    ], ids=["ayni", "uste_2", "alta", "uste_ve_alta", "hedef_silindi",
+            "hedef_duzeltildi_ustune_satir", "crlf", "aralik_disi"])
+    def test_kural(self, yeni, satir, beklenen):
+        r"""Kehanet elle: satırın bugünkü metindeki yeri. "hedef_duzeltildi":
+        düzeltilen satırın hemen üstüne satır eklenince ikisi tek blok oluyor,
+        sıra kuralı eklenen satırı seçiyordu (132 şablonda 1018 denemenin 73'ü)."""
+        assert fs_ops.satiri_esle(_METIN, yeni, satir) == beklenen
+
+    def test_YINELENEN_satirlarda_ortak_bas_ve_son_hizalamaya_girmiyor(self):
+        """difflib çok yinelenen satırı önemsiz sayıyor ve hizalamayı başka
+        kopyaya kaydırabiliyor; ortak son ayrı tutulunca doğru."""
+        eski = "\n".join(["\\item x"] * 300)
+        assert fs_ops.satiri_esle(eski, "% e\n" * 5 + eski, 250) == 255
+
+
 # --- Atomik ham bayt yazıcı: TEK KAYNAK (2026-09-12) ---
 
 

@@ -13,6 +13,7 @@ yaratan makinede değil karşı taraftaki makinede patlıyor.
 """
 
 import codecs
+import difflib
 import os
 import re
 import tempfile
@@ -196,6 +197,60 @@ def lf_ye_indir(metin: str) -> str:
     return (metin.replace("\r\r\n", "\n")
                  .replace("\r\n", "\n")
                  .replace("\r", "\n"))
+
+
+# Satır sonu Scintilla gibi sayılıyor: `\r\n`, yalnız `\r` ve `\n`.
+_SATIR_SONU = re.compile(r"\r\n|\r|\n")
+
+
+def satiri_esle(eski: str, yeni: str, satir: int) -> int:
+    """`eski` metnin 1 tabanlı `satir`ı `yeni` metinde kaçıncı satır.
+
+    Sonuç listeleri (uyarı, denetim, arama, yazım, kaynakça) satırı listenin
+    KURULDUĞU metne göre tutuyor; tıklanınca bugünkü metne bununla
+    çevriliyor. Satır silinmişse yerine kayan satır. Değişmişse yerine gelen
+    bloktaki EN BENZER satır, benzerlik eşitse aynı sıradaki: satır düzeltilip
+    hemen üstüne satır eklenince ikisi tek blok oluyor ve sıra kuralı
+    eklenen satırı seçiyordu (ölçüldü 2026-09-27, 132 şablonda 1018
+    denemenin 73'ü). Aday yalnız blok boyunun değiştiği kadar komşuluk:
+    bloğun içindeki ekleme ve silme hedefi en çok o kadar kaydırıyor; tüm
+    blokta aranınca uzaktaki özdeş kopya seçiliyordu.
+    """
+    if eski == yeni:
+        return satir
+    a, b = _SATIR_SONU.split(eski), _SATIR_SONU.split(yeni)
+    i = satir - 1
+    if not 0 <= i < len(a):
+        return satir
+    # Ortak baş ve son eşlemeye girmiyor: düzenleme çoğu zaman tek yerde ve
+    # difflib yinelenen satırları (yazar biyografileri) başka kopyaya
+    # hizalayabiliyor.
+    bas = 0
+    while bas < min(len(a), len(b)) and a[bas] == b[bas]:
+        bas += 1
+    son = 0
+    while son < min(len(a), len(b)) - bas and a[-1 - son] == b[-1 - son]:
+        son += 1
+    if i < bas:
+        return satir
+    if i >= len(a) - son:
+        return i + len(b) - len(a) + 1
+    uzunluk = len(b)
+    a, b, i = a[bas:len(a) - son], b[bas:len(b) - son], i - bas
+    for tur, i1, i2, j1, j2 in difflib.SequenceMatcher(
+            None, a, b).get_opcodes():
+        if i1 <= i < i2:
+            if tur == "equal":
+                return bas + j1 + i - i1 + 1
+            if j1 == j2:
+                return min(bas + j1, uzunluk - 1) + 1
+            sira, fark = i - i1, (j2 - j1) - (i2 - i1)
+            adaylar = range(j1 + sira + min(0, fark),
+                            min(j2, j1 + sira + max(0, fark) + 1))
+            return bas + max(adaylar, key=lambda j: (
+                difflib.SequenceMatcher(None, a[i], b[j]).ratio(),
+                -abs(j - j1 - sira))) + 1
+    return satir
 
 
 def derleme_artigi_mi(ad: str) -> bool:

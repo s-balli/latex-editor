@@ -897,7 +897,7 @@ def test_BOLUMDEN_denetim_KOKTEN_denetimle_ayni(ana_pencere, tmp_path):
     p = ana_pencere()
     p._open_file_in_editor(str(kok / "Chapters" / "Chapter1.tex"))
     gelen = []
-    p._output_panel.show_audit = lambda w, s: gelen.append((w, s))
+    p._output_panel.show_audit = lambda w, s, *_metinler: gelen.append((w, s))
 
     p._audit_references()
 
