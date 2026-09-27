@@ -90,6 +90,39 @@ _RE_BASLIK_BOSLUK = re.compile(r'\s+')
 _BASLIK_ESC = "%$&#_{}"
 _RE_BASLIK_ESC = re.compile(r'\\([' + re.escape(_BASLIK_ESC) + r'])')
 _RE_BASLIK_SENTINEL = re.compile('[\x01-\x07]')
+# Sarmalayıcı kuralı ARGÜMANI metin sayıyor; aşağıdaki komutlarda argümanın
+# kendisi ya da ilki metin DEĞİL ve panele sızıyordu. ÖLÇÜLDÜ (2026-09-27),
+# kehanet LaTeX'in PDF'e bastığı metin ve hyperref'in yer imi metni:
+#   \textcolor{ocre}{Bibliography}  -> "ocre Bibliography"  (basılı: Bibliography)
+#   Giri\c{s}\label{sec:giris}       -> "Girişsec:giris"     (basılı: Giriş)
+#   \href{https://...}{Site}         -> "https://... Site"   (basılı: Site)
+# Renk adı yüzünden `\addcontentsline` kopyası da elenmiyor, aynı bölüm
+# anahatta İKİ kez görünüyordu (template28-book1).
+#
+# Metin üretmeyen: argümanıyla birlikte atılıyor. `\numberline`
+# içindekilerin hizalama komutu (`\protect\numberline{}Kaynakça`).
+_RE_BASLIK_AT = re.compile(
+    r'\\(?:label|index|glossary|numberline|color)(?![a-zA-Z])\s*'
+    r'(?:\[[^\]]*\])?\s*\{[^{}]*\}')
+# İlk argümanı metin olmayan (renk, adres, dil, hedef, yükseklik): öneki
+# atılıyor, geriye kalan `{metin}` sarmalayıcı kuralıyla açılıyor.
+# `\texorpdfstring{TeX}{düz}`: yazar düz metin yerleri için ikinci kolu
+# vermiş; anahat da yer imi gibi düz metin.
+_RE_BASLIK_ONEK = re.compile(
+    r'\\(?:textcolor|colorbox|href|hyperlink|hypertarget|foreignlanguage'
+    r'|texorpdfstring)(?![a-zA-Z])\s*(?:\[[^\]]*\])?\s*'
+    r'\{(?:[^{}]|\{[^{}]*\})*\}'
+    r'|\\hyperref\s*\[[^\]]*\]'
+    r'|\\raisebox\s*\{[^{}]*\}(?:\s*\[[^\]]*\]){0,2}')
+# Satır sonu (`\\`, `\\*`, `\\[2ex]`) uzun başlığı iki satıra bölüyor; tek
+# satırlık panelde iki kelimeyi AYIRAN bir boşluk. Kuralsız kalınca ikinci
+# ters bölü komut sayılıyordu: `A\\B` -> "A\B".
+_RE_BASLIK_SATIR = re.compile(r'\\\\\*?(?:\s*\[[^\]]*\])?')
+# Basılı simgeler: ad kuralı `\S 2`yi "S 2" yapıyordu. Ters bölü, sembol
+# kuralından korunmak için sentinel'e alınıyor. Kontrol kelimesinin
+# ardındaki boşluk TeX'te yutuluyor: `\textbackslash label` -> `\label`.
+_BASLIK_SIMGE = {'S': '§', 'P': '¶', 'textbackslash': '\x08'}
+_RE_BASLIK_SIMGE = re.compile(r'\\(S|P|textbackslash)(?![a-zA-Z]) ?')
 
 
 def _baslik_goster(ham: str) -> str:
@@ -104,13 +137,17 @@ def _baslik_goster(ham: str) -> str:
     argümanına indiriliyor (iç içe olabilir), en sonda argümansız kalanlar
     adına indiriliyor.
     """
-    t = _RE_BASLIK_YERLESIM.sub(' ', ham)
+    t = _RE_BASLIK_SATIR.sub(' ', ham)
+    t = _RE_BASLIK_YERLESIM.sub(' ', t)
+    t = _RE_BASLIK_AT.sub('', t)
     t = _RE_BASLIK_ESC.sub(
         lambda m: chr(1 + _BASLIK_ESC.index(m.group(1))), t)
+    t = _RE_BASLIK_SIMGE.sub(lambda m: _BASLIK_SIMGE[m.group(1)], t)
     # Aksan makroları SARMALAYICILARDAN ÖNCE: `\c{C}` sarmalayıcı kuralına
     # düşerse argümanına iner ve "C" kalır, yani panelde belgede YAZMAYAN
     # bir kelime görünür (gerekçe ve ölçüm `latex_utils.aksanlari_coz`da).
     t = aksanlari_coz(t)
+    t = _RE_BASLIK_ONEK.sub('', t)
     for _ in range(4):                  # iç içe sarmalayıcı; sınır bilinçli
         yeni = _RE_BASLIK_SARMAL.sub(r'\1', t)
         if yeni == t:
@@ -123,6 +160,7 @@ def _baslik_goster(ham: str) -> str:
     t = t.replace('{', ' ').replace('}', ' ').replace('$', ' ')
     t = _RE_BASLIK_SENTINEL.sub(
         lambda m: _BASLIK_ESC[ord(m.group(0)) - 1], t)
+    t = t.replace('\x08', '\\')
     return _RE_BASLIK_BOSLUK.sub(' ', t).strip()
 
 

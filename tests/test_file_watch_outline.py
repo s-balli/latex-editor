@@ -493,6 +493,34 @@ class TestAnahatBaslikGosterimi:
         onu bir kez yutmuştu ve deponun kaçışlı yüzde kapısı yakaladı."""
         assert _baslik_goster(ham) == beklenen
 
+    @pytest.mark.parametrize("ham,beklenen", [
+        # Gerçek satırlar: template28-book1 ve pasj02_usage
+        (r"\textcolor{ocre}{Bibliography}", "Bibliography"),
+        (r"\texttt{\textbackslash label} komutu", "\\label komutu"),
+        # Görünmez ya da metin üretmeyen: argümanıyla atılıyor
+        (r"Giri\c{s}\label{sec:giris}", "Giriş"),
+        (r"\color{blue}Mavi", "Mavi"),
+        (r"\protect\numberline{}Kaynak\c{c}a", "Kaynakça"),
+        # İlk argüman renk, adres, dil ya da hedef
+        (r"\colorbox{yellow}{Not}", "Not"),
+        (r"\href{https://ornek.org}{Site}", "Site"),
+        (r"\foreignlanguage{english}{Introduction}", "Introduction"),
+        (r"\hyperref[sec:x]{Bak}", "Bak"),
+        # Yazarın düz metin yerleri için verdiği kol
+        (r"\texorpdfstring{$\alpha$ Deneyi}{Alfa Deneyi}", "Alfa Deneyi"),
+        # Satır sonu iki kelimeyi ayırıyor; basılı simge
+        # (ardından boşluk varsa eski kod da doğruydu; bitişikte "\IKINCI")
+        (r"UZUN BASLIK\\[1ex]IKINCI SATIR", "UZUN BASLIK IKINCI SATIR"),
+        (r"Ek \S\ 2", "Ek § 2"),
+    ])
+    def test_METIN_OLMAYAN_arguman_basliga_SIZMIYOR(self, ham, beklenen):
+        r"""Sarmalayıcı kuralı argümanı metin sayıyordu: renk adı, etiket
+        anahtarı, adres panele sızıyordu ("ocre Bibliography",
+        "Girişsec:giris"). ÖLÇÜLDÜ (2026-09-27), kehanet LaTeX'in PDF'e
+        bastığı metin ve hyperref'in yer imi metni; ikisi ayrışınca yer imi
+        (düz metin) seçildi, `\\` için basılı hâl (satır kırılıyor)."""
+        assert _baslik_goster(ham) == beklenen
+
     def test_SATIR_ICI_VERB_anahatta_bolum_URETMIYOR(self, qapp):
         r"""`\verb|\section{}|` anlatan bir satır iki BOŞ başlık üretiyordu
         (ölçüldü, template29-tez/Chapter1.tex:308)."""
@@ -597,6 +625,17 @@ class TestIcindekilerSatiri:
             "\\section*{Kaynakça}\n"
             "\\addcontentsline{toc}{section}{Kaynakça}\n")
         assert [e for _l, _s, e in girdiler] == ["Kaynakça"], girdiler
+
+    def test_RENKLI_yazilan_kopya_da_IKI_KEZ_cikmiyor(self):
+        r"""template28-book1 içindekiler satırını renkli yazıyor; renk adı
+        başlığa sızınca iki başlık "farklı" sayılıyor ve bölüm anahatta
+        İKİ kez görünüyordu ("Bibliography", "ocre Bibliography")."""
+        from gui.outline import anahat_girdileri
+
+        girdiler = anahat_girdileri(
+            "\\chapter*{Bibliography}\n"
+            "\\addcontentsline{toc}{chapter}{\\textcolor{ocre}{Bibliography}}\n")
+        assert [e for _l, _s, e in girdiler] == ["Ch: Bibliography"], girdiler
 
     def test_BOLUM_OLMAYAN_seviye_ve_hedef_sayilmiyor(self):
         r"""İki ayrı koşul: hedef `toc` olmalı ve seviye bir bölüm seviyesi
