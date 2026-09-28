@@ -28,22 +28,27 @@ def qapp():
 
 def test_dialog_roundtrip(qapp):
     dlg = EditorSettingsDialog({"tab_width": 6, "font_size": 14, "wrap": False,
-                                "autosave": False, "autosave_dk": 9})
+                                "autosave": False, "autosave_dk": 9,
+                                "guncelleme": False})
     assert dlg.values() == {"tab_width": 6, "font_size": 14, "wrap": False,
-                            "autosave": False, "autosave_dk": 9}
+                            "autosave": False, "autosave_dk": 9,
+                            "guncelleme": False}
     dlg._tab.setValue(4)
     dlg._font.setValue(11)
     dlg._wrap.setChecked(True)
     dlg._autosave.setChecked(True)
     dlg._autosave_dk.setValue(5)
+    dlg._guncelleme.setChecked(True)
     assert dlg.values() == {"tab_width": 4, "font_size": 11, "wrap": True,
-                            "autosave": True, "autosave_dk": 5}
+                            "autosave": True, "autosave_dk": 5,
+                            "guncelleme": True}
 
 
 def test_dialog_defaults(qapp):
     dlg = EditorSettingsDialog({})
     assert dlg.values() == {"tab_width": 4, "font_size": 11, "wrap": True,
-                            "autosave": True, "autosave_dk": 3}
+                            "autosave": True, "autosave_dk": 3,
+                            "guncelleme": True}
 
 
 # --- EditorWidget.apply_editor_settings ---
@@ -120,14 +125,15 @@ def test_settings_flow_applies_and_persists(qapp):
     dlg.exec.return_value = QDialog.DialogCode.Accepted
     dlg.values.return_value = {"tab_width": 6, "font_size": 14,
                                "wrap": False, "autosave": False,
-                               "autosave_dk": 9}
+                               "autosave_dk": 9, "guncelleme": False}
     with patch("gui.settings_dialog.EditorSettingsDialog", return_value=dlg):
         MainWindow._open_settings_dialog(stub)
 
     assert stub._settings.d == {"editor/tab_width": 6, "editor/font_size": 14,
                                 "editor/wrap": False,
                                 "editor/autosave": False,
-                                "editor/autosave_dk": 9}
+                                "editor/autosave_dk": 9,
+                                "update/acilista_denetle": False}
     assert ed.tabWidth() == 6
     assert ed.wrapMode() == QsciScintilla.WrapMode.WrapNone
     assert "kaydedildi" in stub._status.msg
@@ -152,14 +158,15 @@ def test_read_editor_settings_defaults_and_roundtrip(qapp):
     # varsayılanlar
     assert MainWindow._read_editor_settings(stub) == {
         "tab_width": 4, "font_size": 11, "wrap": True,
-        "autosave": True, "autosave_dk": 3}
+        "autosave": True, "autosave_dk": 3, "guncelleme": True}
     # QSettings'ten string gelen wrap ("true") de doğru çözülmeli
     stub._settings.d = {"editor/tab_width": 8, "editor/font_size": 12,
                         "editor/wrap": "true", "editor/autosave": "false",
-                        "editor/autosave_dk": "12"}
+                        "editor/autosave_dk": "12",
+                        "update/acilista_denetle": "false"}
     assert MainWindow._read_editor_settings(stub) == {
         "tab_width": 8, "font_size": 12, "wrap": True,
-        "autosave": False, "autosave_dk": 12}
+        "autosave": False, "autosave_dk": 12, "guncelleme": False}
 
 
 # --- Bozuk ayar dosyasi acilisi engellemesin ---
@@ -214,7 +221,7 @@ def test_ayar_kutusu_otomatik_kaydetmeyi_TAZELIYOR(qapp):
     dlg.exec.return_value = QDialog.DialogCode.Accepted
     dlg.values.return_value = {"tab_width": 4, "font_size": 11,
                                "wrap": True, "autosave": False,
-                               "autosave_dk": 3}
+                               "autosave_dk": 3, "guncelleme": True}
     with patch("gui.settings_dialog.EditorSettingsDialog",
                return_value=dlg):
         MainWindow._open_settings_dialog(stub)

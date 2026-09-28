@@ -61,6 +61,13 @@ class EditorSettingsDialog(QDialog):
         self._autosave.toggled.connect(self._autosave_dk.setEnabled)
         form.addRow(_("Kaydetme aralığı"), self._autosave_dk)
 
+        self._guncelleme = QCheckBox(_("Açılışta güncellemeleri denetle"))
+        self._guncelleme.setToolTip(
+            _("Günde en çok bir kez GitHub'a en son sürüm soruluyor. Yardım "
+              "menüsünden elle denetim bu ayardan bağımsız çalışır."))
+        self._guncelleme.setChecked(current.get("guncelleme", True))
+        form.addRow("", self._guncelleme)
+
         buttons = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel)
         buttons.accepted.connect(self.accept)
@@ -74,4 +81,5 @@ class EditorSettingsDialog(QDialog):
             "wrap": self._wrap.isChecked(),
             "autosave": self._autosave.isChecked(),
             "autosave_dk": self._autosave_dk.value(),
+            "guncelleme": self._guncelleme.isChecked(),
         }

@@ -282,3 +282,25 @@ def test_ACILIS_denetimi_ACILISLAR_ARASINDA_da_24_saatte_bir(ana_pencere,
     ayar.sync()
     ana_pencere()
     assert len(denetim) == 4, "gelecekteki kayıt denetimi engelledi"
+
+
+@gui
+def test_ACILIS_denetimi_KAPATILABILIYOR_elle_denetim_CALISIYOR(ana_pencere,
+                                                                 monkeypatch):
+    """Açılış denetimi ağa çıkan iki istekten biri ve kapatılamıyordu;
+    gizlilik politikası bunu açıkça yazıyordu. Ayar Editör Ayarları'nda,
+    varsayılan açık; diyalog ve kaydetme test_settings_dialog'da. Kapalıyken
+    Yardım menüsündeki elle denetim YİNE çalışmalı."""
+    denetim = []
+    monkeypatch.setattr(mw.UpdateCheckThread, "start", lambda self: denetim.append(1))
+    ana_pencere()
+    assert len(denetim) == 1                                   # varsayılan açık
+
+    ayar = ana_pencere.ayar()
+    ayar.setValue("update/acilista_denetle", False)
+    ayar.setValue("update/son_kontrol", 0)                     # 24 saat sınırı dışı
+    ayar.sync()
+    kapali = ana_pencere()
+    assert len(denetim) == 1, "kapatılan açılış denetimi yine koştu"
+    kapali._check_for_update_manual()
+    assert len(denetim) == 2, "elle denetim ayara takıldı"

@@ -761,6 +761,10 @@ class MainWindow(
         # ölçeğinde ve otomatik derleme de açık geliyor. Yalnız daha önce
         # kaydedilmiş dosyalar yazılıyor (bkz. autosave_ops).
         "editor/autosave": True, "editor/autosave_dk": AUTOSAVE_VARSAYILAN_DK,
+        # Açılıştaki güncelleme denetimi AÇIK geliyor, KAPATILABİLİYOR: ağa
+        # çıkan iki istekten biri o ve gizlilik politikası onu anlatıyor.
+        # Elle denetim (Yardım menüsü) bu ayardan bağımsız.
+        "update/acilista_denetle": True,
     }
 
     @staticmethod
@@ -799,6 +803,9 @@ class MainWindow(
                 self._settings.value("editor/autosave_dk",
                                      d["editor/autosave_dk"]),
                 d["editor/autosave_dk"], AUTOSAVE_MIN_DK, AUTOSAVE_MAX_DK),
+            "guncelleme": self._settings.value(
+                "update/acilista_denetle",
+                d["update/acilista_denetle"]) in (True, "true", "True"),
         }
 
     def _apply_editor_settings(self, editor):
@@ -818,6 +825,7 @@ class MainWindow(
         self._settings.setValue("editor/wrap", vals["wrap"])
         self._settings.setValue("editor/autosave", vals["autosave"])
         self._settings.setValue("editor/autosave_dk", vals["autosave_dk"])
+        self._settings.setValue("update/acilista_denetle", vals["guncelleme"])
         for i in range(self._editor_tabs.count()):
             ed = self._editor_tabs.widget(i)
             if isinstance(ed, EditorWidget):
@@ -1243,6 +1251,8 @@ class MainWindow(
         # gelecekteyse (saat geri alınmış) denetim yapılıyor, yoksa saat
         # yakalayana kadar hiç denetlenmezdi.
         if silent:
+            if not self._read_editor_settings()["guncelleme"]:
+                return                  # kullanıcı açılış denetimini kapattı
             son = self._ayar_sayi(
                 self._settings.value("update/son_kontrol", 0), 0, 0, 2 ** 62)
             if 0 <= time.time() - son < CACHE_INTERVAL:
