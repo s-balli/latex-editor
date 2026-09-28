@@ -201,6 +201,9 @@ def test_landing_page_yeni_ozellikleri_iceriyor():
         "A presenter remote", "Sunum kumandası",
         "high-DPI screens", "yüksek DPI ekranlarda",
         "appimage.github.io/LaTeX_Editor",
+        # 1.1.1 sonrası: açılış güncelleme denetimi kapatılabiliyor. İlk
+        # commit sayfaya dokunmadı ve CI'da yukarıdaki git kapısı düştü.
+        "turn off the startup check", "açılıştaki denetimi",
     ):
         assert beklenen in sayfa, f"tanıtım sayfasında yok: {beklenen}"
 
