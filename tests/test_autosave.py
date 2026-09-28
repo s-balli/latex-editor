@@ -488,6 +488,37 @@ def test_SILINDI_sorusu_EKRANDAYKEN_dosya_GERI_YAZILMIYOR(
     assert not yol.exists()
 
 
+@pytest.mark.parametrize("olay", ["degisti", "silindi"])
+def test_IZLEYICI_SORMADAN_gelen_tur_diske_DOKUNMUYOR_ve_SORU_cikiyor(
+        ana_pencere, tmp_path, monkeypatch, olay):
+    """Üstteki kapılar soru ekrandayken ya da cevaptan sonra; bu, sorudan
+    ÖNCE. İzleyici soruyu 500 ms bekletiyor ve tur o arada gelirse dış
+    değişikliği eziyor, silinen dosyayı geri yaratıyordu; kendi yazdığının
+    hash'ini kaydettiği için soru da hiç çıkmıyordu (ölçüldü 2026-09-28).
+    `\\\\wsl.localhost` yolunu izleyici hiç izleyemiyor, orada kusur her dış
+    değişiklikte. Olay döngüsü burada dönmüyor: izleyici hiçbir şey
+    görmemiş, iki durum da bu."""
+    yol = _proje(tmp_path, "ortak.tex")
+    p = ana_pencere()
+    p._dis_yolu_ac(str(yol), "kapi")
+    ed = p._current_editor()
+    ed.setText("BENIM degisiklikim\n")
+    if olay == "degisti":
+        _dis_degisiklik(p, yol, ed)
+    else:
+        os.unlink(str(yol))
+
+    p._autosave_tick()
+
+    disk = yol.read_text(encoding="utf-8") if yol.exists() else None
+    assert disk == ("DISARIDAN gelen\n" if olay == "degisti" else None)
+    assert ed.isModified() is True          # iş arabellekte duruyor
+    sorular = []
+    monkeypatch.setattr(QMessageBox, "exec", lambda self: sorular.append(1))
+    p._file_watch_process_queue()           # izleyicinin beklemesi doldu
+    assert len(sorular) == 1, "kullanıcıya sorulmadı"
+
+
 def test_UTF16_donusumu_otomatik_kayitla_yaziliyor_ve_MESAJ_bunu_soyluyor(
         ana_pencere, tmp_path, monkeypatch):
     """UTF-16 dosya UTF-8'e çevrilerek açılıyor ve sekme kirli; yani ilk

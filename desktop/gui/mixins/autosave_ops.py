@@ -122,6 +122,20 @@ class AutosaveOpsMixin:
             # yapıyor ve işareti de düşürüyor.
             if yol in getattr(self, "_disk_ayristi", ()):
                 continue
+            # Disk son okuduğumuz ya da yazdığımız hâl DEĞİLSE yazma, soruyu
+            # başlat. Yukarıdaki iki koruma izleyicinin sorusuna bağlı ve
+            # izleyici soruyu 500 ms bekletiyor; tur o arada gelirse diski
+            # eziyor, kendi yazdığının hash'ini kaydettiği için soru da hiç
+            # çıkmıyordu. ÖLÇÜLDÜ (2026-09-28, gerçek olay döngüsü): dış
+            # yazmadan 0 ile 400 ms sonra gelen tur dış değişikliği sessizce
+            # ezdi, silinen dosyayı geri yarattı; 700 ms'de soru çıktı.
+            # `\\wsl.localhost` yolunu izleyici hiç izlemeye alamıyor
+            # (`addPath` False): orada HER dış değişiklik böyle eziliyordu.
+            kayitli = getattr(self, "_save_hashes", {}).get(yol)
+            if kayitli and self._file_hash(yol) != kayitli:
+                _logger.info("Disk dışarıdan değişmiş, otomatik kayıt atlandı: %s", yol)
+                self._file_watch_on_change(yol)
+                continue
             if editor.save_file(sessiz=True):
                 kaydedilen += 1
                 self._autosave_bildirilen.discard(yol)
