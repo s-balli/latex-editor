@@ -425,3 +425,58 @@ def test_SEKMEYI_KAPAT_seciminde_klasor_izlenmiyor(qapp, tmp_path, monkeypatch):
 
     assert stub._silinen_tutulanlar == set()
     assert stub._watcher.directories() == []
+
+
+# --- izleyicinin İZLEYEMEDİĞİ yol: yoklama ---
+# ÖLÇÜLDÜ (2026-09-28, gerçek pencere): `\\wsl.localhost` yolunda `addPath`
+# False ve hiçbir değişiklik bildirilmiyor. Ctrl+S, derleme öncesi kayıt ve
+# sürüm dış değişikliği SORMADAN ezdi, temiz sekme bayat kaldı; yerel diskte
+# dördünde de soru kayıttan önce çıkıyor. Burada izleyicinin reddi taklit
+# ediliyor: gerçek yol ölçümde, kapı akışta.
+
+
+def _izleyemeyen(stub, monkeypatch):
+    monkeypatch.setattr(stub._watcher, "addPath", lambda yol: False)
+
+
+def test_IZLENEMEYEN_yolda_dis_degisiklik_SORULUYOR(qapp, tmp_path, monkeypatch):
+    """Kırılırsa: o yolda açılan projede dış değişiklik ilk kayıtta sessizce
+    eziliyor."""
+    ed, p = _acik_editor(tmp_path, kirli=True)
+    stub = _WatchStub([ed])
+    stub._file_watch_add(str(p))
+    assert stub._yoklanan == {}, "izlenebilen yol yoklanmamalı"
+    stub._file_watch_remove(str(p))
+
+    _izleyemeyen(stub, monkeypatch)
+    stub._file_watch_add(str(p))
+    p.write_text("DISARIDAN gelen\n", encoding="utf-8")
+    sorular = []
+    monkeypatch.setattr(QMessageBox, "exec",
+                        lambda self: sorular.append(self.text()))
+    stub._file_watch_yokla()
+    stub._file_watch_process_queue()
+
+    assert len(sorular) == 1 and "diskte değiştirildi" in sorular[0]
+    stub._file_watch_remove(str(p))
+    assert not stub._yoklama_timer.isActive(), "kapanan sekme yoklanıyor"
+
+
+def test_IZLENEMEYEN_yolda_silinip_GERI_GELEN_dosya_SORULUYOR(
+        qapp, tmp_path, monkeypatch):
+    """Klasör izlemesi de o yolda kör. Kırılırsa geri gelen dosya için soru
+    çıkmaz ya da "silindi" işareti kalır ve otomatik kaydetme o dosyayı
+    atlamayı sürdürür."""
+    ed, p = _acik_editor(tmp_path, kirli=True)
+    stub = _WatchStub([ed])
+    _izleyemeyen(stub, monkeypatch)
+    stub._file_watch_add(str(p))
+    _sil_ve_isle(stub, ed, p, monkeypatch, "Sekmede Tut")
+    stub._file_watch_yokla()                  # hâlâ yok: ikinci soru olmasın
+    assert stub._pending_reloads == set()
+
+    p.write_text("GERI GELDI\n", encoding="utf-8")
+    stub._file_watch_yokla()
+
+    assert os.path.normpath(str(p)) not in stub._silinen_tutulanlar
+    assert stub._pending_reloads == {os.path.normpath(str(p))}

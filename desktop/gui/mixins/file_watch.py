@@ -46,6 +46,14 @@ class FileWatchMixin:
         self._debounce_timer.setInterval(500)
         self._debounce_timer.timeout.connect(self._file_watch_process_queue)
 
+        # İzleyicinin İZLEYEMEDİĞİ yollar (bkz. _file_watch_add): yol -> imza.
+        # os.stat `\\wsl.localhost` yolunda ortanca 1 ms (ölçüldü), iki
+        # saniyede bir birkaç dosya arayüze yük değil.
+        self._yoklanan: dict[str, tuple | None] = {}
+        self._yoklama_timer = QTimer(self)
+        self._yoklama_timer.setInterval(2000)
+        self._yoklama_timer.timeout.connect(self._file_watch_yokla)
+
     # ------------------------------------------------------------------
     # Public API — file_ops / tab_ops tarafından çağrılır
     # ------------------------------------------------------------------
@@ -55,8 +63,15 @@ class FileWatchMixin:
         path = os.path.normpath(path)
         if not os.path.isfile(path):
             return
-        if path not in self._watcher.files():
-            self._watcher.addPath(path)
+        if path not in self._watcher.files() and not self._watcher.addPath(path):
+            # İzleyici bu yolu İZLEYEMİYOR, yoklanıyor. ÖLÇÜLDÜ (2026-09-28,
+            # gerçek pencere): `\\wsl.localhost` yolunda `addPath` False,
+            # dosya okunuyor ama hiçbir değişiklik bildirilmiyor. Soru hiç
+            # çıkmadığı için Ctrl+S, derleme öncesi kayıt ve sürüm dış
+            # değişikliği SORMADAN ezdi, temiz sekme bayat kaldı; yerel
+            # diskte dördünde de soru kayıttan önce çıkıyor.
+            self._yoklanan[path] = self._dosya_imzasi(path)
+            self._yoklama_timer.start()
         self._save_hashes[path] = self._file_hash(path)
         _logger.debug("Watch eklendi: %s", path)
 
@@ -69,6 +84,9 @@ class FileWatchMixin:
             self._watcher.removePath(path)
         self._save_hashes.pop(path, None)
         self._pending_reloads.discard(path)
+        self._yoklanan.pop(path, None)
+        if not self._yoklanan:
+            self._yoklama_timer.stop()
         # Sekme kapandıysa geri gelmesini beklemenin de anlamı kalmadı.
         self._silinen_tutulanlar.discard(path)
         self._disk_ayristi.discard(path)
@@ -104,6 +122,32 @@ class FileWatchMixin:
         except OSError:
             return ""
         return h.hexdigest()
+
+    @staticmethod
+    def _dosya_imzasi(path: str):
+        """Yoklama için ucuz imza: (mtime_ns, boyut); dosya yoksa None."""
+        try:
+            st = os.stat(path)
+        except OSError:
+            return None
+        return (st.st_mtime_ns, st.st_size)
+
+    def _file_watch_yokla(self):
+        """İzlenemeyen yollarda değişeni izleyicinin kuyruğuna koy.
+
+        Sonrası izleyicinin akışıyla aynı: hash karşılaştırması kendi
+        kaydımızı eliyor, silinme ve değişme aynı soruya düşüyor.
+        """
+        for path, eski in list(self._yoklanan.items()):
+            imza = self._dosya_imzasi(path)
+            if imza == eski:
+                continue
+            self._yoklanan[path] = imza
+            if path in self._silinen_tutulanlar:
+                # Klasör izlemesi de bu yolda kör; geri geleni o kol karşılıyor
+                self._file_watch_on_dir_change(os.path.dirname(path))
+            else:
+                self._file_watch_on_change(path)
 
     def _silinen_izle(self, path: str):
         """Silindiği hâlde sekmede tutulan dosyanın GERİ GELMESİNİ bekle.
