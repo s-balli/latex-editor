@@ -660,3 +660,33 @@ def test_CIFT_CEVRILMIS_arabellek_kaydedildikten_sonra_kayip_sayilmiyor(tmp_path
     kirli = recovery.Snapshot("i", str(hedef), "bir\r\r\niki\r\r\nuc\r\r\n",
                               "utf-8", "lf", 1.0)
     assert recovery.kayip_var_mi(kirli) is True
+
+
+@pytestmark_gui
+def test_YAZILAMAYAN_kurtarma_klasoru_BIR_KEZ_bildiriliyor(qapp, tmp_path):
+    """Klasöre yazılamıyorken (yolun üstü bir DOSYA) kopya oluşmuyor ve bu
+    SESSİZDİ. ÖLÇÜLDÜ (2026-09-28, gerçek pencere, üç tur): günlükte ve durum
+    çubuğunda iz yoktu, kullanıcı korunduğunu sanıyordu. Artık bir kez
+    söyleniyor; yazma düzelip yeniden bozulunca yine söyleniyor."""
+    import logging
+
+    engel = tmp_path / "engel"
+    engel.write_text("dosya", encoding="utf-8")
+    kirli, _ = _editor(tmp_path, "kirli.tex", "eski\n", "YENİ\n")
+    m = _StubMain(engel / "recovery", [kirli])
+    mesajlar, kayitlar = [], []
+    m._status.showMessage = lambda msg, timeout=0: mesajlar.append(msg)
+    isleyici = logging.Handler(logging.WARNING)
+    isleyici.emit = lambda r: kayitlar.append(r.getMessage())
+    logging.getLogger("latex_editor").addHandler(isleyici)
+    try:
+        for _ in range(3):                          # üç tur: 90 saniye
+            m._recovery_tick()
+        ilk = (len(mesajlar), len([k for k in kayitlar if "Kurtarma kopyas" in k]))
+        m._recovery_dir = str(tmp_path / "yazilabilir")     # arıza geçti
+        m._recovery_tick()
+        m._recovery_dir = str(engel / "recovery")           # yeniden bozuldu
+        m._recovery_tick()
+    finally:
+        logging.getLogger("latex_editor").removeHandler(isleyici)
+    assert (ilk, len(mesajlar)) == ((1, 1), 2)

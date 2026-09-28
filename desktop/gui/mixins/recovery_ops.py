@@ -159,18 +159,37 @@ class RecoveryOpsMixin:
                 continue
             snap_id = _snap_id(editor)
             if editor.isModified():
-                recovery.yaz(
+                yazildi = recovery.yaz(
                     self._recovery_dir, snap_id,
                     file_path=editor.file_path,
                     content=editor.text(),
                     encoding=getattr(editor, "_encoding", "utf-8"),
                     newline=getattr(editor, "_newline", "lf"),
                 )
+                self._recovery_yazim_sonucu(yazildi)
             else:
                 # Kaydedildi → kurtarılacak bir şey kalmadı. Bırakılırsa
                 # çökme sonrası bayat içerik "kaydedilmemiş değişiklik" diye
                 # sunulur ve kullanıcı yeni kaydını eskisiyle ezebilir.
                 recovery.sil(self._recovery_dir, snap_id)
+
+    def _recovery_yazim_sonucu(self, yazildi: bool):
+        """Kopya yazılamadıysa BİR KEZ söyle; yazılınca yeniden söylemeye hazır ol.
+
+        Yazma hatası sessizdi: klasör yazılamazken (dolu disk, izin) hiçbir
+        kopya oluşmuyor, günlükte ve durum çubuğunda iz kalmıyordu. ÖLÇÜLDÜ
+        (2026-09-28, gerçek pencere, üç tur): kullanıcı korunduğunu sanıyor,
+        çökmede iş gidiyordu. Otomatik kaydetme gibi modal açmadan, bir kez.
+        """
+        if yazildi:
+            self._recovery_yazilamadi = False
+        elif not getattr(self, "_recovery_yazilamadi", False):
+            self._recovery_yazilamadi = True
+            _logger.warning("Kurtarma kopyası yazılamadı: %s", self._recovery_dir)
+            self._status.showMessage(
+                _("Çökme kurtarma kopyası yazılamıyor ({d}); kaydedilmemiş "
+                  "değişiklikler çökmeye karşı korunmuyor.").format(
+                    d=self._recovery_dir), 15000)
 
     def _recovery_drop(self, editor):
         """Sekme kapanırken anlık görüntüsünü düşür (tab_ops çağırır)."""
