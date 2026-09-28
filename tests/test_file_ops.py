@@ -582,6 +582,55 @@ def test_DOSYA_AC_proje_kokunden_basliyor(qapp, tmp_path, dialog_kaydi):
     assert dialog_kaydi.cagrilar[0][1] == proje
 
 
+@pytest.mark.parametrize("islem", ["_new_file", "_save_file_as"])
+def test_BASKA_sekmede_acik_hedefe_YAZILMIYOR(qapp, tmp_path, monkeypatch,
+                                             islem):
+    """ÖLÇÜLDÜ (2026-09-28, gerçek pencere, dört kolun dördünde): iki sekme
+    aynı yola bağlanıyordu; öbürü kirliyse ilk otomatik kayıt turu yeni
+    içeriği sessizce ezdi, temizse arabelleği bayat kaldı, yeni sekme
+    kapanınca öbürünün izlemesi de düştü."""
+    from PyQt6.QtWidgets import QMessageBox
+    hedef = _tex(tmp_path, "hedef.tex")
+    acik = _editor(hedef)
+    acik.setText("KAYDEDILMEMIS is\n")
+    kaynak = _editor(_tex(tmp_path, "kaynak.tex"))
+    stub = _Stub([kaynak, acik])        # iskeletin cari editörü ilk sıradaki
+    uyarilar = []
+    monkeypatch.setattr(QMessageBox, "warning",
+                        lambda *a, **k: uyarilar.append(a[2]))
+    monkeypatch.setattr("gui.mixins.file_ops.QFileDialog.getSaveFileName",
+                        staticmethod(lambda *a, **k: (hedef, "")))
+    once = open(hedef, "rb").read()
+
+    getattr(stub, islem)()
+
+    assert open(hedef, "rb").read() == once, "açık dosyanın diski yazıldı"
+    assert stub._editor_tabs.count() == 2
+    assert os.path.basename(kaynak.file_path) == "kaynak.tex"
+    assert len(uyarilar) == 1 and "başka bir sekmede açık" in uyarilar[0]
+
+
+def test_FARKLI_KAYDET_sekmenin_KENDI_yoluna_yaziyor(qapp, tmp_path,
+                                                    monkeypatch):
+    """Aşırı düzeltme kapısı: sekmenin kendi yolu "başka sekme" değil."""
+    from PyQt6.QtWidgets import QMessageBox
+    yol = _tex(tmp_path)
+    ed = _editor(yol)
+    ed.setText("yeni hali\n")
+    stub = _Stub([ed])
+    stub._file_watch_record_save = lambda p: None
+    uyarilar = []
+    monkeypatch.setattr(QMessageBox, "warning",
+                        lambda *a, **k: uyarilar.append(a[2]))
+    monkeypatch.setattr("gui.mixins.file_ops.QFileDialog.getSaveFileName",
+                        staticmethod(lambda *a, **k: (yol, "")))
+
+    stub._save_file_as()
+
+    assert uyarilar == []
+    assert open(yol, encoding="utf-8").read() == "yeni hali\n"
+
+
 def test_FARKLI_KAYDET_belgenin_kendi_yolunu_oneriyor(qapp, tmp_path,
                                                       dialog_kaydi):
     """"Aynı yere, başka adla" en sık istenen şey; ad da hazır gelmeli."""

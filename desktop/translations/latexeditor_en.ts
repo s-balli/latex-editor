@@ -730,33 +730,43 @@ Convert the file to UTF-8? (recommended)</translation>
         <translation>Open Folder</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="124" />
+        <location filename="../gui/mixins/file_ops.py" line="139" />
+        <source>Dosya Açık</source>
+        <translation>File Is Open</translation>
+    </message>
+    <message>
+        <location filename="../gui/mixins/file_ops.py" line="140" />
+        <source>{ad} başka bir sekmede açık. Önce o sekmeyi kapatın ya da başka bir ad seçin.</source>
+        <translation>{ad} is open in another tab. Close that tab first or choose a different name.</translation>
+    </message>
+    <message>
+        <location filename="../gui/mixins/file_ops.py" line="146" />
         <source>Yeni Dosya</source>
         <translation>New File</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="285" />
-        <location filename="../gui/mixins/file_ops.py" line="125" />
+        <location filename="../gui/mixins/file_ops.py" line="307" />
+        <location filename="../gui/mixins/file_ops.py" line="147" />
         <source>LaTeX Dosyaları (*.tex);;Tüm Dosyalar (*)</source>
         <translation>LaTeX Files (*.tex);;All Files (*)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="155" />
+        <location filename="../gui/mixins/file_ops.py" line="177" />
         <source>Dosya Aç</source>
         <translation>Open File</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="156" />
+        <location filename="../gui/mixins/file_ops.py" line="178" />
         <source>LaTeX Dosyaları (*.tex *.cls *.sty *.bib);;Tüm Dosyalar (*)</source>
         <translation>LaTeX Files (*.tex *.cls *.sty *.bib);;All Files (*)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="196" />
+        <location filename="../gui/mixins/file_ops.py" line="218" />
         <source>Büyük dosya</source>
         <translation>Large file</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="197" />
+        <location filename="../gui/mixins/file_ops.py" line="219" />
         <source>'{ad}' {mb:.0f} MB.
 
 Açılması yaklaşık {sn:.0f} saniye sürebilir ve bu sürede pencere yanıt vermez.
@@ -769,37 +779,37 @@ Opening it may take about {sn:.0f} seconds, and the window will not respond duri
 Open it?</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="213" />
+        <location filename="../gui/mixins/file_ops.py" line="235" />
         <source>Açılmadı: {ad}</source>
         <translation>Not opened: {ad}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="263" />
+        <location filename="../gui/mixins/file_ops.py" line="285" />
         <source>Motor algılandı</source>
         <translation>Engine detected</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="284" />
+        <location filename="../gui/mixins/file_ops.py" line="306" />
         <source>Farklı Kaydet</source>
         <translation>Save As</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="383" />
+        <location filename="../gui/mixins/file_ops.py" line="405" />
         <source>(boş)</source>
         <translation>(empty)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="409" />
+        <location filename="../gui/mixins/file_ops.py" line="431" />
         <source>WSL içinde: {komut}</source>
         <translation>inside WSL: {komut}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="416" />
+        <location filename="../gui/mixins/file_ops.py" line="438" />
         <source>Dışa Aktarma</source>
         <translation>Export</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="425" />
+        <location filename="../gui/mixins/file_ops.py" line="447" />
         <source>pandoc yüklü değil.
 
 Kurmak için: {komut}</source>
@@ -808,47 +818,47 @@ Kurmak için: {komut}</source>
 To install it: {komut}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="432" />
+        <location filename="../gui/mixins/file_ops.py" line="454" />
         <source>Dışa aktarılacak dosya yok</source>
         <translation>No file to export</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="438" />
+        <location filename="../gui/mixins/file_ops.py" line="460" />
         <source>Dışa aktarma zaten sürüyor, bitmesini bekleyin</source>
         <translation>An export is already running, wait for it to finish</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="456" />
+        <location filename="../gui/mixins/file_ops.py" line="478" />
         <source>Dışa Aktar</source>
         <translation>Export</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="457" />
+        <location filename="../gui/mixins/file_ops.py" line="479" />
         <source>Tüm Dosyalar (*)</source>
         <translation>All Files (*)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="469" />
+        <location filename="../gui/mixins/file_ops.py" line="491" />
         <source>Kayıt başarısız, dışa aktarma iptal edildi</source>
         <translation>Save failed, export cancelled</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="478" />
+        <location filename="../gui/mixins/file_ops.py" line="500" />
         <source>Dışa aktarılıyor</source>
         <translation>Exporting</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="486" />
+        <location filename="../gui/mixins/file_ops.py" line="508" />
         <source>Dışa aktarıldı</source>
         <translation>Exported</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="489" />
+        <location filename="../gui/mixins/file_ops.py" line="511" />
         <source>Dışa aktarma başarısız</source>
         <translation>Export failed</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="497" />
+        <location filename="../gui/mixins/file_ops.py" line="519" />
         <source>Önce bir klasör açın</source>
         <translation>Open a folder first</translation>
     </message>

@@ -119,12 +119,34 @@ class FileOpsMixin:
         # Kök değişti: önceki klasörün sürüm geçmişi ekranda kalmasın
         self._refresh_history()
 
+    def _baska_sekmede_acik(self, path: str, editor=None) -> bool:
+        """``path`` ``editor`` DIŞINDAKİ bir sekmede açıksa söyle, True dön.
+
+        Yeni Dosya ve Farklı Kaydet hedefin açık olup olmadığına bakmıyordu
+        ve iki sekme aynı yola bağlanıyordu. ÖLÇÜLDÜ (2026-09-28, gerçek
+        pencere, dört kolun dördünde): öbür sekme kirliyse ilk otomatik kayıt
+        turu onun arabelleğini yazdı ve yeni içerik sessizce gitti; temizse
+        arabelleği bayat kaldı; yeni sekme kapanınca öbürünün izlemesi de
+        düştü ve sonraki dış değişiklik sorulmadı. Hiçbir şey yazılmadan
+        duruluyor: öbür sekmede kaydedilmemiş iş olabilir ve onun kararı o
+        sekme kapatılırken kendi sorusuyla veriliyor.
+        """
+        from PyQt6.QtWidgets import QMessageBox
+        diger = self._editor_by_path(path)
+        if diger is None or diger is editor:
+            return False
+        QMessageBox.warning(
+            self, _("Dosya Açık"),
+            _("{ad} başka bir sekmede açık. Önce o sekmeyi kapatın ya da "
+              "başka bir ad seçin.").format(ad=os.path.basename(path)))
+        return True
+
     def _new_file(self):
         path, _sel_filter = QFileDialog.getSaveFileName(
             self, _("Yeni Dosya"), self._dialog_dizini(),
             _("LaTeX Dosyaları (*.tex);;Tüm Dosyalar (*)")
         )
-        if not path:
+        if not path or self._baska_sekmede_acik(path):
             return
         editor = EditorWidget(theme=self._theme_mgr.theme)
         self._apply_editor_settings(editor)
@@ -287,7 +309,7 @@ class FileOpsMixin:
         except Exception as e:
             _logger.error("SaveAs dialog hatası: %s", e, exc_info=True)
             return
-        if path:
+        if path and not self._baska_sekmede_acik(path, editor):
             try:
                 old_path = editor.file_path
                 # Yazma başarısızsa sekme adını/izlemeyi DEĞİŞTİRME: editör
