@@ -471,6 +471,23 @@ def test_suzgec_turkce_harf_duyarsiz(qapp, tmp_path):
     assert gorunen == ["Kaya2018"], gorunen
 
 
+def test_suzgec_GORUNEN_metinde_buyuk_I_turkce(qapp, tmp_path):
+    r"""Süzgeç sekmede görünene bakıyor: `Ball{\i}` artık "Ballı" ve büyük
+    harfli "BALLI" onu bulmalı (büyük I iki okumalı, bkz.
+    project_search.okumalar). ÖLÇÜLDÜ (2026-09-28, v1.1.2 exe'si)."""
+    stub, _bib = _bib_projesi(tmp_path, IKI_GIRDI + (
+        r"@article{Ball2017, author={Ball{\i}, Serkan},"
+        r" title={S{\i}n{\i}fland{\i}rma}, year={2017}}" "\n"))
+    MainWindow._show_bibliography(stub)
+    panel = stub._output_panel
+    for sorgu in ("BALLI", "SINIFLANDIRMA", "sınıflandırma"):
+        panel._bib_filter.setText(sorgu)
+        gorunen = [panel._bib_table.item(r, 0).text()
+                   for r in range(panel._bib_table.rowCount())
+                   if not panel._bib_table.isRowHidden(r)]
+        assert gorunen == ["Ball2017"], (sorgu, gorunen)
+
+
 def test_suzgec_yila_bakmiyor(qapp, tmp_path):
     """Yıl sütunu SIRALAMA için, süzgeç için değil.
 

@@ -13,6 +13,7 @@ Burada aranan şey proje kökü altındaki tüm .tex/.cls/.sty/.bib dosyaların�
 """
 
 import os
+import re
 import stat
 from dataclasses import dataclass
 
@@ -68,6 +69,8 @@ def kucult(s: str) -> str:
 
     ı/i ayrımı KORUNUYOR: yalnız birleşen nokta atılıyor, harf eşlemesi
     değişmiyor ('IŞIK' → 'işik', 'ışık' → 'ışık' — ikisi hâlâ farklı).
+    Büyük I'nın Türkçe okuması (IŞIK = ışık) katlamada değil, eşleştirmede:
+    bkz. ``okumalar``.
 
     UZUNLUK KORUNUR, dolayısıyla `col` ofsetleri kayamaz: tüm Unicode
     taranarak denendi, uzunluğu değişen TEK karakter U+0307'nin kendisi
@@ -117,6 +120,70 @@ def _katlanmis(metin: str) -> tuple[str, list[int]]:
     return "".join(parcalar), harita
 
 
+def _tr_okuma(s: str) -> str:
+    """Büyük I'yı noktasız ı'nın büyüğü say; ayrıştırılmış İ'nin (I +
+    U+0307) tabanı hariç, o noktalı harf."""
+    if _BIRLESEN_NOKTA in s:
+        return re.sub("I(?!%s)" % _BIRLESEN_NOKTA, "ı", s)
+    return s.replace("I", "ı")
+
+
+def okumalar(metin: str, sorgu: str):
+    """Harf duyarsız karşılaştırmanın OKUMALARI: (metin, sorgu) çiftleri.
+
+    Büyük I iki harfin büyüğü: İngilizcede i'nin, Türkçede ı'nın. ``kucult``
+    yalnız ilkini biliyor. ÖLÇÜLDÜ (2026-09-28, v1.1.2 exe'si): büyük harfle
+    yazılan "KARŞILAŞTIRILABİLİRLİK" sorgusu belgedeki
+    "karşılaştırılabilirlik"i hiç bulmuyordu; Klasörde Ara ve PDF araması
+    da aynı.
+
+    Tek katlama ikisini birden yapamıyor: I hem i hem ı olursa ı ile i de
+    eş sayılır ve `ışık` sorgusu `isik` etiketini bulur. Onun yerine iki
+    okuma var; her birinde metin de sorgu da aynı kuralla katlanıyor ve
+    eşleşmeler birleşiyor. Türkçe okuma ancak sorguda I ya da ı varken yeni
+    eşleşme getirebiliyor (sorgudaki i metindeki I'yı zaten İngilizce
+    okumayla buluyor), yalnız o zaman kuruluyor.
+    """
+    yield metin, sorgu
+    if "I" in sorgu or "ı" in sorgu:
+        yield _tr_okuma(metin), _tr_okuma(sorgu)
+
+
+def icerir(metin: str, sorgu: str, *, case_sensitive: bool = False) -> bool:
+    """`sorgu` `metin`de geçiyor mu: ``eslesme_ofsetleri``nin kuralıyla,
+    ama ofset haritası kurmadan (dosya ve liste süzgeçleri için)."""
+    if case_sensitive:
+        return sorgu in metin
+    return any(kucult(s) in kucult(m) for m, s in okumalar(metin, sorgu))
+
+
+def _baslar(katlanmislar: list[str], hedefler: list[str], n: int):
+    """Okumaların eşleşme BAŞLARI birleşik: soldan, her eşleşmenin
+    sonundan devam ederek (örtüşen sayılmaz).
+
+    Tek okuma eski `find` döngüsü; genel bir birleştirme döngüsü onu
+    yavaşlatıyordu. ÖLÇÜLDÜ (2026-09-28, 73 KB'lık gerçek .tex, sayaç her
+    tuşta buradan geçiyor): `a` sorgusu 1.4 ms'den 4.0 ms'ye çıkıyordu.
+    """
+    k, h = katlanmislar[0], hedefler[0]
+    b = k.find(h)
+    if len(katlanmislar) == 1:
+        while b >= 0:
+            yield b
+            b = k.find(h, b + n)
+        return
+    k2, h2 = katlanmislar[1], hedefler[1]
+    b2 = k2.find(h2)
+    while b >= 0 or b2 >= 0:
+        ilk = b if b2 < 0 or 0 <= b <= b2 else b2
+        yield ilk
+        son = ilk + n
+        if 0 <= b < son:
+            b = k.find(h, son)
+        if 0 <= b2 < son:
+            b2 = k2.find(h2, son)
+
+
 def eslesme_ofsetleri(metin: str, sorgu: str, *,
                       case_sensitive: bool = False):
     """`sorgu`nun `metin` içindeki (baş, bit) aralıkları; ÖZGÜN indislerle.
@@ -153,17 +220,20 @@ def eslesme_ofsetleri(metin: str, sorgu: str, *,
             yield bas, bas + n
             bas = metin.find(sorgu, bas + n)
         return
-    katlanmis = kucult(metin)
-    hedef = kucult(sorgu)
+    # İki okuma (bkz. ``okumalar``) aynı uzunlukta: I ile ı ikisi de tek
+    # harfe küçülüyor, yani katlanmış metinlerin indisleri ve harita ortak.
+    ciftler = list(okumalar(metin, sorgu))
+    hedefler = [kucult(s) for _m, s in ciftler]
+    katlanmislar = [kucult(m) for m, _s in ciftler]
     # KATLANINCA BOŞALAN sorgu: tek başına birleşen nokta böyle. `find("")`
     # her çağrıda aynı konumu döndürüyor ve döngü İLERLEMİYORDU; üreteci
     # `list()`e veren Ctrl+F yolu (bkz. find_replace._yerler) arayüzü
     # süresiz kilitliyor ve belleği şişiriyordu (ölçüldü 2026-09-19: ilk 12
     # sonuç da 0, sayaç artmıyor).
-    if not hedef:
+    if not hedefler[0]:
         return
-    n = len(hedef)
-    if len(katlanmis) == len(metin):
+    n = len(hedefler[0])
+    if len(katlanmislar[0]) == len(metin):
         # HIZLI YOL: metinde birleşen nokta yok, yani katlama uzunluğu
         # korumuş ve ofsetler özgün metinde olduğu gibi geçerli. Harita
         # kurmak SADECE bunun bozulduğu metinlerde gerekiyor ve pahalı:
@@ -173,16 +243,15 @@ def eslesme_ofsetleri(metin: str, sorgu: str, *,
         # UZATMIYOR (tüm Unicode tarandı, uzunluğu değiştiren tek kod
         # noktası U+0307 ve o da siliniyor), yani eşit uzunluk "hiç nokta
         # silinmedi" demek.
-        b = katlanmis.find(hedef)
-        while b >= 0:
+        for b in _baslar(katlanmislar, hedefler, n):
             yield b, b + n
-            b = katlanmis.find(hedef, b + n)
         return
-    katlanmis, harita = _katlanmis(metin)
-    b = katlanmis.find(hedef)
-    while b >= 0:
+    # Harita bir kez: iki okumada aynı ve `_katlanmis`in katlanmış dizgesi
+    # ``kucult``unkiyle aynı (testle korunuyor). İki kez kurmak bu yolu
+    # ikiye katlıyordu (ölçüldü: 35 ms -> 75 ms).
+    harita = _katlanmis(metin)[1]
+    for b in _baslar(katlanmislar, hedefler, n):
         yield harita[b], harita[b + n - 1] + 1
-        b = katlanmis.find(hedef, b + n)
 
 
 # Çözücü zincir TEK KAYNAK core.fs_ops; buradaki ad korunuyor çünkü modülün
@@ -252,7 +321,6 @@ def search_project(root: str, query: str, *, case_sensitive: bool = False,
     if not query:
         return [], False
 
-    aranan = query if case_sensitive else kucult(query)
     bulgular: list[Bulgu] = []
     acik = {os.path.normcase(os.path.abspath(y)): m for y, m in (acik or {}).items()}
 
@@ -287,7 +355,7 @@ def search_project(root: str, query: str, *, case_sensitive: bool = False,
             metin = metin[1:]
         # Hız yolu: dosyada hiç geçmiyorsa satır satır bakma. Tipik projede
         # dosyaların çoğu bu daldan çıkar.
-        if aranan not in (metin if case_sensitive else kucult(metin)):
+        if not icerir(metin, query, case_sensitive=case_sensitive):
             continue
         for no, satir in enumerate(metin.split("\n"), 1):
             # Eşleştirme kuralı (harf katlaması ve örtüşen eşleşmeler)

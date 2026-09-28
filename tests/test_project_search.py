@@ -262,6 +262,53 @@ class TestAyristirilmisNoktaliI:
             assert _katlanmis(s)[0] == kucult(s), repr(s)
 
 
+class TestBuyukITurkceOkuma:
+    """Büyük I iki harfin büyüğü: İngilizcede i'nin, Türkçede ı'nın.
+
+    ÖLÇÜLDÜ (2026-09-28, v1.1.2 exe'si): büyük harfle yazılan
+    "KARŞILAŞTIRILABİLİRLİK" sorgusu belgedeki "karşılaştırılabilirlik"i
+    bulmuyordu; Klasörde Ara ve PDF araması da. Eşleştirme artık iki okumayı
+    birleştiriyor (bkz. project_search.okumalar); ı ile i hâlâ ayrı harf.
+    """
+
+    @pytest.fixture
+    def belge(self, tmp_path):
+        kok = str(tmp_path)
+        _yaz(kok, "a.tex",
+             "KARŞILAŞTIRILABİLİRLİK tablosu\n"
+             "karşılaştırılabilirlik\n"
+             "ISBN numarası\n"
+             "\\label{fig:isik}\n"
+             "ve ışık burada\n"
+             "IŞIK ve ışık\n")
+        return kok
+
+    @pytest.mark.parametrize("sorgu,satirlar", [
+        ("KARŞILAŞTIRILABİLİRLİK", [1, 2]),
+        ("karşılaştırılabilirlik", [1, 2]),
+        ("IŞIK", [5, 6, 6]),
+        ("ışık", [5, 6, 6]),
+        ("isbn", [3]),              # İngilizce okuma kaybolmamalı
+        ("isik", [4]),              # ı/i ayrımı: ışık satırları gelmemeli
+    ])
+    def test_iki_okuma_birlesiyor(self, belge, sorgu, satirlar):
+        """Satır 6'da iki okuma aynı yerde de (tek bulgu) ayrı yerde de
+        eşleşiyor; `ışık` için ilk eşleşmeyi yalnız Türkçe okuma buluyor."""
+        assert [b.line for b in search_project(belge, sorgu)[0]] == satirlar
+
+    def test_yalniz_turkce_okumayla_eslesen_dosya_ATLANMIYOR(self, tmp_path):
+        """Dosya süzgeci (satırlara bakmadan önce) aynı kuralla çalışmalı."""
+        _yaz(str(tmp_path), "b.tex", "BAŞLIK\n")
+        assert [b.line for b in search_project(str(tmp_path), "başlık")[0]] == [1]
+
+    def test_AYRISTIRILMIS_I_NOKTALI_kaliyor(self):
+        """Türkçe okuma I + U+0307'nin tabanını ı yapmamalı: o İ."""
+        from core.project_search import eslesme_ofsetleri
+        metin = "I\N{COMBINING DOT ABOVE}STANBUL'DA IŞIK"
+        assert [metin[b:s] for b, s in eslesme_ofsetleri(metin, "ışık")] == ["IŞIK"]
+        assert list(eslesme_ofsetleri(metin, "ıstanbul")) == []
+
+
 class TestKodlama:
     """Eski Türkçe .tex dosyaları cp1254 olabiliyor — editör onları açabiliyor,
     arama da bulabilmeli, yoksa kullanıcı kendi dosyasında sonuç alamaz."""

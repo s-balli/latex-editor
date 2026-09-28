@@ -215,8 +215,11 @@ def _desen_guvenli(desen: str) -> bool:
 def _esdeger_harfler(c: str) -> str:
     """`c` ile harf duyarsız EŞ sayılan karakterler, ``kucult`` kuralına göre.
 
-    `ı` için yalnız kendisi dönüyor: `'ı'.upper()` `I` veriyor ama
-    ``kucult('I')`` `i`, yani ikisi EŞ DEĞİL. ı/i ayrımı böyle korunuyor.
+    Büyük `I` ı'yı da buluyor (Türkçe okuma, bkz. project_search.okumalar).
+    Ters yön desene YAZILAMIYOR: `ı` için yalnız kendisi dönüyor, çünkü
+    motorun harf duyarsız kipi I'yı i'ye de katlıyor ve `[Iı]` sınıfı `i`yi
+    de bulurdu. ı/i ayrımı böyle korunuyor; bedeli, desen kipinde `ısı`
+    sorgusunun `ISI`yi bulmaması (düz kip buluyor).
     """
     hedef = kucult(c)
     adaylar = {c, c.lower(), c.upper()}
@@ -224,8 +227,10 @@ def _esdeger_harfler(c: str) -> str:
         # Türkçe noktalı İ küçülünce `i` oluyor ama `'i'.upper()` onu
         # üretmiyor; ayrıca yazmak gerekiyor.
         adaylar |= {"i", "I", "İ"}
-    return "".join(sorted(d for d in adaylar
-                          if len(d) == 1 and kucult(d) == hedef))
+    esler = {d for d in adaylar if len(d) == 1 and kucult(d) == hedef}
+    if c == "I":
+        esler.add("ı")
+    return "".join(sorted(esler))
 
 
 def _desen_harf_katla(desen: str) -> str:

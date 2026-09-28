@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
     QApplication, QDialog, QLineEdit, QListWidget, QListWidgetItem, QVBoxLayout,
 )
 
-from core.project_search import SKIP_DIRS as _SKIP_DIRS, kucult
+from core.project_search import SKIP_DIRS as _SKIP_DIRS, kucult, okumalar
 
 _ = lambda s: QCoreApplication.translate("QuickOpenDialog", s)
 
@@ -86,16 +86,24 @@ def fuzzy_score(query: str, path: str) -> int | None:
     `istanbul.tex` ve `ISTANBUL.tex` HİÇ BULUNMUYORDU; `kucult` ile ikisi
     de bulunuyor. Türkçe'de İ ile başlayan ad sıradan (İçindekiler,
     İstanbul, İşlem) ve kullanıcı adını doğru büyük harfle yazıyor.
+    Büyük I'nın iki okuması (`IŞIK.tex` = `ışık`) `okumalar`dan; en iyi
+    skor alınıyor.
     """
     if not query:
         return 0
-    q = kucult(query)
-    p = kucult(path)
-    base_start = p.rfind('/') + 1
-    aralik = _aralik(q, p, base_start)
-    if aralik is not None:
-        return aralik - 5          # eşleşme dosya adına oturmuş → bonus
-    return _aralik(q, p, 0)
+    skorlar = []
+    for yol, sorgu in okumalar(path, query):
+        q = kucult(sorgu)
+        p = kucult(yol)
+        base_start = p.rfind('/') + 1
+        aralik = _aralik(q, p, base_start)
+        if aralik is not None:
+            aralik -= 5                    # eşleşme dosya adına oturmuş → bonus
+        else:
+            aralik = _aralik(q, p, 0)
+        if aralik is not None:
+            skorlar.append(aralik)
+    return min(skorlar, default=None)
 
 
 class QuickOpenDialog(QDialog):

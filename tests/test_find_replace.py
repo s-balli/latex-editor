@@ -1247,21 +1247,23 @@ class TestDesenKipindeTurkceKatlama:
         bar._count_matches("üçgen")
         assert bar._match_count == 1
 
-    def test_i_noktasiz_I_ile_KATLANMIYOR(self, qapp):
-        """ı/i ayrımı korunuyor: `ısı` sorgusu `ISI`yi bulmamalı.
+    def test_buyuk_I_iki_okumali_noktasiz_ile_i_AYRI(self, qapp):
+        """Büyük I ı'yı da buluyor; ı ile i yine ayrı harf.
 
-        `'ı'.upper()` `I` veriyor ama katlama kuralı (``kucult``) ikisini EŞ
-        SAYMIYOR. Desen kipi de düz kiple aynı cevabı vermek zorunda.
+        ÖLÇÜLDÜ (2026-09-28, v1.1.2 exe'si): büyük harfle yazılan
+        "KARŞILAŞTIRILABİLİRLİK" küçük harfli metni bulmuyordu (bkz.
+        project_search.okumalar). Desen kipinde ters yön (`ısı` -> ISI)
+        yazılamıyor: motorun harf duyarsız kipi I'yı i'ye de katlıyor ve
+        `[Iı]` sınıfı `isi`yi de bulurdu. Orada yalnız o yön eksik.
         """
-        bar, _ed = _bar("ısı ISI\n", "ısı")
-        _sec(bar, regex=True)
-        bar._count_matches("ısı")
-        assert bar._match_count == 1
-
-        bar, _ed = _bar("ısı ISI\n", "ısı")
-        _sec(bar, regex=False)
-        bar._count_matches("ısı")
-        assert bar._match_count == 1
+        metin = "ısı ISI isi\n"
+        for regex, sorgu, sayi in ((False, "ısı", 2), (False, "ISI", 3),
+                                   (False, "isi", 2), (True, "ISI", 3),
+                                   (True, "isi", 2), (True, "ısı", 1)):
+            bar, _ed = _bar(metin, sorgu)
+            _sec(bar, regex=regex)
+            bar._count_matches(sorgu)
+            assert bar._match_count == sayi, (regex, sorgu, bar._match_count)
 
 
 def test_donusum_desenin_ANLAMINI_bozmuyor():

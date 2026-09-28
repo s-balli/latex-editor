@@ -652,8 +652,10 @@ class TestOnarilmisArama:
         `İstanbul`u bulmaz; ı/i ayrımı da korunmalı."""
         assert _sayfada_bul("˙Istanbul", "istanbul")
         assert _sayfada_bul("˙Istanbul", "İSTANBUL")
+        # Büyük I Türkçede ı'nın büyüğü (bkz. project_search.okumalar), ama
         # ı ile i AYRI harf: katlama onları birbirine çevirmemeli
-        assert _sayfada_bul("ışık", "IŞIK") == []
+        assert _sayfada_bul("ışık", "IŞIK")
+        assert _sayfada_bul("ışık", "isik") == []
         assert _sayfada_bul("ışık", "ışık")
 
     def test_DUZ_metinde_gerileme_yok(self):

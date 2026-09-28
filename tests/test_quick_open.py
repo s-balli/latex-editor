@@ -114,6 +114,9 @@ def test_fuzzy_TURKCE_NOKTALI_I_ile_aranan_dosya_bulunuyor():
     # ı/i AYRIMI korunuyor (kucult'un ölçülmüş kuralı): ayrı harfler.
     # Vaka YALNIZ bu harfte ayrılmalı, yoksa sav ayırt etmez.
     assert fuzzy_score("ısı", "isi.tex") is None
+    # Büyük I iki okumalı (project_search.okumalar): Türkçede ı'nın büyüğü.
+    assert fuzzy_score("ışık", "IŞIK.tex") is not None
+    assert fuzzy_score("IŞIK", "bolumler/ışık.tex") is not None
 
 
 def test_fuzzy_no_match():

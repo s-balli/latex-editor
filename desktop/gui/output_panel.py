@@ -712,8 +712,8 @@ class OutputPanel(QWidget):
 
     def _on_bib_filter(self, metin: str):
         """Satırları süz. Süzgeç anahtar, yazar ve başlıkta arıyor."""
-        from core.project_search import kucult
-        aranan = kucult(metin.strip())
+        from core.project_search import icerir
+        aranan = metin.strip()
         gorunen = 0
         for r in range(self._bib_table.rowCount()):
             if not aranan:
@@ -723,7 +723,7 @@ class OutputPanel(QWidget):
                 # "2020" yazınca başlığında 2020 geçen girdiler de gelsin
                 # istemiyoruz, yıl sütunu sıralama için var.
                 uygun = any(
-                    aranan in kucult(self._bib_table.item(r, c).text())
+                    icerir(self._bib_table.item(r, c).text(), aranan)
                     for c in (0, 2, 4) if self._bib_table.item(r, c))
             self._bib_table.setRowHidden(r, not uygun)
             gorunen += uygun
