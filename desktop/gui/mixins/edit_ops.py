@@ -461,9 +461,17 @@ class EditOpsMixin:
         # elle yazılmış bir kaynakçadaki anahtarla çakışırsa belgede aynı
         # anahtar iki kez tanımlanır (aynı hata bir kez .bib içinde yaşandı,
         # bkz. `DoiRunner.start` gerekçesi).
+        #
+        # Anahtarlar PROJEDEN: kök belge ve zinciri, kaydedilmemiş sekmeler
+        # dahil. ÖLÇÜLDÜ (2026-09-27, tez düzeni): bölümden eklerken kökte
+        # bildirilen .bib'in anahtarları hiç görünmüyordu, kayıtlı olanlar da;
+        # aynı anahtarlı girdi .bib'e ekleniyor, BibTeX ilkini alıyordu.
         from core.latex_refs import collect_citable_keys
-        self._doi_runner.start(
-            doi, collect_citable_keys(editor.text(), editor.file_path))
+        taban, icerik = self._proje_tabani(editor)
+        with acik_metinlerle(self._acik_metinler()):
+            kullanilan = (set(collect_citable_keys(icerik, taban))
+                          | set(collect_citable_keys(editor.text(), editor.file_path)))
+        self._doi_runner.start(doi, sorted(kullanilan))
 
     def _on_doi_fetched(self, ok: bool, metin: str, anahtar: str, hata: str):
         if not ok:
@@ -797,18 +805,22 @@ class EditOpsMixin:
             gosterim=f"\\label{{{key}}}")
         if ed is None:
             return
-        # Taban KÖK belge (bkz. `_proje_tabani`). Zincir diskten okunuyor;
-        # düzenlenen dosyanın kaydedilmemiş etiketleri ayrıca sayılıyor.
+        # Taban KÖK belge (bkz. `_proje_tabani`); zincir kaydedilmemiş
+        # sekmelerden de okunuyor. ÖLÇÜLDÜ (2026-09-27): kardeş bölümün
+        # kaydedilmemiş etiketiyle aynı ad engellenmiyor, etiket iki kez
+        # tanımlanıyordu.
         taban, icerik = self._proje_tabani(ed)
-        if (new_key in collect_labels(icerik, taban)
-                or new_key in collect_labels(ed.text(), ed.file_path)):
+        with acik_metinlerle(self._acik_metinler()):
+            var = (new_key in collect_labels(icerik, taban)
+                   or new_key in collect_labels(ed.text(), ed.file_path))
+            paths = self._zincir_yollari(taban, icerik, ed.file_path)
+        if var:
             QMessageBox.warning(
                 self, _("Etiketi Yeniden Adlandır"),
                 _("'{k}' adlı etiket projede zaten var.").format(k=new_key),
             )
             return
 
-        paths = self._zincir_yollari(taban, icerik, ed.file_path)
         changed, failed = self._apply_renamings(
             paths, lambda t: label_rename_spans(t, key), new_key)
 
@@ -916,16 +928,18 @@ class EditOpsMixin:
         if ed is None:
             return
         taban, icerik = self._proje_tabani(ed)
-        if (find_bibitem_location(icerik, taban, new_key) is not None
-                or find_bibitem_location(ed.text(), ed.file_path,
-                                         new_key) is not None):
+        with acik_metinlerle(self._acik_metinler()):      # bkz. _on_rename_label
+            var = (find_bibitem_location(icerik, taban, new_key) is not None
+                   or find_bibitem_location(ed.text(), ed.file_path,
+                                            new_key) is not None)
+            paths = self._zincir_yollari(taban, icerik, ed.file_path)
+        if var:
             QMessageBox.warning(
                 self, title,
                 _("'{k}' adlı etiket projede zaten var.").format(k=new_key),
             )
             return
 
-        paths = self._zincir_yollari(taban, icerik, ed.file_path)
         changed, failed = self._apply_renamings(
             paths,
             lambda t: cite_rename_spans(t, key) + bibitem_rename_spans(t, key),

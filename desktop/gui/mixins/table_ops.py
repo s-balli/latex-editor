@@ -2,6 +2,7 @@
 
 from PyQt6.QtCore import QCoreApplication
 
+from core.fs_ops import acik_metinlerle
 from core.latex_refs import collect_labels
 from core.latex_tables import format_tabular, parse_tabular_at
 from core.log import get_logger
@@ -87,7 +88,14 @@ class TableOpsMixin:
         existing = []
         if editor.file_path:
             try:
-                existing = collect_labels(text, editor.file_path)
+                # Proje: kök belge ve zinciri, kaydedilmemiş sekmeler dahil.
+                # ÖLÇÜLDÜ (2026-09-27, tez düzeni): bölümden açılan sihirbaz
+                # kardeş bölümün etiketini görmüyordu, kayıtlı olanı da;
+                # önerdiği `tab:` etiketi derlemede "multiply defined" olurdu.
+                taban, icerik = self._proje_tabani(editor)
+                with acik_metinlerle(self._acik_metinler()):
+                    existing = sorted(set(collect_labels(icerik, taban))
+                                      | set(collect_labels(text, editor.file_path)))
             except Exception as e:
                 # Sihirbaz mevcut etiketleri gösteremeden açılır; sessiz kalırsa
                 # kullanıcı "etiketlerim neden listelenmiyor" diye sorar ve logda

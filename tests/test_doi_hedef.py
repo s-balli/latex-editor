@@ -229,6 +229,9 @@ class _SiraStub(EditOpsMixin):
     def _current_editor(self):
         return self._ed
 
+    def _acik_metinler(self):
+        return {}                   # sekme yok (bkz. `_editor_by_path`)
+
     def _editor_by_path(self, yol):
         """Hedef `.bib` bir sekmede acik DEGIL: yazma diske gitsin.
 

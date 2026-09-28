@@ -5,6 +5,7 @@ import pytest
 try:
     from PyQt6.QtWidgets import QApplication, QTableWidgetItem
     from gui.editor import EditorWidget
+    from gui.mixins.edit_ops import EditOpsMixin
     from gui.mixins.table_ops import TableOpsMixin
     from gui.table_wizard import TableWizardDialog
     from core.latex_tables import parse_tabular_at
@@ -241,7 +242,9 @@ def test_dialog_load_block_rebuilds_align_combos(qapp):
 # =====================================================================
 
 
-class _Stub(TableOpsMixin, StubMain):
+class _Stub(TableOpsMixin, EditOpsMixin, StubMain):
+    """Gerçek pencere gibi: sihirbaz etiketleri projeden (`_proje_tabani`) topluyor."""
+
     def __init__(self, editors):
         StubMain.__init__(self, editors=editors)
         self._theme_mgr = type("M", (), {"theme": THEMES["dark"]})()
