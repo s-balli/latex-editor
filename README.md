@@ -1013,6 +1013,10 @@ latex-editor/
 
 ---
 
+## Privacy
+
+No accounts, analytics or telemetry. The only network requests are the update check and adding a source by DOI; see [PRIVACY.md](PRIVACY.md).
+
 ## License
 
 GPL-3.0 — see [LICENSE](LICENSE).
