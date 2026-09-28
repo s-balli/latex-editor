@@ -75,12 +75,23 @@ class RecoveryOpsMixin:
         dlg = QMessageBox(self)
         dlg.setWindowTitle(_("Kurtarma"))
         dlg.setIcon(QMessageBox.Icon.Question)
-        dlg.setText(_(
+        metin = _(
             "Uygulama düzgün kapanmamış. {n} dosyada kaydedilmemiş değişiklik "
             "bulundu:\n\n{adlar}\n\n"
             "Geri yüklensin mi? (Geri yüklenen içerik sekmede açılır; siz "
             "kaydedene kadar diskteki dosyaya DOKUNULMAZ.)"
-        ).format(n=len(kayipli), adlar=adlar))
+        ).format(n=len(kayipli), adlar=adlar)
+        # Kopyadan SONRA diskte değişen dosya: geri yükleyip kaydetmek o
+        # değişikliği götürür ve soru bunu söylemiyordu. ÖLÇÜLDÜ (2026-09-28,
+        # gerçek pencere): çökmeden sonra "git pull" ile gelen içerik hiçbir
+        # uyarı olmadan kopyanın altında kaldı.
+        yeni = [s.display_name for s in kayipli if recovery.disk_daha_yeni_mi(s)]
+        if yeni:
+            metin += "\n\n" + _(
+                "Şu dosyalar kopyadan sonra diskte değişmiş; geri yükleyip "
+                "kaydederseniz diskteki yeni hâl kaybolur:") + "\n" + "\n".join(
+                    "  • " + ad for ad in yeni[:10])
+        dlg.setText(metin)
         btn_yukle = dlg.addButton(_("Geri Yükle"), QMessageBox.ButtonRole.AcceptRole)
         btn_at = dlg.addButton(_("At"), QMessageBox.ButtonRole.DestructiveRole)
         dlg.setDefaultButton(btn_yukle)
@@ -139,6 +150,13 @@ class RecoveryOpsMixin:
                     self._file_watch_add(snap.file_path)
             editor.setText(snap.content)
             editor.setModified(True)          # kaydetmek kullanıcının kararı
+            # Soru "siz kaydedene kadar diskteki dosyaya DOKUNULMAZ" diyor ve
+            # otomatik kaydetme bu sözü ilk turda bozuyordu. ÖLÇÜLDÜ
+            # (2026-09-28, gerçek pencere): Geri Yükle'den sonraki ilk tur
+            # kopyayı diske yazdı. "Kendiminkini Koru" ile aynı işaret:
+            # otomatik kaydetme atlıyor, açık kayıt ve diskten yükleme kaldırıyor.
+            if snap.file_path and hasattr(self, "_disk_ayristi"):
+                self._disk_ayristi.add(editor.file_path)
             # Anlık görüntünün kimliğini devral: diskteki dosya bu sekmenin
             # koruması olarak kalıyor, tick onu yerinde tazeliyor (gerekçe
             # `_recovery_prompt`ta).

@@ -488,6 +488,33 @@ def test_SILINDI_sorusu_EKRANDAYKEN_dosya_GERI_YAZILMIYOR(
     assert not yol.exists()
 
 
+def test_GERI_YUKLENEN_sekme_ACIK_KAYDA_kadar_diske_YAZILMIYOR(
+        ana_pencere, tmp_path):
+    """Kurtarma sorusu "siz kaydedene kadar diskteki dosyaya DOKUNULMAZ"
+    diyor ve ilk tur bu sözü bozuyordu. ÖLÇÜLDÜ (2026-09-28, gerçek
+    pencere): Geri Yükle'den sonraki ilk tur kopyayı diske yazdı; dosya
+    çökmeden sonra değişmişse (git pull) o değişiklik de sessizce gitti.
+    Aşırı düzeltme kolu: açık kayıttan sonra otomatik kaydetme geri gelmeli."""
+    from core import recovery
+    yol = _proje(tmp_path, icerik="GIT PULL ile gelen\n")
+    p = ana_pencere()
+    assert recovery.yaz(p._recovery_dir, "kapi", content="KURTARILAN metin\n",
+                        file_path=os.path.normpath(str(yol)))
+    (snap,) = recovery.oku(p._recovery_dir)
+    assert p._recovery_restore(snap)
+    ed = p._editor_by_path(str(yol))
+    p._editor_tabs.setCurrentWidget(ed)
+
+    p._autosave_tick()
+    assert yol.read_text(encoding="utf-8") == "GIT PULL ile gelen\n"
+
+    p._save_file()                              # açık kayıt: kullanıcının kararı
+    assert yol.read_text(encoding="utf-8") == "KURTARILAN metin\n"
+    ed.setText("SONRA yazilan\n")
+    p._autosave_tick()
+    assert yol.read_text(encoding="utf-8") == "SONRA yazilan\n"
+
+
 @pytest.mark.parametrize("olay", ["degisti", "silindi"])
 def test_IZLEYICI_SORMADAN_gelen_tur_diske_DOKUNMUYOR_ve_SORU_cikiyor(
         ana_pencere, tmp_path, monkeypatch, olay):

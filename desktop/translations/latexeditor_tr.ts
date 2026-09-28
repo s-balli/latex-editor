@@ -13,12 +13,12 @@ Açık pencereyi kullanın ya da uygulamayı kapatıp yeniden başlatın.</trans
 </context><context>
     <name>AutosaveOpsMixin</name>
     <message>
-        <location filename="../gui/mixins/autosave_ops.py" line="134" />
+        <location filename="../gui/mixins/autosave_ops.py" line="148" />
         <source>Otomatik kaydedilemedi: {ad}</source>
         <translation>Otomatik kaydedilemedi: {ad}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/autosave_ops.py" line="138" />
+        <location filename="../gui/mixins/autosave_ops.py" line="152" />
         <source>Otomatik kaydedildi ({n} dosya)</source>
         <translation>Otomatik kaydedildi ({n} dosya)</translation>
     </message>
@@ -1053,13 +1053,13 @@ Windows: WSL içinde 'sudo apt install pandoc'</translation>
 </context><context>
     <name>FileWatchMixin</name>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="287" />
-        <location filename="../gui/mixins/file_watch.py" line="248" />
+        <location filename="../gui/mixins/file_watch.py" line="331" />
+        <location filename="../gui/mixins/file_watch.py" line="292" />
         <source>Dosya Silindi</source>
         <translation>Dosya Silindi</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="250" />
+        <location filename="../gui/mixins/file_watch.py" line="294" />
         <source>{fname} dosyası diskten silindi.
 
 Bu dosyada kaydedilmemiş değişiklikleriniz var; sekmeyi kapatırsanız kaybolur.</source>
@@ -1068,29 +1068,29 @@ Bu dosyada kaydedilmemiş değişiklikleriniz var; sekmeyi kapatırsanız kaybol
 Bu dosyada kaydedilmemiş değişiklikleriniz var; sekmeyi kapatırsanız kaybolur.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="255" />
+        <location filename="../gui/mixins/file_watch.py" line="299" />
         <source>Farklı Kaydet...</source>
         <translation>Farklı Kaydet...</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="256" />
+        <location filename="../gui/mixins/file_watch.py" line="300" />
         <source>Sekmede Tut</source>
         <translation>Sekmede Tut</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="257" />
+        <location filename="../gui/mixins/file_watch.py" line="301" />
         <source>Sekmeyi Kapat</source>
         <translation>Sekmeyi Kapat</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="288" />
+        <location filename="../gui/mixins/file_watch.py" line="332" />
         <source>{fname} dosyası diskten silindi.
 İlgili sekme kapatılacak.</source>
         <translation>{fname} dosyası diskten silindi.
 İlgili sekme kapatılacak.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="301" />
+        <location filename="../gui/mixins/file_watch.py" line="345" />
         <source>{fname} dosyası diskte değiştirildi.
 
 Kaydedilmemiş yerel değişiklikleriniz var.
@@ -1101,32 +1101,32 @@ Kaydedilmemiş yerel değişiklikleriniz var.
 Diskteki sürümü yüklerseniz yerel değişiklikleriniz kaybolacak.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="306" />
+        <location filename="../gui/mixins/file_watch.py" line="350" />
         <source>Diskten Yükle</source>
         <translation>Diskten Yükle</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="307" />
+        <location filename="../gui/mixins/file_watch.py" line="351" />
         <source>Kendiminkini Koru</source>
         <translation>Kendiminkini Koru</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="309" />
+        <location filename="../gui/mixins/file_watch.py" line="353" />
         <source>{fname} dosyası diskte başka bir program tarafından değiştirildi.</source>
         <translation>{fname} dosyası diskte başka bir program tarafından değiştirildi.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="312" />
+        <location filename="../gui/mixins/file_watch.py" line="356" />
         <source>Yeniden Yükle</source>
         <translation>Yeniden Yükle</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="313" />
+        <location filename="../gui/mixins/file_watch.py" line="357" />
         <source>Yoksay</source>
         <translation>Yoksay</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="316" />
+        <location filename="../gui/mixins/file_watch.py" line="360" />
         <source>Dosya Değiştirildi</source>
         <translation>Dosya Değiştirildi</translation>
     </message>
@@ -3111,22 +3111,27 @@ Geri yüklensin mi? (Geri yüklenen içerik sekmede açılır; siz kaydedene kad
 Geri yüklensin mi? (Geri yüklenen içerik sekmede açılır; siz kaydedene kadar diskteki dosyaya DOKUNULMAZ.)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/recovery_ops.py" line="84" />
+        <location filename="../gui/mixins/recovery_ops.py" line="90" />
+        <source>Şu dosyalar kopyadan sonra diskte değişmiş; geri yükleyip kaydederseniz diskteki yeni hâl kaybolur:</source>
+        <translation>Şu dosyalar kopyadan sonra diskte değişmiş; geri yükleyip kaydederseniz diskteki yeni hâl kaybolur:</translation>
+    </message>
+    <message>
+        <location filename="../gui/mixins/recovery_ops.py" line="95" />
         <source>Geri Yükle</source>
         <translation>Geri Yükle</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/recovery_ops.py" line="85" />
+        <location filename="../gui/mixins/recovery_ops.py" line="96" />
         <source>At</source>
         <translation>At</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/recovery_ops.py" line="120" />
+        <location filename="../gui/mixins/recovery_ops.py" line="131" />
         <source>{n} dosya kurtarıldı, kaydetmek için Ctrl+S</source>
         <translation>{n} dosya kurtarıldı, kaydetmek için Ctrl+S</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/recovery_ops.py" line="190" />
+        <location filename="../gui/mixins/recovery_ops.py" line="208" />
         <source>Çökme kurtarma kopyası yazılamıyor ({d}); kaydedilmemiş değişiklikler çökmeye karşı korunmuyor.</source>
         <translation>Çökme kurtarma kopyası yazılamıyor ({d}); kaydedilmemiş değişiklikler çökmeye karşı korunmuyor.</translation>
     </message>

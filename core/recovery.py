@@ -193,3 +193,19 @@ def kayip_var_mi(snap: Snapshot) -> bool:
     # İndirgeme KURALI kendi gövdesinde yazılıydı ve `\r\r\n` üzerinde
     # editörün kaydetme yoluyla AYRIŞIYORDU (gerekçe ve ölçüm fs_ops'ta).
     return lf_ye_indir(diskteki) != lf_ye_indir(snap.content)
+
+
+def disk_daha_yeni_mi(snap: Snapshot) -> bool:
+    """Diskteki dosya bu kopyadan SONRA mı değişti?
+
+    Kopya `saved_at` anında yazıldı; dosyanın değişme zamanı ondan yeniyse
+    disk, kopyanın dayandığı hâlden ileri gitmiş demektir (git pull, başka
+    bir editör, çökmeden hemen önceki bir kayıt). Geri yükleyip kaydetmek o
+    hâli götürür. Hiç kaydedilmemiş ya da okunamayan dosyada False.
+    """
+    if not snap.file_path:
+        return False
+    try:
+        return os.path.getmtime(snap.file_path) > snap.saved_at
+    except OSError:
+        return False

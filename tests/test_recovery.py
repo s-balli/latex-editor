@@ -439,6 +439,38 @@ def test_zaten_acik_sekmeye_geri_yukleniyor(qapp, tmp_path, monkeypatch):
 
 
 @pytestmark_gui
+@pytest.mark.parametrize("daha_yeni", [True, False])
+def test_kopyadan_SONRA_degisen_disk_SORUDA_soyleniyor(qapp, tmp_path,
+                                                       monkeypatch, daha_yeni):
+    """Çökmeden sonra gelen değişiklik (git pull, başka editör) geri yükleyip
+    kaydedince gidiyor ve soru bunu söylemiyordu (ölçüldü 2026-09-28, gerçek
+    pencere). Aşırı düzeltme kolu: kopyadan ESKİ disk uyarı çıkarmıyor."""
+    import gui.mixins.recovery_ops as ro
+    metinler = []
+
+    class Kutu(_oto_box("yukle")):
+        def exec(self):
+            metinler.append(self.text())
+            return 0
+
+    monkeypatch.setattr(ro, "QMessageBox", Kutu)
+    kayit = tmp_path / "kayit"
+    kayit.mkdir()
+    yol = tmp_path / "a.tex"
+    yol.write_text("diskteki\n", encoding="utf-8")
+    recovery.yaz(str(kayit), "eski-oturum", file_path=str(yol),
+                 content="kopyadaki\n")
+    (snap,) = recovery.oku(str(kayit))
+    an = snap.saved_at + (60 if daha_yeni else -60)
+    os.utime(yol, (an, an))
+
+    _StubMain(kayit)._recovery_prompt()
+
+    assert len(metinler) == 1
+    assert ("diskte değişmiş" in metinler[0]) is daha_yeni
+
+
+@pytestmark_gui
 def test_at_secilirse_kurtarma_yapilmaz(qapp, tmp_path, monkeypatch):
     """"At" → sekme açılmaz, anlık görüntüler silinir."""
     import gui.mixins.recovery_ops as ro

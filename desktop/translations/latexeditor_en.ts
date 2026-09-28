@@ -13,12 +13,12 @@ Use the open window, or quit the application and start it again.</translation>
 </context><context>
     <name>AutosaveOpsMixin</name>
     <message>
-        <location filename="../gui/mixins/autosave_ops.py" line="134" />
+        <location filename="../gui/mixins/autosave_ops.py" line="148" />
         <source>Otomatik kaydedilemedi: {ad}</source>
         <translation>Could not autosave: {ad}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/autosave_ops.py" line="138" />
+        <location filename="../gui/mixins/autosave_ops.py" line="152" />
         <source>Otomatik kaydedildi ({n} dosya)</source>
         <translation>Autosaved ({n} file(s))</translation>
     </message>
@@ -1053,13 +1053,13 @@ Windows: run 'sudo apt install pandoc' inside WSL</translation>
 </context><context>
     <name>FileWatchMixin</name>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="287" />
-        <location filename="../gui/mixins/file_watch.py" line="248" />
+        <location filename="../gui/mixins/file_watch.py" line="331" />
+        <location filename="../gui/mixins/file_watch.py" line="292" />
         <source>Dosya Silindi</source>
         <translation>File Deleted</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="250" />
+        <location filename="../gui/mixins/file_watch.py" line="294" />
         <source>{fname} dosyası diskten silindi.
 
 Bu dosyada kaydedilmemiş değişiklikleriniz var; sekmeyi kapatırsanız kaybolur.</source>
@@ -1068,29 +1068,29 @@ Bu dosyada kaydedilmemiş değişiklikleriniz var; sekmeyi kapatırsanız kaybol
 You have unsaved changes in this file; they will be lost if you close the tab.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="255" />
+        <location filename="../gui/mixins/file_watch.py" line="299" />
         <source>Farklı Kaydet...</source>
         <translation>Save As...</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="256" />
+        <location filename="../gui/mixins/file_watch.py" line="300" />
         <source>Sekmede Tut</source>
         <translation>Keep in Tab</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="257" />
+        <location filename="../gui/mixins/file_watch.py" line="301" />
         <source>Sekmeyi Kapat</source>
         <translation>Close Tab</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="288" />
+        <location filename="../gui/mixins/file_watch.py" line="332" />
         <source>{fname} dosyası diskten silindi.
 İlgili sekme kapatılacak.</source>
         <translation>{fname} has been deleted from disk.
 The tab will be closed.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="301" />
+        <location filename="../gui/mixins/file_watch.py" line="345" />
         <source>{fname} dosyası diskte değiştirildi.
 
 Kaydedilmemiş yerel değişiklikleriniz var.
@@ -1101,32 +1101,32 @@ You have unsaved local changes.
 Reloading from disk will discard your changes.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="306" />
+        <location filename="../gui/mixins/file_watch.py" line="350" />
         <source>Diskten Yükle</source>
         <translation>Reload from Disk</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="307" />
+        <location filename="../gui/mixins/file_watch.py" line="351" />
         <source>Kendiminkini Koru</source>
         <translation>Keep Mine</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="309" />
+        <location filename="../gui/mixins/file_watch.py" line="353" />
         <source>{fname} dosyası diskte başka bir program tarafından değiştirildi.</source>
         <translation>{fname} has been modified by another program.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="312" />
+        <location filename="../gui/mixins/file_watch.py" line="356" />
         <source>Yeniden Yükle</source>
         <translation>Reload</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="313" />
+        <location filename="../gui/mixins/file_watch.py" line="357" />
         <source>Yoksay</source>
         <translation>Ignore</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="316" />
+        <location filename="../gui/mixins/file_watch.py" line="360" />
         <source>Dosya Değiştirildi</source>
         <translation>File Changed</translation>
     </message>
@@ -3111,22 +3111,27 @@ Geri yüklensin mi? (Geri yüklenen içerik sekmede açılır; siz kaydedene kad
 Restore them? (Restored content opens in a tab; the file on disk is NOT touched until you save.)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/recovery_ops.py" line="84" />
+        <location filename="../gui/mixins/recovery_ops.py" line="90" />
+        <source>Şu dosyalar kopyadan sonra diskte değişmiş; geri yükleyip kaydederseniz diskteki yeni hâl kaybolur:</source>
+        <translation>These files changed on disk after the copy was made; if you restore and save them, the newer version on disk is lost:</translation>
+    </message>
+    <message>
+        <location filename="../gui/mixins/recovery_ops.py" line="95" />
         <source>Geri Yükle</source>
         <translation>Restore</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/recovery_ops.py" line="85" />
+        <location filename="../gui/mixins/recovery_ops.py" line="96" />
         <source>At</source>
         <translation>Discard</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/recovery_ops.py" line="120" />
+        <location filename="../gui/mixins/recovery_ops.py" line="131" />
         <source>{n} dosya kurtarıldı, kaydetmek için Ctrl+S</source>
         <translation>{n} file(s) recovered, press Ctrl+S to save</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/recovery_ops.py" line="190" />
+        <location filename="../gui/mixins/recovery_ops.py" line="208" />
         <source>Çökme kurtarma kopyası yazılamıyor ({d}); kaydedilmemiş değişiklikler çökmeye karşı korunmuyor.</source>
         <translation>Could not write the crash-recovery copy ({d}); unsaved changes are not protected against a crash.</translation>
     </message>
