@@ -275,6 +275,8 @@ class TestOzet:
         ("doped TiO\n    <sub>2</sub>\n    on their", "doped TiO₂ on their"),
         ("Ca²⁺ and Δ9-THC with ≤ 2 ′ marks", "Ca²⁺ and Δ9-THC with ≤ 2 ′ marks"),
         ("NF-κB activation <i>via</i> the IκB", "NF-κB activation via the IκB"),
+        # Kaçış `normallestir`in kendisinden: sekme "R\&D", "100\%", "x\^y" diyordu.
+        ("R&D at 100% of #1, a_b and x^y", "R&D at 100% of #1, a_b and x^y"),
     ])
     def test_DOI_girdisinin_basligi_SEKMEDE_okunur(self, ham, beklenen):
         r"""Kaynakça sekmesi bu özeti gösteriyor. ÖLÇÜLDÜ (2026-09-27, gerçek
@@ -284,6 +286,38 @@ class TestOzet:
         from core.bibtex import normallestir
         metin, _a = normallestir("@article{k, title={%s}, year={2020}}" % ham)
         assert ozet(parse_entries(metin)[0])[4] == beklenen
+
+    @pytest.mark.parametrize("ham,beklenen", [
+        (r"The {\TeX}book", "The TeXbook"),
+        (r"The \TeX book, \LaTeX{} ile", "The TeXbook, LaTeX ile"),
+        (r"K-En Yak{\i}n Kom{\c{s}}uluk", "K-En Yakın Komşuluk"),
+        (r"representa{\c c}{\~a}o, El Ni\~{n}o", "representação, El Niño"),
+        (r"Na\"{\i}ve {\.I}stanbul Stra{\ss}e", "Naïve İstanbul Straße"),
+        (r"Object bank \& Fig.~2 at 250$^\circ$C", "Object bank & Fig. 2 at 250°C"),
+        (r"A \underline{new} method", "A new method"),
+    ])
+    def test_elle_yazilan_LaTeX_SEKMEDE_okunur(self, ham, beklenen):
+        r"""ÖLÇÜLDÜ (2026-09-28, v1.1.2 exe'si ve template/ altındaki 306
+        girdi pdflatex ile basılıp karşılaştırılarak): sekme "The \TeXbook",
+        "K-En Yak\in Kom\csuluk" gösteriyordu. Beklenenler basılan metin.
+        Son satır koruma: `\u` aksanı `\underline`ı yememeli."""
+        g = parse_entries("@article{k, title={%s}}" % ham)[0]
+        assert ozet(g)[4] == beklenen
+
+    @pytest.mark.parametrize("ham,beklenen", [
+        (r"Sa{\u{g}}ba{\c{s}}, Ensar Arif and Ball{\i}, Serkan", "Sağbaş vd."),
+        (r"Ball\i and Kaya, Ali", "Ballı vd."),
+        (r"{\"O}mer Kaya and Serkan Ball{\i}", "Kaya vd."),
+        (r"{T{\"u}rk Standartlar{\i} Enstit{\"u}s{\"u}}", "Türk Standartları Enstitüsü"),
+    ])
+    def test_yazarin_LaTeX_harfleri_okunur(self, ham, beklenen):
+        r"""ÖLÇÜLDÜ (2026-09-28): sekme "Sa{\u{g}}ba{\c{s}} vd." gösteriyordu.
+        `Ball\i and`: ad ham metinde ayrılıyor (BibTeX de öyle); `\i`nin
+        yuttuğu boşluk " and " ayracını da " vd." ekini de silmemeli.
+        `{\"O}mer ... Ball{\i}` `{` ile başlayıp `}` ile bitiyor ama kurum
+        değil, iki yazar."""
+        g = parse_entries("@article{k, author={%s}}" % ham)[0]
+        assert ozet(g)[2] == beklenen
 
     def test_ozet_sirasi(self):
         g = parse_entries(

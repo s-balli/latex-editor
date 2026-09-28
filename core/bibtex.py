@@ -19,6 +19,7 @@ ve satır numarasıyla döndürdüğü için ikisi de görülebiliyor.
 
 import os
 import re
+import unicodedata
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -223,6 +224,16 @@ def eksik_alanlar(girdi: BibGirdi) -> list[str]:
     return eksik
 
 
+def _tek_grup(deger: str) -> bool:
+    """Değer baştan sona TEK bir `{...}` grubu mu?"""
+    derinlik = 0
+    for i, c in enumerate(deger):
+        derinlik += (c == "{") - (c == "}")
+        if derinlik == 0:
+            return c == "}" and i == len(deger) - 1
+    return False
+
+
 def yazar_kisalt(deger: str) -> str:
     """`author` alanını listede gösterilecek kısa biçime indir.
 
@@ -233,12 +244,14 @@ def yazar_kisalt(deger: str) -> str:
         "Kaya, Aydın"   -> soyadı virgülden ÖNCE
         "Aydın Kaya"    -> soyadı SON kelime
     Süslü parantezle sarılı ad kurum demektir (`{Dünya Sağlık Örgütü}`) ve
-    bölünmemeli; oradaki virgül yazar ayracı değil.
+    bölünmemeli; oradaki virgül yazar ayracı değil. Sarılı olan değerin
+    TAMAMI olmalı: `{\\"O}mer Kaya and Serkan Ball{\\i}` de `{` ile başlayıp
+    `}` ile bitiyor ama iki yazar.
     """
     deger = deger.strip()
     if not deger:
         return ""
-    if deger.startswith("{") and deger.endswith("}"):
+    if _tek_grup(deger):
         return deger[1:-1].strip()
     yazarlar = [y.strip() for y in deger.split(" and ") if y.strip()]
     if not yazarlar:
@@ -251,15 +264,21 @@ def yazar_kisalt(deger: str) -> str:
 def ozet(girdi: BibGirdi) -> tuple[str, str, str, str, str]:
     """Listeleme için (anahtar, tür, yazar, yıl, başlık).
 
-    Değerler ham; yalnız gösterim için kısaltılıyor. Başlıktaki koruma
-    parantezleri (`{BERT}`) atılıyor: kullanıcı okuyacak, dizgi motoru değil.
-    `normallestir`in ürettiği LaTeX de okunur metne dönüyor (`_latex_okunur`).
+    Değerler ham; yalnız gösterim için kısaltılıyor. Koruma parantezleri
+    (`{BERT}`, `Ball{\\i}`) atılıyor: kullanıcı okuyacak, dizgi motoru değil.
+    LaTeX de okunur metne dönüyor (`_latex_okunur`); yazarda kısaltmadan
+    SONRA, çünkü BibTeX de adları ham metinde ayırıyor: `Ball\\i and Kaya`da
+    `\\i`nin yuttuğu boşluk önce çevrilince " and " ayracını siliyordu. Aynı
+    sebeple " vd." eki (bizim, TeX'in değil) çeviriden sonra ekleniyor.
     """
     baslik = _latex_okunur(girdi.alanlar.get("title", ""))
     baslik = baslik.replace("{", "").replace("}", "")
+    yazar = yazar_kisalt(girdi.alanlar.get("author")
+                         or girdi.alanlar.get("editor", ""))
+    ek = " vd." if yazar.endswith(" vd.") else ""
+    yazar = _latex_okunur(yazar.removesuffix(ek)) + ek
     return (girdi.anahtar, girdi.tur,
-            yazar_kisalt(girdi.alanlar.get("author")
-                         or girdi.alanlar.get("editor", "")),
+            yazar.replace("{", "").replace("}", ""),
             girdi.alanlar.get("year", ""), " ".join(baslik.split()))
 
 
@@ -581,15 +600,57 @@ _RE_MAT_TEK = re.compile(r"\$\\?([A-Za-z]+|'{1,2}|-) ?\$")
 _RE_ALT_UST = re.compile(r"\\text(sub|super)script\{([^{}]*)\}")
 _RE_BICIM = re.compile(r"\\(?:textit|textbf|textsc|texttt|underline|emph)\{([^{}]*)\}")
 
+# Elle yazılmış .bib'in LaTeX'i de okunur metne dönüyor: aksan (`\"o`,
+# `\c{s}`, `\c c`, `\'{\i}`), özel harf (`\i`, `\ss`), logo (`\TeX`),
+# kaçış (`\&`) ve bağ (`~`). ÖLÇÜLDÜ (2026-09-28): template/ altındaki 306
+# girdi pdflatex ile basılıp sekmeyle karşılaştırıldı; başlıkta 11, yazarda
+# 29 fark vardı ("Ball{\i} vd.", "veri madencili\ugi"). Bilerek dışarıda
+# kalanlar: `--` ve tırnak yazı tipinin bitişik harfi, `@preamble`
+# makrosunun (`\VAN`) ne bastığı buradan bilinemiyor.
+_AKSAN = {
+    '"': "\N{COMBINING DIAERESIS}", "'": "\N{COMBINING ACUTE ACCENT}",
+    "`": "\N{COMBINING GRAVE ACCENT}", "^": "\N{COMBINING CIRCUMFLEX ACCENT}",
+    "~": "\N{COMBINING TILDE}", "=": "\N{COMBINING MACRON}",
+    ".": "\N{COMBINING DOT ABOVE}", "u": "\N{COMBINING BREVE}",
+    "v": "\N{COMBINING CARON}", "H": "\N{COMBINING DOUBLE ACUTE ACCENT}",
+    "c": "\N{COMBINING CEDILLA}", "k": "\N{COMBINING OGONEK}",
+    "r": "\N{COMBINING RING ABOVE}", "d": "\N{COMBINING DOT BELOW}",
+    "b": "\N{COMBINING MACRON BELOW}"}
+_OZEL_HARF = {"i": "ı", "j": "ȷ", "o": "ø", "O": "Ø", "l": "ł", "L": "Ł",
+              "ss": "ß", "ae": "æ", "AE": "Æ", "oe": "œ", "OE": "Œ",
+              "aa": "å", "AA": "Å",
+              "LaTeXe": "LaTeX2\N{GREEK SMALL LETTER EPSILON}"}
+_LOGO = "TeX LaTeX BibTeX XeTeX XeLaTeX LuaTeX LuaLaTeX pdfTeX pdfLaTeX ConTeXt"
+# Komut adından sonraki boşluğu TeX yutuyor: "The \TeX book" -> "The TeXbook".
+_RE_OZEL_HARF = re.compile(r"\\(%s)(?![A-Za-z]) *" % "|".join(
+    list(_OZEL_HARF) + _LOGO.split()))
+_RE_AKSAN = re.compile(
+    r"\\([\"'`^~=.]|[uvHckrdb](?![A-Za-z])) *(\{[A-Za-zıȷ]?\}|[A-Za-zıȷ])")
+_RE_DERECE = re.compile(r"\$\^\{?\\circ\}?\$")
+
+
+def _aksan(m) -> str:
+    """`\\c{s}` -> ş. Aksanın altındaki `\\i` noktalı harfe dönüyor (í)."""
+    taban = m.group(2).strip("{}")
+    taban = {"ı": "i", "ȷ": "j"}.get(taban, taban)
+    if not taban:                           # `\^{}`: işaretin kendisi
+        return "" if m.group(1).isalpha() else m.group(1)
+    return unicodedata.normalize("NFC", taban + _AKSAN[m.group(1)])
+
 
 def _latex_okunur(metin: str) -> str:
     """`{$\\kappa$}`, `\\textsubscript{2}`, `\\textit{via}` -> κ, ₂, via."""
     metin = _RE_MAT_TEK.sub(
         lambda m: _YUNAN_TERS.get(m.group(1)) or _MAT_TERS.get(m.group(1))
         or m.group(0), metin)
+    metin = _RE_DERECE.sub("°", metin)
     metin = _RE_ALT_UST.sub(lambda m: "".join(
         (_ALT_TERS if m.group(1) == "sub" else _UST_TERS).get(c, c)
         for c in m.group(2)), metin)
+    metin = re.sub(r"(?<!\\)~", " ", metin)
+    metin = _RE_OZEL_HARF.sub(lambda m: _OZEL_HARF.get(m.group(1), m.group(1)), metin)
+    metin = _RE_AKSAN.sub(_aksan, metin)
+    metin = re.sub(r"\\([&%$#_])", r"\1", metin)
     return _RE_BICIM.sub(r"\1", metin).replace(r"\,", " ")
 
 
