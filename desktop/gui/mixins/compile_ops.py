@@ -549,11 +549,11 @@ class CompileOpsMixin:
 
         if not status_msg:
             if failed:
-                status_msg = _("Basarisiz") + f", {err_count} " + _("hata") + f" ({result.duration:.1f}s)"
+                status_msg = _("Başarısız") + f", {err_count} " + _("hata") + f" ({result.duration:.1f}s)"
             else:
-                status_msg = _("Basarili") + f" ({result.duration:.1f}s)"
+                status_msg = _("Başarılı") + f" ({result.duration:.1f}s)"
                 if warn_count:
-                    status_msg += f" | {warn_count} " + _("uyari")
+                    status_msg += f" | {warn_count} " + _("uyarı")
         self._status.showMessage(status_msg)
 
         # Derleme sonrası otomatik ileri-arama (TeXstudio alışkanlığı): imlecin

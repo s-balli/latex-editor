@@ -98,17 +98,17 @@ Enable it for '{k}'?
     </message>
     <message>
         <location filename="../gui/mixins/compile_ops.py" line="552" />
-        <source>Basarisiz</source>
+        <source>Başarısız</source>
         <translation>Failed</translation>
     </message>
     <message>
         <location filename="../gui/mixins/compile_ops.py" line="554" />
-        <source>Basarili</source>
+        <source>Başarılı</source>
         <translation>Successful</translation>
     </message>
     <message>
         <location filename="../gui/mixins/compile_ops.py" line="556" />
-        <source>uyari</source>
+        <source>uyarı</source>
         <translation>warning(s)</translation>
     </message>
     <message>
@@ -150,6 +150,18 @@ Enable it for '{k}'?
         <location filename="../gui/mixins/compile_ops.py" line="837" />
         <source>Manuel</source>
         <translation>Manual</translation>
+    </message>
+    <message>
+        <source>Basarisiz</source>
+        <translation type="vanished">Failed</translation>
+    </message>
+    <message>
+        <source>Basarili</source>
+        <translation type="vanished">Successful</translation>
+    </message>
+    <message>
+        <source>uyari</source>
+        <translation type="vanished">warning(s)</translation>
     </message>
 </context><context>
     <name>Compiler</name>
@@ -1143,79 +1155,79 @@ Reloading from disk will discard your changes.</translation>
 </context><context>
     <name>FindReplaceBar</name>
     <message>
-        <location filename="../gui/find_replace.py" line="453" />
+        <location filename="../gui/find_replace.py" line="458" />
         <source>Bul</source>
         <translation>Find</translation>
     </message>
     <message>
+        <location filename="../gui/find_replace.py" line="497" />
         <location filename="../gui/find_replace.py" line="492" />
-        <location filename="../gui/find_replace.py" line="487" />
         <source>Değiştir</source>
         <translation>Replace</translation>
     </message>
     <message>
-        <location filename="../gui/find_replace.py" line="1091" />
-        <location filename="../gui/find_replace.py" line="496" />
+        <location filename="../gui/find_replace.py" line="1096" />
+        <location filename="../gui/find_replace.py" line="501" />
         <source>Tümünü Değiştir</source>
         <translation>Replace All</translation>
     </message>
     <message>
-        <location filename="../gui/find_replace.py" line="512" />
+        <location filename="../gui/find_replace.py" line="517" />
         <source>Büyük/küçük harf eşleştir</source>
         <translation>Match case</translation>
     </message>
     <message>
-        <location filename="../gui/find_replace.py" line="513" />
+        <location filename="../gui/find_replace.py" line="518" />
         <source>İşaretliyse 'Şekil' ile 'şekil' ayrı sayılır</source>
         <translation>When checked, 'Figure' and 'figure' count as different</translation>
     </message>
     <message>
-        <location filename="../gui/find_replace.py" line="516" />
+        <location filename="../gui/find_replace.py" line="521" />
         <source>Tam kelime</source>
         <translation>Whole word</translation>
     </message>
     <message>
-        <location filename="../gui/find_replace.py" line="517" />
+        <location filename="../gui/find_replace.py" line="522" />
         <source>İşaretliyse 'fig' araması 'figure' içinde eşleşmez</source>
         <translation>When checked, searching 'fig' does not match inside 'figure'</translation>
     </message>
     <message>
-        <location filename="../gui/find_replace.py" line="520" />
+        <location filename="../gui/find_replace.py" line="525" />
         <source>Düzenli ifade</source>
         <translation>Regular expression</translation>
     </message>
     <message>
-        <location filename="../gui/find_replace.py" line="522" />
+        <location filename="../gui/find_replace.py" line="527" />
         <source>Desen araması: \d rakam, [A-Z] harf kümesi, a|b almaşık, (...) grup. Değiştirmede \1 yakalanan gruba karşılık gelir.</source>
         <translation>Pattern search: \d digit, [A-Z] character class, a|b alternation, (...) group. In the replacement, \1 refers to a captured group.</translation>
     </message>
     <message>
-        <location filename="../gui/find_replace.py" line="999" />
+        <location filename="../gui/find_replace.py" line="1004" />
         <source>Geçersiz desen</source>
         <translation>Invalid pattern</translation>
     </message>
     <message>
-        <location filename="../gui/find_replace.py" line="1001" />
+        <location filename="../gui/find_replace.py" line="1006" />
         <source>Sonuç yok</source>
         <translation>No results</translation>
     </message>
     <message>
-        <location filename="../gui/find_replace.py" line="1003" />
+        <location filename="../gui/find_replace.py" line="1008" />
         <source>{n}+ sonuç</source>
         <translation>{n}+ results</translation>
     </message>
     <message>
-        <location filename="../gui/find_replace.py" line="1005" />
+        <location filename="../gui/find_replace.py" line="1010" />
         <source>{n} sonuç</source>
         <translation>{n} results</translation>
     </message>
     <message>
-        <location filename="../gui/find_replace.py" line="1084" />
+        <location filename="../gui/find_replace.py" line="1089" />
         <source>{n} değişiklik</source>
         <translation>{n} changes</translation>
     </message>
     <message>
-        <location filename="../gui/find_replace.py" line="1092" />
+        <location filename="../gui/find_replace.py" line="1097" />
         <source>{n} değişiklik yapıldı ve güvenlik sınırına ulaşıldı.
 
 Belgede değiştirilmemiş eşleşmeler kalmış olabilir; işlemi tekrarlayarak kaldığı yerden sürdürebilirsiniz.</source>
@@ -3121,12 +3133,12 @@ Only http, https and mailto links are opened.</translation>
 </context><context>
     <name>QuickOpenDialog</name>
     <message>
-        <location filename="../gui/quick_open.py" line="106" />
+        <location filename="../gui/quick_open.py" line="114" />
         <source>Hızlı Dosya Aç</source>
         <translation>Quick Open</translation>
     </message>
     <message>
-        <location filename="../gui/quick_open.py" line="113" />
+        <location filename="../gui/quick_open.py" line="121" />
         <source>Dosya adı yazın: Enter açar, Esc kapatır</source>
         <translation>Type a file name: Enter opens, Esc closes</translation>
     </message>

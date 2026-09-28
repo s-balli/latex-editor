@@ -98,18 +98,18 @@ Bu izin belgenin BİLGİSAYARINIZDA KOMUT ÇALIŞTIRMASINA olanak verir. Yalnız
     </message>
     <message>
         <location filename="../gui/mixins/compile_ops.py" line="552" />
-        <source>Basarisiz</source>
-        <translation>Basarisiz</translation>
+        <source>Başarısız</source>
+        <translation>Başarısız</translation>
     </message>
     <message>
         <location filename="../gui/mixins/compile_ops.py" line="554" />
-        <source>Basarili</source>
-        <translation>Basarili</translation>
+        <source>Başarılı</source>
+        <translation>Başarılı</translation>
     </message>
     <message>
         <location filename="../gui/mixins/compile_ops.py" line="556" />
-        <source>uyari</source>
-        <translation>uyari</translation>
+        <source>uyarı</source>
+        <translation>uyarı</translation>
     </message>
     <message>
         <location filename="../gui/mixins/compile_ops.py" line="676" />
@@ -150,6 +150,18 @@ Bu izin belgenin BİLGİSAYARINIZDA KOMUT ÇALIŞTIRMASINA olanak verir. Yalnız
         <location filename="../gui/mixins/compile_ops.py" line="837" />
         <source>Manuel</source>
         <translation>Manuel</translation>
+    </message>
+    <message>
+        <source>Basarisiz</source>
+        <translation type="vanished">Basarisiz</translation>
+    </message>
+    <message>
+        <source>Basarili</source>
+        <translation type="vanished">Basarili</translation>
+    </message>
+    <message>
+        <source>uyari</source>
+        <translation type="vanished">uyari</translation>
     </message>
 </context><context>
     <name>Compiler</name>
@@ -1143,79 +1155,79 @@ Diskteki sürümü yüklerseniz yerel değişiklikleriniz kaybolacak.</translati
 </context><context>
     <name>FindReplaceBar</name>
     <message>
-        <location filename="../gui/find_replace.py" line="453" />
+        <location filename="../gui/find_replace.py" line="458" />
         <source>Bul</source>
         <translation>Bul</translation>
     </message>
     <message>
+        <location filename="../gui/find_replace.py" line="497" />
         <location filename="../gui/find_replace.py" line="492" />
-        <location filename="../gui/find_replace.py" line="487" />
         <source>Değiştir</source>
         <translation>Değiştir</translation>
     </message>
     <message>
-        <location filename="../gui/find_replace.py" line="1091" />
-        <location filename="../gui/find_replace.py" line="496" />
+        <location filename="../gui/find_replace.py" line="1096" />
+        <location filename="../gui/find_replace.py" line="501" />
         <source>Tümünü Değiştir</source>
         <translation>Tümünü Değiştir</translation>
     </message>
     <message>
-        <location filename="../gui/find_replace.py" line="512" />
+        <location filename="../gui/find_replace.py" line="517" />
         <source>Büyük/küçük harf eşleştir</source>
         <translation>Büyük/küçük harf eşleştir</translation>
     </message>
     <message>
-        <location filename="../gui/find_replace.py" line="513" />
+        <location filename="../gui/find_replace.py" line="518" />
         <source>İşaretliyse 'Şekil' ile 'şekil' ayrı sayılır</source>
         <translation>İşaretliyse 'Şekil' ile 'şekil' ayrı sayılır</translation>
     </message>
     <message>
-        <location filename="../gui/find_replace.py" line="516" />
+        <location filename="../gui/find_replace.py" line="521" />
         <source>Tam kelime</source>
         <translation>Tam kelime</translation>
     </message>
     <message>
-        <location filename="../gui/find_replace.py" line="517" />
+        <location filename="../gui/find_replace.py" line="522" />
         <source>İşaretliyse 'fig' araması 'figure' içinde eşleşmez</source>
         <translation>İşaretliyse 'fig' araması 'figure' içinde eşleşmez</translation>
     </message>
     <message>
-        <location filename="../gui/find_replace.py" line="520" />
+        <location filename="../gui/find_replace.py" line="525" />
         <source>Düzenli ifade</source>
         <translation>Düzenli ifade</translation>
     </message>
     <message>
-        <location filename="../gui/find_replace.py" line="522" />
+        <location filename="../gui/find_replace.py" line="527" />
         <source>Desen araması: \d rakam, [A-Z] harf kümesi, a|b almaşık, (...) grup. Değiştirmede \1 yakalanan gruba karşılık gelir.</source>
         <translation>Desen araması: \d rakam, [A-Z] harf kümesi, a|b almaşık, (...) grup. Değiştirmede \1 yakalanan gruba karşılık gelir.</translation>
     </message>
     <message>
-        <location filename="../gui/find_replace.py" line="999" />
+        <location filename="../gui/find_replace.py" line="1004" />
         <source>Geçersiz desen</source>
         <translation>Geçersiz desen</translation>
     </message>
     <message>
-        <location filename="../gui/find_replace.py" line="1001" />
+        <location filename="../gui/find_replace.py" line="1006" />
         <source>Sonuç yok</source>
         <translation>Sonuç yok</translation>
     </message>
     <message>
-        <location filename="../gui/find_replace.py" line="1003" />
+        <location filename="../gui/find_replace.py" line="1008" />
         <source>{n}+ sonuç</source>
         <translation>{n}+ sonuç</translation>
     </message>
     <message>
-        <location filename="../gui/find_replace.py" line="1005" />
+        <location filename="../gui/find_replace.py" line="1010" />
         <source>{n} sonuç</source>
         <translation>{n} sonuç</translation>
     </message>
     <message>
-        <location filename="../gui/find_replace.py" line="1084" />
+        <location filename="../gui/find_replace.py" line="1089" />
         <source>{n} değişiklik</source>
         <translation>{n} değişiklik</translation>
     </message>
     <message>
-        <location filename="../gui/find_replace.py" line="1092" />
+        <location filename="../gui/find_replace.py" line="1097" />
         <source>{n} değişiklik yapıldı ve güvenlik sınırına ulaşıldı.
 
 Belgede değiştirilmemiş eşleşmeler kalmış olabilir; işlemi tekrarlayarak kaldığı yerden sürdürebilirsiniz.</source>
@@ -3121,12 +3133,12 @@ Yalnızca http, https ve mailto bağlantıları açılıyor.</translation>
 </context><context>
     <name>QuickOpenDialog</name>
     <message>
-        <location filename="../gui/quick_open.py" line="106" />
+        <location filename="../gui/quick_open.py" line="114" />
         <source>Hızlı Dosya Aç</source>
         <translation>Hızlı Dosya Aç</translation>
     </message>
     <message>
-        <location filename="../gui/quick_open.py" line="113" />
+        <location filename="../gui/quick_open.py" line="121" />
         <source>Dosya adı yazın: Enter açar, Esc kapatır</source>
         <translation>Dosya adı yazın: Enter açar, Esc kapatır</translation>
     </message>

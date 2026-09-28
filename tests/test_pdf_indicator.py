@@ -20,7 +20,7 @@ import pytest
 try:
     from PyQt6.QtWidgets import QApplication
     from core.compiler import LatexCompiler
-    from core.log_parser import CompileResult
+    from core.log_parser import CompileResult, LatexWarning
     from gui.mixins.compile_ops import CompileOpsMixin
     from tests.stub_main import StubMain
 except ImportError:  # pragma: no cover
@@ -175,7 +175,7 @@ def test_clears_stale_pdf_on_total_failure(tmp_path, qapp):
     CompileOpsMixin._on_compile_finished(stub, result)
     assert stub._pdf_viewer.cleared is True
     assert stub._current_pdf == ""
-    assert "Basarisiz" in stub._status.msg
+    assert "Başarısız" in stub._status.msg
 
 
 def test_loads_partial_pdf_on_failure(tmp_path, qapp):
@@ -188,19 +188,24 @@ def test_loads_partial_pdf_on_failure(tmp_path, qapp):
     assert stub._pdf_viewer.cleared is False
     assert stub._pdf_viewer.loaded == str(fresh)
     assert stub._current_pdf == str(fresh)
-    assert "Basarisiz" in stub._status.msg
+    assert "Başarısız" in stub._status.msg
 
 
 def test_success_loads_pdf_no_clear(tmp_path, qapp):
-    """Başarılı → PDF yüklenir, temizlenmez."""
+    """Başarılı → PDF yüklenir, temizlenmez.
+
+    İleti Türkçe harfle: v1.1.2 exe'sinde durum çubuğu "Basarili",
+    "Basarisiz" ve "uyari" yazıyordu (ölçüldü 2026-09-28)."""
     fresh = tmp_path / "doc.pdf"
     fresh.write_bytes(b"%PDF full content")
     stub = _StubMain(tmp_path)
-    result = CompileResult(success=True, pdf_path=str(fresh))
+    result = CompileResult(success=True, pdf_path=str(fresh),
+                           warnings=[LatexWarning(message="w")])
     CompileOpsMixin._on_compile_finished(stub, result)
     assert stub._pdf_viewer.cleared is False
     assert stub._pdf_viewer.loaded == str(fresh)
-    assert "Basarili" in stub._status.msg
+    assert "Başarılı" in stub._status.msg
+    assert "| 1 uyarı" in stub._status.msg, stub._status.msg
 
 
 def test_clears_when_load_fails(tmp_path, qapp):
