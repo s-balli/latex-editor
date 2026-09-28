@@ -1675,7 +1675,7 @@ Some matches in the document may be unchanged; run the command again to continue
         <translation>Open File</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1022" />
+        <location filename="../gui/main_window.py" line="1025" />
         <location filename="../gui/main_window.py" line="872" />
         <source>Farklı Kaydet</source>
         <translation>Save As</translation>
@@ -1734,7 +1734,7 @@ Some matches in the document may be unchanged; run the command again to continue
         <translation>Toggle Comment</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1063" />
+        <location filename="../gui/main_window.py" line="1066" />
         <location filename="../gui/main_window.py" line="883" />
         <source>Satıra Git</source>
         <translation>Go to Line</translation>
@@ -1780,7 +1780,7 @@ Some matches in the document may be unchanged; run the command again to continue
         <translation>Stop Compilation</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1016" />
+        <location filename="../gui/main_window.py" line="1019" />
         <location filename="../gui/main_window.py" line="897" />
         <source>Sunum Modu</source>
         <translation>Presentation Mode</translation>
@@ -1807,7 +1807,7 @@ Some matches in the document may be unchanged; run the command again to continue
         <translation>Show position in PDF</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1069" />
+        <location filename="../gui/main_window.py" line="1072" />
         <location filename="../gui/main_window.py" line="900" />
         <source>Editör</source>
         <translation>Editor</translation>
@@ -2038,8 +2038,8 @@ Some matches in the document may be unchanged; run the command again to continue
     </message>
     <message>
         <location filename="../gui/main_window.py" line="982" />
-        <source>Tab genişliği, font boyutu ve satır kaydırma; kalıcıdır, tüm sekmelere uygulanır. Ctrl+tekerlek ile anlık zoom da vardır.</source>
-        <translation>Tab width, font size and word wrap; persistent, applied to all tabs. Ctrl+wheel zoom is also available.</translation>
+        <source>Tab genişliği, font boyutu, satır kaydırma, otomatik kaydetme ve açılıştaki güncelleme denetimi; kalıcıdır, tüm sekmelere uygulanır. Ctrl+tekerlek ile anlık zoom da vardır.</source>
+        <translation>Tab width, font size, word wrap, autosave and the startup update check; persistent, applied to all tabs. Ctrl+wheel zoom is also available.</translation>
     </message>
     <message>
         <location filename="../gui/main_window.py" line="984" />
@@ -2077,351 +2077,361 @@ Some matches in the document may be unchanged; run the command again to continue
         <translation>Live word/character count in status bar. Math content excluded.</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="998" />
+        <location filename="../gui/main_window.py" line="996" />
+        <source>Kod Katlama</source>
+        <translation>Code Folding</translation>
+    </message>
+    <message>
+        <location filename="../gui/main_window.py" line="997" />
+        <source>\begin/\end ortamlarını ve bölüm başlıklarını satır numaralarının yanındaki kenardan katlayın; bölüm, alt bölümleriyle birlikte katlanır.</source>
+        <translation>Fold \begin/\end environments and section headings from the margin next to the line numbers; a section folds together with its subsections.</translation>
+    </message>
+    <message>
+        <location filename="../gui/main_window.py" line="1001" />
         <source>Derleme Sonrası Otomatik Atlama</source>
         <translation>Auto-Jump After Compile</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="999" />
+        <location filename="../gui/main_window.py" line="1002" />
         <source>Başarılı derleme bitince PDF, imlecin olduğu yere SyncTeX ile otomatik kaydırılır.</source>
         <translation>After a successful compile, the PDF auto-scrolls to the cursor position via SyncTeX.</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1001" />
+        <location filename="../gui/main_window.py" line="1004" />
         <source>PDF Yer İmleri</source>
         <translation>PDF Bookmarks</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1002" />
+        <location filename="../gui/main_window.py" line="1005" />
         <source>PDF bölüm/başlık yapısına erişin, tıklayarak sayfaya gidin.</source>
         <translation>Access PDF section/heading structure, click to go to page.</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1004" />
+        <location filename="../gui/main_window.py" line="1007" />
         <source>PDF Arama</source>
         <translation>PDF Search</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1005" />
-        <source>Metin arayın, Enter ile sonraki eşleşmeye geçin.</source>
-        <translation>Search text, Enter to go to next match.</translation>
+        <location filename="../gui/main_window.py" line="1008" />
+        <source>Metin arayın, Enter ile sonraki eşleşmeye geçin. Satır sonunda bölünen sözcükler ve satırı aşan ifadeler de bulunur.</source>
+        <translation>Search text, Enter to go to next match. Words hyphenated at line ends and phrases that cross lines are found too.</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1007" />
+        <location filename="../gui/main_window.py" line="1010" />
         <source>PDF Metin Seçme</source>
         <translation>PDF Text Selection</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1008" />
+        <location filename="../gui/main_window.py" line="1011" />
         <source>Sürükleyerek metin seçin, Ctrl+C ile kopyalayın. Çift tık → kelime seç.</source>
         <translation>Drag to select text, Ctrl+C to copy. Double-click → select word.</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1010" />
+        <location filename="../gui/main_window.py" line="1013" />
         <source>Sayfaya Sığdır</source>
         <translation>Fit to Page</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1011" />
+        <location filename="../gui/main_window.py" line="1014" />
         <source>Genişliğe veya tam sayfaya sığdırma düğmeleri.</source>
         <translation>Fit to width or full page buttons.</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1013" />
+        <location filename="../gui/main_window.py" line="1016" />
         <source>Çift Sayfa Görünümü</source>
         <translation>Two-Page View</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1014" />
+        <location filename="../gui/main_window.py" line="1017" />
         <source>Sayfaları yan yana ikişerli gösterin.</source>
         <translation>Show pages side by side in pairs.</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1017" />
+        <location filename="../gui/main_window.py" line="1020" />
         <source>Tam ekran sunum. Ok tuşları, Page Up/Page Down (sunum kumandası), fare tekerleği ya da sol/sağ tık ile gezin; B ya da nokta ekranı karartır; slayttaki bağlantılar tıklanınca açılır.</source>
         <translation>Fullscreen presentation. Navigate with the arrow keys, Page Up/Page Down (presentation remote), the mouse wheel, or left/right click; B or period blanks the screen; links on slides open when clicked.</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1019" />
+        <location filename="../gui/main_window.py" line="1022" />
         <source>PDF Renk Tersi</source>
         <translation>PDF Color Invert</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1020" />
+        <location filename="../gui/main_window.py" line="1023" />
         <source>PDF renklerini ters çevirerek koyu modda görüntüleyin.</source>
         <translation>Invert PDF colors for dark mode viewing.</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1023" />
+        <location filename="../gui/main_window.py" line="1026" />
         <source>PDF'i başka bir konuma kopyalayın.</source>
         <translation>Copy PDF to another location.</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1027" />
+        <location filename="../gui/main_window.py" line="1030" />
         <source>Tema</source>
         <translation>Theme</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1028" />
+        <location filename="../gui/main_window.py" line="1031" />
         <source>7 tema: Koyu, Açık, Solarized, Dracula, Monokai, Nord, Gruvbox.</source>
         <translation>7 themes: Dark, Light, Solarized, Dracula, Monokai, Nord, Gruvbox.</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1030" />
+        <location filename="../gui/main_window.py" line="1033" />
         <source>Çoklu Dil</source>
         <translation>Multi-language</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1031" />
+        <location filename="../gui/main_window.py" line="1034" />
         <source>Türkçe ve İngilizce arayüz. Toolbar'dan dil değiştirin.</source>
         <translation>Turkish and English interface. Switch language from toolbar.</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1033" />
+        <location filename="../gui/main_window.py" line="1036" />
         <source>Akıllı Motor Algılama</source>
         <translation>Smart Engine Detection</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1034" />
+        <location filename="../gui/main_window.py" line="1037" />
         <source>fontspec → lualatex, inputenc → pdflatex otomatik seçilir.</source>
         <translation>fontspec → lualatex, inputenc → pdflatex auto-selected.</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1036" />
+        <location filename="../gui/main_window.py" line="1039" />
         <source>Eksik Paket Tespiti</source>
         <translation>Missing Package Detection</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1037" />
+        <location filename="../gui/main_window.py" line="1040" />
         <source>Derleme hatasında eksik .sty/.cls dosyasını yakalar, kurulum komutunu önerir.</source>
         <translation>Catches missing .sty/.cls on compile error, suggests install command.</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1039" />
+        <location filename="../gui/main_window.py" line="1042" />
         <source>Ortam Denetimi</source>
         <translation>Environment Check</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1040" />
+        <location filename="../gui/main_window.py" line="1043" />
         <source>WSL, TeX motorları, biber, pandoc ve synctex hazır mı tek ekranda gösterir; eksik olana kurulum komutu önerir (Yardım menüsü).</source>
         <translation>Shows in one dialog whether WSL, the TeX engines, biber, pandoc and synctex are ready, and suggests an install command for whatever is missing (Help menu).</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1042" />
+        <location filename="../gui/main_window.py" line="1045" />
         <source>Dışa Aktarma</source>
         <translation>Export</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1043" />
+        <location filename="../gui/main_window.py" line="1046" />
         <source>Pandoc ile HTML, DOCX, Markdown, TXT formatlarına dışa aktarın.</source>
         <translation>Export to HTML, DOCX, Markdown, TXT via pandoc.</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1045" />
+        <location filename="../gui/main_window.py" line="1048" />
         <source>Dosya İzleme</source>
         <translation>File Watching</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1046" />
-        <source>Açık dosyaların diskte değişmesini algılar, yeniden yükleme sunar.</source>
-        <translation>Detects external changes to open files, offers reload.</translation>
+        <location filename="../gui/main_window.py" line="1049" />
+        <source>Açık dosyaların diskte değişmesini algılar, yeniden yükleme sunar; WSL içindeki projelerde de.</source>
+        <translation>Detects external changes to open files, offers reload; also in projects inside WSL.</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1048" />
+        <location filename="../gui/main_window.py" line="1051" />
         <source>Otomatik Güncelleme Kontrolü</source>
         <translation>Auto Update Check</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1049" />
-        <source>Açılışta veya Yardım menüsünden yeni sürüm kontrolü.</source>
-        <translation>Check for new version on startup or via Help menu.</translation>
+        <location filename="../gui/main_window.py" line="1052" />
+        <source>Açılışta (günde en çok bir kez) veya Yardım menüsünden yeni sürüm kontrolü. Açılıştaki denetim Editör Ayarları'ndan kapatılabilir.</source>
+        <translation>Check for new version on startup (at most once a day) or via Help menu. The startup check can be turned off in Editor Settings.</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1051" />
+        <location filename="../gui/main_window.py" line="1054" />
         <source>Tek Instance Koruması</source>
         <translation>Single Instance Protection</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1052" />
+        <location filename="../gui/main_window.py" line="1055" />
         <source>Aynı anda tek pencere. İkinci kez açılan dosya (ör. 'Birlikte Aç') yeni pencere yerine çalışan uygulamada sekme olarak açılır.</source>
         <translation>One window at a time. A file opened again (e.g. via 'Open With') becomes a tab in the running application instead of a new window.</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1054" />
+        <location filename="../gui/main_window.py" line="1057" />
         <source>Geri Al / Yinele</source>
         <translation>Undo / Redo</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1055" />
+        <location filename="../gui/main_window.py" line="1058" />
         <source>Sınırsız geri al ve yinele.</source>
         <translation>Unlimited undo and redo.</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1057" />
+        <location filename="../gui/main_window.py" line="1060" />
         <source>Sürümleme</source>
         <translation>Versioning</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1058" />
+        <location filename="../gui/main_window.py" line="1061" />
         <source>Ctrl+K ile tüm değişiklikleri adlandırılmış bir sürüme kaydedin. Sürüm Geçmişi sekmesinde sağ tık: farkları gör, dosyayı geri yükle, o sürümdeki hâlini panoya kopyala ya da sürümü sil. Git bilgisine gerek yok; klasörde standart .git oluşur.</source>
         <translation>Save all changes as a named version with Ctrl+K. Right-click in the Version History tab: view diffs, restore the file, copy its state at that version to the clipboard, or delete the version. No git knowledge needed; a standard .git is created in the folder.</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1060" />
+        <location filename="../gui/main_window.py" line="1063" />
         <source>Çökme Kurtarma</source>
         <translation>Crash Recovery</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1061" />
-        <source>Kaydedilmemiş değişiklikler 30 saniyede bir uygulama veri dizinine yedeklenir. Uygulama öldürülür ya da elektrik giderse bir sonraki açılışta geri yüklenmesi önerilir; kendi dosyalarınıza dokunulmaz.</source>
-        <translation>Unsaved changes are snapshotted to the application data directory every 30 seconds. If the application is killed or the power goes out, you are offered them back on the next launch; your own files are never touched.</translation>
+        <location filename="../gui/main_window.py" line="1064" />
+        <source>Kaydedilmemiş değişiklikler 30 saniyede bir uygulama veri dizinine yedeklenir. Uygulama öldürülür ya da elektrik giderse bir sonraki açılışta geri yüklenmesi önerilir; siz kaydedene kadar kendi dosyalarınıza dokunulmaz. Dosya kopyadan sonra diskte değiştiyse geri yüklemeden önce söylenir.</source>
+        <translation>Unsaved changes are snapshotted to the application data directory every 30 seconds. If the application is killed or the power goes out, you are offered them back on the next launch; your own files are not touched until you save. If a file changed on disk after the copy was made, you are told before restoring.</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1064" />
+        <location filename="../gui/main_window.py" line="1067" />
         <source>Belirli bir satır numarasına hızlıca gidin.</source>
         <translation>Quickly jump to a specific line number.</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1072" />
+        <location filename="../gui/main_window.py" line="1075" />
         <source>PDF Görüntüleyici</source>
         <translation>PDF Viewer</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1075" />
+        <location filename="../gui/main_window.py" line="1078" />
         <source>Genel</source>
         <translation>General</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1081" />
+        <location filename="../gui/main_window.py" line="1084" />
         <source>Özellikler</source>
         <translation>Features</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1105" />
+        <location filename="../gui/main_window.py" line="1108" />
         <source>LaTeX editörü ve derleyici</source>
         <translation>LaTeX editor and compiler</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1106" />
+        <location filename="../gui/main_window.py" line="1109" />
         <source>Geliştirici:</source>
         <translation>Developer:</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1107" />
+        <location filename="../gui/main_window.py" line="1110" />
         <source>E-posta:</source>
         <translation>Email:</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1115" />
+        <location filename="../gui/main_window.py" line="1118" />
         <source>Tanıtım sayfası:</source>
         <translation>Website:</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1120" />
+        <location filename="../gui/main_window.py" line="1123" />
         <source>LaTeX Editor</source>
         <translation>LaTeX Editor</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1566" />
-        <location filename="../gui/main_window.py" line="1154" />
+        <location filename="../gui/main_window.py" line="1569" />
+        <location filename="../gui/main_window.py" line="1157" />
         <source>Dosya bulunamadı: {name}</source>
         <translation>File not found: {name}</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1205" />
+        <location filename="../gui/main_window.py" line="1208" />
         <source>Tanım</source>
         <translation>Definition</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1207" />
+        <location filename="../gui/main_window.py" line="1210" />
         <source>Tanım bulunamadı</source>
         <translation>Definition not found</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1239" />
-        <location filename="../gui/main_window.py" line="1231" />
+        <location filename="../gui/main_window.py" line="1242" />
+        <location filename="../gui/main_window.py" line="1234" />
         <source>Panoya kopyalandı, terminalde cd ile geçin:</source>
         <translation>Copied to clipboard, use cd in terminal:</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1268" />
-        <location filename="../gui/main_window.py" line="1264" />
+        <location filename="../gui/main_window.py" line="1271" />
+        <location filename="../gui/main_window.py" line="1267" />
         <source>Güncellemeler kontrol ediliyor...</source>
         <translation>Checking for updates...</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1303" />
+        <location filename="../gui/main_window.py" line="1306" />
         <source>Güncelleme Mevcut</source>
         <translation>Update Available</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1312" />
+        <location filename="../gui/main_window.py" line="1315" />
         <source>Yeni sürüm</source>
         <translation>New version</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1312" />
+        <location filename="../gui/main_window.py" line="1315" />
         <source>mevcut</source>
         <translation>available</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1313" />
+        <location filename="../gui/main_window.py" line="1316" />
         <source>Kullandığınız sürüm</source>
         <translation>Your version</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1320" />
+        <location filename="../gui/main_window.py" line="1323" />
         <source>Sürüm notları</source>
         <translation>Release notes</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1322" />
+        <location filename="../gui/main_window.py" line="1325" />
         <source>Notların tamamı Releases sayfasında.</source>
         <translation>Full notes are on the Releases page.</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1339" />
+        <location filename="../gui/main_window.py" line="1342" />
         <source>İndirmek için Releases sayfasını aç</source>
         <translation>Open Releases page to download</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1342" />
+        <location filename="../gui/main_window.py" line="1345" />
         <source>Şimdi indirip kurmak ister misiniz?</source>
         <translation>Would you like to download and install it now?</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1343" />
+        <location filename="../gui/main_window.py" line="1346" />
         <source>Tarayıcıda Aç</source>
         <translation>Open in Browser</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1344" />
+        <location filename="../gui/main_window.py" line="1347" />
         <source>Daha Sonra</source>
         <translation>Later</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1364" />
-        <location filename="../gui/main_window.py" line="1356" />
+        <location filename="../gui/main_window.py" line="1367" />
+        <location filename="../gui/main_window.py" line="1359" />
         <source>Güncellemeleri Kontrol Et</source>
         <translation>Check for Updates</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1357" />
+        <location filename="../gui/main_window.py" line="1360" />
         <source>En güncel sürümü kullanıyorsunuz</source>
         <translation>You are using the latest version</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1365" />
+        <location filename="../gui/main_window.py" line="1368" />
         <source>Güncelleme kontrol edilemedi, bağlantı kurulamadı.</source>
         <translation>Update check failed, connection could not be established.</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1527" />
+        <location filename="../gui/main_window.py" line="1530" />
         <source>Klasör bırakılamaz; açmak için Ctrl+O: {name}</source>
         <translation>A folder cannot be dropped; press Ctrl+O to open it: {name}</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1573" />
+        <location filename="../gui/main_window.py" line="1576" />
         <source>Bu dosya türü açılamıyor: {name}</source>
         <translation>Cannot open this file type: {name}</translation>
     </message>
@@ -2482,6 +2492,26 @@ Dictionary folder: {dizin}</translation>
         <location filename="../gui/mixins/yazim_ops.py" line="410" />
         <source>'{k}' sözlüğe eklenemedi, kullanıcı sözlüğü yazılamıyor</source>
         <translation>'{k}' could not be added: the user dictionary is not writable</translation>
+    </message>
+    <message>
+        <source>Tab genişliği, font boyutu ve satır kaydırma; kalıcıdır, tüm sekmelere uygulanır. Ctrl+tekerlek ile anlık zoom da vardır.</source>
+        <translation type="vanished">Tab width, font size and word wrap; persistent, applied to all tabs. Ctrl+wheel zoom is also available.</translation>
+    </message>
+    <message>
+        <source>Metin arayın, Enter ile sonraki eşleşmeye geçin.</source>
+        <translation type="vanished">Search text, Enter to go to next match.</translation>
+    </message>
+    <message>
+        <source>Açık dosyaların diskte değişmesini algılar, yeniden yükleme sunar.</source>
+        <translation type="vanished">Detects external changes to open files, offers reload.</translation>
+    </message>
+    <message>
+        <source>Açılışta veya Yardım menüsünden yeni sürüm kontrolü.</source>
+        <translation type="vanished">Check for new version on startup or via Help menu.</translation>
+    </message>
+    <message>
+        <source>Kaydedilmemiş değişiklikler 30 saniyede bir uygulama veri dizinine yedeklenir. Uygulama öldürülür ya da elektrik giderse bir sonraki açılışta geri yüklenmesi önerilir; kendi dosyalarınıza dokunulmaz.</source>
+        <translation type="vanished">Unsaved changes are snapshotted to the application data directory every 30 seconds. If the application is killed or the power goes out, you are offered them back on the next launch; your own files are never touched.</translation>
     </message>
     <message>
         <source>Tam ekran sunum. Ok tuşları, Page Up/Page Down (sunum kumandası), fare tekerleği ya da sol/sağ tık ile gezin; slayttaki bağlantılar tıklanınca açılır.</source>

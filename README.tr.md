@@ -51,6 +51,26 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 
 ## Sürüm Geçmişi
 
+### v1.1.2: Emin Ellerde
+
+- **Otomatik kaydetme, uygulama dışında yapılan bir değişikliği ezebiliyordu.** Dosya izleyici diskteki değişikliği sormadan önce yarım saniye bekliyor; otomatik kayıt tam o yarım saniyeye denk gelince değişikliğin üstüne soru sormadan yazıyordu. Kayıttan 0, 50, 200 ya da 400 ms önce gelen değişiklik kayboluyor, silinen dosya geri geliyordu. Otomatik kaydetme artık diskteki dosyayı son okuduğu ya da yazdığı hâlle karşılaştırıyor ve yazmak yerine soruyor.
+- **WSL içindeki projeler hiç izlenmiyordu.** Windows `\\wsl.localhost` altındaki bir dosyayı okuyabiliyor ama değişikliklerini bildirmiyor. WSL'de bir `git pull`dan sonra Ctrl+S, derleme öncesi kayıt, sürümleme ve otomatik kaydetme yeni içeriğin üstüne sormadan yazıyor, kaydedilmemiş değişikliği olmayan sekme de eski metni göstermeye devam ediyordu. Bu dosyalar artık iki saniyede bir denetleniyor ve değişiklik yerel diskteki gibi soruluyor.
+- **Otomatik kaydetme çökme kurtarmanın sözünü bozuyordu.** Geri yükleme sorusu diskteki dosyaya siz kaydedene kadar dokunulmayacağını söylüyor, ama ilk otomatik kayıt geri yüklenen kopyayı diske yazıyordu; dosya çökmeden sonra diskte değiştiyse (örneğin bir `git pull` ile) o değişiklik de kayboluyordu. Geri yüklenen sekmeler artık sizin kaydınızı bekliyor, soru da kopyadan sonra diskte değişen dosyaları sayıyor.
+- **Yeni Dosya ve Farklı Kaydet başka bir sekmede açık dosyanın üstüne yazabiliyordu.** İki sekme aynı dosyaya bağlanıyor, öbür sekmenin otomatik kaydı yeni içeriği eziyor, sekmelerden biri kapanınca öbürü için izleme de duruyordu. Başka sekmede açık bir dosya seçilince artık önce o sekmeyi kapatmanız isteniyor; sekmenin kendi dosyasına Farklı Kaydet çalışmaya devam ediyor.
+- **Kurtarma kopyası yazılamadığında fark edilmiyordu.** Kurtarma klasörüne yazılamazsa (dolu disk, izin) kopya oluşmuyor ve bunu hiçbir şey söylemiyordu. Artık durum çubuğu ve günlük bunu bir kez söylüyor.
+- **Proje özellikleri kaydedilmemiş metni görmüyordu.** Klasörde Ara, Referans Denetimi, Kaynakça sekmesi, `\ref` tamamlaması ve tanıma git bölüm dosyalarını ve `.bib`'i diskten okuyordu: yeni yazdığınız etiket "tanımsız" görünüyor, yeni girdi listede çıkmıyordu. Tablo sihirbazı, DOI ile Kaynak Ekle ve F2 ile yeniden adlandırma da ad çakışmasına bakarken kardeş bölümlerdeki etiketleri ve anahtarları kaçırıyordu. Hepsi artık açık sekmeleri ve projenin tamamını okuyor.
+- **Sonuç listeleri düzenlemeden sonra eski satıra gidiyordu.** Bir öğenin üstüne satır ekledikten sonra uyarıya, denetim bulgusuna, arama sonucuna, yazım bulgusuna ya da kaynakça satırına tıklamak, liste kurulduğu andaki satıra gidiyordu (14 adımın 3'ü doğru, şimdi 14'ü). F4 ve Hatalar listesi de hata düzeltilirken aynısını yapıyordu. Artık metni izliyorlar.
+- **Türkçe Q klavyede Ctrl+/ yorum satırı yapmıyordu**; bu düzende `/` Shift+7 ile yazılıyor. Kısayol bunun yerine kelimenin bir kısmını seçiyor, sonraki tuş da seçileni siliyordu. Komutu olmayan Ctrl birleşimleri (Ctrl+1, Ctrl+. gibi) belgeye karakter yazıyordu (44 basışın 35'i, şimdi hiçbiri).
+- **Kod katlama hiçbir şeyi katlamıyordu.** Katlama kenarı ilk sürümden beri vardı, ama hiçbir satırın katlama düzeyi yoktu. Ortamlar ve bölüm başlıkları artık katlanıyor; bölüm, alt bölümleriyle birlikte katlanıyor.
+- **DOI ile Kaynak Ekle kaynakçayı bozabiliyordu.** Crossref'ten Yunan harfi, alt simge ya da `<sub>` etiketiyle gelen başlıklar pdflatex'i durduruyor, lualatex ise karakterleri sessizce atlıyordu (19 gerçek kaydın 10'unda, şimdi hiçbirinde). plain gibi stiller NF-κB ve TiO2 gibi kısaltmaları ve formülleri küçültüyordu (21 kayıtta 47 bozuk sözcük, şimdi 5). Kaynakça sekmesi başlıkları okunur gösteriyor.
+- **Anahat başlıklara renk adı, etiket anahtarı ve adres karıştırıyordu** (18 yaygın biçimin 13'ünde); bu yüzden aynı bölüm iki kez listelenebiliyordu.
+- **LuaLaTeX'te PDF'e tıklamak çok dosyalı projelerde çoğu zaman başka dosyaya atlıyordu.** Gerçek bir tezde doğru satıra giden tıklama, yaklaşık 465 tıklamada 406'dan 460'a çıktı.
+- **PDF araması satır sonunda bölünen sözcükleri** ve sonraki satıra taşan ifadeleri bulmuyordu: 1659 sözcük geçişinin 252'si bulunamıyordu, şimdi 4'ü.
+- **Tez klasörü açılınca dosya ağacı donuyordu**: 80 bölüm dosyasıyla 4,7 saniye, şimdi 0,7 saniye.
+- **Sunum modu.** Kumandanın karartma düğmesi artık ekranı karartıyor, Shift+F5 de sunumu geçerli sayfadan başlatıyor.
+- **PDF araç çubuğunun düğmeleri üst üste biniyordu**, varsayılan pencere boyutunda bile. Sığmayan araçlar artık çubuğun sonundaki » menüsüne gidiyor.
+- **Gizlilik.** Bir [gizlilik politikası](PRIVACY.md) uygulamanın bilgisayarınızda ne tuttuğunu ve yaptığı yalnız iki ağ isteğini anlatıyor; açılıştaki güncelleme denetimi artık Görünüm → Editör Ayarları'ndan kapatılabiliyor.
+
 ### v1.1.1: Sahnede
 
 - **Sunum kumandaları çalışmıyordu.** Kumandalar Page Down ve Page Up gönderiyor; sunum modu ikisini de, Backspace'i de yok sayıyordu. Artık slayt değiştiriyorlar.

@@ -204,6 +204,13 @@ def test_landing_page_yeni_ozellikleri_iceriyor():
         # 1.1.1 sonrası: açılış güncelleme denetimi kapatılabiliyor. İlk
         # commit sayfaya dokunmadı ve CI'da yukarıdaki git kapısı düştü.
         "turn off the startup check", "açılıştaki denetimi",
+        # v1.1.2: katlama kartı ve dört kartın tazelenen metni; hepsi fix(
+        # olarak geldi, git tarihine bakan kapı onları göremiyordu.
+        "Code folding", "Kod katlama",
+        "also in projects inside WSL", "WSL içindeki projelerde de",
+        "changed on disk after the copy", "kopyadan sonra diskte değiştiyse",
+        "blackout button", "karartma düğmesi",
+        "hyphenated at line ends", "satır sonunda bölünen",
     ):
         assert beklenen in sayfa, f"tanıtım sayfasında yok: {beklenen}"
 

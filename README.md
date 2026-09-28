@@ -51,6 +51,26 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 
 ## Version History
 
+### v1.1.2: In Safe Hands
+
+- **Autosave could overwrite a change made outside the application.** The file watcher waits half a second before it asks about a change on disk, and an autosave landing in that half second wrote over the change without a question: a change arriving 0, 50, 200 or 400 ms before the autosave was lost, and a deleted file came back. Autosave now compares the file on disk with the version it last read or wrote, and asks instead of writing.
+- **Projects inside WSL were not watched at all.** Windows can read a file under `\\wsl.localhost` but does not report changes to it. After a `git pull` in WSL, Ctrl+S, the save before compiling, snapshots and autosave all wrote over the new content without asking, and a tab with no unsaved changes kept showing the old text. Such files are now checked every two seconds, and a change is asked about exactly as on a local disk.
+- **Autosave broke the crash recovery promise.** The restore question says the file on disk is not touched until you save, but the first autosave wrote the restored copy; if the file had changed on disk after the crash, for example through a `git pull`, that change was lost too. Restored tabs now wait for your own save, and the question lists the files that changed on disk after the copy was made.
+- **New File and Save As could write over a file that was open in another tab.** Both tabs then pointed at the same file, the other tab's autosave overwrote the new content, and closing one of them stopped watching the file for the other. Choosing a file that is open in another tab now asks you to close that tab first; Save As onto the tab's own file still works.
+- **A failing recovery copy went unnoticed.** When the recovery folder could not be written (full disk, permissions), no copy was made and nothing said so. The status bar and the log now say it once.
+- **Unsaved text was invisible to project features.** Search in Folder, the reference audit, the Bibliography tab, `\ref` completion and go to definition read chapter files and the `.bib` from disk, so a label you had just written was "undefined" and a new entry was missing. The table wizard, Add Source by DOI and F2 renaming missed labels and keys in sibling chapters when checking for name collisions. All of them now read open tabs and the whole project.
+- **Result lists jumped to the old line after editing.** After you added lines above an entry, clicking a warning, an audit finding, a search result, a spelling hit or a bibliography row went to the line it had when the list was built (3 of 14 steps right, now 14 of 14). F4 and the Errors list did the same while you were fixing an error. They now follow the text.
+- **Ctrl+/ did not toggle comments on a Turkish Q keyboard**, where `/` is Shift+7. It selected part of a word instead, and the next key replaced the selection. Ctrl combinations without a command, such as Ctrl+1 or Ctrl+., typed a character into the document (35 of 44 presses, now none).
+- **Code folding never folded anything.** The fold margin had been there since the first version, but no line carried a fold level. Environments and section headings now fold, and a section folds together with its subsections.
+- **Add Source by DOI could break the bibliography.** Crossref titles with Greek letters, subscripts or `<sub>` tags stopped pdflatex, and lualatex silently dropped the characters (10 of 19 real records, now none). Styles such as plain lowercased abbreviations and formulas like NF-κB and TiO2 (47 damaged words in 21 records, now 5). The Bibliography tab shows readable titles.
+- **The outline mixed colour names, label keys and addresses into headings** (13 of 18 common forms), so one chapter could be listed twice.
+- **Clicking the PDF with LuaLaTeX often jumped to another file** in multi-file projects. On a real thesis, clicks landing on the right line went from 406 to 460 of about 465.
+- **PDF search missed words hyphenated at line ends** and phrases that continue on the next line: 252 of 1659 word occurrences were not found, now 4.
+- **Opening a thesis folder froze the file tree** for 4.7 seconds with 80 chapter files; it now takes 0.7 seconds.
+- **Presentation mode.** The remote's blackout button now blanks the screen, and Shift+F5 starts the presentation from the current page.
+- **The PDF toolbar's buttons overlapped** even in the default window size. Tools that do not fit now go to a » menu at the end of the toolbar.
+- **Privacy.** A [privacy policy](PRIVACY.md) describes what the application stores on your computer and its only two network requests, and the startup update check can now be turned off in View → Editor Settings.
+
 ### v1.1.1: On Stage
 
 - **Presenter remotes did not work.** Remotes send Page Down and Page Up, and presentation mode ignored both, as well as Backspace. They now change slides.
