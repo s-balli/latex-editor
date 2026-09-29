@@ -669,7 +669,7 @@ Frontend `http://localhost:5173` adresinde çalışır.
 | `Ctrl+H` | Bul ve Değiştir |
 | `Ctrl+Shift+F` | Klasörde Ara (tüm proje dosyalarının içinde arar) |
 | `Ctrl+C` | Kopyala (PDF'te metin seçiliyse) |
-| `Ctrl+/` | Yorum Toggle |
+| `Ctrl+/` | Yorum Satırı Yap/Kaldır |
 | `Ctrl+G` | Satıra Git |
 | `Esc` | Derlemeyi Durdur / Sunum Modundan Çık |
 | `F5` | Sunum Modu (PDF) |

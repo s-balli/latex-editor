@@ -296,6 +296,35 @@ def test_disa_aktar_menusu_turkce_ve_kutuya_ayni_ad(ana_pencere, monkeypatch):
     assert gelen == [("Düz Metin", ".txt")], gelen
 
 
+def test_YORUM_komutu_TURKCE_arayuzde_ingilizce_kalmiyor(ana_pencere,
+                                                        monkeypatch):
+    """"Yorum Toggle" Türkçe arayüzde İngilizce kalmıştı: Düzenle menüsünde,
+    Klavye Kısayolları'nda ve Özellikler'de (ölçüldü 2026-09-29, v1.1.2
+    exe'si). Menü ve kısayol kutusu GERÇEKTEN kuruluyor, metin oradan."""
+    from PyQt6.QtWidgets import QMessageBox
+
+    w = ana_pencere()
+    metinler = []
+
+    def gez(menu):
+        for a in menu.actions():
+            metinler.append(a.text())
+            if a.menu():
+                gez(a.menu())
+
+    gez(w.menuBar())
+    assert "Yorum Sa&tırı Yap/Kaldır" in metinler, metinler
+    assert not [m for m in metinler if "Toggle" in m]
+
+    yakalanan = []
+    monkeypatch.setattr(QMessageBox, "information",
+                        lambda parent, baslik, metin, *a, **k:
+                        yakalanan.append(metin))
+    w._show_shortcuts()
+    assert yakalanan and "Ctrl+/ · Yorum Satırı Yap/Kaldır" in yakalanan[0]
+    assert "Toggle" not in yakalanan[0]
+
+
 @pytest.mark.parametrize("dizi", ["F5", "Shift+F5"])
 def test_SUNUM_baslat_tuslari_gecerli_sayfadan_aciyor(ana_pencere, tmp_path,
                                                      dizi):

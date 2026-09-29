@@ -441,7 +441,7 @@ class MainWindow(
         self._add_action(edit_menu, _("Klasörde &Ara..."), self._project_search,
                          "Ctrl+Shift+F", app_shortcut=True)
         edit_menu.addSeparator()
-        self._add_action(edit_menu, _("Yorum &Toggle"), self._toggle_comment)
+        self._add_action(edit_menu, _("Yorum Sa&tırı Yap/Kaldır"), self._toggle_comment)
         self._add_action(edit_menu, _("Satıra G&it..."), self._goto_line_dialog, "Ctrl+G")
         edit_menu.addSeparator()
         self._add_action(edit_menu, _("Tablo &Sihirbazı..."), self._table_wizard, "Ctrl+T", app_shortcut=True)
@@ -914,7 +914,7 @@ class MainWindow(
         html += "Ctrl+F · " + _("Bul") + "<br>"
         html += "Ctrl+Shift+F · " + _("Klasörde Ara") + "<br>"
         html += "Ctrl+H · " + _("Bul ve Değiştir") + "<br>"
-        html += "Ctrl+/ · " + _("Yorum Toggle") + "<br>"
+        html += "Ctrl+/ · " + _("Yorum Satırı Yap/Kaldır") + "<br>"
         html += "Ctrl+G · " + _("Satıra Git") + "<br>"
         html += "Ctrl+T · " + _("Tablo Sihirbazı") + "<br>"
         # Ctrl+Shift+Y buraya HİÇ yazılmamıştı ve Özellikler diyaloğu bunu
@@ -971,7 +971,7 @@ class MainWindow(
         left += "<b>" + _("Hızlı Dosya Aç") + " (Ctrl+P)</b><br>"
         left += "<span style='color:" + dim + "'>" + _("Dosya adını yaz, bulanık filtreyle bul, Enter ile aç. Klasör ağacındaki .tex/.bib/.cls/.sty dosyaları.") + "</span>"
         left += "<br><br>"
-        left += "<b>" + _("Yorum Toggle") + " (Ctrl+/)</b><br>"
+        left += "<b>" + _("Yorum Satırı Yap/Kaldır") + " (Ctrl+/)</b><br>"
         left += "<span style='color:" + dim + "'>" + _("Seçili satırları % ile yorum yapar/kaldırır.") + "</span>"
         left += "<br><br>"
         left += "<b>" + _("Tablo Sihirbazı") + " (Ctrl+T)</b><br>"
