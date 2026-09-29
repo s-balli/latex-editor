@@ -37,7 +37,9 @@ def test_ana_pencere_teardownu_DEFERREDDELETE_bosaltiyor():
     """Kirilirsa: teardown yine yalniz deleteLater cagiriyor demektir."""
     ck = _conftest_kaynagi()
     i = ck.index("def ana_pencere")
-    govde = ck[i:]
+    # Yalniz fixture'in kendi govdesi: asagidaki kanca da bosaltiyor ve
+    # aramaya girseydi bu satir silinse de kapi yesil kalirdi.
+    govde = ck[i:ck.index("def pytest_runtest_teardown")]
     # Sozlesme IKI parcali: once kuyruga al, sonra bosalt. Biri eksikse
     # teardown pencereyi yok etmiyor demektir.
     assert "w.deleteLater()" in govde, (
@@ -46,6 +48,18 @@ def test_ana_pencere_teardownu_DEFERREDDELETE_bosaltiyor():
         "ana_pencere teardown'u DeferredDelete kuyrugunu bosaltmiyor; "
         "olculdu: bu satir olmadan yuklu takim 6 kosunun 2'sinde 0xC0000409 "
         "ile dusuyor")
+
+
+def test_HER_testin_sonunda_bosaltiliyor():
+    """Kendi PdfViewer'ini kurup `deleteLater` ile biten testler de. Kosul
+    yalniz `ana_pencere`ydi; OLCULDU (2026-09-29, Linux tam takim): bekleyen
+    goruntuleyicinin rangeChanged vekili birakilmis lambda'yi cagirip SIGSEGV
+    veriyordu (bkz. conftest.pytest_runtest_teardown)."""
+    ck = _conftest_kaynagi()
+    kanca = ck[ck.index("def pytest_runtest_teardown"):]
+    assert "sendPostedEvents(None, QEvent.Type.DeferredDelete)" in kanca
+    govde = kanca[kanca.index("finally:"):]
+    assert "ana_pencere" not in govde, "bosaltma yine ana_pencere'ye bagli"
 
 
 def test_kardes_fixture_dersi_TASIMAYA_devam_ediyor():
@@ -59,6 +73,7 @@ def test_kardes_fixture_dersi_TASIMAYA_devam_ediyor():
 def test_kapi_BOS_KOSMUYOR():
     """Aranan dizge gercekten ayirt edici mi (desen bozulursa test yesil kalir)."""
     ck = _conftest_kaynagi()
-    assert ck.count("sendPostedEvents(None, QEvent.Type.DeferredDelete)") == 2, (
-        "beklenen iki gecis (kardes fixture + ana_pencere) yok")
+    # kardes fixture + ana_pencere sokumu + her testin sonu (pytest_runtest_teardown)
+    assert ck.count("sendPostedEvents(None, QEvent.Type.DeferredDelete)") == 3, (
+        "beklenen uc gecis (kardes fixture, ana_pencere, runtest_teardown) yok")
     pytest.importorskip("PyQt6")

@@ -134,6 +134,36 @@ def _sahipsiz_qsci_temizle():
         app.processEvents()
 
 
+@pytest.fixture(autouse=True)
+def _sahte_cop_kutusu(monkeypatch, tmp_path_factory):
+    """Testler GERÇEK çöp kutusuna bir şey atmasın; atılan geçici dizine.
+
+    `send2trash` Windows'ta kullanıcının Geri Dönüşüm Kutusu'na, Linux'ta ev
+    dizinindeki çöpe yazıyor. `test_drop_all_without_open_editor` her
+    koşuda gerçek bir `.git` klasörünü oraya yolluyordu. Dönen liste
+    atılan yolları tutuyor.
+    """
+    try:
+        import send2trash
+    except ImportError:
+        yield []
+        return
+    import shutil
+
+    atilan = []
+
+    def _at(yol):
+        yol = os.fspath(yol)
+        if not os.path.lexists(yol):
+            raise OSError("yok: %s" % yol)
+        hedef = tmp_path_factory.mktemp("cop")
+        shutil.move(yol, os.path.join(hedef, os.path.basename(yol)))
+        atilan.append(yol)
+
+    monkeypatch.setattr(send2trash, "send2trash", _at)
+    yield atilan
+
+
 @pytest.fixture
 def ana_pencere(monkeypatch, tmp_path):
     """GERÇEK MainWindow üreten fabrika (tek kaynak).
@@ -281,15 +311,23 @@ def pytest_runtest_teardown(item):
       her testin penceresi bir sonrakinde zombiydi.
 
     İkisiyle her pencere kurulurken zombi 0/21 ve aynı döngü 40 koşuda hiç
-    çökmedi. İki adım da yalnız `ana_pencere` kullanan testlerde, çünkü her
-    testte gc.collect takımı 57 sn'den 96 sn'ye çıkarıyordu (bkz.
+    çökmedi. gc.collect yalnız `ana_pencere` kullanan testlerde, çünkü her
+    testte takımı 57 sn'den 96 sn'ye çıkarıyordu (bkz.
     `_sahipsiz_qsci_temizle`).
+
+    BOŞALTMA ise ARTIK HER TESTTE (ucuz: bekleyen silme yoksa hiçbir şey
+    yapmıyor). Kendi `PdfViewer`ını kuran testler (`v.deleteLater()` ile
+    bitiyor) boşaltılmıyordu: görüntüleyiciler C++'ta canlı birikiyor, Python
+    tarafı toplanınca kaydırma çubuğunun `rangeChanged` vekili bırakılmış
+    lambda'yı çağırıyordu. ÖLÇÜLDÜ (2026-09-29, Linux, tam takım, aynı
+    LD_PRELOAD yığını): iki koşunun ikisinde test_pdf_viewer_tema'da küresel
+    stil değişince SIGSEGV; yığın QScrollArea::eventFilter ->
+    QAbstractSlider::setRange -> rangeChanged -> PyQt vekili -> Python
+    çerçevesi (_ui_setup.py'deki lambda).
     """
     try:
         return (yield)
     finally:
-        if "ana_pencere" in getattr(item, "fixturenames", ()):
-            from PyQt6.QtCore import QCoreApplication, QEvent
-            if QCoreApplication.instance() is not None:
-                QCoreApplication.sendPostedEvents(
-                    None, QEvent.Type.DeferredDelete)
+        _app, _qsci, QCoreApplication, QEvent = _qt()
+        if QCoreApplication is not None and QCoreApplication.instance() is not None:
+            QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
