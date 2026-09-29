@@ -1,8 +1,33 @@
 """Merkezi stylesheet oluşturucu — tema sözlüğünden CSS üretir."""
 
 
-def build_stylesheet(t: dict) -> str:
+def _fusion_isaret_kurallari(t: dict) -> str:
+    """Fusion biçeminde (Linux'un öntanımlısı) onay kutusu karesi.
+
+    Evrensel `* {{ background }}` kuralı Fusion'un kareyi o zeminle çizmesine
+    yol açıyor. ÖLÇÜLDÜ (2026-09-29, v1.1.2 AppImage, WSLg, koyu tema):
+    işaretsiz karenin kenarlığı zeminle aynı renk (#1e1e1e, karşıtlık 1.00),
+    yani kutu görünmüyordu. Windows'un yerli biçemi kareyi kendi çiziyor, o
+    yüzden kural yalnız Fusion'da. Renkler arayüz öğesi eşiğini (3:1) yedi
+    temada da geçiyor: kenarlık `fg_muted` 4.07-5.50, dolgu `accent`
+    3.14-9.58 (`border_input` 1.45-2.24 ile tutmuyordu).
+    """
     return f"""
+        QCheckBox::indicator {{
+            width: 12px; height: 12px; border: 1px solid {t["fg_muted"]};
+            border-radius: 2px; background: {t["bg_primary"]};
+        }}
+        QCheckBox::indicator:checked {{
+            background: {t["accent"]}; border: 1px solid {t["accent"]};
+        }}
+        QCheckBox::indicator:disabled {{ border: 1px solid {t["border_mid"]}; }}
+    """
+
+
+def build_stylesheet(t: dict, fusion: bool = False) -> str:
+    """``fusion``: uygulama Fusion biçemiyle mi çiziliyor (bkz.
+    `_fusion_isaret_kurallari`)."""
+    return (_fusion_isaret_kurallari(t) if fusion else "") + f"""
         /* === Genel === */
         * {{ background: {t["bg_primary"]}; color: {t["fg_primary"]}; }}
         QMainWindow {{ background: {t["bg_primary"]}; }}

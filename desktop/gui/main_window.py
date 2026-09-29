@@ -701,7 +701,8 @@ class MainWindow(
     def _apply_theme(self, t: dict = None):
         if t is None:
             t = self._theme_mgr.theme
-        self.setStyleSheet(build_stylesheet(t))
+        self.setStyleSheet(build_stylesheet(
+            t, fusion=QApplication.style().name().lower() == "fusion"))
         self._engine_label.setStyleSheet(
             f"color: {t['fg_label']}; font-weight: bold;"
         )

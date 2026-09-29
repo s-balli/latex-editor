@@ -308,3 +308,56 @@ def test_hover_zemini_normal_sekmeden_AYIRT_EDILEBILIR():
             silik.append("%s (%.3f)" % (ad, fark))
 
     assert not silik, "hover zemini normal sekmeden ayırt edilemiyor: %s" % silik
+
+
+@gui
+@pytest.mark.parametrize("ad", sorted(THEMES))
+def test_FUSION_onay_kutusu_karesi_GORUNUYOR(qapp, ad):
+    """Evrensel `* { background }` kuralı Fusion'un (Linux'un öntanımlısı)
+    kareyi o zeminle çizmesine yol açıyordu. ÖLÇÜLDÜ (2026-09-29, v1.1.2
+    AppImage, WSLg, koyu tema): işaretsiz karenin kenarlığı zeminle aynı
+    renk, karşıtlık 1.00. Kutu GERÇEKTEN Fusion'la çiziliyor (biçem kutuya
+    özel, uygulamanınki değişmiyor); ölçüt arayüz öğesi eşiği 3:1."""
+    from PyQt6.QtGui import QColor
+    from PyQt6.QtWidgets import QCheckBox, QStyleFactory
+    from gui.stylesheet import build_stylesheet
+
+    t = THEMES[ad]
+    kap = QWidget()
+    kap.setStyleSheet(build_stylesheet(t, fusion=True))
+    kutu = QCheckBox("x", kap)
+    bicem = QStyleFactory.create("Fusion")
+    kutu.setStyle(bicem)
+    try:
+        kap.resize(80, 30)
+        kap.show()
+        qapp.processEvents()
+        zemin = _coz(t["bg_primary"])
+        for isaretli in (False, True):
+            kutu.setChecked(isaretli)
+            qapp.processEvents()
+            img = kutu.grab().toImage()
+            en_iyi = max(
+                _karsitlik(QColor(img.pixel(x, y)).getRgb()[:3], zemin)
+                for y in range(img.height()) for x in range(min(18, img.width())))
+            assert en_iyi >= 3.0, "%s işaretli=%s karşıtlık %.2f" % (ad, isaretli, en_iyi)
+    finally:
+        kap.close()
+        kap.deleteLater()
+
+
+@gui
+@pytest.mark.parametrize("bicem, kural_var", [("fusion", True),
+                                              ("windowsvista", False)])
+def test_PENCERE_kare_kuralini_BICEME_gore_ekliyor(ana_pencere, monkeypatch,
+                                                  bicem, kural_var):
+    """Yukarıdaki kapı stil sayfasını `fusion=True` ile KENDİSİ kuruyor;
+    pencerenin bayrağı uygulamanın gerçek biçeminden geçirdiğini görmüyor.
+    Kural yalnız Fusion'da: kusur orada ölçüldü."""
+    import types
+
+    w = ana_pencere()
+    monkeypatch.setattr(QApplication, "style", staticmethod(
+        lambda: types.SimpleNamespace(name=lambda: bicem)))
+    w._apply_theme()
+    assert ("QCheckBox::indicator" in w.styleSheet()) is kural_var
