@@ -580,6 +580,15 @@ def parse_output(raw: str, source_file: str = "") -> CompileResult:
         result.errors.append(current_error)
 
     result.errors = _tekille(result.errors)
+    # derle.sh öneriyi de hatalar gibi İKİ kez basıyor (ilk geçişin raporu ve
+    # son rapor). ÖLÇÜLDÜ (2026-09-28, v1.1.2 exe'si, gerçek derle.sh): eksik
+    # okumacro.sty için Öneriler'de aynı paket ve komut iki kez listeleniyordu.
+    tekil: list[LatexSuggestion] = []
+    for s in result.suggestions:
+        if (s.message, s.install_command) not in {
+                (t.message, t.install_command) for t in tekil}:
+            tekil.append(s)
+    result.suggestions = tekil
 
     # Eksik glifler: yazı tipi başına tek uyarı. Mesaj ilk GERÇEK log satırını
     # koruyor (error_hints deseni yazı tipi adını oradan çıkarıyor); sayılar

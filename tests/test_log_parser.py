@@ -185,6 +185,21 @@ class TestSuggestions:
         r = parse_output("    sudo apt-get install something")
         assert len(r.suggestions) == 0
 
+    def test_derle_sh_IKI_KEZ_basinca_oneri_TEK(self):
+        """derle.sh öneriyi ilk geçişin raporunda ve son raporda iki kez
+        basıyor (satırlar gerçek derle.sh çıktısından, 2026-09-28); Öneriler'de
+        aynı paket iki kez görünüyordu. Farklı paketler ayrı kalmalı."""
+        blok = ("  ./eksik.tex:2: LaTeX Error: File `okumacro.sty' not found.\n"
+                "==> Eksik paket: texlive-lang-japanese (okumacro.sty)\n"
+                "    sudo apt-get install texlive-lang-japanese\n")
+        r = parse_output("[hata] eksik.tex derleme basarisiz:\n" + blok
+                         + "==> Eksik paket: texlive-science (siunitx.sty)\n"
+                         + "[hata] eksik.tex PDF olusmadi\n" + blok)
+        assert [(s.message, s.install_command) for s in r.suggestions] == [
+            ("Eksik paket: texlive-lang-japanese (okumacro.sty)",
+             "sudo apt-get install texlive-lang-japanese"),
+            ("Eksik paket: texlive-science (siunitx.sty)", "")]
+
 
 # --- Motor önerisi ---
 
