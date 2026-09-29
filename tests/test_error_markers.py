@@ -177,12 +177,18 @@ def _derlenmis(ana_pencere, tmp_path):
 
 def _onsoze_satir_ekle(ed, n=1):
     """Kullanıcının onarımı, gerçek tuşla: `\\documentclass` satırının
-    sonunda Enter. İki hata da n satır aşağı kayıyor."""
+    sonunda Enter. İki hata da n satır aşağı kayıyor.
+
+    İmleç satır sonuna DOĞRUDAN konuyor. Önce Ctrl+Home ve End ile
+    gidiliyordu; macOS'ta Qt Ctrl'yi Command tuşuna eşliyor, Home ve End de
+    orada satır başı ve sonu değil. ÖLÇÜLDÜ (2026-09-29, macos-15): bu
+    yardımcıyı kullanan dört testin dördü aşağıdaki denetimde düştü, iki
+    hata 5 ve 9'da kaldı, yani Enter onların üstüne düşmedi. Onarım yine
+    gerçek Enter tuşu."""
     from PyQt6.QtCore import Qt
     from PyQt6.QtTest import QTest
 
-    QTest.keyClick(ed, Qt.Key.Key_Home, Qt.KeyboardModifier.ControlModifier)
-    QTest.keyClick(ed, Qt.Key.Key_End)
+    ed.setCursorPosition(0, len(ed.text(0).rstrip("\r\n")))
     for _ in range(n):
         QTest.keyClick(ed, Qt.Key.Key_Return)
     assert (_satiri(ed, "\\hatabir"), _satiri(ed, "\\hataiki")) == (5 + n, 9 + n)
