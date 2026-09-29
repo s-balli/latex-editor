@@ -222,6 +222,13 @@ _RE_LABELARG = re.compile(r'\\label\s*\{([^}]*)\}')
 # `gui.editor._decode_bytes` diye alıyor.
 _decode_bytes = coz_adiyla
 
+# Tek seçenekli `\usepackage[latin5]{inputenc}`: dosya UTF-8'e çevrilince bu
+# seçenek de `utf8` olmalı, yoksa belge derlenmiyor (bkz.
+# `EditorWidget._inputenc_utf8_yap`). Birden çok seçenekli biçime
+# dokunulmuyor: hangisinin geçerli olduğunu tahmin etmek belgeyi bozabilir.
+_RE_TEK_INPUTENC = re.compile(
+    r"\\usepackage\s*\[\s*([A-Za-z][A-Za-z0-9-]*)\s*\]\s*\{\s*inputenc\s*\}")
+
 
 class EditorWidget(QsciScintilla):
     forward_search_requested = pyqtSignal(str, int, int)  # file_path, line(1-based), col(1-based)
@@ -1389,18 +1396,73 @@ class EditorWidget(QsciScintilla):
                         self._encoding, karakter, self._file_path)
         if sessiz:
             return False
+        soru = _("Bu dosya {enc} kodlamasında ve {ch} karakteri o kodlamada "
+                 "yok, bu yüzden kaydedilemiyor.\n\n"
+                 "Dosya UTF-8'e dönüştürülsün mü? (önerilen)").format(
+                     enc=self._encoding, ch=repr(karakter))
+        eski = self._eski_inputenc()
+        if eski:
+            soru += "\n\n" + _(
+                "Belgedeki \\usepackage[{eski}]{{inputenc}} satırı da "
+                "\\usepackage[utf8]{{inputenc}} yapılacak; yoksa belge "
+                "derlenmez.").format(eski=eski[0])
         yanit = QMessageBox.question(
-            self, _("Kodlama Yetersiz"),
-            _("Bu dosya {enc} kodlamasında ve {ch} karakteri o kodlamada yok, "
-              "bu yüzden kaydedilemiyor.\n\n"
-              "Dosya UTF-8'e dönüştürülsün mü? (önerilen)").format(
-                  enc=self._encoding, ch=repr(karakter)),
+            self, _("Kodlama Yetersiz"), soru,
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.Yes,
         )
         if yanit != QMessageBox.StandardButton.Yes:
             return False
         self._encoding = "utf-8"
+        return True
+
+    def _eski_inputenc(self):
+        """Belgenin YORUMSUZ ilk `\\usepackage[X]{inputenc}` satırı, X utf8
+        değilse: (X, seçeneğin başı, sonu) karakter ofsetiyle; yoksa None."""
+        metin = self.text()
+        for m in _RE_TEK_INPUTENC.finditer(metin):
+            satir_basi = metin.rfind("\n", 0, m.start()) + 1
+            if re.search(r"(?<!\\)%", metin[satir_basi:m.start()]):
+                continue                      # yorum satırı
+            if m.group(1).lower() in ("utf8", "utf8x"):
+                return None
+            return m.group(1), m.start(1), m.end(1)
+        return None
+
+    def _inputenc_utf8_yap(self) -> bool:
+        r"""Dosya UTF-8'e çevrilirken `\usepackage[latin5]{inputenc}`i
+        `[utf8]` yap. Değiştiyse True; TEK geri alma adımı, imleç yerinde.
+
+        NEDEN. Uygulama eski kodlamalı dosyayı iki yoldan UTF-8'e çeviriyor:
+        "Kodlama Yetersiz" sorusuna Evet ve Farklı Kaydet. İkisi de yalnız
+        baytları çeviriyordu. ÖLÇÜLDÜ (2026-09-29, v1.1.2 exe, gerçek
+        derle.sh): cp1254 + `[latin5]{inputenc}` bir belgeye α yazıp
+        önerilen Evet'e basınca derleme üç hatayla düştü ("Keyboard
+        character used is undefined in inputencoding latin5" ve iki
+        "Missing $ inserted"), PDF'te Türkçe harfler "ÄÃ¼Å" oldu.
+        """
+        eski = self._eski_inputenc()
+        if not eski:
+            return False
+        _ad, bas, son = eski
+        metin = self.text()
+        satir = metin.count("\n", 0, bas)
+        satir_basi = metin.rfind("\n", 0, bas) + 1
+        imlec = self.getCursorPosition()
+        ilk_gorunen = self.firstVisibleLine()
+        self.beginUndoAction()
+        try:
+            self.setSelection(satir, bas - satir_basi, satir, son - satir_basi)
+            self.replaceSelectedText("utf8")
+        finally:
+            self.endUndoAction()
+        kayma = len("utf8") - (son - bas)
+        if imlec[0] == satir and imlec[1] > bas - satir_basi:
+            imlec = (imlec[0], max(0, imlec[1] + kayma))
+        self.setCursorPosition(*imlec)
+        self.setFirstVisibleLine(ilk_gorunen)
+        _logger.info("inputenc %s -> utf8 (dosya UTF-8'e çevrildi): %s",
+                     _ad, self._file_path)
         return True
 
     def save_file(self, sessiz: bool = False) -> bool:
@@ -1428,6 +1490,10 @@ class EditorWidget(QsciScintilla):
             except UnicodeEncodeError as e:
                 if not self._utf8e_donustur(e, sessiz):
                     return False
+                if self._inputenc_utf8_yap():
+                    content = lf_ye_indir(self.text())
+                    if self._newline == "crlf":
+                        content = content.replace("\n", "\r\n")
                 self._write_atomic(self._file_path, content, self._encoding)
             self.setModified(False)
             return True
@@ -1450,8 +1516,13 @@ class EditorWidget(QsciScintilla):
         self._file_path = os.path.normpath(path)
         self._encoding = "utf-8"  # yeni dosya -> modern varsayılan
         self._newline = "lf"      # LaTeX dünyası tercihi; platform bağımsız
+        # Eski kodlamalı belge UTF-8 yazılıyor: bildirimi de öyle olmalı
+        # (bkz. `_inputenc_utf8_yap`). Yazma düşerse değişiklik geri alınıyor.
+        bildirim = eski[1] != "utf-8" and self._inputenc_utf8_yap()
         if self.save_file():
             return True
+        if bildirim:
+            self.undo()
         self._file_path, self._encoding, self._newline = eski
         return False
 

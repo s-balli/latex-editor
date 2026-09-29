@@ -540,69 +540,69 @@ References are now inconsistent. Grant write permission to these files and retry
 </context><context>
     <name>EditorWidget</name>
     <message>
-        <location filename="../gui/editor.py" line="562" />
+        <location filename="../gui/editor.py" line="569" />
         <source>Geri Al</source>
         <translation>Undo</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="564" />
+        <location filename="../gui/editor.py" line="571" />
         <source>Yinele</source>
         <translation>Redo</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="567" />
+        <location filename="../gui/editor.py" line="574" />
         <source>Kes</source>
         <translation>Cut</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="568" />
+        <location filename="../gui/editor.py" line="575" />
         <source>Kopyala</source>
         <translation>Copy</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="569" />
+        <location filename="../gui/editor.py" line="576" />
         <source>Yapıştır</source>
         <translation>Paste</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="571" />
+        <location filename="../gui/editor.py" line="578" />
         <source>Sil</source>
         <translation>Delete</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="573" />
+        <location filename="../gui/editor.py" line="580" />
         <source>Tümünü Seç</source>
         <translation>Select All</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1247" />
-        <location filename="../gui/editor.py" line="1242" />
+        <location filename="../gui/editor.py" line="1254" />
+        <location filename="../gui/editor.py" line="1249" />
         <source>İkili (binary) dosya; metin editöründe açılamaz.</source>
         <translation>Binary file; cannot be opened in the text editor.</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1294" />
-        <location filename="../gui/editor.py" line="1285" />
+        <location filename="../gui/editor.py" line="1301" />
+        <location filename="../gui/editor.py" line="1292" />
         <source>Kodlama Uyarısı</source>
         <translation>Encoding Warning</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1286" />
+        <location filename="../gui/editor.py" line="1293" />
         <source>Bu dosya UTF-16 kodlamalı ve LaTeX UTF-16 okuyamaz. UTF-8'e çevrilerek açıldı; dosya ilk kaydedildiğinde UTF-8 olacak. Otomatik kaydetme ve derlemeden önceki kayıt da buna dahil.</source>
         <translation>This file is UTF-16 encoded, and LaTeX cannot read UTF-16. It has been opened converted to UTF-8; the file becomes UTF-8 the first time it is saved. Autosave and the save before compiling count as well.</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1295" />
+        <location filename="../gui/editor.py" line="1302" />
         <source>Bu dosya UTF-8 değil ({enc}). {enc} olarak açıldı ve aynı kodlamayla kaydedilecek. Sorunsuz derleme için UTF-8'e dönüştürmeniz önerilir.</source>
         <translation>This file is not UTF-8 ({enc}). It was opened as {enc} and will be saved with the same encoding. Converting it to UTF-8 is recommended for trouble-free compilation.</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1302" />
+        <location filename="../gui/editor.py" line="1309" />
         <source>Dosya Açma Hatası</source>
         <translation>File Open Error</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1302" />
+        <location filename="../gui/editor.py" line="1309" />
         <source>Dosya açılamadı:
 {path}
 
@@ -613,12 +613,7 @@ References are now inconsistent. Grant write permission to these files and retry
 {e}</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1393" />
-        <source>Kodlama Yetersiz</source>
-        <translation>Encoding Cannot Represent Text</translation>
-    </message>
-    <message>
-        <location filename="../gui/editor.py" line="1394" />
+        <location filename="../gui/editor.py" line="1399" />
         <source>Bu dosya {enc} kodlamasında ve {ch} karakteri o kodlamada yok, bu yüzden kaydedilemiyor.
 
 Dosya UTF-8'e dönüştürülsün mü? (önerilen)</source>
@@ -627,12 +622,22 @@ Dosya UTF-8'e dönüştürülsün mü? (önerilen)</source>
 Convert the file to UTF-8? (recommended)</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1437" />
+        <location filename="../gui/editor.py" line="1405" />
+        <source>Belgedeki \usepackage[{eski}]{{inputenc}} satırı da \usepackage[utf8]{{inputenc}} yapılacak; yoksa belge derlenmez.</source>
+        <translation>The document&apos;s \usepackage[{eski}]{{inputenc}} line will also become \usepackage[utf8]{{inputenc}}; otherwise the document will not compile.</translation>
+    </message>
+    <message>
+        <location filename="../gui/editor.py" line="1410" />
+        <source>Kodlama Yetersiz</source>
+        <translation>Encoding Cannot Represent Text</translation>
+    </message>
+    <message>
+        <location filename="../gui/editor.py" line="1503" />
         <source>Kaydetme Hatası</source>
         <translation>Save Error</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1437" />
+        <location filename="../gui/editor.py" line="1503" />
         <source>Dosya kaydedilemedi:
 {path}
 
@@ -643,7 +648,7 @@ Convert the file to UTF-8? (recommended)</translation>
 {e}</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1462" />
+        <location filename="../gui/editor.py" line="1533" />
         <source>Yeni Dosya</source>
         <translation>New File</translation>
     </message>
@@ -757,7 +762,7 @@ Convert the file to UTF-8? (recommended)</translation>
         <translation>New File</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="307" />
+        <location filename="../gui/mixins/file_ops.py" line="317" />
         <location filename="../gui/mixins/file_ops.py" line="147" />
         <source>LaTeX Dosyaları (*.tex);;Tüm Dosyalar (*)</source>
         <translation>LaTeX Files (*.tex);;All Files (*)</translation>
@@ -796,32 +801,32 @@ Open it?</translation>
         <translation>Not opened: {ad}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="285" />
+        <location filename="../gui/mixins/file_ops.py" line="295" />
         <source>Motor algılandı</source>
         <translation>Engine detected</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="306" />
+        <location filename="../gui/mixins/file_ops.py" line="316" />
         <source>Farklı Kaydet</source>
         <translation>Save As</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="405" />
+        <location filename="../gui/mixins/file_ops.py" line="415" />
         <source>(boş)</source>
         <translation>(empty)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="431" />
+        <location filename="../gui/mixins/file_ops.py" line="441" />
         <source>WSL içinde: {komut}</source>
         <translation>inside WSL: {komut}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="438" />
+        <location filename="../gui/mixins/file_ops.py" line="448" />
         <source>Dışa Aktarma</source>
         <translation>Export</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="447" />
+        <location filename="../gui/mixins/file_ops.py" line="457" />
         <source>pandoc yüklü değil.
 
 Kurmak için: {komut}</source>
@@ -830,47 +835,47 @@ Kurmak için: {komut}</source>
 To install it: {komut}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="454" />
+        <location filename="../gui/mixins/file_ops.py" line="464" />
         <source>Dışa aktarılacak dosya yok</source>
         <translation>No file to export</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="460" />
+        <location filename="../gui/mixins/file_ops.py" line="470" />
         <source>Dışa aktarma zaten sürüyor, bitmesini bekleyin</source>
         <translation>An export is already running, wait for it to finish</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="478" />
+        <location filename="../gui/mixins/file_ops.py" line="488" />
         <source>Dışa Aktar</source>
         <translation>Export</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="479" />
+        <location filename="../gui/mixins/file_ops.py" line="489" />
         <source>Tüm Dosyalar (*)</source>
         <translation>All Files (*)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="491" />
+        <location filename="../gui/mixins/file_ops.py" line="501" />
         <source>Kayıt başarısız, dışa aktarma iptal edildi</source>
         <translation>Save failed, export cancelled</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="500" />
+        <location filename="../gui/mixins/file_ops.py" line="510" />
         <source>Dışa aktarılıyor</source>
         <translation>Exporting</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="508" />
+        <location filename="../gui/mixins/file_ops.py" line="518" />
         <source>Dışa aktarıldı</source>
         <translation>Exported</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="511" />
+        <location filename="../gui/mixins/file_ops.py" line="521" />
         <source>Dışa aktarma başarısız</source>
         <translation>Export failed</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="519" />
+        <location filename="../gui/mixins/file_ops.py" line="529" />
         <source>Önce bir klasör açın</source>
         <translation>Open a folder first</translation>
     </message>

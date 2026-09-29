@@ -191,6 +191,131 @@ def test_save_file_as_resets_to_utf8(qapp, tmp_path, monkeypatch):
     assert ed._encoding == "utf-8"
 
 
+# --- Kodlama uyarısı pencereye bağlı ---------------------------------------
+
+def test_KODLAMA_UYARISI_ana_pencereye_bagli(ana_pencere, tmp_path,
+                                            monkeypatch):
+    """Uyarı `open_file` içinde, editör sekmeye eklenmeden çıkıyor. Editör
+    ebeveynsizdi: kutu ne pencereye bağlıydı ne temanın stilini alıyordu.
+    ÖLÇÜLDÜ (2026-09-29, v1.1.2 exe, koyu tema): "Kodlama Uyarısı" beyaz,
+    aynı editörün kayıttaki "Kodlama Yetersiz" kutusu koyu.
+
+    Pencere kutunun AÇILDIĞI anda okunuyor: editör sonra sekmeye ekleniyor
+    ve o zaman pencereye bağlanıyor, yani dönüşten sonra bakan kapı
+    düzeltmesiz kodda da geçiyordu (toplu R0'da yakalandı, 2026-09-29)."""
+    pencereler = []
+    monkeypatch.setattr(QMessageBox, "warning",
+                        lambda parent, *a, **k: pencereler.append(parent.window()))
+    w = ana_pencere()
+    p = tmp_path / "eski.tex"
+    _write_raw(p, "İş".encode("cp1254"))
+    w._open_file_in_editor(str(p))
+    assert len(pencereler) == 1
+    assert pencereler[0] is w, "kutu açılırken editör pencereye bağlı değil"
+
+
+def test_ACILAMAYAN_dosyanin_editoru_pencerede_KALMIYOR(ana_pencere, qapp,
+                                                      tmp_path, monkeypatch):
+    from PyQt6.QtCore import QEvent
+
+    monkeypatch.setattr(QMessageBox, "critical", lambda *a, **k: None)
+    w = ana_pencere()
+    once = len(w.findChildren(EditorWidget))
+    p = tmp_path / "ikili.tex"
+    _write_raw(p, b"\x00\x01ikili")
+    w._open_file_in_editor(str(p))
+    qapp.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    assert len(w.findChildren(EditorWidget)) == once
+
+
+# --- UTF-8'e çevrilen belgenin inputenc bildirimi ---------------------------
+# ÖLÇÜLDÜ (2026-09-29, v1.1.2 exe, gerçek derle.sh): cp1254 + `[latin5]
+# {inputenc}` bir belgeye α yazılıp "Kodlama Yetersiz" sorusuna önerilen
+# Evet verilince baytlar UTF-8 oldu ama bildirim latin5 kaldı; derleme üç
+# hatayla düştü ve PDF'teki Türkçe harfler "ÄÃ¼Å" oldu. Farklı Kaydet de
+# her zaman UTF-8 yazıyor (yukarıdaki kapı), aynı kusur oradan da geliyordu.
+
+_LATIN5 = ("\\documentclass{article}\n\\usepackage[latin5]{inputenc}\n"
+           "\\begin{document}\nİş ğüş\n\\end{document}\n")
+
+
+def _evet(monkeypatch, sorular):
+    def question(parent, baslik, metin, *a, **k):
+        sorular.append(metin)
+        return QMessageBox.StandardButton.Yes
+    monkeypatch.setattr(QMessageBox, "question", question)
+    monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: None)
+
+
+def test_KODLAMA_YETERSIZ_evetinde_inputenc_de_utf8_oluyor(qapp, tmp_path,
+                                                          monkeypatch):
+    sorular = []
+    _evet(monkeypatch, sorular)
+    p = tmp_path / "eski.tex"
+    _write_raw(p, _LATIN5.encode("cp1254"))
+    ed = _editor()
+    ed.open_file(str(p))
+    ed.setCursorPosition(3, 0)
+    ed.insert("α ")
+    assert ed.save_file()
+
+    disk = p.read_bytes().decode("utf-8")        # UTF-8 değilse patlar
+    assert "\\usepackage[utf8]{inputenc}" in disk
+    assert "latin5" not in disk
+    assert "α İş ğüş" in disk
+    assert ed.text() == disk                      # tampon diskle aynı
+    # Kullanıcıya soruda söylendi
+    assert "\\usepackage[latin5]{inputenc}" in sorular[0]
+    # Tek geri alma adımı bildirimi geri getiriyor, yazılan α kalıyor
+    ed.undo()
+    assert "[latin5]{inputenc}" in ed.text() and "α" in ed.text()
+
+
+def test_FARKLI_KAYDET_eski_kodlamada_inputenc_de_utf8_oluyor(qapp, tmp_path,
+                                                             monkeypatch):
+    monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: None)
+    p = tmp_path / "eski.tex"
+    _write_raw(p, _LATIN5.encode("cp1254"))
+    ed = _editor()
+    ed.open_file(str(p))
+    yeni = tmp_path / "yeni.tex"
+    assert ed.save_file_as(str(yeni))
+    disk = yeni.read_bytes().decode("utf-8")
+    assert "\\usepackage[utf8]{inputenc}" in disk
+    assert "İş ğüş" in disk
+
+
+def test_FARKLI_KAYDET_duserse_bildirim_GERI_aliniyor(qapp, tmp_path,
+                                                    monkeypatch):
+    monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: None)
+    monkeypatch.setattr(QMessageBox, "critical", lambda *a, **k: None)
+    p = tmp_path / "eski.tex"
+    _write_raw(p, _LATIN5.encode("cp1254"))
+    ed = _editor()
+    ed.open_file(str(p))
+    assert not ed.save_file_as(str(tmp_path / "yok" / "yeni.tex"))
+    assert "[latin5]{inputenc}" in ed.text()
+    assert ed._encoding == "cp1254"
+
+
+@pytest.mark.parametrize("bildirim", [
+    "% \\usepackage[latin5]{inputenc}\n",        # yorum
+    "\\usepackage[utf8]{inputenc}\n",            # zaten utf8
+    "\\usepackage[latin5,utf8]{inputenc}\n",     # çok seçenekli: tahmin yok
+])
+def test_DONUSUM_dokunmamasi_gereken_bildirimler(qapp, tmp_path, monkeypatch,
+                                                 bildirim):
+    monkeypatch.setattr(QMessageBox, "warning", lambda *a, **k: None)
+    metin = "\\documentclass{article}\n" + bildirim + "İş\n"
+    p = tmp_path / "eski.tex"
+    _write_raw(p, metin.encode("cp1254"))
+    ed = _editor()
+    ed.open_file(str(p))
+    yeni = tmp_path / "yeni.tex"
+    assert ed.save_file_as(str(yeni))
+    assert yeni.read_bytes().decode("utf-8") == metin
+
+
 class TestCozucuTekKaynak:
     """Bayt çözücü zincirinin TEK kaynağı core.fs_ops.
 

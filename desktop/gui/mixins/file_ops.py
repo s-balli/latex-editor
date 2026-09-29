@@ -3,7 +3,7 @@
 import os
 import threading
 
-from PyQt6.QtWidgets import QFileDialog
+from PyQt6.QtWidgets import QFileDialog, QWidget
 
 from gui.editor import EditorWidget
 from core.engine_detector import (derleme_hedefi as _derleme_hedefi,
@@ -236,21 +236,31 @@ class FileOpsMixin:
                 ad=os.path.basename(path)))
             return
 
-        editor = EditorWidget(theme=self._theme_mgr.theme)
+        # EBEVEYN ŞART: `open_file` kodlama uyarısını (cp1254, UTF-16) sekmeye
+        # eklenmeden ÖNCE gösteriyor. Ebeveynsiz editörün kutusu ne pencereye
+        # bağlı ne de temanın stilini taşıyordu. ÖLÇÜLDÜ (2026-09-29, v1.1.2
+        # exe, koyu tema): "Kodlama Uyarısı" beyaz çıktı, aynı editörün
+        # kayıttaki "Kodlama Yetersiz" kutusu koyu. addTab onu sekmeye taşıyor.
+        editor = EditorWidget(self if isinstance(self, QWidget) else None,
+                              theme=self._theme_mgr.theme)
         self._apply_editor_settings(editor)
-        if editor.open_file(path):
-            _logger.info("Dosya açıldı: %s", path)
-            editor._ilk_imlec = editor.getCursorPosition()
-            self._connect_editor_signals(editor)
-            idx = self._editor_tabs.addTab(editor, editor.display_name)
-            self._editor_tabs.setCurrentIndex(idx)
-            self._add_tab_close_button(idx)
-            if add_recent:
-                # Oturum geri yüklemede add_recent=False: her açılış listeyi
-                # yeniden sıralayıp kullanıcının gerçek 'Son Açılanlar'ını ezerdi
-                self._add_recent(path)
-            self._detect_engine(path)
-            self._file_watch_add(path)
+        if not editor.open_file(path):
+            # Eskiden sahipsiz kalıp Python'da siliniyordu; artık pencerenin
+            # gizli çocuğu olarak kalırdı.
+            editor.deleteLater()
+            return
+        _logger.info("Dosya açıldı: %s", path)
+        editor._ilk_imlec = editor.getCursorPosition()
+        self._connect_editor_signals(editor)
+        idx = self._editor_tabs.addTab(editor, editor.display_name)
+        self._editor_tabs.setCurrentIndex(idx)
+        self._add_tab_close_button(idx)
+        if add_recent:
+            # Oturum geri yüklemede add_recent=False: her açılış listeyi
+            # yeniden sıralayıp kullanıcının gerçek 'Son Açılanlar'ını ezerdi
+            self._add_recent(path)
+        self._detect_engine(path)
+        self._file_watch_add(path)
 
     def _detect_engine(self, path: str):
         """Dosya ve .cls içeriğinden uygun derleme motorunu algıla.
