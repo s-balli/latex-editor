@@ -316,13 +316,23 @@ jobs:
           fi
           echo "xcb eklentisinin butun bagimliliklari cozuluyor"
 
-      # Windows tarafindaki ayni kapi; gerekcesi orada yazili. Burada
-      # `dist/latex-editor` bir DIZIN (onedir), Windows'ta tek dosya exe;
-      # betik ikisini de okuyor. Iki platformda birden kosuyor, cunku
-      # spec dosyalari ayri ve biri otekine sessizce ayrisabilir.
+      # Windows tarafindaki ayni kapi; gerekcesi orada yazili. Burada paket
+      # bir DIZIN (onedir), Windows'ta tek dosya exe; betik ikisini de
+      # okuyor. Iki platformda birden kosuyor, cunku spec dosyalari ayri ve
+      # biri otekine sessizce ayrisabilir.
+      #
+      # SON URUNE bakiyor: kullanicinin indirdigi AppImage aciliyor ve
+      # icindeki `usr/bin` denetleniyor. Once ara dizine (`dist/latex-editor`)
+      # bakiyordu ve build_appimage.sh'in sonradan ekledigi kopyayi hic
+      # gormedi: `usr/bin/translations` .ts kaynaklariyla birlikte surumlerce
+      # pakete girdi (olculdu 2026-09-29, v1.1.2 ve v1.2.0).
       - name: Yazim denetimi pakete girdi mi
         working-directory: desktop
-        run: python3 ../scripts/paket_dogrula.py dist/latex-editor
+        run: |
+          ai=dist/LaTeX_Editor_v${{ steps.ver.outputs.VERSION }}_Linux_x86_64.AppImage
+          chmod +x "$ai"
+          "./$ai" --appimage-extract > /dev/null
+          python3 ../scripts/paket_dogrula.py squashfs-root/usr/bin
 
       - name: Generate release notes
         shell: bash
