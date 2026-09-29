@@ -384,6 +384,29 @@ def _geri_dusus_ayraci(ornek: str) -> str:
     return next((c for c in _AYRAC_ADAYLARI if c not in ornek), "\t")
 
 
+def _tutarli_ayrac(ornek: str, kesik: bool) -> str:
+    """Her satırı AYNI sayıda (>1) sütuna bölen ilk aday; yoksa "".
+
+    Sıra `_AYRAC_ADAYLARI`: noktalı virgül önce. Bölme `csv.reader` ile,
+    yani tırnak içindeki ayraç sayılmıyor. ``kesik``: örnek dosyanın başından
+    kesildi, son satırı yarım olabilir, sayılmıyor.
+
+    NEDEN SEZGİDEN ÖNCE. Türkçe Excel `;` ile yazıyor çünkü ondalık ayracı
+    virgül; başlıksız dosyada her satırda ikisi de aynı sayıda geçiyor ve
+    `csv.Sniffer` virgülü seçiyordu. ÖLÇÜLDÜ (2026-09-29, cp1254,
+    `Ayşe Yılmaz;85,5;90,0;88,2`): hücreler `Ayşe Yılmaz;85` | `5;90` |
+    `0;88` | `2` oldu. Başlıklı dosya doğruydu: başlıkta virgül yok.
+    """
+    satirlar = [s for s in ornek.splitlines() if s.strip()]
+    if kesik and len(satirlar) > 1:
+        satirlar = satirlar[:-1]
+    for aday in _AYRAC_ADAYLARI:
+        sayilar = {len(r) for r in csv.reader(satirlar, delimiter=aday)}
+        if len(sayilar) == 1 and sayilar.pop() > 1:
+            return aday
+    return ""
+
+
 def csv_to_rows(path: str) -> list[list[str]]:
     """CSV dosyasını hücre satırlarına oku (ayraç: , ; veya sekme, otomatik).
 
@@ -393,11 +416,12 @@ def csv_to_rows(path: str) -> list[list[str]]:
     with io.StringIO(_csv_metni(path), newline="") as f:
         sample = f.read(4096)
         f.seek(0)
-        delim = None
-        try:
-            delim = csv.Sniffer().sniff(sample, delimiters=",;\t").delimiter
-        except csv.Error:
-            delim = _geri_dusus_ayraci(sample)
+        delim = _tutarli_ayrac(sample, kesik=len(sample) == 4096)
+        if not delim:
+            try:
+                delim = csv.Sniffer().sniff(sample, delimiters=",;\t").delimiter
+            except csv.Error:
+                delim = _geri_dusus_ayraci(sample)
         return [row for row in csv.reader(f, delimiter=delim)
                 if any(c.strip() for c in row)]
 

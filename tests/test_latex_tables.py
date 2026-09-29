@@ -183,6 +183,33 @@ class TestCsv:
         p.write_bytes("﻿a,b\n\n1,2\n".encode("utf-8"))
         assert csv_to_rows(str(p)) == [["a", "b"], ["1", "2"]]
 
+    # Türkçe Excel `;` ile yazıyor, çünkü ondalık ayracı virgül. Başlıksız
+    # dosyada her satırda ikisi de aynı sayıda geçince `csv.Sniffer` virgülü
+    # seçiyordu. ÖLÇÜLDÜ (2026-09-29): `Ayşe Yılmaz;85` | `5;90` | `0;88`.
+    _TR = [["Ayşe Yılmaz", "85,5", "90,0", "88,2"],
+           ["Mehmet Çelik", "70,0", "75,5", "73,3"],
+           ["Can Öz", "60,5", "65,0", "63,1"]]
+
+    def test_TURKCE_EXCEL_basliksiz_ondalik_virgullu(self, tmp_path):
+        p = tmp_path / "t.csv"
+        p.write_bytes("\r\n".join(";".join(s) for s in self._TR).encode("cp1254"))
+        assert csv_to_rows(str(p)) == self._TR
+
+    def test_TURKCE_EXCEL_ornegi_KESIK_buyuk_dosya(self, tmp_path):
+        """Örnek dosyanın ilk 4096 karakteri; son satırı yarım kalıyor ve
+        sayılırsa kural hiç tutmaz."""
+        satirlar = self._TR * 60
+        p = tmp_path / "t.csv"
+        p.write_bytes("\r\n".join(";".join(s) for s in satirlar).encode("cp1254"))
+        assert csv_to_rows(str(p)) == satirlar
+
+    def test_TIRNAK_icindeki_noktali_virgul_ayrac_SAYILMIYOR(self, tmp_path):
+        """Karşı kol: virgül ayraçlı dosyada her satırın tırnaklı alanında
+        bir `;` var; ham sayımla `;` "tutarlı" görünürdü."""
+        p = tmp_path / "t.csv"
+        p.write_text('"a;b",1\n"c;d",2\n', encoding="utf-8")
+        assert csv_to_rows(str(p)) == [["a;b", "1"], ["c;d", "2"]]
+
 
 # --- parse / format ---
 
