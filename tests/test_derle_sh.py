@@ -709,6 +709,53 @@ class TestUyariKonumu:
         assert ana.file_path == str(tmp_path / "ana.tex"), ana.file_path
         assert "  LaTeX Warning: Reference `ana-yok'" in temiz, temiz[-1500:]
 
+    def test_DOSYA_SINIRINI_asan_paragrafin_uyarisi_basladigi_dosyada(
+            self, tmp_path):
+        r"""Bölüm dosyası boş satırla bitmeyince son paragrafını sonraki
+        dosyanın `\section`ı kapatıyor; TeX uyarıyı o dosya açıkken basıyor:
+        `(./bolum.tex) (./son.tex` ardından "in paragraph at lines 4--1".
+        ÖLÇÜLDÜ (2026-09-29): uyarı iki satırlık son.tex'in 4. satırına
+        gidiyordu. Paragraf bolum.tex'in 4. satırında başlıyor.
+        """
+        from core.log_parser import parse_output
+
+        (tmp_path / "ana.tex").write_text(
+            "\\documentclass{article}\n\\begin{document}\n"
+            "Ana metin.\n\n\\input{bolum}\n\\input{son}\n\\end{document}\n",
+            encoding="utf-8")
+        (tmp_path / "bolum.tex").write_text(
+            "\\section{Bolum}\nIlk paragraf.\n\n"
+            "Son paragraf bolunemez sozcuk tasiyor:\n"
+            "A" + "a" * 89 + "\n"
+            "ve dosya bos satirla bitmiyor.\n", encoding="utf-8")
+        # `\input{ek.dat}` paragrafı sürdürüp uyarıdan ÖNCE açılıp kapanıyor:
+        # "(./son.tex (./ek.dat)". Kullanıcı dosyası olmayan giriş (tablo,
+        # tikz, paket) ebeveyninin adını taşıyor ve en son kapanan kullanıcı
+        # dosyasını ezmemeli. Karşı kol: aynı satırda başlayıp biten taşan
+        # paragraf ("lines 2--2") açık dosyada kalmalı, önceki dosya
+        # kapanmış olsa da.
+        (tmp_path / "ek.dat").write_text("ek\n", encoding="utf-8")
+        (tmp_path / "son.tex").write_text(
+            "\\input{ek.dat} \\section{Son}\nSon metin " + "B" + "b" * 89
+            + " burada.\\par\n", encoding="utf-8")
+
+        r = _run_derle([str(tmp_path / "ana.tex"), "--pdflatex"],
+                       cwd=str(tmp_path), timeout=180)
+        temiz = re.sub(r"\x1b\[[0-9;]*m", "", r.stdout)
+        tasan = {re.search(r"lines (\d+--\d+)", u.message).group(1): u
+                 for u in parse_output(temiz, str(tmp_path / "ana.tex")).warnings
+                 if "Overfull" in u.message}
+        assert set(tasan) == {"4--1", "2--2"}, "kurgu değişmiş: %s\n%s" % (
+            sorted(tasan), temiz[-1500:])
+        asan = tasan["4--1"]
+        assert asan.file_path.replace("\\", "/").endswith("bolum.tex"), \
+            asan.file_path
+        assert asan.line_number == 4, asan.line_number
+        ayni = tasan["2--2"]
+        assert ayni.file_path.replace("\\", "/").endswith("son.tex"), \
+            ayni.file_path
+        assert ayni.line_number == 2, ayni.line_number
+
 
 class TestUyariSuzgeci:
     r"""`derle.sh` süzgeci ile ayrıştırıcının bildiği sınıflar AYNI olmalı.

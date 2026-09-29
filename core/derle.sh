@@ -203,8 +203,24 @@ uyari_dosyasi_ekle() {
     }
     {
         if ($0 ~ ENVIRON["UYARI_DESENI"]) {
-            if (n > 0 && yigin[n] != "" && yigin[n] != ENVIRON["ANA"])
-                print yigin[n] ": " $0
+            hedef = (n > 0) ? yigin[n] : ""
+            # "in paragraph at lines A--B": A paragrafin BASLADIGI dosyanin
+            # satiri, B bittigi dosyanin. Ayni dosyada B >= A; B < A ise
+            # paragraf dosya sinirini asmis. Bolum dosyasi bos satirla
+            # bitmeyince son paragrafini sonraki dosyanin \section ya da
+            # \newpage komutu kapatiyor ve uyari o dosya acikken basiliyor.
+            # OLCULDU (2026-09-29): "(./bolum.tex) (./son.tex" ardindan
+            # "lines 4--1"; uyari iki satirlik son.tex in 4. satirina gidiyordu.
+            # Basladigi dosya EN SON KAPANAN kullanici dosyasi. Sinir: paragraf
+            # ebeveyn dosyada B >= A olan bir satirda kapanirsa (ornegin
+            # \end{document}) asma ayirt edilemiyor, uyari orada kaliyor.
+            if (match($0, /in paragraph at lines [0-9]+--[0-9]+/)) {
+                split(substr($0, RSTART + 22, RLENGTH - 22), aralik, "--")
+                if (aralik[2] + 0 < aralik[1] + 0 && kapanan != "")
+                    hedef = kapanan
+            }
+            if (hedef != "" && hedef != ENVIRON["ANA"])
+                print hedef ": " $0
             else
                 print $0
         }
@@ -226,7 +242,13 @@ uyari_dosyasi_ekle() {
             c = substr(satir, RSTART, 1)
             satir = substr(satir, RSTART + 1)
             if (c == ")") {
-                if (n > 0) n--
+                if (n > 0) {
+                    # Paket girisi ebeveyninin adini tasiyor; yalniz kendi
+                    # adini tasiyan giris bir kullanici dosyasi.
+                    if (yigin[n] != "" && (n == 1 || yigin[n] != yigin[n - 1]))
+                        kapanan = yigin[n]
+                    n--
+                }
                 continue
             }
             ad = kullanici_dosyasi(satir)
