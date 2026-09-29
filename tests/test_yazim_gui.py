@@ -177,7 +177,8 @@ def test_bulgular_listeleniyor_ve_ORAN_yaziliyor(qapp):
     """
     p = OutputPanel(theme=THEMES["dark"])
     p.show_yazim([Bulgu("yanlis", 3, 5, 40)], "C:/x/main.tex", 200)
-    assert p._yazim_list.item(0).text() == "3:5  yanlis"
+    # Sütun durum çubuğundaki gibi 1 tabanlı (Bulgu'nunki 0 tabanlı)
+    assert p._yazim_list.item(0).text() == "3:6  yanlis"
     assert "200" in p._yazim_durum.text() and "0.5" in p._yazim_durum.text()
 
 
@@ -187,17 +188,157 @@ def test_bulgu_yoksa_temiz_der(qapp):
     assert p._yazim_durum.text() == "temiz"
 
 
-def test_bulguya_tiklamak_SATIRA_GITME_yoluna_dusuyor(qapp):
-    """UserRole'de (dosya, satır) durur; tıklama mevcut error_clicked yoluna
-    düşer ve _goto_line'a gider. Ayrı bir gezinme yolu yazılmadı."""
+def test_bulguya_tiklamak_KONUMU_ve_KELIMEYI_yayiyor(qapp):
+    """Tıklama yalnız satırı taşıyordu (error_clicked) ve imleç satır başına
+    gidiyordu. UserRole (dosya, satır) sağ tık için yerinde duruyor."""
     p = OutputPanel(theme=THEMES["dark"])
     p.show_yazim([Bulgu("yanlis", 7, 2, 40)], "C:/x/main.tex", 100)
     it = p._yazim_list.item(0)
     assert it.data(Qt.ItemDataRole.UserRole) == ("C:/x/main.tex", 7)
     alinan = []
-    p.error_clicked.connect(lambda f, l: alinan.append((f, l)))
-    p._on_result_click(it)
-    assert alinan == [("C:/x/main.tex", 7)]
+    p.yazim_bulgusu_secildi.connect(lambda *a: alinan.append(a))
+    p._yazim_list.itemClicked.emit(it)
+    assert alinan == [("C:/x/main.tex", 7, 2, "yanlis")]
+
+
+_KELMELI = ("\\documentclass{article}\n\\begin{document}\n"
+            "Bu satirda uzun bir cumle var ve kelme orada yaziyor.\n"
+            "\\end{document}\n")
+
+
+def _yazim_penceresi(ana_pencere, tmp_path, monkeypatch, metin=_KELMELI,
+                     kullanici=None):
+    """Gerçek pencere, sahte sözlük (yalnız `kelme` yanlış), kullanıcı
+    sözlüğü tmp_path'te: gerçek kullanıcı sözlüğüne DOKUNULMUYOR."""
+    import gui.mixins.yazim_ops as yo
+
+    sozluk = tmp_path / "sozluk-tr_TR.txt"
+    if kullanici is not None:
+        sozluk.write_text(kullanici, encoding="utf-8")
+    monkeypatch.setattr(yo, "kullanici_sozlugu_yolu", lambda dil: str(sozluk))
+    yol = tmp_path / "belge.tex"
+    yol.write_text(metin, encoding="utf-8")
+    p = ana_pencere()
+    p.resize(1000, 700)
+    p.show()
+    p._open_file_in_editor(str(yol))
+    d = Denetleyici(kullanici_sozlugu=str(sozluk))
+    d._sozluk = _SahteSozluk(set(metin.replace(".", " ").split()) - {"kelme"})
+    p._yazim_denetleyici = d
+    p._yazim_anahtar = ("tr_TR", "")
+    p._yazim_calistir()
+    return p, sozluk
+
+
+def _tikla(liste, satir=0):
+    from PyQt6.QtTest import QTest
+
+    QTest.mouseClick(liste.viewport(), Qt.MouseButton.LeftButton,
+                     Qt.KeyboardModifier.NoModifier,
+                     liste.visualItemRect(liste.item(satir)).center())
+
+
+def test_bulguya_tiklayinca_KELIME_seciliyor(ana_pencere, tmp_path,
+                                            monkeypatch):
+    """ÖLÇÜLDÜ (2026-09-29, v1.1.2 exe): bulguya tıklayınca imleç satırın 1.
+    sütununa gidiyordu; kelimeyi kullanıcı uzun satırda gözle arıyordu."""
+    p, _s = _yazim_penceresi(ana_pencere, tmp_path, monkeypatch)
+    liste = p._output_panel._yazim_list
+    assert liste.count() == 1
+
+    _tikla(liste)
+
+    ed = p._current_editor()
+    assert ed.selectedText() == "kelme"
+    assert ed.getSelection()[0] == 2
+
+
+def test_satir_EKLENSE_de_kelime_bulunuyor(ana_pencere, tmp_path,
+                                          monkeypatch):
+    """Liste kurulduktan sonra üste satır eklendi, aynı satıra da yazıldı."""
+    p, _s = _yazim_penceresi(ana_pencere, tmp_path, monkeypatch)
+    ed = p._current_editor()
+    ed.insertAt("% yeni satir\n", 0, 0)
+    ed.insertAt("Basa ek ", 3, 0)
+
+    _tikla(p._output_panel._yazim_list)
+
+    assert ed.selectedText() == "kelme"
+    assert ed.getSelection()[0] == 3
+
+
+def _sozluk_penceresinde(monkeypatch, secilecek):
+    """Kişisel Sözlük penceresinde `secilecek` kelimeleri seçip Çıkar'a bas."""
+    from PyQt6.QtWidgets import QDialog, QListWidget, QPushButton
+
+    gorulen = []
+
+    def _exec(self):
+        liste = self.findChild(QListWidget)
+        gorulen.extend(liste.item(i).text() for i in range(liste.count()))
+        for i in range(liste.count()):
+            if liste.item(i).text() in secilecek:
+                liste.item(i).setSelected(True)
+        for b in self.findChildren(QPushButton):
+            if b.text() == "Çıkar":
+                b.click()
+        return 0
+
+    monkeypatch.setattr(QDialog, "exec", _exec)
+    return gorulen
+
+
+def test_sozlukten_CIKARILAN_kelime_yeniden_bulgu(ana_pencere, tmp_path,
+                                                 monkeypatch):
+    """"Sözlüğe ekle"nin tersi yoktu: eklenen kelime bulgulardan düşüyor ve
+    arayüzde onu geri almanın yolu kalmıyordu."""
+    p, sozluk = _yazim_penceresi(ana_pencere, tmp_path, monkeypatch,
+                                 kullanici="akademik\n")
+    op = p._output_panel
+    p._on_yazim_sozluge_ekle("kelme")
+    assert op._yazim_list.count() == 0
+    gorulen = _sozluk_penceresinde(monkeypatch, {"kelme"})
+
+    op._yazim_sozluk_dugme.click()
+
+    assert gorulen == ["akademik", "kelme"]
+    assert sozluk.read_text(encoding="utf-8").split() == ["akademik"]
+    assert [op._yazim_list.item(i).text().split("  ")[-1]
+            for i in range(op._yazim_list.count())] == ["kelme"]
+    assert "çıkarıldı" in p._status.currentMessage()
+
+
+def test_sozluk_YUKLENMEMISKEN_de_aciliyor(ana_pencere, tmp_path, monkeypatch):
+    """Büyük sözlük yüklenmeden (denetim hiç yapılmadan) kullanıcının dosyası
+    okunup yazılıyor."""
+    import gui.mixins.yazim_ops as yo
+
+    sozluk = tmp_path / "sozluk-tr_TR.txt"
+    sozluk.write_text("birinci\nikinci\n", encoding="utf-8")
+    monkeypatch.setattr(yo, "kullanici_sozlugu_yolu", lambda dil: str(sozluk))
+    p = ana_pencere()
+    assert p._yazim_denetleyici is None
+    gorulen = _sozluk_penceresinde(monkeypatch, {"ikinci"})
+
+    p._output_panel._yazim_sozluk_dugme.click()
+
+    assert gorulen == ["birinci", "ikinci"]
+    assert sozluk.read_text(encoding="utf-8").split() == ["birinci"]
+    assert p._yazim_denetleyici is None, "büyük sözlük yüklenmemeli"
+
+
+def test_sozlukten_CIKARILAMAZSA_soyleniyor(ana_pencere, tmp_path, monkeypatch):
+    p, sozluk = _yazim_penceresi(ana_pencere, tmp_path, monkeypatch,
+                                 kullanici="kelme\n")
+    monkeypatch.setattr(Denetleyici, "_kullaniciyi_yaz",
+                        lambda self, geri_al: geri_al() or False)
+    _sozluk_penceresinde(monkeypatch, {"kelme"})
+
+    p._output_panel._yazim_sozluk_dugme.click()
+
+    assert "çıkarılamadı" in p._status.currentMessage()
+    assert sozluk.read_text(encoding="utf-8") == "kelme\n"
+    assert p._output_panel._yazim_list.count() == 0, "kelime hâlâ sözlükte"
 
 
 def test_denetle_dugmesi_dil_ve_kutuyu_TASIYOR(qapp):

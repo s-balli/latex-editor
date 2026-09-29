@@ -67,6 +67,8 @@ def _hint_templates() -> dict:
 # Öğenin, listenin KURULDUĞU metni (`_Taban`); bkz. `OutputPanel._taban`.
 # +1 Öneriler'de ipucu işareti (`_IPUCU_ROLE`), o yüzden +2.
 _TABAN = Qt.ItemDataRole.UserRole + 2
+# Yazım bulgusunun özgün metindeki sütunu (0 tabanlı, karakter).
+_SUTUN = Qt.ItemDataRole.UserRole + 3
 
 
 class _Taban:
@@ -116,6 +118,11 @@ class OutputPanel(QWidget):
     yazim_oneri_requested = pyqtSignal(str, str)
     # Kelime kullanıcı sözlüğüne eklensin: (kelime)
     yazim_sozluge_ekle = pyqtSignal(str)
+    # Bulguya tıklandı: (dosya, bugünkü satır, sütun, kelime). Satır ile
+    # yetinilmiyor: imleç satır başına gidiyor, kelimeyi kullanıcı arıyordu.
+    yazim_bulgusu_secildi = pyqtSignal(str, int, int, str)
+    # Kişisel sözlük penceresi istendi: (seçili dil)
+    yazim_sozlugu_istendi = pyqtSignal(str)
 
     # Doktor satırının UserRole işareti: (dosya, satır) demetiyle karışmasın
     _ENV_DOCTOR_TAG = "__env_doctor__"
@@ -290,15 +297,21 @@ class OutputPanel(QWidget):
             _("Belgede öteki dilde bölümler varsa (İngilizce özet gibi) "
               "işaretleme çok azalır"))
         self._yazim_dugme = QPushButton(_("Denetle"))
+        # "Sözlüğe ekle"nin geri yolu: eklenen kelime bulgulardan düştüğü için
+        # onu geri almanın arayüzde hiçbir yolu yoktu.
+        self._yazim_sozluk_dugme = QPushButton(_("Kişisel Sözlük..."))
+        self._yazim_sozluk_dugme.setToolTip(
+            _("Sözlüğe eklediğiniz kelimeleri görün ve çıkarın"))
         self._yazim_durum = QLabel("")
         y_ust.addWidget(self._yazim_dil)
         y_ust.addWidget(self._yazim_ikinci)
         y_ust.addWidget(self._yazim_dugme)
+        y_ust.addWidget(self._yazim_sozluk_dugme)
         y_ust.addWidget(self._yazim_durum, 1)
         yazim_layout.addLayout(y_ust)
 
         self._yazim_list = QListWidget()
-        self._yazim_list.itemClicked.connect(self._on_result_click)
+        self._yazim_list.itemClicked.connect(self._on_yazim_click)
         self._yazim_list.setContextMenuPolicy(
             Qt.ContextMenuPolicy.CustomContextMenu)
         self._yazim_list.customContextMenuRequested.connect(
@@ -316,6 +329,8 @@ class OutputPanel(QWidget):
                                  if yazim_kullanilabilir() else -1)
 
         self._yazim_dugme.clicked.connect(self._on_yazim_denetle)
+        self._yazim_sozluk_dugme.clicked.connect(
+            lambda: self.yazim_sozlugu_istendi.emit(self._yazim_dil.currentData()))
         self._yazim_ikinci.toggled.connect(self._on_yazim_denetle_varsa)
 
         # Sekmeye tıklayınca boş durmasın: panel .bib'in yerini bilmiyor,
@@ -662,8 +677,10 @@ class OutputPanel(QWidget):
                    metin: str | None = None):
         """Yazım bulgularını göster.
 
-        Öğe metni "satır:sütun  kelime"; UserRole'de (dosya, satır) durur,
-        yani tıklama mevcut error_clicked yoluna düşüp _goto_line'a gider.
+        Öğe metni "satır:sütun  kelime", sütun durum çubuğundaki gibi 1
+        tabanlı (eskiden 0 tabanlıydı ve satır başındaki kelime "3:0"
+        görünüyordu). UserRole'de (dosya, satır), `_SUTUN`da sütun durur;
+        tıklama `yazim_bulgusu_secildi`ye gider (bkz. `_on_yazim_click`).
         `metin`: denetlenen arabellek (bkz. `_taban`).
         """
         self._yazim_list.clear()
@@ -671,8 +688,9 @@ class OutputPanel(QWidget):
         renk = QColor(self._theme.get("fg_primary", "#000000"))
         taban = self._taban([dosya_yolu], {} if metin is None else {dosya_yolu: metin})
         for b in bulgular:
-            item = QListWidgetItem("%d:%d  %s" % (b.satir, b.sutun, b.kelime))
+            item = QListWidgetItem("%d:%d  %s" % (b.satir, b.sutun + 1, b.kelime))
             item.setData(Qt.ItemDataRole.UserRole, (dosya_yolu, b.satir))
+            item.setData(_SUTUN, b.sutun)
             item.setData(_TABAN, taban)
             item.setForeground(renk)
             self._yazim_list.addItem(item)
@@ -691,6 +709,21 @@ class OutputPanel(QWidget):
             self._yazim_durum.setText(_("{n} bulgu").format(n=n))
         if self._yazim_tab_index >= 0:      # sekme eklenmemiş olabilir
             self._tabs.setCurrentIndex(self._yazim_tab_index)
+
+    def _on_yazim_click(self, item):
+        """Bulguya tıklandı: dosya, BUGÜNKÜ satır, sütun ve kelime yayılır.
+
+        Satır gibi sütun da liste kurulduktan sonra kayabilir; ana pencere
+        kelimeyi o satırda sütuna en yakın geçişte arıyor.
+        """
+        veri = item.data(Qt.ItemDataRole.UserRole)
+        if not veri:
+            return
+        dosya, satir = veri
+        if satir and satir > 0:
+            self.yazim_bulgusu_secildi.emit(
+                dosya or "", self._guncel_satir(item, dosya, satir),
+                item.data(_SUTUN) or 0, item.text().split("  ", 1)[-1])
 
     def _on_yazim_context_menu(self, pos):
         item = self._yazim_list.itemAt(pos)

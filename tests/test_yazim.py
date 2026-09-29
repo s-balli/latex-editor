@@ -888,6 +888,45 @@ def test_KeyboardInterrupt_yutulmuyor(tmp_path, monkeypatch):
     assert d.dogru_mu("yenikelime") is False
 
 
+def test_CIKARILAN_kelime_diskten_ve_bellekten_gidiyor(tmp_path):
+    """"Sözlüğe ekle"nin tersi. Kırılırsa kelime yeniden açılışta geri gelir
+    ya da o oturumda hâlâ doğru sayılır."""
+    yol = _birikmis_sozluk(tmp_path)
+    d = _denetleyici([], kullanici_sozlugu=str(yol))
+
+    assert d.dogru_mu("tez") is True
+    assert d.kullanicidan_cikar("tez") is True
+
+    assert d.dogru_mu("tez") is False, "önbellek eski sonucu veriyor"
+    assert yol.read_text(encoding="utf-8").split() == \
+        [k for k in _BIRIKMIS if k != "tez"]
+    assert d.kullanici_kelimeleri() == [k for k in _BIRIKMIS if k != "tez"]
+    assert d.kullanicidan_cikar("tez") is False, "olmayan kelime"
+
+
+def test_CIKARMA_yazmasi_duserse_kelime_KALIYOR(tmp_path, monkeypatch):
+    yol = _birikmis_sozluk(tmp_path)
+    onceki = yol.read_text(encoding="utf-8")
+    d = _denetleyici([], kullanici_sozlugu=str(yol))
+    _yazmayi_kes(monkeypatch, yol, OSError("disk dolu"))
+
+    assert d.kullanicidan_cikar("tez") is False
+
+    assert yol.read_text(encoding="utf-8") == onceki
+    assert d.dogru_mu("tez") is True, "yazma düştü ama kelime bellekten gitti"
+    assert not [a for a in os.listdir(tmp_path) if a.endswith(".tmp")]
+
+
+def test_SON_kelime_de_cikarilabiliyor(tmp_path):
+    yol = tmp_path / "kullanici.txt"
+    yol.write_text("tek\n", encoding="utf-8")
+    d = _denetleyici([], kullanici_sozlugu=str(yol))
+
+    assert d.kullanicidan_cikar("tek") is True
+    assert yol.read_text(encoding="utf-8") == ""
+    assert d.kullanici_kelimeleri() == []
+
+
 def test_OLAGAN_ekleme_hala_kaliciyor(tmp_path):
     """Aşırı düzeltme kapısı: kesinti yokken kelime diske yazılmalı ve
     öncekiler durmalı."""

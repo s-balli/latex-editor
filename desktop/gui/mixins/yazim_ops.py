@@ -15,10 +15,13 @@ Sözlük yükleme AYRI İŞ PARÇACIĞINDA: 3.5 sn arayüzü dondurur.
 
 import lzma
 import os
+import re
 import sys
 
 from PyQt6.QtCore import QCoreApplication, QStandardPaths, QThread, pyqtSignal
-from PyQt6.QtWidgets import QInputDialog, QMessageBox
+from PyQt6.QtWidgets import (QAbstractItemView, QDialog, QDialogButtonBox,
+                             QInputDialog, QLabel, QListWidget, QMessageBox,
+                             QVBoxLayout)
 
 from core.log import get_logger
 
@@ -245,6 +248,10 @@ class YazimOpsMixin:
         self._output_panel.yazim_oneri_requested.connect(self._on_yazim_oneri)
         self._output_panel.yazim_sozluge_ekle.connect(
             self._on_yazim_sozluge_ekle)
+        self._output_panel.yazim_bulgusu_secildi.connect(
+            self._on_yazim_bulgusu_secildi)
+        self._output_panel.yazim_sozlugu_istendi.connect(
+            self._yazim_sozlugunu_ac)
 
     # -- menü --
     def _yazim_denetle(self):
@@ -419,6 +426,87 @@ class YazimOpsMixin:
                 _("'{k}' sözlüğe eklenemedi, kullanıcı sözlüğü yazılamıyor")
                 .format(k=kelime), 6000)
         self._yazim_calistir()
+
+    def _on_yazim_bulgusu_secildi(self, dosya: str, satir: int, sutun: int,
+                                  kelime: str):
+        """Bulguya tıklandı: satıra değil KELİMEYE git ve onu seç.
+
+        Eskiden satıra gidiliyordu ve imleç 1. sütunda kalıyordu; uzun bir
+        paragraf satırında kullanıcı kelimeyi gözle arıyordu. Liste
+        kurulduktan sonra satır değişmiş olabilir: kelime o satırda sütuna en
+        yakın geçişte aranıyor. Aksan makrosuyla yazılmış kelime
+        (`M\\"{u}hendislik`) metinde bu biçimde geçmiyor; o zaman imleç
+        sütuna konuyor.
+        """
+        self._goto_line(dosya, satir)
+        ed = self._editor_by_path(dosya) if dosya else self._current_editor()
+        if ed is None or satir < 1 or satir > ed.lines():
+            return
+        metin = ed.text(satir - 1).rstrip("\r\n")
+        yerler = [m.start() for m in re.finditer(re.escape(kelime), metin)] \
+            if kelime else []
+        if not yerler:
+            ed.setCursorPosition(satir - 1, min(sutun, len(metin)))
+            return
+        bas = min(yerler, key=lambda i: abs(i - sutun))
+        ed.setSelection(satir - 1, bas, satir - 1, bas + len(kelime))
+
+    def _yazim_sozlugunu_ac(self, dil: str):
+        """Kişisel sözlükteki kelimeleri göster; seçilenleri çıkar.
+
+        "Sözlüğe ekle"nin tersi. Eklenen kelime bulgulardan düşüyor, yani
+        yanlışlıkla eklenen bir kelimeyi geri almanın arayüzde yolu yoktu
+        (dosyayı elle bulup düzenlemek gerekiyordu, bkz.
+        `kullanici_sozlugu_yolu`). Sözlük yüklü değilse büyük sözlük
+        YÜKLENMİYOR: yalnız kullanıcının dosyası okunuyor.
+        """
+        from core.yazim import Denetleyici
+
+        d = self._yazim_denetleyici
+        if d is None or d.dil != dil:
+            d = Denetleyici(dil=dil, kullanici_sozlugu=kullanici_sozlugu_yolu(dil))
+        dlg = QDialog(self)
+        dlg.setWindowTitle(_("Kişisel Sözlük"))
+        dlg.setMinimumWidth(360)
+        kutu = QVBoxLayout(dlg)
+        liste = QListWidget()
+        liste.setSelectionMode(QAbstractItemView.SelectionMode.ExtendedSelection)
+        liste.addItems(d.kullanici_kelimeleri())
+        kutu.addWidget(QLabel(_("Eklediğiniz kelimeler ({dil}):").format(dil=dil)))
+        kutu.addWidget(liste)
+        yol = QLabel(_("Dosya: {yol}").format(yol=d.kullanici_sozlugu))
+        yol.setWordWrap(True)
+        kutu.addWidget(yol)
+        dugmeler = QDialogButtonBox(QDialogButtonBox.StandardButton.Close)
+        cikar = dugmeler.addButton(_("Çıkar"),
+                                   QDialogButtonBox.ButtonRole.ActionRole)
+        cikar.setEnabled(False)
+        liste.itemSelectionChanged.connect(
+            lambda: cikar.setEnabled(bool(liste.selectedItems())))
+        dugmeler.rejected.connect(dlg.reject)
+        cikarilan = []
+
+        def _cikar():
+            for oge in liste.selectedItems():
+                kelime = oge.text()
+                if not d.kullanicidan_cikar(kelime):
+                    self._status.showMessage(
+                        _("'{k}' sözlükten çıkarılamadı, kullanıcı sözlüğü "
+                          "yazılamıyor").format(k=kelime), 6000)
+                    return
+                liste.takeItem(liste.row(oge))
+                cikarilan.append(kelime)
+
+        cikar.clicked.connect(_cikar)
+        kutu.addWidget(dugmeler)
+        dlg.exec()
+        if not cikarilan:
+            return
+        self._status.showMessage(
+            _("{n} kelime sözlükten çıkarıldı").format(n=len(cikarilan)), 4000)
+        if d is self._yazim_denetleyici:
+            # Denetim bu sözlükle yapıldı: tazele, çıkarılan kelime geri gelsin.
+            self._yazim_calistir()
 
     def _cleanup_yazim(self):
         """Kapanışta iş parçacığını bekle. Yarıda kalan QThread çökmeye yol

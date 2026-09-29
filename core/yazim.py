@@ -884,6 +884,28 @@ class Denetleyici:
         if not kelime or kelime in self._kullanici:
             return False
         self._kullanici.add(kelime)
+        return self._kullaniciyi_yaz(geri_al=lambda: self._kullanici.discard(kelime))
+
+    def kullanicidan_cikar(self, kelime: str) -> bool:
+        """Kelimeyi kullanıcı sözlüğünden çıkarır ve diske yazar.
+
+        `kullaniciya_ekle`nin tersi, aynı atomik yazma ve aynı geri alma:
+        yazma düşerse kelime bellekte de sözlükte kalıyor.
+        """
+        self._kullanici_yukle()
+        if kelime not in self._kullanici:
+            return False
+        self._kullanici.discard(kelime)
+        return self._kullaniciyi_yaz(geri_al=lambda: self._kullanici.add(kelime))
+
+    def kullanici_kelimeleri(self) -> list[str]:
+        """Kullanıcı sözlüğündeki kelimeler, sıralı."""
+        self._kullanici_yukle()
+        return sorted(self._kullanici)
+
+    def _kullaniciyi_yaz(self, geri_al) -> bool:
+        """Kümeyi dosyaya atomik yaz. Düşerse `geri_al()` belleği eski hâline
+        döndürüyor ve False (bkz. `kullaniciya_ekle`)."""
         self._onbellek.clear()
         if not self.kullanici_sozlugu:
             return True
@@ -891,12 +913,12 @@ class Denetleyici:
         try:
             os.makedirs(os.path.dirname(self.kullanici_sozlugu), exist_ok=True)
             with io.open(gecici, "w", encoding="utf-8", newline="\n") as f:
-                f.write("\n".join(sorted(self._kullanici)) + "\n")
+                f.write("".join(k + "\n" for k in sorted(self._kullanici)))
             os.replace(gecici, self.kullanici_sozlugu)
         except BaseException as e:
             # BaseException: Ctrl+C de yarım `.tmp` bırakmasın ve bellek
             # diskle uyuşsun.
-            self._kullanici.discard(kelime)
+            geri_al()
             self._onbellek.clear()
             try:
                 os.unlink(gecici)

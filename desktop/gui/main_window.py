@@ -1044,7 +1044,7 @@ class MainWindow(
         left += "<span style='color:" + dim + "'>" + _("Klasör ağacındaki TÜM .tex/.bib/.cls/.sty dosyalarının İÇİNDE arar, sekmede açık olmayanlar dahil. Ctrl+F yalnız açık sekmede arar. Sonuca tıklayınca o dosyanın o satırına gidilir.") + "</span>"
         left += "<br><br>"
         left += "<b>" + _("Yazım Denetimi") + " (Ctrl+Shift+Y)</b><br>"
-        left += "<span style='color:" + dim + "'>" + _("Yazım sekmesinden Denetle: belge taranır, bulgular satır numarasıyla listelenir, tıklayınca o satıra gidilir. Denetim canlı değildir, siz istemeden çalışmaz. Dil belgeden anlaşılır (% !TEX spellcheck ya da babel); Türkçe tezin İngilizce özeti gibi iki dilli belgelerde 'İkinci dil de var' kutusunu işaretleyin. Bulguya sağ tıklayarak öneri alabilir ya da kelimeyi kendi sözlüğünüze ekleyebilirsiniz.") + "</span><br><br>"
+        left += "<span style='color:" + dim + "'>" + _("Yazım sekmesinden Denetle: belge taranır, bulgular satır ve sütunuyla listelenir, tıklayınca kelime seçilir. Denetim canlı değildir, siz istemeden çalışmaz. Dil belgeden anlaşılır (% !TEX spellcheck ya da babel); Türkçe tezin İngilizce özeti gibi iki dilli belgelerde 'İkinci dil de var' kutusunu işaretleyin. Bulguya sağ tıklayarak öneri alabilir ya da kelimeyi kendi sözlüğünüze ekleyebilirsiniz; eklediklerinizi Kişisel Sözlük... düğmesiyle görüp çıkarabilirsiniz.") + "</span><br><br>"
         left += "<b>" + _("Hızlı Dosya Aç") + " (Ctrl+P)</b><br>"
         left += "<span style='color:" + dim + "'>" + _("Dosya adını yaz, bulanık filtreyle bul, Enter ile aç. Klasör ağacındaki .tex/.bib/.cls/.sty dosyaları.") + "</span>"
         left += "<br><br>"
