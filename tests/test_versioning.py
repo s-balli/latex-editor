@@ -142,6 +142,37 @@ def test_drop_all_history(tmp_path):
     assert V.drop_all(str(tmp_path)) is False  # zaten yok
 
 
+def test_drop_all_UYGULAMANIN_gitignore_u_da_gidiyor(tmp_path,
+                                                     _sahte_cop_kutusu):
+    """Geçmiş silinince `init_repo`nun yazdığı .gitignore proje klasöründe
+    kalıyordu (v1.1.2 exe sınamasında görüldü). Çöpe, .git'in yanına."""
+    import os
+
+    _mk(tmp_path)
+    V.init_repo(str(tmp_path))
+    V.snapshot(str(tmp_path), "1")
+
+    assert V.drop_all(str(tmp_path)) is True
+
+    assert not (tmp_path / ".gitignore").exists()
+    assert [os.path.basename(y) for y in _sahte_cop_kutusu] == [".git", ".gitignore"]
+
+
+@pytest.mark.parametrize("icerik", [
+    "# özel ignore\n",                          # kullanıcının kendi dosyası
+    V.IGNORE_TEMPLATE + "*.log2\n",              # şablon, elle değiştirilmiş
+])
+def test_drop_all_KULLANICININ_gitignore_una_dokunmuyor(tmp_path, icerik):
+    _mk(tmp_path)
+    (tmp_path / ".gitignore").write_text(icerik, encoding="utf-8")
+    V.init_repo(str(tmp_path))
+    V.snapshot(str(tmp_path), "1")
+
+    assert V.drop_all(str(tmp_path)) is True
+
+    assert (tmp_path / ".gitignore").read_text(encoding="utf-8") == icerik
+
+
 def test_drop_last_version(tmp_path):
     """Son kayıt geçmişten düşer; dosyalar ve ilk kayıt kalır."""
     _mk(tmp_path)

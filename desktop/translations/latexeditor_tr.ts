@@ -3642,7 +3642,7 @@ Sürümleme burada İÇ İÇE bir depo (.git) oluşturur; üst depo bu klasörü
 Sürümleme burada İÇ İÇE bir depo (.git) oluşturur; üst depo bu klasörü tek bir girdi olarak görür ve içeriği izlenmez.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="479" />
+        <location filename="../gui/mixins/version_ops.py" line="483" />
         <location filename="../gui/mixins/version_ops.py" line="438" />
         <location filename="../gui/mixins/version_ops.py" line="176" />
         <source>Uzak bağlantılar: </source>
@@ -3699,7 +3699,7 @@ Sürümleme AYRI bir geçmiş tutmaz: kayıtlar mevcut deponuza, bulunduğunuz d
         <translation>Sürümleme için 'dulwich' paketi gerekli</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="512" />
+        <location filename="../gui/mixins/version_ops.py" line="518" />
         <location filename="../gui/mixins/version_ops.py" line="369" />
         <location filename="../gui/mixins/version_ops.py" line="220" />
         <source>Sürüm alınıyor; bitmesini bekleyin</source>
@@ -3791,7 +3791,7 @@ Sürümleme AYRI bir geçmiş tutmaz: kayıtlar mevcut deponuza, bulunduğunuz d
         <translation>Fark</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="550" />
+        <location filename="../gui/mixins/version_ops.py" line="556" />
         <location filename="../gui/mixins/version_ops.py" line="419" />
         <source>Dosya bu sürümde bulunamadı</source>
         <translation>Dosya bu sürümde bulunamadı</translation>
@@ -3827,67 +3827,85 @@ Sürümleme AYRI bir geçmiş tutmaz: kayıtlar mevcut deponuza, bulunduğunuz d
         <translation>En yeni sürüm silindi</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="472" />
-        <source>Bu klasördeki .git klasörü (yani SİZİN git deponuz) çöp kutusuna taşınacak.
-
-Tüm dallar, etiketler ve uzak bağlantı ayarları gider; proje dosyalarınız yerinde kalır. Geri almak için çöp kutusundan kurtarmanız gerekir.</source>
-        <translation>Bu klasördeki .git klasörü (yani SİZİN git deponuz) çöp kutusuna taşınacak.
-
-Tüm dallar, etiketler ve uzak bağlantı ayarları gider; proje dosyalarınız yerinde kalır. Geri almak için çöp kutusundan kurtarmanız gerekir.</translation>
+        <location filename="../gui/mixins/version_ops.py" line="478" />
+        <source>Bu klasördeki .git klasörü (yani SİZİN git deponuz) silinecek.</source>
+        <translation>Bu klasördeki .git klasörü (yani SİZİN git deponuz) silinecek.</translation>
     </message>
     <message>
         <location filename="../gui/mixins/version_ops.py" line="480" />
+        <source>Tüm dallar, etiketler ve uzak bağlantı ayarları gider; proje dosyalarınız yerinde kalır.</source>
+        <translation>Tüm dallar, etiketler ve uzak bağlantı ayarları gider; proje dosyalarınız yerinde kalır.</translation>
+    </message>
+    <message>
+        <location filename="../gui/mixins/version_ops.py" line="485" />
+        <source>TÜM sürüm geçmişi silinecek (dosyalarınız silinmez).</source>
+        <translation>TÜM sürüm geçmişi silinecek (dosyalarınız silinmez).</translation>
+    </message>
+    <message>
+        <location filename="../gui/mixins/version_ops.py" line="486" />
+        <source>Silinecek klasör: {yol}</source>
+        <translation>Silinecek klasör: {yol}</translation>
+    </message>
+    <message>
+        <location filename="../gui/mixins/version_ops.py" line="489" />
         <source>Devam etmek istediğinize emin misiniz?</source>
         <translation>Devam etmek istediğinize emin misiniz?</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="482" />
-        <source>TÜM sürüm geçmişi silinecek (dosyalarınız silinmez). Devam etmek istediğinize emin misiniz?</source>
-        <translation>TÜM sürüm geçmişi silinecek (dosyalarınız silinmez). Devam etmek istediğinize emin misiniz?</translation>
-    </message>
-    <message>
-        <location filename="../gui/mixins/version_ops.py" line="485" />
+        <location filename="../gui/mixins/version_ops.py" line="491" />
         <source>Tüm Geçmişi Sil</source>
         <translation>Tüm Geçmişi Sil</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="492" />
+        <location filename="../gui/mixins/version_ops.py" line="498" />
         <source>Silinecek geçmiş yok</source>
         <translation>Silinecek geçmiş yok</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="495" />
+        <location filename="../gui/mixins/version_ops.py" line="501" />
         <source>Tüm geçmiş silindi, yeni sürümlemede yeniden başlar</source>
         <translation>Tüm geçmiş silindi, yeni sürümlemede yeniden başlar</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="518" />
+        <location filename="../gui/mixins/version_ops.py" line="524" />
         <source>Kayıt başarısız, geri yükleme iptal</source>
         <translation>Kayıt başarısız, geri yükleme iptal</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="524" />
+        <location filename="../gui/mixins/version_ops.py" line="530" />
         <source>Geri yüklemeden önce: {f}</source>
         <translation>Geri yüklemeden önce: {f}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="529" />
+        <location filename="../gui/mixins/version_ops.py" line="535" />
         <source>Şimdiki hâl sürüme alınamadı, geri yükleme iptal</source>
         <translation>Şimdiki hâl sürüme alınamadı, geri yükleme iptal</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="537" />
+        <location filename="../gui/mixins/version_ops.py" line="543" />
         <source>Sürümden Geri Yükle</source>
         <translation>Sürümden Geri Yükle</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="538" />
+        <location filename="../gui/mixins/version_ops.py" line="544" />
         <source>{f} dosyası seçilen sürüme döndürülecek. Şimdiki hâli önce yeni bir sürüm olarak kaydedilir; geri dönmek isterseniz Sürüm Geçmişi'nde bulursunuz.</source>
         <translation>{f} dosyası seçilen sürüme döndürülecek. Şimdiki hâli önce yeni bir sürüm olarak kaydedilir; geri dönmek isterseniz Sürüm Geçmişi'nde bulursunuz.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="571" />
+        <location filename="../gui/mixins/version_ops.py" line="577" />
         <source>Geri yüklendi</source>
         <translation>Geri yüklendi</translation>
+    </message>
+    <message>
+        <source>Bu klasördeki .git klasörü (yani SİZİN git deponuz) çöp kutusuna taşınacak.
+
+Tüm dallar, etiketler ve uzak bağlantı ayarları gider; proje dosyalarınız yerinde kalır. Geri almak için çöp kutusundan kurtarmanız gerekir.</source>
+        <translation type="vanished">Bu klasördeki .git klasörü (yani SİZİN git deponuz) çöp kutusuna taşınacak.
+
+Tüm dallar, etiketler ve uzak bağlantı ayarları gider; proje dosyalarınız yerinde kalır. Geri almak için çöp kutusundan kurtarmanız gerekir.</translation>
+    </message>
+    <message>
+        <source>TÜM sürüm geçmişi silinecek (dosyalarınız silinmez). Devam etmek istediğinize emin misiniz?</source>
+        <translation type="vanished">TÜM sürüm geçmişi silinecek (dosyalarınız silinmez). Devam etmek istediğinize emin misiniz?</translation>
     </message>
 </context></TS>

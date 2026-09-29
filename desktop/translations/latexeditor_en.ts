@@ -1084,12 +1084,12 @@ Windows: run 'sudo apt install pandoc' inside WSL</translation>
     <message>
         <location filename="../gui/file_tree.py" line="968" />
         <source>'{name}' klasörünü ve İÇİNDEKİLERİ silmek istediğinize emin misiniz?</source>
-        <translation>Are you sure you want to delete the folder &apos;{name}&apos; and EVERYTHING in it?</translation>
+        <translation>Are you sure you want to delete the folder '{name}' and EVERYTHING in it?</translation>
     </message>
     <message>
         <location filename="../gui/file_tree.py" line="970" />
         <source>'{name}' dosyasını silmek istediğinize emin misiniz?</source>
-        <translation>Are you sure you want to delete the file &apos;{name}&apos;?</translation>
+        <translation>Are you sure you want to delete the file '{name}'?</translation>
     </message>
     <message>
         <location filename="../gui/file_tree.py" line="973" />
@@ -3642,7 +3642,7 @@ Sürümleme burada İÇ İÇE bir depo (.git) oluşturur; üst depo bu klasörü
 Versioning will create a NESTED repository (.git) here; the parent repository will see this folder as a single entry and will not track its contents.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="479" />
+        <location filename="../gui/mixins/version_ops.py" line="483" />
         <location filename="../gui/mixins/version_ops.py" line="438" />
         <location filename="../gui/mixins/version_ops.py" line="176" />
         <source>Uzak bağlantılar: </source>
@@ -3699,7 +3699,7 @@ Versioning does not keep a SEPARATE history: snapshots are committed to your exi
         <translation>Versioning requires the 'dulwich' package</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="512" />
+        <location filename="../gui/mixins/version_ops.py" line="518" />
         <location filename="../gui/mixins/version_ops.py" line="369" />
         <location filename="../gui/mixins/version_ops.py" line="220" />
         <source>Sürüm alınıyor; bitmesini bekleyin</source>
@@ -3791,7 +3791,7 @@ Versioning does not keep a SEPARATE history: snapshots are committed to your exi
         <translation>Diff</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="550" />
+        <location filename="../gui/mixins/version_ops.py" line="556" />
         <location filename="../gui/mixins/version_ops.py" line="419" />
         <source>Dosya bu sürümde bulunamadı</source>
         <translation>File not found in this snapshot</translation>
@@ -3827,67 +3827,85 @@ Versioning does not keep a SEPARATE history: snapshots are committed to your exi
         <translation>Latest snapshot deleted</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="472" />
-        <source>Bu klasördeki .git klasörü (yani SİZİN git deponuz) çöp kutusuna taşınacak.
-
-Tüm dallar, etiketler ve uzak bağlantı ayarları gider; proje dosyalarınız yerinde kalır. Geri almak için çöp kutusundan kurtarmanız gerekir.</source>
-        <translation>The .git folder here (that is, YOUR git repository) will be moved to the recycle bin.
-
-All branches, tags and remote settings will be gone; your project files stay in place. To undo this you must restore the folder from the recycle bin.</translation>
+        <location filename="../gui/mixins/version_ops.py" line="478" />
+        <source>Bu klasördeki .git klasörü (yani SİZİN git deponuz) silinecek.</source>
+        <translation>The .git folder in this folder (that is, YOUR git repository) will be deleted.</translation>
     </message>
     <message>
         <location filename="../gui/mixins/version_ops.py" line="480" />
+        <source>Tüm dallar, etiketler ve uzak bağlantı ayarları gider; proje dosyalarınız yerinde kalır.</source>
+        <translation>All branches, tags and remote settings go with it; your project files stay where they are.</translation>
+    </message>
+    <message>
+        <location filename="../gui/mixins/version_ops.py" line="485" />
+        <source>TÜM sürüm geçmişi silinecek (dosyalarınız silinmez).</source>
+        <translation>The ENTIRE version history will be deleted (your files are not deleted).</translation>
+    </message>
+    <message>
+        <location filename="../gui/mixins/version_ops.py" line="486" />
+        <source>Silinecek klasör: {yol}</source>
+        <translation>Folder to delete: {yol}</translation>
+    </message>
+    <message>
+        <location filename="../gui/mixins/version_ops.py" line="489" />
         <source>Devam etmek istediğinize emin misiniz?</source>
         <translation>Are you sure you want to continue?</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="482" />
-        <source>TÜM sürüm geçmişi silinecek (dosyalarınız silinmez). Devam etmek istediğinize emin misiniz?</source>
-        <translation>ALL version history will be deleted (your files are not deleted). Are you sure you want to continue?</translation>
-    </message>
-    <message>
-        <location filename="../gui/mixins/version_ops.py" line="485" />
+        <location filename="../gui/mixins/version_ops.py" line="491" />
         <source>Tüm Geçmişi Sil</source>
         <translation>Delete All History</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="492" />
+        <location filename="../gui/mixins/version_ops.py" line="498" />
         <source>Silinecek geçmiş yok</source>
         <translation>No history to delete</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="495" />
+        <location filename="../gui/mixins/version_ops.py" line="501" />
         <source>Tüm geçmiş silindi, yeni sürümlemede yeniden başlar</source>
         <translation>All history deleted, versioning starts fresh on the next snapshot</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="518" />
+        <location filename="../gui/mixins/version_ops.py" line="524" />
         <source>Kayıt başarısız, geri yükleme iptal</source>
         <translation>Save failed, restore cancelled</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="524" />
+        <location filename="../gui/mixins/version_ops.py" line="530" />
         <source>Geri yüklemeden önce: {f}</source>
         <translation>Before restore: {f}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="529" />
+        <location filename="../gui/mixins/version_ops.py" line="535" />
         <source>Şimdiki hâl sürüme alınamadı, geri yükleme iptal</source>
         <translation>Could not snapshot the current state, restore cancelled</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="537" />
+        <location filename="../gui/mixins/version_ops.py" line="543" />
         <source>Sürümden Geri Yükle</source>
         <translation>Restore from Snapshot</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="538" />
+        <location filename="../gui/mixins/version_ops.py" line="544" />
         <source>{f} dosyası seçilen sürüme döndürülecek. Şimdiki hâli önce yeni bir sürüm olarak kaydedilir; geri dönmek isterseniz Sürüm Geçmişi'nde bulursunuz.</source>
         <translation>{f} will be reverted to the selected snapshot. Its current state is saved as a new snapshot first; you can find it in Version History if you want to go back.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="571" />
+        <location filename="../gui/mixins/version_ops.py" line="577" />
         <source>Geri yüklendi</source>
         <translation>Restored</translation>
+    </message>
+    <message>
+        <source>Bu klasördeki .git klasörü (yani SİZİN git deponuz) çöp kutusuna taşınacak.
+
+Tüm dallar, etiketler ve uzak bağlantı ayarları gider; proje dosyalarınız yerinde kalır. Geri almak için çöp kutusundan kurtarmanız gerekir.</source>
+        <translation type="vanished">The .git folder here (that is, YOUR git repository) will be moved to the recycle bin.
+
+All branches, tags and remote settings will be gone; your project files stay in place. To undo this you must restore the folder from the recycle bin.</translation>
+    </message>
+    <message>
+        <source>TÜM sürüm geçmişi silinecek (dosyalarınız silinmez). Devam etmek istediğinize emin misiniz?</source>
+        <translation type="vanished">ALL version history will be deleted (your files are not deleted). Are you sure you want to continue?</translation>
     </message>
 </context></TS>

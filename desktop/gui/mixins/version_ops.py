@@ -466,21 +466,27 @@ class VersionOpsMixin:
         Proje dosyalarına dokunmaz; yanlış silmede klasör geri getirilebilir.
         """
         # Yabancı depoda bu işlem kullanıcının TÜM git geçmişini (dallar, etiketler,
-        # remote yapılandırması) çöp kutusuna yollar; onay metni bunu söylemeli.
+        # remote yapılandırması) çöpe yollar; onay metni bunu söylemeli.
+        #
+        # Silinen klasör ve NEREYE gittiği iki kolda da yazıyor. Kendi
+        # depomuzda metin yalnız "TÜM sürüm geçmişi silinecek" diyordu; neyin
+        # silindiği (proje kökündeki .git) ve geri alınabildiği yazmıyordu.
+        from gui.file_tree import cop_notu
+
         st = versioning.repo_status(root)
         if st.foreign:
-            metin = _(
-                "Bu klasördeki .git klasörü (yani SİZİN git deponuz) çöp "
-                "kutusuna taşınacak.\n\nTüm dallar, etiketler ve uzak bağlantı "
-                "ayarları gider; proje dosyalarınız yerinde kalır. Geri almak "
-                "için çöp kutusundan kurtarmanız gerekir."
-            )
+            metin = (_("Bu klasördeki .git klasörü (yani SİZİN git deponuz) "
+                       "silinecek.") + "\n" + cop_notu() + "\n\n"
+                     + _("Tüm dallar, etiketler ve uzak bağlantı ayarları "
+                         "gider; proje dosyalarınız yerinde kalır."))
             if st.remotes:
                 metin += "\n\n" + _("Uzak bağlantılar: ") + ", ".join(st.remotes)
-            metin += "\n\n" + _("Devam etmek istediğinize emin misiniz?")
         else:
-            metin = _("TÜM sürüm geçmişi silinecek (dosyalarınız silinmez). "
-                      "Devam etmek istediğinize emin misiniz?")
+            metin = (_("TÜM sürüm geçmişi silinecek (dosyalarınız silinmez).")
+                     + "\n" + _("Silinecek klasör: {yol}").format(
+                         yol=os.path.join(root, ".git"))
+                     + "\n" + cop_notu())
+        metin += "\n\n" + _("Devam etmek istediğinize emin misiniz?")
         answer = QMessageBox.question(
             self, _("Tüm Geçmişi Sil"), metin,
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,

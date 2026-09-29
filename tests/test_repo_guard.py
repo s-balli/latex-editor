@@ -241,6 +241,35 @@ def test_tum_gecmisi_sil_kendi_deposunda_kisa_uyarir(qapp, tmp_path, monkeypatch
     assert "TÜM sürüm geçmişi" in sorulan["metin"]
 
 
+@pytest.mark.parametrize("yabanci", [False, True])
+def test_tum_gecmisi_sil_KLASORU_ve_COPU_soyluyor(qapp, tmp_path, monkeypatch,
+                                                 yabanci):
+    """Kendi depomuzda metin yalnız "TÜM sürüm geçmişi silinecek" diyordu:
+    neyin silindiği (.git) ve geri alınabildiği (çöp) yazmıyordu."""
+    import os
+
+    from gui.file_tree import cop_notu
+
+    if yabanci:
+        _yabanci_depo(tmp_path)
+    stub = _stub(tmp_path, monkeypatch)
+    if not yabanci:
+        _dialog_yakala(monkeypatch, "Anladım")
+        _snap(qapp, stub)
+    sorulan = {}
+
+    def fake_question(parent, baslik, metin, *a, **k):
+        sorulan["metin"] = metin
+        return QMessageBox.StandardButton.No
+
+    monkeypatch.setattr(QMessageBox, "question", staticmethod(fake_question))
+    stub._drop_all_history(str(tmp_path))
+
+    assert cop_notu() in sorulan["metin"]
+    if not yabanci:
+        assert os.path.join(str(tmp_path), ".git") in sorulan["metin"]
+
+
 def test_surum_sil_yabanci_depoda_not_ekler(qapp, tmp_path, monkeypatch):
     _yabanci_depo(tmp_path)
     stub = _stub(tmp_path, monkeypatch)

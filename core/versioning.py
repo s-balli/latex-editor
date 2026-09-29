@@ -270,6 +270,11 @@ def drop_all(root: str) -> bool:
 
     Proje dosyalarına dokunmaz. Geri dönüşüm kutusu kullanıldığı için yanlış
     silmede klasör geri getirilebilir. Depo yoksa False.
+
+    Uygulamanın `init_repo`da yazdığı `.gitignore` DEĞİŞMEMİŞSE o da çöpe
+    gidiyor: geçmiş silinince proje klasöründe sürümlemeden kalan tek iz
+    oydu (v1.1.2 exe sınamasında görüldü). Kullanıcının kendi `.gitignore`una
+    ya da elle değiştirdiği şablona dokunulmuyor.
     """
     git_dir = os.path.join(root, ".git")
     # BİLEREK `isdir`: çalışma ağacında/alt modülde `.git` bir BAĞLANTI
@@ -283,6 +288,18 @@ def drop_all(root: str) -> bool:
     except Exception:
         _logger.error("Geçmiş silinemedi: %s", root, exc_info=True)
         return False
+    gi = os.path.join(root, ".gitignore")
+    try:
+        # Metin kipi: Windows'ta şablon CRLF'yle yazıldı (bkz. init_repo).
+        with open(gi, encoding="utf-8") as f:
+            bizim = f.read() == IGNORE_TEMPLATE
+    except (OSError, UnicodeDecodeError):
+        bizim = False
+    if bizim:
+        try:
+            send2trash.send2trash(gi)
+        except Exception:
+            _logger.warning(".gitignore çöpe atılamadı: %s", gi, exc_info=True)
     return True
 
 
