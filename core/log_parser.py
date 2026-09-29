@@ -42,6 +42,10 @@ class CompileResult:
     suggestions: list[LatexSuggestion] = field(default_factory=list)
     raw_output: str = ""
     duration: float = 0.0
+    # Derlenen kök belge Türkçe babel yüklüyor mu. Günlükten çıkmıyor
+    # (derle.sh yüklenen dosyaların adını iletmiyor); GUI derleme bitince
+    # kaynaktan dolduruyor ve ipucu kararına veriyor (error_hints.get_hint).
+    turkce_babel: bool = False
 
 
 # Hata satırı: "! Undefined control sequence." vb.

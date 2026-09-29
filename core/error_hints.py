@@ -47,7 +47,14 @@ _PATTERNS: list[tuple[re.Pattern, str]] = [
     (re.compile(r"Misplaced \\noalign|Misplaced \\omit"), "misplaced_noalign"),
     (re.compile(r"Citation `[^']*' undefined|Citation .* undefined"), "citation_undefined"),
     (re.compile(r"Reference `[^']*' .*undefined|Reference .* undefined"), "reference_undefined"),
-    (re.compile(r"There were undefined references|Rerun to get cross"), "rerun_needed"),
+    # İKİ ayrı ipucu. İkisi de eskiden "tekrar derleyin" diyordu, oysa
+    # derle.sh geçişleri kendisi tekrarlıyor ("Rerun" kalmayana kadar, en çok
+    # beş geçiş). ÖLÇÜLDÜ (2026-09-29, v1.1.2 exe, gerçek derle.sh):
+    # `\label`i hiç olmayan bir `\ref`in uyarısı her derlemede aynen geliyor,
+    # yani öneri kullanıcıyı sonuç vermeyen bir döngüye sokuyordu. Sonda
+    # hâlâ "Rerun" kalması ise geçişlerin oturmadığı anlamına geliyor.
+    (re.compile(r"There were undefined references"), "undefined_references"),
+    (re.compile(r"Rerun to get cross"), "rerun_needed"),
     # İki motor AYNI kusuru başka kelimelerle bildiriyor; ipucu ikisini de
     # tanımak zorunda. pdfTeX: "destination with the same identifier
     # (name{figure.1}) has been already used, duplicate ignored".
@@ -57,7 +64,7 @@ _PATTERNS: list[tuple[re.Pattern, str]] = [
     # 17'sinde 358 satır).
     (re.compile(r"destination with the same identifier"
                 r"|ignoring duplicate destination"), "duplicate_label"),
-    # LaTeX'in kendi çift-etiket uyarısı (ikinci derleme geçesinde):
+    # LaTeX'in kendi çift-etiket uyarısı (ikinci derleme geçişinde):
     # "Label `x' multiply defined." / "There were multiply-defined labels."
     (re.compile(r"multiply.defined labels?|Label `[^']*' multiply defined"),
      "duplicate_label"),
@@ -75,7 +82,53 @@ _PATTERNS: list[tuple[re.Pattern, str]] = [
     (re.compile(r"You must invoke LaTeX with the\s+-shell-escape flag"),
      "shell_escape_needed"),
     (re.compile(r"You must have `pygmentize' installed"), "pygmentize_missing"),
+    # Türkçe babel `=` işaretini kısaltma yapıyor (turkish.ldf,
+    # \extrasturkish) ve `[width=2cm]` gibi seçeneklerde ayraç okunmuyor:
+    # anahtar `width=2cm` diye TEK parça kalıyor. İletinin kendisi kanıt,
+    # belgeye bakmak gerekmiyor. Değer bir makro taşıyınca
+    # (`0.3\textwidth`) ileti başka; o kol `get_hint`te belgeye bağlı.
+    (re.compile(r"Package keyval Error: \S*=\S* undefined"), "turkish_shorthand"),
+    # Kodlama uyuşmazlığı, iki yön. ÖLÇÜLDÜ (2026-09-29, gerçek pdflatex):
+    # UTF-8 dosya + `[latin5]{inputenc}` -> birinci ileti; eski kodlamalı
+    # dosya + UTF-8 bekleyen belge (LaTeX 2018'den beri öntanımlı) ->
+    # ikincisi. Uygulamanın kendi "UTF-8'e dönüştür" yolu birincisini
+    # üretiyordu ve ardından gelen "Missing $ inserted" ipucu kullanıcıyı
+    # matematik moduna yolluyordu.
+    (re.compile(r"Keyboard character used is undefined"), "inputenc_mismatch"),
+    (re.compile(r"Invalid UTF-8 byte"), "not_utf8"),
 ]
+
+# `[width=0.3\textwidth]` Türkçe babel altında bu üç iletiyle düşüyor
+# (ÖLÇÜLDÜ, 2026-09-29, gerçek pdflatex; `[width=2cm]` ise keyval iletisiyle,
+# bkz. `_PATTERNS`). Üçü de sıradan yazım hatasında da çıkıyor (`width=abc`),
+# o yüzden ipucu YALNIZ belge Türkçe babel yüklüyorsa ve hata satırında
+# köşeli parantez içinde `=` varsa veriliyor.
+_RE_KISALTMA_BELIRTISI = re.compile(
+    r"Missing number, treated as zero|Illegal unit of measure"
+    r"|Missing \\endcsname inserted")
+_RE_SECENEK_ESITTIR = re.compile(r"\[[^\]]*=")
+_RE_INPUTENC_ADI = re.compile(r"inputencoding\s*`([^'\s]+)'")
+
+# Belge Türkçe babel yüklüyor mu: `\usepackage[...turkish...]{babel}` ya da
+# sınıfın genel seçeneği (`\documentclass[turkish]{...}` + `{babel}`).
+# `shorthands=` verilmişse `=` zaten kapalı olabilir; o belgede hata da
+# çıkmaz, ipucu hatasız belgede hiç sorulmuyor.
+_RE_BABEL = re.compile(
+    r"\\(?:usepackage|RequirePackage)\s*(?:\[([^\]]*)\])?\s*\{\s*babel\s*\}")
+_RE_SINIF_SECENEK = re.compile(r"\\documentclass\s*\[([^\]]*)\]")
+
+
+def turkce_babel_mi(metin: str) -> bool:
+    """Belge (kök) Türkçe babel yüklüyor mu. Yorum satırları sayılmıyor."""
+    temiz = re.sub(r"(?<!\\)%.*", "", metin or "")
+    yuklemeler = list(_RE_BABEL.finditer(temiz))
+    if not yuklemeler:
+        return False
+    if any(m.group(1) and re.search(r"\bturkish\b", m.group(1))
+           for m in yuklemeler):
+        return True
+    sinif = _RE_SINIF_SECENEK.search(temiz)
+    return bool(sinif and re.search(r"\bturkish\b", sinif.group(1)))
 
 _RE_ENV_UNDEFINED = re.compile(r"Environment (\S+) undefined")
 
@@ -215,7 +268,8 @@ def _suclu_komut(ust_satir: str, context: str) -> str:
 
 
 def get_hint(message: str, context: str = "",
-             ust_satir: str = "") -> tuple[str, dict[str, str]] | None:
+             ust_satir: str = "", *,
+             turkce_babel: bool = False) -> tuple[str, dict[str, str]] | None:
     r"""Hata/uyarı mesajı için (ipucu_kimliği, parametreler); tanınmazsa None.
 
     ``context``: log_parser'ın yakaladığı "l.42 ..." satırı. ``ust_satir``:
@@ -226,9 +280,16 @@ def get_hint(message: str, context: str = "",
     derle.sh): `\newcommand{\R}{\mathbb{R}}` + `$\R$` ipucu `\R`yi
     suçluyordu, `amssymb` eklenince hata kalkıyor; `\vect` ile
     `\boldsymbol` (amsmath) aynı.
+
+    ``turkce_babel``: derlenen belge Türkçe babel yüklüyor mu
+    (`turkce_babel_mi`). Yalnız `_RE_KISALTMA_BELIRTISI` iletilerinin
+    kararına giriyor.
     """
     if not message:
         return None
+    if (turkce_babel and _RE_KISALTMA_BELIRTISI.search(message)
+            and _RE_SECENEK_ESITTIR.search(context or "")):
+        return "turkish_shorthand", {}
     m = _RE_ENV_UNDEFINED.search(message)
     if m:
         paket = ORTAM_PAKETI.get(m.group(1))
@@ -252,5 +313,10 @@ def get_hint(message: str, context: str = "",
                     if ad in KOMUT_SINIFI:
                         return "cmd_needs_class", {
                             "cmd": komut, "sinif": KOMUT_SINIFI[ad]}
+            elif hint_id == "inputenc_mismatch":
+                # Ad iletinin sonunda: "... in inputencoding `latin5'."
+                # Bulunamazsa uydurulmuyor; şablon "..." ile okunur kalıyor.
+                ad = _RE_INPUTENC_ADI.search(message)
+                params["enc"] = ad.group(1) if ad else "..."
             return hint_id, params
     return None

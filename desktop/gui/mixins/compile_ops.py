@@ -60,7 +60,23 @@ def _basarisizlik_aciklandi(result) -> bool:
     from core.error_hints import get_hint
 
     return bool(result.suggestions) or any(
-        get_hint(e.message, e.context, e.ust_satir) for e in result.errors)
+        get_hint(e.message, e.context, e.ust_satir,
+                 turkce_babel=getattr(result, "turkce_babel", False))
+        for e in result.errors)
+
+
+def _turkce_babel_yukluyor(kok: str) -> bool:
+    """Derlenen kök belge Türkçe babel yüklüyor mu (ipucu kararı için)."""
+    from core.error_hints import turkce_babel_mi
+    from core.fs_ops import coz
+
+    if not kok:
+        return False
+    try:
+        with open(kok, "rb") as f:
+            return turkce_babel_mi(coz(f.read()))
+    except OSError:
+        return False
 
 
 class CompileOpsMixin:
@@ -605,6 +621,11 @@ class CompileOpsMixin:
                 w.file_path = resolve_error_path(w.file_path, base)
         self._err_index = -1
 
+        # `[width=...]` hatası Türkçe babel'den mi (bkz. core/error_hints.py
+        # `_RE_KISALTMA_BELIRTISI`): yalnız hata varken okunuyor.
+        if result.errors:
+            result.turkce_babel = _turkce_babel_yukluyor(
+                getattr(self, "_compile_target", "") or "")
         self._output_panel.show_result(result)
 
         if failed and not _basarisizlik_aciklandi(result):

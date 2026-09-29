@@ -408,6 +408,44 @@ def test_SEBEBI_BILINEN_basarisizlikta_genel_motor_onerisi_YOK(ana_pencere,
     assert "Kabuk Erişimi İznini Sıfırla" in op._error_list.item(0).text()
 
 
+@pytest.mark.parametrize("onsoz,turkce", [
+    ("\\usepackage[turkish]{babel}\n", True),
+    ("\\usepackage[english]{babel}\n", False),
+])
+def test_TURKCE_BABEL_esittir_hatasi_KOK_belgeden_taniniyor(ana_pencere,
+                                                           tmp_path, onsoz,
+                                                           turkce):
+    r"""`[width=0.3\textwidth]` Türkçe babel altında "Missing number" ile
+    düşüyor ve ileti tek başına sebebi söylemiyor: karar kök belgenin
+    önsözüne bağlı. ÖLÇÜLDÜ (2026-09-29, v1.1.2 exe, gerçek derle.sh):
+    hatalarda ipucu yoktu, Öneriler "motoru lualatex veya xelatex olarak
+    değiştirip tekrar deneyin" dedi; motor değişince de hata sürüyor.
+    Karşı kol: Türkçe babel yoksa aynı ileti o sebebe bağlanmıyor."""
+    from core.log_parser import parse_output
+
+    p = ana_pencere()
+    op = p._output_panel
+    kok = tmp_path / "main.tex"
+    kok.write_text("\\documentclass{article}\n" + onsoz
+                   + "\\usepackage{graphicx}\n\\begin{document}\n"
+                   "\\input{bolum}\n\\end{document}\n", encoding="utf-8")
+    p._compile_target = str(kok)
+    p._compile_engine = "pdflatex"
+
+    p._on_compile_finished(parse_output(
+        "  /home/u/y/bolum.tex:9: Missing number, treated as zero.\n"
+        "  l.9 ...hics[width=0.3\\textwidth]{sekiller/ornek}\n",
+        str(kok)))
+
+    metin = op._error_list.item(0).text()
+    if turkce:
+        assert "shorthands=:!" in metin
+        assert op._suggest_list.count() == 0, "genel motor önerisi çıkmamalı"
+    else:
+        assert "shorthands" not in metin
+        assert op._suggest_list.count() == 1
+
+
 def test_PAKETIN_ya_da_SINIFIN_hatasi_kullanicinin_YUKLEDIGI_satira_gidiyor(
         ana_pencere, tmp_path):
     r"""Paketin içinden gelen hata paketin KENDİ satırıyla geliyordu.

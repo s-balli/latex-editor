@@ -76,8 +76,36 @@ def test_reference_undefined():
 
 
 def test_rerun_needed():
-    assert get_hint("There were undefined references.")[0] == "rerun_needed"
+    # Özet satırı AYRI kimlik: o uyarı derlemenin son hâli, "yeniden derle"
+    # önerisi ona uymuyor (bkz. test_TANIMSIZ_gonderme_ipuclari_YENIDEN_*).
+    assert get_hint("There were undefined references.")[0] == "undefined_references"
     assert get_hint("Label(s) may have changed. Rerun to get cross-references right.")[0] == "rerun_needed"
+
+
+@pytest.mark.parametrize("hid", ["citation_undefined", "reference_undefined",
+                                 "undefined_references", "rerun_needed"])
+def test_TANIMSIZ_gonderme_ipuclari_YENIDEN_DERLE_demiyor(qapp, hid):
+    r"""derle.sh geçişleri kendisi tekrarlıyor ("Rerun" kalmayana kadar);
+    panelde görünen uyarı derlemenin SON hâli. Dört ipucu da "tekrar
+    derleyin" diyordu. ÖLÇÜLDÜ (2026-09-29, v1.1.2 exe): `\label`i olmayan
+    `\ref`in uyarısı her yeni derlemede aynen geldi. Ayrıca "geçe" (saat
+    bildirir) "geçiş" yerine yazılmıştı.
+    """
+    from gui.output_panel import OutputPanel
+
+    metin = OutputPanel._hint_text((hid, {})).lower()
+    assert metin
+    assert "tekrar derleyin" not in metin
+    assert "geçe" not in metin
+
+
+def test_TANIMSIZ_anahtar_ipuclari_DENETIME_yolluyor(qapp):
+    from gui.output_panel import OutputPanel
+
+    for hid in ("citation_undefined", "reference_undefined"):
+        metin = OutputPanel._hint_text((hid, {}))
+        assert "yeniden derlemek düzeltmez" in metin, hid
+        assert "Referansları Denetle" in metin, hid
 
 
 def test_duplicate_label():
@@ -135,6 +163,84 @@ def test_minted_kabuk_erisimi_kapaliyken():
                     "-shell-escape flag.")[0] == "shell_escape_needed"
     assert get_hint("Package minted Error: You must have `pygmentize' "
                     "installed to use this package.")[0] == "pygmentize_missing"
+
+
+# ---------------------------------------------------------------------
+# Türkçe babel `=` kısaltması. İletiler GERÇEK pdflatex'ten (2026-09-29):
+# `[width=2cm]` keyval iletisiyle, `[width=0.3\textwidth]` üç genel iletiyle
+# düşüyor. Öneriler ise "motoru değiştirip tekrar deneyin" diyordu; motor
+# değişince de `=` kısaltma kalıyor.
+# ---------------------------------------------------------------------
+
+def test_TURKCE_BABEL_keyval_iletisi_KENDI_BASINA_kanit():
+    """`width=2cm` TEK anahtar: `=` ayraç sayılmamış. Belgeye bakmaya gerek
+    yok, bayrak verilmese de ipucu çıkmalı."""
+    assert get_hint("Package keyval Error: width=2cm undefined.") \
+        == ("turkish_shorthand", {})
+
+
+@pytest.mark.parametrize("ileti", [
+    "Missing number, treated as zero.",
+    "Illegal unit of measure (pt inserted).",
+    "Missing \\endcsname inserted.",
+])
+def test_TURKCE_BABEL_genel_iletilerde_YALNIZ_babel_varken(ileti):
+    baglam = "l.9 ...hics[width=0.3\\textwidth]{sekiller/ornek}"
+    assert get_hint(ileti, baglam, turkce_babel=True) == ("turkish_shorthand", {})
+    # Aynı ileti sıradan yazım hatasında da çıkıyor (`width=abc`): babel
+    # yoksa ipucu Türkçe babel'i suçlamamalı.
+    assert get_hint(ileti, baglam) != ("turkish_shorthand", {})
+    # Satırda seçenek `=`'i yoksa babel yüklü olsa da başka bir sebep.
+    assert get_hint(ileti, "l.3 \\vspace{}", turkce_babel=True) \
+        != ("turkish_shorthand", {})
+
+
+@pytest.mark.parametrize("metin,beklenen", [
+    ("\\usepackage[turkish]{babel}", True),
+    ("\\usepackage[english,turkish]{babel}", True),
+    ("\\RequirePackage[turkish]{babel}", True),
+    ("\\documentclass[turkish]{article}\n\\usepackage{babel}", True),
+    ("% \\usepackage[turkish]{babel}\n", False),
+    ("\\usepackage[english]{babel}", False),
+    ("\\documentclass[turkish]{article}", False),      # babel yüklenmemiş
+    ("\\usepackage{polyglossia}\n\\setmainlanguage{turkish}", False),
+])
+def test_turkce_babel_mi(metin, beklenen):
+    from core.error_hints import turkce_babel_mi
+    assert turkce_babel_mi(metin) is beklenen
+
+
+def test_TURKCE_BABEL_ipucu_cozumu_ve_sinif_kolunu_soyluyor(qapp):
+    from gui.output_panel import OutputPanel
+
+    metin = OutputPanel._hint_text(("turkish_shorthand", {}))
+    assert "\\usepackage[turkish,shorthands=:!]{babel}" in metin
+    assert "\\shorthandoff{=}" in metin
+
+
+# ---------------------------------------------------------------------
+# Kodlama uyuşmazlığı. İletiler GERÇEK pdflatex'ten (2026-09-29).
+# ---------------------------------------------------------------------
+
+def test_INPUTENC_uyusmazligi_kodlamanin_ADINI_veriyor(qapp):
+    from gui.output_panel import OutputPanel
+
+    h = get_hint("Package inputenc Error: Keyboard character used is "
+                 "undefined in inputencoding `latin5'.")
+    assert h == ("inputenc_mismatch", {"enc": "latin5"})
+    metin = OutputPanel._hint_text(h)
+    # `{enc}` ikamesi literal `{inputenc}`i bozmamalı.
+    assert "\\usepackage[latin5]{inputenc}" in metin
+    assert "\\usepackage[utf8]{inputenc}" in metin
+    assert "{enc}" not in metin
+
+
+def test_UTF8_OLMAYAN_dosya_ipucu(qapp):
+    from gui.output_panel import OutputPanel
+
+    h = get_hint('LaTeX Error: Invalid UTF-8 byte "FE.')
+    assert h == ("not_utf8", {})
+    assert "Farklı Kaydet" in OutputPanel._hint_text(h)
 
 
 def test_eksik_glif_yazi_tipini_cikariyor():
@@ -312,7 +418,7 @@ def test_panel_warning_shows_rerun_hint(qapp):
 
     text = panel._warn_list.item(0).text()
     assert "→" in text
-    assert "tekrar derleyin" in text
+    assert "Referansları Denetle" in text
 
 
 def test_panel_unknown_error_no_hint(qapp):

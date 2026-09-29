@@ -46,9 +46,16 @@ def _hint_templates() -> dict:
         "emergency_stop": _("Derleyici beklenmedik durdu; genelde eksik dosya veya kapanmamış blok. Log sekmesindeki son satırlara bakın"),
         "counter_too_large": _("Sayaç sınırı aşıldı (çok sayıda dipnot/liste öğesi); enumitem paketini kullanın"),
         "misplaced_noalign": _("tabular komutu yanlış yerde; \\toprule/\\midrule yalnız tabular içinde satır başında kullanılır"),
-        "citation_undefined": _("Kaynakça anahtarı çözülmedi: tekrar derleyin (iki geçe gerekir) veya Düzenle > Referansları Denetle ile anahtarı kontrol edin"),
-        "reference_undefined": _("Çapraz referans çözülmedi: tekrar derleyin; \\label tanımlı mı diye Referansları Denetle'ye bakın"),
-        "rerun_needed": _("Tekrar derleyin: çapraz referanslar ve kaynakça iki derleme geçesinde çözülür"),
+        # Üçü de eskiden "tekrar derleyin" diyordu; derle.sh geçişleri zaten
+        # kendisi tekrarlıyor, yani bu uyarı derlemenin SON hâli (bkz.
+        # core/error_hints.py, "undefined_references").
+        "citation_undefined": _("Kaynakça anahtarı çözülmedi; yeniden derlemek düzeltmez. Anahtar .bib dosyasında yok ya da yanlış yazılmış olabilir: Düzenle > Referansları Denetle ile kontrol edin"),
+        "reference_undefined": _("Çapraz referans çözülmedi; yeniden derlemek düzeltmez. Bu adla bir \\label yok ya da yanlış yazılmış olabilir: Düzenle > Referansları Denetle ile kontrol edin"),
+        "undefined_references": _("Çözülmeyen \\ref ya da \\cite var; hangileri olduğu üstteki uyarılarda"),
+        "rerun_needed": _("Çapraz referanslar tekrarlanan derleme geçişlerinde de oturmadı; genelde sayfa numarasına bağlı göndermeler (\\pageref, varioref) buna yol açar"),
+        "turkish_shorthand": _("Türkçe babel = işaretini kısaltma yapıyor ve [width=...] gibi seçeneklerde = ayraç olarak okunmuyor. Önsözde \\usepackage[turkish,shorthands=:!]{babel} yazın (babel sınıf dosyasında yükleniyorsa \\begin{document} satırından sonra \\shorthandoff{=} ekleyin)"),
+        "inputenc_mismatch": _("Dosyadaki bir karakter belgenin bildirdiği {enc} kodlamasında yok. Dosya UTF-8 ise \\usepackage[{enc}]{inputenc} satırını \\usepackage[utf8]{inputenc} yapın"),
+        "not_utf8": _("Dosya UTF-8 değil (eski Türkçe kodlama olabilir) ama belge UTF-8 bekliyor. Dosya > Farklı Kaydet ile kaydedince dosya UTF-8 olur"),
         "duplicate_label": _("Aynı \\label iki kez kullanılmış; F2 ile birini yeniden adlandırın"),
         "listings_language": _("Listings dili yüklenemedi. \\usepackage[turkish]{babel} kullanıyorsanız bu bilinen bir çakışmadır: language=C yerine language={[ANSI]C} yazın. Değilse dil adını kontrol edin (C, Python, Pascal, Java...)"),
         "shell_escape_needed": _("Bu paket kabuk erişimi (-shell-escape) istiyor ve bu derlemede kapalıydı. İzni daha önce reddettiyseniz Derle > Kabuk Erişimi İznini Sıfırla'yı seçin; bir sonraki derlemede yeniden sorulur."),
@@ -364,6 +371,9 @@ class OutputPanel(QWidget):
         out = out.replace("{komut}", cmd)
         out = out.replace("{sinif}", params.get("sinif", ""))
         out = out.replace("{paket}", params.get("paket", ""))
+        # inputenc_mismatch şablonunda literal '{inputenc}' da geçiyor;
+        # '{enc}' onunla çakışmıyor ('{' ile 'enc' arasında 'input' var).
+        out = out.replace("{enc}", params.get("enc", ""))
         # missing_glyph şablonunda literal '{fontenc}' de geçiyor. Çakışmıyor:
         # '{font}' kapanış parantezi ister, '{fontenc}' orada 'e' taşıyor.
         # Yine de yer tutucuyu değiştirecek olan bunu akılda tutsun.
@@ -390,8 +400,9 @@ class OutputPanel(QWidget):
         for err in result.errors:
             text = (self._satir_oneki(err.file_path, err.line_number) + err.message
                     if err.line_number else err.message)
-            hint = self._hint_text(get_hint(err.message, err.context,
-                                            err.ust_satir))
+            hint = self._hint_text(get_hint(
+                err.message, err.context, err.ust_satir,
+                turkce_babel=getattr(result, "turkce_babel", False)))
             if hint:
                 text += "\n    → " + hint
             item = QListWidgetItem(text)
