@@ -45,7 +45,7 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 > gh attestation verify LaTeX_Editor_v<sürüm>_Windows.exe --repo s-balli/latex-editor
 > ```
 >
-> Kanıt Sigstore ile imzalanıp herkese açık Rekor şeffaflık kütüğüne yazılıyor, yani bu depodan bağımsız olarak da doğrulanabiliyor. Kanıtlar v1.0.23'ten SONRA yayınlanan ilk sürümle başlıyor; daha eski dosyalarda yok ve komut bunu bildiriyor.
+> Kanıt Sigstore ile imzalanıp herkese açık Rekor şeffaflık kütüğüne yazılıyor, yani bu depodan bağımsız olarak da doğrulanabiliyor. Kanıtlar v1.0.23'ten SONRA yayınlanan ilk sürümle başlıyor; daha eski dosyalarda yok ve komut bunu bildiriyor. macOS `.dmg` dosyasında kanıt v1.2.0'dan sonraki ilk sürümle başlıyor.
 
 ---
 

@@ -260,3 +260,86 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: python -m pytest tests/test_derle_sh.py tests/test_synctex_live.py tests/test_tablo_derleme.py tests/test_ipucu_derleme.py tests/test_pdf_baglanti_derleme.py tests/test_kaynakca_derleme.py -v
+
+  # ============================================================
+  # GECICI ON UCUS ISI. BIRLESTIRILMEYECEK.
+  #
+  # release.yml'in build-macos isine derleme kaniti eklendi; is yalniz `v*`
+  # tag'inde kosuyor. Bu is o isin yapim adimlarini kopyalayip .dmg'yi
+  # uretiyor, AYNI kanit adimini kosuyor ve kaniti gh ile dogruluyor (karsi
+  # kol: kirpik kopya reddedilmeli). Sonuc gorulunce PR birlestirilmeden
+  # kapatilacak ve dal silinecek.
+  # ============================================================
+  onucus-macos-kanit:
+    runs-on: macos-15
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Get version
+        shell: bash
+        id: ver
+        run: echo "VERSION=$(grep VERSION core/version.py | cut -d'"' -f2)" >> $GITHUB_OUTPUT
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r desktop/requirements.txt pyinstaller
+
+      - name: Paket ikonunu uret (.icns)
+        run: |
+          bash desktop/macos_ikon_uret.sh
+          test -f desktop/linux/latex-editor.icns
+
+      - name: Build .app
+        working-directory: desktop
+        run: |
+          python -m PyInstaller --noconfirm latex-editor-macos.spec
+          test -d "dist/LaTeX Editor.app"
+
+      - name: Build .dmg
+        working-directory: desktop
+        run: |
+          ad="LaTeX_Editor_v${{ steps.ver.outputs.VERSION }}_macOS_arm64"
+          mkdir -p "$RUNNER_TEMP/dmg"
+          cp -R "dist/LaTeX Editor.app" "$RUNNER_TEMP/dmg/"
+          ln -s /Applications "$RUNNER_TEMP/dmg/Applications"
+          hdiutil create -volname "LaTeX Editor" \
+            -srcfolder "$RUNNER_TEMP/dmg" -ov -format UDZO \
+            "dist/$ad.dmg" > /dev/null
+          hdiutil verify "dist/$ad.dmg" > /dev/null
+          ls -lh "dist/$ad.dmg" | awk '{print ".dmg boyutu:", $5}'
+
+      # release.yml'deki adimin AYNISI.
+      - name: Derleme kaniti (imzali provenance)
+        uses: actions/attest@v4
+        with:
+          subject-path: desktop/dist/LaTeX_Editor_v${{ steps.ver.outputs.VERSION }}_macOS_arm64.dmg
+
+      - name: Kanit dogrulanabiliyor mu (karsi kol dahil)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          d="desktop/dist/LaTeX_Editor_v${{ steps.ver.outputs.VERSION }}_macOS_arm64.dmg"
+          echo "dmg sha256: $(shasum -a 256 "$d" | cut -d' ' -f1)"
+          gh attestation verify "$d" --repo "${{ github.repository }}" --format json > kanit.json
+          echo "dogrulama cikisi: 0"
+          grep -o '"buildSignerURI":"[^"]*"' kanit.json | head -1
+          grep -c "$(basename "$d")" kanit.json | sed 's/^/kanitta dosya adi: /'
+          head -c 1000000 "$d" > kirpik.dmg
+          if gh attestation verify kirpik.dmg --repo "${{ github.repository }}" > /dev/null 2>&1; then
+            echo "::error::kirpik kopya dogrulandi"; exit 1
+          fi
+          echo "kirpik kopya reddedildi"
