@@ -66,6 +66,15 @@ _PATTERNS: list[tuple[re.Pattern, str]] = [
     # Dil adı gerçekten yanlış da yazılmış olabilir; ipucu ikisini kapsar.
     (re.compile(r"Listings Error: Couldn't load requested language"
                 r"|language \S+ of \S+ undefined"), "listings_language"),
+    # minted kabuk erişimi kapalıyken (kullanıcı izni reddetti) önce bu iki
+    # hatayı veriyor; ikincisi pygmentize KURULU olsa da çıkıyor. ÖLÇÜLDÜ
+    # (2026-09-28, v1.1.2 exe'si, gerçek derle.sh): ipucu yoktu ve Öneriler
+    # "motoru lualatex veya xelatex olarak değiştirin" diyordu. Motor
+    # değiştirmek minted'i düzeltmiyor, izni geri açmanın yolu ise
+    # söylenmiyordu (ret proje için hatırlanıyor).
+    (re.compile(r"You must invoke LaTeX with the\s+-shell-escape flag"),
+     "shell_escape_needed"),
+    (re.compile(r"You must have `pygmentize' installed"), "pygmentize_missing"),
 ]
 
 _RE_ENV_UNDEFINED = re.compile(r"Environment (\S+) undefined")

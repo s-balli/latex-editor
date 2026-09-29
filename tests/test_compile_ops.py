@@ -395,6 +395,18 @@ def test_SEBEBI_BILINEN_basarisizlikta_genel_motor_onerisi_YOK(ana_pencere,
         "  (fontspec)                      LuaTeX.\n", tex))
     assert op._suggest_list.count() == 1
 
+    # Kabuk erişimi reddedilmiş minted (gerçek derle.sh, 2026-09-28): genel
+    # satır "motoru değiştirin" diyordu; motor minted'i düzeltmiyor.
+    p._on_compile_finished(parse_output(
+        "  /home/u/y/main.tex:3: Package minted Error: You must invoke LaTeX "
+        "with the -shell-escape flag.\n"
+        "  /home/u/y/main.tex:3: Package minted Error: You must have "
+        "`pygmentize' installed to use this package.\n", tex))
+    assert op._suggest_list.count() == 0
+    assert op._tabs.currentIndex() == op._error_tab_index
+    # Reddedilen izin proje için hatırlanıyor: geri açmanın yolu söylenmeli
+    assert "Kabuk Erişimi İznini Sıfırla" in op._error_list.item(0).text()
+
 
 def test_PAKETIN_ya_da_SINIFIN_hatasi_kullanicinin_YUKLEDIGI_satira_gidiyor(
         ana_pencere, tmp_path):

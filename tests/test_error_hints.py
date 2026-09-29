@@ -127,6 +127,16 @@ def test_listings_language_turkish_babel():
     assert get_hint("language xyz of abc undefined.")[0] == "listings_language"
 
 
+def test_minted_kabuk_erisimi_kapaliyken():
+    """Kullanıcı kabuk erişimini reddedince minted önce bu iki hatayı veriyor
+    (gerçek derle.sh çıktısı, 2026-09-28). İpucu yoktu; Öneriler motoru
+    değiştirmeyi söylüyordu, izni geri açmanın yolunu değil."""
+    assert get_hint("Package minted Error: You must invoke LaTeX with the "
+                    "-shell-escape flag.")[0] == "shell_escape_needed"
+    assert get_hint("Package minted Error: You must have `pygmentize' "
+                    "installed to use this package.")[0] == "pygmentize_missing"
+
+
 def test_eksik_glif_yazi_tipini_cikariyor():
     """XeLaTeX/LuaLaTeX + [T1]{fontenc}: Türkçeye özgü harfler sessizce düşer.
 

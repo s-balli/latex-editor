@@ -51,6 +51,8 @@ def _hint_templates() -> dict:
         "rerun_needed": _("Tekrar derleyin: çapraz referanslar ve kaynakça iki derleme geçesinde çözülür"),
         "duplicate_label": _("Aynı \\label iki kez kullanılmış; F2 ile birini yeniden adlandırın"),
         "listings_language": _("Listings dili yüklenemedi. \\usepackage[turkish]{babel} kullanıyorsanız bu bilinen bir çakışmadır: language=C yerine language={[ANSI]C} yazın. Değilse dil adını kontrol edin (C, Python, Pascal, Java...)"),
+        "shell_escape_needed": _("Bu paket kabuk erişimi (-shell-escape) istiyor ve bu derlemede kapalıydı. İzni daha önce reddettiyseniz Derle > Kabuk Erişimi İznini Sıfırla'yı seçin; bir sonraki derlemede yeniden sorulur."),
+        "pygmentize_missing": _("minted, Pygments'ın pygmentize komutunu bulamadı. Bu hata kabuk erişimi kapalıyken de çıkar; önce onu açın. Açıksa Pygments'ı kurun."),
         "missing_glyph": _("Karakterin {font} yazı tipinde karşılığı yok, PDF'e yazılmadan atlandı ve derleme yine de başarılı göründü. En sık sebebi XeLaTeX/LuaLaTeX ile [T1]{fontenc} kullanmak; ş, ı, İ ve ğ sessizce düşer. Çözüm: \\usepackage{iftex} ekleyip fontenc ile inputenc satırlarını \\ifPDFTeX ... \\fi bloğuna alın"),
     }
 
