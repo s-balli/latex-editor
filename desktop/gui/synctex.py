@@ -211,7 +211,9 @@ def reverse_search(page: int, x: float, y: float, pdf_path: str,
     canlı kapıda (tests/test_synctex_live.py, bölüm sonu sayfası, 54 tık)
     başka dosyaya giden: lualatex 15'ten 0'a, pdflatex 2'den 0'a.
     """
-    tek = _reverse_wsl if _PLATFORM == "win32" else _reverse_native
+    if _PLATFORM == "win32":
+        return _reverse_search_wsl(page, x, y, pdf_path, synctex_dir)
+    tek = _reverse_native
     t0 = time.monotonic()
     sonuc = tek(page, x, y, pdf_path, synctex_dir)
     if sonuc is ARAC_YOK or time.monotonic() - t0 > _EK_SORGU_BUTCESI:
@@ -228,6 +230,35 @@ def reverse_search(page: int, x: float, y: float, pdf_path: str,
             komsu = tek(page, x + dx, y, pdf_path, synctex_dir)
             if not _supheli(komsu, gonderilme, kok):
                 return komsu
+    return sonuc
+
+
+def _reverse_search_wsl(page: int, x: float, y: float, pdf_path: str,
+                        synctex_dir: str = "") -> ReverseResult | None:
+    """`reverse_search`in Windows kolu: aynı seçim, sorgular TOPLU.
+
+    Her sorgu ayrı bir `wsl -e` süreciydi (sıcak WSL'de ~85 ms, maliyetin
+    tamamı süreç açılışı) ve şüpheli sonuçta tık başına on bire kadar sorgu
+    gidiyordu: kısa bir satırın sağındaki boşluğa Ctrl+tık ~1 sn sürüyordu.
+    Artık iki süreç: tıklanan nokta ile köşe BİRLİKTE, gerekirse bütün
+    komşular BİRLİKTE. Seçim kuralı yerli koldakiyle aynı (ilk şüpheli
+    olmayan komşu, yoksa ilk sonuç).
+
+    Süre bütçesi yok: yerli kolda ek sorgu başına ayrı zaman aşımı
+    bekleniyordu, burada ilk toplu sorgu düşerse komşulara hiç gidilmiyor.
+    """
+    ilk = _reverse_wsl_toplu(page, [(x, y), (1.0, 1.0)], pdf_path, synctex_dir)
+    if ilk is ARAC_YOK or ilk is None:
+        return ilk
+    sonuc, gonderilme = ilk
+    kok = os.path.dirname(os.path.normcase(os.path.abspath(pdf_path)))
+    if not _supheli(sonuc, gonderilme, kok):
+        return sonuc
+    komsular = [(x + dx, y) for dx in _KOMSULAR if x + dx >= 0]
+    sonuclar = _reverse_wsl_toplu(page, komsular, pdf_path, synctex_dir)
+    for komsu in sonuclar if isinstance(sonuclar, list) else ():
+        if not _supheli(komsu, gonderilme, kok):
+            return komsu
     return sonuc
 
 
@@ -269,7 +300,7 @@ def _supheli(sonuc, gonderilme, kok: str = "") -> bool:
             and sonuc.line >= gonderilme.line)
 
 
-# Bu dosyadaki dört subprocess.run çağrısı da encoding="utf-8" GEÇMEK ZORUNDA.
+# Bu dosyadaki beş subprocess.run çağrısı da encoding="utf-8" GEÇMEK ZORUNDA.
 # text=True + encoding yoksa Python locale.getpreferredencoding() kullanır;
 # Türkçe Windows'ta bu cp1254'tür. Proje yolu Türkçe karakter içerdiğinde
 # (C:\Users\Şerif\... çok yaygın) synctex çıktısındaki yol UTF-8 gelir ve
@@ -408,6 +439,60 @@ def _reverse_wsl(page: int, x: float, y: float, pdf_path: str,
     except (FileNotFoundError, OSError) as e:
         _logger.warning("SyncTeX reverse (WSL) çalıştırılamadı: sayfa %d (%s)", page, e)
         return ARAC_YOK
+
+
+# Toplu sorguda her `synctex edit`in çıktısının sonuna düşen işaret; ardından
+# o sorgunun çıkış kodu geliyor.
+_TOPLU_AYRAC = "@@latex-editor-synctex@@"
+
+
+def _reverse_wsl_toplu(page: int, noktalar: list, pdf_path: str,
+                       synctex_dir: str = ""):
+    """Birden çok noktayı TEK `wsl -e sh` sürecinde sor.
+
+    Dönüş: nokta başına sonuç listesi (eşleşme yoksa None), synctex
+    çalıştırılamadıysa ARAC_YOK, süreç düştüyse None. Argümanlar kabuğa
+    konumsal parametre olarak gidiyor (`"$@"`), yol betiğe gömülmüyor:
+    boşluklu ve Türkçe yollar tek sorgudaki gibi aynen geçiyor.
+    """
+    pdf_path = _gercek_yol(pdf_path)      # bkz. _forward_wsl'deki gerekçe
+    wsl_pdf = windows_to_wsl(pdf_path)
+    betik = (('d="$1"; shift; ' if synctex_dir else '')
+             + 'for o in "$@"; do synctex edit -o "$o"'
+             + (' -d "$d"' if synctex_dir else '')
+             + '; echo "' + _TOPLU_AYRAC + ' $?"; done')
+    cmd = ["wsl", "-e", "sh", "-c", betik, "sh"]
+    if synctex_dir:
+        cmd.append(windows_to_wsl(synctex_dir))
+    cmd += [f"{page}:{nx:f}:{ny:f}:{wsl_pdf}" for nx, ny in noktalar]
+    try:
+        r = subprocess.run(cmd, capture_output=True, text=True,
+                           encoding="utf-8", errors="replace", timeout=_ZAMAN_ASIMI,
+                           startupinfo=_SI, creationflags=_SUBPROCESS_FLAGS)
+    except subprocess.TimeoutExpired as e:
+        _logger.warning("SyncTeX reverse (WSL) zaman aşımı: sayfa %d (%s)", page, e)
+        return None
+    except (FileNotFoundError, OSError) as e:
+        _logger.warning("SyncTeX reverse (WSL) çalıştırılamadı: sayfa %d (%s)", page, e)
+        return ARAC_YOK
+    sonuclar, blok = [], []
+    for satir in (r.stdout or "").split("\n"):
+        if not satir.startswith(_TOPLU_AYRAC):
+            blok.append(satir)
+            continue
+        kod = satir[len(_TOPLU_AYRAC):].strip()
+        if kod == str(_KOMUT_YOK) and not sonuclar:
+            return ARAC_YOK
+        parsed = _parse_reverse("\n".join(blok)) if kod == "0" else None
+        if parsed:
+            # `ornek` PDF'in Windows yolu (bkz. _reverse_wsl).
+            parsed.file_path = wsl_to_windows(parsed.file_path, ornek=pdf_path)
+        sonuclar.append(parsed)
+        blok = []
+    if len(sonuclar) != len(noktalar):
+        # wsl.exe kabuğu hiç başlatamadı (dağıtım yok) ya da çıktı yarım.
+        return ARAC_YOK if r.returncode == _KOMUT_YOK else None
+    return sonuclar
 
 
 def _reverse_native(page: int, x: float, y: float, pdf_path: str,

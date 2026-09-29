@@ -105,6 +105,27 @@ if not argv:
 os.execvp(argv[0], argv)
 '''
 
+# Ters arama noktalari TEK `wsl -e sh -c` surecinde soruluyor (bkz.
+# gui/synctex._reverse_wsl_toplu): sahte `wsl` betigi gercek `sh`ye veriyor,
+# `sh` de PATH'teki bu sahte `synctex`i cagiriyor. Ciktinin bicimi yukaridaki
+# `synctex edit` kolunun aynisi; argv ayri kayda yaziliyor.
+_SAHTE_SYNCTEX = r'''#!{python}
+# -*- coding: utf-8 -*-
+import json, os, sys
+kayit = os.environ.get("SAHTE_SYNCTEX_KAYIT")
+if kayit:
+    with open(kayit, "a", encoding="utf-8") as f:
+        f.write(json.dumps(sys.argv[1:]) + "\n")
+if sys.argv[1:2] == ["edit"]:
+    sys.stdout.buffer.write(
+        ("SyncTeX result begin\n"
+         "Input:/mnt/c/Users/Serif Cagri/Tez Calismasi/bolum ozet.tex\n"
+         "Line:314\n"
+         "Column:-1\n"
+         "SyncTeX result end\n").encode("utf-8"))
+sys.exit(0)
+'''
+
 
 @pytest.fixture
 def sahte_wsl(tmp_path, monkeypatch):
@@ -116,21 +137,34 @@ def sahte_wsl(tmp_path, monkeypatch):
         _SAHTE.format(python=sys.executable, hata=_WSL_HATA, cikti="/mnt/c/x/main.pdf"),
         encoding="utf-8")
     betik.chmod(0o755)
+    stx = bin_dizin / "synctex"
+    stx.write_text(_SAHTE_SYNCTEX.format(python=sys.executable), encoding="utf-8")
+    stx.chmod(0o755)
 
     kayit = tmp_path / "argv.jsonl"
+    stx_kayit = tmp_path / "synctex_argv.jsonl"
     monkeypatch.setenv("PATH", f"{bin_dizin}{os.pathsep}{os.environ['PATH']}")
     monkeypatch.setenv("SAHTE_WSL_KAYIT", str(kayit))
+    monkeypatch.setenv("SAHTE_SYNCTEX_KAYIT", str(stx_kayit))
     monkeypatch.setattr(synctex, "_PLATFORM", "win32")
+
+    def _oku(yol):
+        if not yol.exists():
+            return []
+        return [json.loads(s) for s in
+                yol.read_text(encoding="utf-8").splitlines() if s.strip()]
 
     class Kontrol:
         yol = str(betik)
 
         @staticmethod
         def argv_listesi():
-            if not kayit.exists():
-                return []
-            return [json.loads(s) for s in
-                    kayit.read_text(encoding="utf-8").splitlines() if s.strip()]
+            return _oku(kayit)
+
+        @staticmethod
+        def synctex_argv():
+            """Toplu sorguda kabuğun çağırdığı her `synctex`in argv'si."""
+            return _oku(stx_kayit)
 
     return Kontrol
 
@@ -198,12 +232,32 @@ class TestGeriArama:
         koordinatı zaten kabul ediyor (aynı ölçümde 142 çağrı).
         """
         synctex.reverse_search(7, 133.768, 412.5, r"C:\x\main.pdf")
-        argv = sahte_wsl.argv_listesi()[0]
-        assert argv[:3] == ["-e", "synctex", "edit"]
-        sayfa, x, y, yol = argv[4].split(":")
+        # Noktalar TEK `wsl -e sh` sürecinde (bkz. _reverse_wsl_toplu); ilk
+        # `synctex` çağrısı tıklamanın kendisi.
+        assert sahte_wsl.argv_listesi()[0][:3] == ["-e", "sh", "-c"]
+        argv = sahte_wsl.synctex_argv()[0]
+        assert argv[:2] == ["edit", "-o"]
+        sayfa, x, y, yol = argv[2].split(":")
         assert (sayfa, yol) == ("7", "/mnt/c/x/main.pdf")
         assert float(x) == pytest.approx(133.768)
         assert float(y) == pytest.approx(412.5)
+
+    def test_TUM_noktalar_EN_FAZLA_iki_wsl_surecinde(self, sahte_wsl):
+        """Gerçek süreç sınırından: tık ve köşe İLK `wsl` çağrısında, yol
+        boşluklu ve Türkçe harfli. Sahtenin cevabı proje dışı bir dosya
+        (şüpheli), yani komşular da soruluyor: onlar İKİNCİ çağrıda, hep
+        birlikte."""
+        synctex.reverse_search(7, 133.7, 412.5,
+                               r"C:\Users\Şerif Çağrı\Tez Çalışması\tez.pdf")
+        pdf = "/mnt/c/Users/Şerif Çağrı/Tez Çalışması/tez.pdf"
+        wsl_cagrilari = sahte_wsl.argv_listesi()
+        assert len(wsl_cagrilari) == 2
+        assert wsl_cagrilari[0][-2:] == ["7:133.700000:412.500000:" + pdf,
+                                         "7:1.000000:1.000000:" + pdf]
+        assert [a[2] for a in sahte_wsl.synctex_argv()][:3] == [
+            "7:133.700000:412.500000:" + pdf, "7:1.000000:1.000000:" + pdf,
+            "7:125.700000:412.500000:" + pdf]
+        assert len(wsl_cagrilari[1]) - 5 == len(sahte_wsl.synctex_argv()) - 2
 
 
 class TestHataYollari:
@@ -277,7 +331,8 @@ class TestKodlama:
         cagrilar = [n for n in ast.walk(agac)
                     if isinstance(n, ast.Call)
                     and isinstance(n.func, ast.Attribute) and n.func.attr == "run"]
-        assert len(cagrilar) == 4, f"beklenen 4 subprocess.run, bulunan {len(cagrilar)}"
+        # ileri/geri x WSL/yerli + ters aramanın toplu WSL sorgusu
+        assert len(cagrilar) == 5, f"beklenen 5 subprocess.run, bulunan {len(cagrilar)}"
         for c in cagrilar:
             kw = {k.arg for k in c.keywords}
             assert "encoding" in kw and "errors" in kw
