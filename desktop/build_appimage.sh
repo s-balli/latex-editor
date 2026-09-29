@@ -87,11 +87,12 @@ cp linux/latex-editor.png "$APPDIR/.DirIcon"
 cp linux/latex-editor.png "$APPDIR/latex-editor.png"
 cp linux/latex-editor.png "$APPDIR/usr/share/icons/hicolor/256x256/apps/latex-editor.png"
 
-# Çeviri dosyaları
-if [ -d "translations" ]; then
-    cp -r translations "$APPDIR/usr/bin/translations/"
-    echo "  Çeviri dosyaları kopyalandı"
-fi
+# Çeviri dosyaları AYRICA kopyalanmıyor: PyInstaller .qm kataloglarını zaten
+# `_internal/translations`a koyuyor (spec .ts'i eliyor) ve uygulama paketli
+# hâlde yalnız oraya bakıyor (core/i18n.py:_find_trans_dir). Buradaki eski
+# kopya `usr/bin/translations`a .ts kaynaklarıyla birlikte gidiyor ve hiç
+# okunmuyordu: ~0,5 MB ölü ağırlık (ölçüldü 2026-09-29, v1.1.2 ve v1.2.0
+# AppImage'leri; paket_dogrula.py son ürüne bakınca yakalıyor).
 
 # 4. appimagetool ile sar
 echo "[4/5] AppImage oluşturuluyor..."

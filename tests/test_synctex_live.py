@@ -546,6 +546,15 @@ def test_BOLUM_SONU_sayfasinda_bosluk_dahil_her_tik_ayni_dosyada(bolum_sonu,
     import gui.synctex as st
     monkeypatch.setattr(st, "_EK_SORGU_BUTCESI", 60.0)
     motor, d, pdf, sdir = bolum_sonu
+    yanlis, toplam = _bolum_sonu_tiklari(d, pdf, sdir)
+    assert toplam >= 30, "kapı boş: yalnız %d tık" % toplam
+    assert not yanlis, "%s: %d/%d tık başka dosyaya: %s" % (
+        motor, len(yanlis), toplam, yanlis[:6])
+
+
+def _bolum_sonu_tiklari(d, pdf, sdir):
+    """Bölüm sonu sayfasının metin satırlarına soldan sağa 40 pt arayla
+    tıkla; `d/yontem.tex`e gitmeyen tıklar ve toplam tık sayısı."""
     sayfa, satirlar = _metin_satirlari(pdf, "QXBYON01")
     assert sayfa and len(satirlar) >= 4, "kapı boş: sayfa ya da satır yok"
     sag_kenar = max(s[2] for s in satirlar)
@@ -558,8 +567,36 @@ def test_BOLUM_SONU_sayfasinda_bosluk_dahil_her_tik_ayni_dosyada(bolum_sonu,
             t = reverse_search(sayfa, x, y, pdf, sdir)
             if not t or os.path.normcase(os.path.normpath(t.file_path)) != beklenen:
                 yanlis.append("(%d,%d) -> %s" % (x, y, "%s:%d" % (
-                    os.path.basename(t.file_path), t.line) if t else "sonuç yok"))
+                    t.file_path, t.line) if t else "sonuç yok"))
             x += 40
+    return yanlis, toplam
+
+
+def test_BAG_altindaki_projede_ters_arama_KULLANICININ_yolunu_donuyor(
+        bolum_sonu, tmp_path, monkeypatch):
+    r"""Aynı sayfa, proje bu kez sembolik bağ üzerinden açılmış.
+
+    TeX dosya adlarını çalışma dizininin GERÇEK yoluyla kaydediyor, yani
+    sonuç bağsız yolla geliyor; proje kökü ise kullanıcının yolundan
+    hesaplanıyordu. Her sonuç proje dışı sayılıyor, sonraki dosyaya atlama
+    kuralı işlemiyor ve editör dosyayı başka bir yolla açıyordu. macOS'ta
+    `/var` ve `/tmp` de birer bağ: ÖLÇÜLDÜ (2026-09-29, macos-15) yukarıdaki
+    test orada 88 tıkın 88'inde `/private/var/...` döndü, lualatex'te
+    tıkların bir kısmı `sonuc.tex`e atladı. Bağ burada elle kuruluyor, yani
+    kusur Linux'ta da ölçülüyor. Windows kolu WSL'den geçiyor; onu
+    test_synctex_koprusu.py'deki `test_TERS_BAGLI_...` sınıyor.
+    """
+    if sys.platform == "win32":
+        pytest.skip("Windows'ta dizin bağı ayrı izin istiyor; kol birim testte")
+    import gui.synctex as st
+    monkeypatch.setattr(st, "_EK_SORGU_BUTCESI", 60.0)
+    motor, d, _pdf, sdir = bolum_sonu
+    bag = tmp_path / "bagli"
+    try:
+        os.symlink(d, bag)
+    except (OSError, NotImplementedError):
+        pytest.skip("sembolik bağ kurulamıyor")
+    yanlis, toplam = _bolum_sonu_tiklari(str(bag), str(bag / "main.pdf"), sdir)
     assert toplam >= 30, "kapı boş: yalnız %d tık" % toplam
-    assert not yanlis, "%s: %d/%d tık başka dosyaya: %s" % (
+    assert not yanlis, "%s: %d/%d tık kullanıcının yolunda değil: %s" % (
         motor, len(yanlis), toplam, yanlis[:6])
