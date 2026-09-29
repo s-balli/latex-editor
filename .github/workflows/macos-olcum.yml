@@ -96,7 +96,9 @@ jobs:
           QT_QPA_PLATFORM: offscreen
         run: |
           kod=0
-          python -m pytest tests/ -q --no-header -rs > "$RUNNER_TEMP/pytest.txt" 2>&1 || kod=$?
+          # -rf: asagidaki `grep '^FAILED'` ancak onunla bir sey buluyor. Yoktu
+          # ve 2026-09-29 kosusu "4 failed" deyip adlari hic yazmadi.
+          python -m pytest tests/ -q --no-header -rfs > "$RUNNER_TEMP/pytest.txt" 2>&1 || kod=$?
           echo "pytest cikis kodu: $kod"
           tail -5 "$RUNNER_TEMP/pytest.txt"
           echo "--- dusen testler ---"
@@ -496,6 +498,12 @@ jobs:
             > "$RUNNER_TEMP/pt.txt" 2>&1 || kod=$?
           echo "cikis kodu: $kod"
           tail -5 "$RUNNER_TEMP/pt.txt"
+          # Cokmede (139) `tail -5` yalniz yiginin dibini gosteriyordu; hangi
+          # testte coktugu en ustteki cercevede (2026-09-29 kosusu).
+          if grep -q 'Fatal Python error' "$RUNNER_TEMP/pt.txt"; then
+            echo "--- cokme ---"
+            sed -n '/Fatal Python error/,/Extension modules/p' "$RUNNER_TEMP/pt.txt" | head -40
+          fi
           echo "--- dusen testler ---"
           grep '^FAILED' "$RUNNER_TEMP/pt.txt" | head -40 || echo "(FAILED yok)"
           echo "--- dusme ayrintisi ---"
