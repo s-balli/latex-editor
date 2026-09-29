@@ -357,6 +357,9 @@ class MainWindow(
         file_menu.addSeparator()
 
         self._recent_menu = file_menu.addMenu(_("Son Açılanlar"))
+        # Öğelerin ipucu tam yol (aynı adlı iki dosya); QMenu ipuçlarını
+        # kendiliğinden göstermiyor.
+        self._recent_menu.setToolTipsVisible(True)
         # TEK bağlantı, öğe başına DEĞİL. `addAction(metin, lambda)` her
         # yenilemede bir kapanış sızdırıyor: QMenu.clear() QAction'ı siliyor
         # ama PyQt Python çağrılabilirini bırakmıyor. Ölçüldü: lambda'lı hâl

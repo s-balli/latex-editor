@@ -16,6 +16,29 @@ _ = lambda s: QCoreApplication.translate("FileOpsMixin", s)
 _logger = get_logger("file_ops")
 
 
+def ayirt_edici_adlar(yollar: list[str]) -> list[str]:
+    """Son Açılanlar etiketleri: dosya adı; aynı ad birden çok kez geçiyorsa
+    klasörün adıyla, o da tutmuyorsa klasörün tam yoluyla.
+
+    Yalnız ad yazılıyordu. ÖLÇÜLDÜ (2026-09-29, v1.1.2 exe): iki projenin
+    `giriş.tex`i menüde iki özdeş satırdı, hangisinin hangi projeye ait
+    olduğu seçmeden anlaşılmıyordu. Tez öğrencisinde her projede `main.tex`
+    ya da `giriş.tex` olması olağan.
+    """
+    adlar = [os.path.basename(y) for y in yollar]
+    etiketler = []
+    for yol, ad in zip(yollar, adlar):
+        if adlar.count(ad) < 2:
+            etiketler.append(ad)
+            continue
+        dizin = os.path.dirname(yol)
+        kisa = os.path.basename(dizin)
+        es = [os.path.basename(os.path.dirname(y))
+              for y, a in zip(yollar, adlar) if a == ad]
+        etiketler.append("%s  (%s)" % (ad, kisa if es.count(kisa) < 2 else dizin))
+    return etiketler
+
+
 class _ExportRunner(QObject):
     """pandoc dışa aktarmayı arka plan thread'inde çalıştırır.
 
@@ -257,6 +280,9 @@ class FileOpsMixin:
         editor._ilk_imlec = editor.getCursorPosition()
         self._connect_editor_signals(editor)
         idx = self._editor_tabs.addTab(editor, editor.display_name)
+        # Sekme yalnız dosya adını gösteriyor; iki projenin `main.tex`i ancak
+        # tam yolla ayırt ediliyor (bkz. `_update_tab_title`).
+        self._editor_tabs.setTabToolTip(idx, editor.file_path)
         self._editor_tabs.setCurrentIndex(idx)
         self._add_tab_close_button(idx)
         if add_recent:
@@ -332,7 +358,7 @@ class FileOpsMixin:
                 # ve hâlâ var olan eski dosya izlemeden düşüyordu.
                 if not editor.save_file_as(path):
                     return
-                self._editor_tabs.setTabText(self._editor_tabs.currentIndex(), editor.display_name)
+                self._update_tab_title(editor)
                 if old_path:
                     self._file_watch_remove(old_path)
                 self._file_watch_add(path)
@@ -383,6 +409,10 @@ class FileOpsMixin:
         if editor.isModified():
             title = f"* {title}"
         self._editor_tabs.setTabText(index, title)
+        # Tam yol: aynı adlı iki dosya (iki projenin `giriş.tex`i) sekmede
+        # yalnız adla ayırt edilemiyordu. ÖLÇÜLDÜ (2026-09-29, v1.1.2 exe):
+        # iki "giriş.tex" sekmesi yan yana, hiçbirinde ipucu yok.
+        self._editor_tabs.setTabToolTip(index, editor.file_path or "")
 
     def _add_recent(self, path: str):
         path = os.path.normpath(path)
@@ -419,12 +449,15 @@ class FileOpsMixin:
             act = self._recent_menu.addAction(_("(boş)"))
             act.setEnabled(False)
             return
-        for path in var_olanlar:
+        # İpucu tam yolu gösteriyor (menü kurulurken görünür yapılıyor, bkz.
+        # main_window._setup_menus).
+        for path, ad in zip(var_olanlar, ayirt_edici_adlar(var_olanlar)):
             # Yol lambda'da DEĞİL öğenin verisinde taşınıyor; menü tek bir
             # `triggered` sinyaline bağlı (bkz. main_window._setup_menus).
             # Öğe başına kapanış kurmak sızdırıyordu.
-            act = self._recent_menu.addAction(os.path.basename(path))
+            act = self._recent_menu.addAction(ad)
             act.setData(path)
+            act.setToolTip(path)
 
     def _on_recent_triggered(self, action):
         """Son Açılanlar'dan bir öğe seçildi; yol öğenin verisinde."""

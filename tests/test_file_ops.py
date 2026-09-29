@@ -368,6 +368,60 @@ def test_recent_menu_yolu_ogenin_verisinde(qapp, tmp_path):
     assert eylemler[0].data() == yol
 
 
+def test_AYNI_ADLI_dosyalar_menude_AYIRT_ediliyor(qapp, tmp_path):
+    """Yalnız ad yazılıyordu. ÖLÇÜLDÜ (2026-09-29, v1.1.2 exe): iki projenin
+    `giriş.tex`i iki özdeş satırdı. Tam yol her öğenin ipucunda."""
+    from PyQt6.QtWidgets import QMenu
+    yollar = []
+    for klasor in ("Tez", "Makale"):
+        (tmp_path / klasor).mkdir()
+        p = tmp_path / klasor / "giriş.tex"
+        p.write_text("x", encoding="utf-8")
+        yollar.append(os.path.normpath(str(p)))
+    tek = tmp_path / "Tez" / "özet.tex"
+    tek.write_text("x", encoding="utf-8")
+    yollar.append(os.path.normpath(str(tek)))
+    stub = _RecentStub([EditorWidget()])
+    stub._recent_menu = QMenu()
+    stub._settings.setValue("recent_files", yollar)
+
+    stub._refresh_recent_menu()
+
+    eylemler = [a for a in stub._recent_menu.actions() if a.isEnabled()]
+    etiketler = [a.text() for a in eylemler]
+    assert etiketler == ["giriş.tex  (Tez)", "giriş.tex  (Makale)", "özet.tex"]
+    assert [a.toolTip() for a in eylemler] == yollar
+
+
+def test_SON_ACILANLAR_menusu_ipuclarini_GOSTERIYOR(ana_pencere):
+    """QMenu ipuçlarını kendiliğinden göstermiyor; tam yol ipucu ancak
+    menü öyle kurulursa görünür."""
+    assert ana_pencere()._recent_menu.toolTipsVisible()
+
+
+def test_KLASOR_ADI_da_ayniysa_tam_klasor_yaziliyor():
+    from gui.mixins.file_ops import ayirt_edici_adlar
+    a = os.path.join("C:\\", "A", "Tez", "main.tex")
+    b = os.path.join("C:\\", "B", "Tez", "main.tex")
+    assert ayirt_edici_adlar([a, b]) == [
+        "main.tex  (%s)" % os.path.dirname(a),
+        "main.tex  (%s)" % os.path.dirname(b)]
+
+
+def test_SEKME_ipucu_TAM_YOL(qapp, tmp_path):
+    """İki projenin aynı adlı dosyası sekmede ancak tam yolla ayırt ediliyor;
+    ipucu yoktu (aynı ölçüm)."""
+    stub = _Stub([])
+    yol = _tex(tmp_path)
+    stub._open_file_in_editor(yol)
+    assert stub._editor_tabs.tabToolTip(0) == os.path.normpath(yol)
+    ed = stub._editor_tabs.widget(0)
+    yeni = os.path.normpath(str(tmp_path / "yeni_ad.tex"))
+    ed.rebind_path(yeni)
+    stub._update_tab_title(ed)
+    assert stub._editor_tabs.tabToolTip(0) == yeni
+
+
 def test_recent_menu_tiklama_dosyayi_aciyor(qapp, tmp_path):
     """Veri taşımak işe yaramalı: tetiklenince dosya açılmalı."""
     stub, yol = _menu_stub(qapp, tmp_path)

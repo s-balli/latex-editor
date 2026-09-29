@@ -145,6 +145,7 @@ class RecoveryOpsMixin:
                     editor._newline = snap.newline
                 self._connect_editor_signals(editor)
                 idx = self._editor_tabs.addTab(editor, editor.display_name)
+                self._editor_tabs.setTabToolTip(idx, editor.file_path or "")
                 self._add_tab_close_button(idx)
                 if snap.file_path:
                     self._file_watch_add(snap.file_path)

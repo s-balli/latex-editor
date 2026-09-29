@@ -56,7 +56,8 @@ class _FileOpsStub(FileOpsMixin, StubMain):
         self._recent_menu = SimpleNamespace(
             clear=lambda: None,
             addAction=lambda *a, **k: SimpleNamespace(
-                setData=lambda v: None, setEnabled=lambda v: None))
+                setData=lambda v: None, setEnabled=lambda v: None,
+                setToolTip=lambda v: None))
         self._engine_combo = SimpleNamespace(
             currentText=lambda: "lualatex", findText=lambda t: -1,
             currentIndex=lambda: -1, setCurrentIndex=lambda i: None)

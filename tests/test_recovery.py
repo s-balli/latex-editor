@@ -265,6 +265,10 @@ def test_cokme_sonrasi_geri_yukleme(qapp, tmp_path):
     assert yeni_ed.text() == "kurtarılacak yeni\n"
     assert yeni_ed.isModified() is True, "kurtarılan içerik kirli olmalı"
     assert yeni_ed.file_path == os.path.normpath(str(yol))
+    # Aynı adlı iki dosya sekmede ancak tam yol ipucuyla ayırt ediliyor
+    # (ölçüldü 2026-09-29, v1.1.2: iki "giriş.tex" yan yana); kurtarılan
+    # sekme de o ipucunu almalı.
+    assert m2._editor_tabs.tabToolTip(0) == yeni_ed.file_path
     assert yol.read_text(encoding="utf-8") == "diskteki eski\n", \
         "geri yükleme diskteki dosyayı EZMEMELİ"
 
