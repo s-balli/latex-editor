@@ -52,6 +52,7 @@ else:
 pytestmark = pytest.mark.skipif(bool(_ATLAMA), reason=_ATLAMA)
 
 try:
+    from PyQt6.QtCore import QEvent
     from PyQt6.QtWidgets import QApplication
     from gui.theme import THEMES
     from gui.pdf_viewer import PdfViewer
@@ -156,20 +157,31 @@ def test_forward_creates_pdf_highlight(qapp, compiled):
     assert result is not None
 
     viewer = PdfViewer(theme=next(iter(THEMES.values())))
-    viewer.resize(800, 1000)
-    viewer.show()
-    qapp.processEvents()
-    assert viewer.load_pdf(pdf)
-    qapp.processEvents()
+    try:
+        viewer.resize(800, 1000)
+        viewer.show()
+        qapp.processEvents()
+        assert viewer.load_pdf(pdf)
+        qapp.processEvents()
 
-    viewer.scroll_to_position(
-        result.page, result.x, result.y,
-        result.left, result.width, result.height,
-    )
-    qapp.processEvents()
+        viewer.scroll_to_position(
+            result.page, result.x, result.y,
+            result.left, result.width, result.height,
+        )
+        qapp.processEvents()
 
-    assert viewer._highlight_label is not None, "highlight oluşturulmadı"
-    assert viewer._current_page == result.page - 1, "yanlış sayfaya gidildi"
+        assert viewer._highlight_label is not None, "highlight oluşturulmadı"
+        assert viewer._current_page == result.page - 1, "yanlış sayfaya gidildi"
+    finally:
+        # Kapatılmayan görüntüleyici çizim ve arama işçilerini ve açık pdfium
+        # belgesini yorumlayıcı kapanışına bırakıyordu. Ölçüldü (2026-09-29):
+        # CI'ın derle işinde bütün testler geçtikten sonra süreç glibc
+        # "corrupted double-linked list" ile durdu (çıkış 134); o adımın
+        # oturum sonunda bu görüntüleyici iki işçisi çalışır hâlde canlıydı.
+        viewer.clear()
+        viewer.shutdown()
+        viewer.deleteLater()
+        qapp.sendPostedEvents(None, QEvent.Type.DeferredDelete)
 
 
 # --- Geri arama (PDF → kaynak) ---

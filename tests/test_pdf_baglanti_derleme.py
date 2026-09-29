@@ -227,7 +227,7 @@ def qapp():
 class TestGotoDestUctanUca:
 
     def test_hedef_gorunum_alaninin_icine_geliyor(self, qapp, belge, pdf_yolu):
-        from PyQt6.QtCore import QPoint
+        from PyQt6.QtCore import QEvent, QPoint
         from gui.pdf_viewer import PdfViewer
         from gui.theme import THEMES
 
@@ -289,6 +289,12 @@ class TestGotoDestUctanUca:
             assert not kotu, ("hedef görünüm alanının üstüne gelmedi "
                               "(sayfa, /Rotate, işaret - kaydırma): %s" % rapor)
         finally:
+            # Belge kapatılıyor ve silme kuyruğu AÇIKÇA boşaltılıyor:
+            # processEvents ertelenmiş silmeyi işlemiyordu ve görüntüleyici
+            # açık pdfium belgesiyle C++'ta yaşayıp yorumlayıcı kapanışına
+            # kalıyordu (ölçüldü 2026-09-29; bkz. test_synctex_live
+            # test_forward_creates_pdf_highlight notu).
+            v.clear()
             v.shutdown()
             v.deleteLater()
-            qapp.processEvents()
+            qapp.sendPostedEvents(None, QEvent.Type.DeferredDelete)
