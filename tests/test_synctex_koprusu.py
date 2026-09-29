@@ -323,7 +323,58 @@ def test_TERS_metin_GERCEKTEN_o_satirdaysa_sonuc_degismiyor(monkeypatch,
     sonuc, sorulan = _ters_senaryo(monkeypatch, platform, {},
                                    varsayilan=_GONDERILME)
     assert sonuc == ("yontem.tex", 3)
-    assert sorulan == [100.0, 1.0, 92.0, 108.0, 84.0, 116.0]
+    # Sola büyüyen adımlar sayfanın soluna taşınca (100-128 < 0) sorulmuyor.
+    assert sorulan == [100.0, 1.0, 92.0, 108.0, 84.0, 116.0, 68.0, 36.0]
+
+
+@pytest.mark.parametrize("platform", _PLATFORMLAR)
+def test_TERS_SATIR_SONU_boslugu_soldaki_metinden_duzeltiliyor(monkeypatch,
+                                                              platform):
+    """LuaTeX'te satır sonundaki boşluğun tamamı gönderilme konumunu
+    verebiliyor; ±16 pt komşular da boşlukta kalıyordu (ölçüm
+    `reverse_search` docstring'inde). O satırın metni solda."""
+    harita = {x: _GONDERILME for x in (1.0, 100.0, 92.0, 108.0, 84.0, 116.0)}
+    harita[68.0] = _DOGRU
+    sonuc, sorulan = _ters_senaryo(monkeypatch, platform, harita)
+    assert sonuc == ("giris.tex", 6), "boşluk tıkı gönderilme konumuna gidiyor"
+    assert sorulan == [100.0, 1.0, 92.0, 108.0, 84.0, 116.0, 68.0]
+
+
+@pytest.mark.parametrize("platform", _PLATFORMLAR)
+def test_TERS_GONDERILME_dosyasinda_SONRAKI_satir_supheli(monkeypatch,
+                                                         platform):
+    """Üç motorda da: bölüm dosyasının son paragrafını sonraki dosyanın
+    `\\newpage`i kapatınca satır kutuları SONRAKİ dosyanın adını, kendi satır
+    numaralarını taşıyor (`yontem.tex:9` yerine `sonuc.tex:9`). Sayfadaki her
+    şey gönderilme konumundan önce okunduğu için o dosyada sonraki satır o
+    sayfada olamaz."""
+    sonuc, _sorulan = _ters_senaryo(monkeypatch, platform, {
+        1.0: _GONDERILME, 100.0: ("/mnt/c/p/yontem.tex", 9),
+        92.0: ("/mnt/c/p/giris.tex", 9)})
+    assert sonuc == ("giris.tex", 9), "sonraki dosyanın adı dönüyor"
+
+
+@pytest.mark.parametrize("platform", _PLATFORMLAR)
+def test_TERS_GONDERILME_dosyasinda_ONCEKI_satir_supheli_DEGIL(monkeypatch,
+                                                              platform):
+    """Maliyet ve aşırı düzeltme kapısı: tek dosyalı belgede her tık
+    gönderilme konumunun dosyasında ve ondan ÖNCEKİ bir satırda. Köşe
+    sorgusundan başka sorgu yapılmıyor, sonuç değişmiyor."""
+    sonuc, sorulan = _ters_senaryo(monkeypatch, platform, {
+        1.0: _GONDERILME, 100.0: ("/mnt/c/p/yontem.tex", 2)})
+    assert sonuc == ("yontem.tex", 2)
+    assert sorulan == [100.0, 1.0]
+
+
+@pytest.mark.parametrize("platform", _PLATFORMLAR)
+def test_TERS_PROJE_DISI_dosya_supheli(monkeypatch, platform):
+    """LuaTeX'te gönderilme bölgelerinin arasında `article.cls:0` gibi tek
+    noktalık kayıtlar var; komşu taraması onlara düşünce editörde TeX
+    dağıtımının sınıf dosyası açılıyordu (ölçüldü 2026-09-29)."""
+    sinif = ("/usr/share/texlive/texmf-dist/tex/latex/base/article.cls", 2)
+    sonuc, _sorulan = _ters_senaryo(monkeypatch, platform, {
+        1.0: _GONDERILME, 100.0: _GONDERILME, 92.0: sinif, 108.0: _DOGRU})
+    assert sonuc == ("giris.tex", 6), "sınıf dosyası dönüyor"
 
 
 @pytest.mark.parametrize("platform", _PLATFORMLAR)

@@ -157,9 +157,11 @@ def forward_search(tex_path: str, line: int, col: int, pdf_path: str,
     return _forward_native(tex_path, line, col, pdf_path, synctex_dir)
 
 
-# Ters aramada komşu noktalar (punto, sözcük ölçeğinde): sonuç boşsa ya da
-# sayfanın gönderilme konumuysa sırayla bunlara bakılıyor.
-_KOMSULAR = (-8, 8, -16, 16)
+# Ters aramada komşu noktalar (punto): sonuç şüpheliyse (bkz. `_supheli`)
+# sırayla bunlara bakılıyor. İlk dördü sözcük ölçeğinde. Sola büyüyen adımlar
+# satır sonu boşluğu için: LuaTeX'te boşluğun tamamı gönderilme konumunu
+# verebiliyor ve o satırın metni hep solda kalıyor.
+_KOMSULAR = (-8, 8, -16, 16, -32, -64, -128, -256, -384)
 
 # Ek sorguların (köşe ve komşular) süre bütçesi. Sıcak WSL'de sorgu ~85 ms,
 # yerlide ~10 ms. İlk sorgu bundan uzun sürdüyse (soğuk WSL, asılı süreç)
@@ -185,10 +187,29 @@ def reverse_search(page: int, x: float, y: float, pdf_path: str,
         xelatex                 465       465
 
     Başka dosya ya da sonuçsuz: LuaTeX'te 38 ve 34'ten 3'e. Sayfanın gönderilme
-    konumunu köşe sorgusu veriyor (sayfanın dış kutusu). Sonuç o konumsa ya
-    da boşsa yandaki noktalara bakılıyor, sonuç ancak komşu FARKLI bir konum
-    verirse değişiyor. Ölçümde pdflatex ve xelatex bu yola hiç girmedi;
-    maliyet tıklama başına bir köşe sorgusu.
+    konumunu köşe sorgusu veriyor (sayfanın dış kutusu). Sonuç şüpheliyse
+    (bkz. `_supheli`) yandaki noktalara bakılıyor, sonuç ancak komşu şüpheli
+    olmayan bir konum verirse değişiyor. Maliyet tıklama başına bir köşe
+    sorgusu; komşulara yalnız şüpheli sonuçta bakılıyor.
+
+    SATIR SONU BOŞLUĞU VE YANLIŞ DOSYA ADI (ölçüldü 2026-09-29, article ve
+    report sınıfı iki belge, bölüm dosyaları `\\input` ile; kehanet
+    `pdftotext -bbox-layout`: sözcüğün doğru hedefi sözcüğün kaynak satırı,
+    satır sonu boşluğununki o görsel satırdaki sözcüklerin satırları).
+    LuaTeX'te satır sonundaki boşluğun tamamı gönderilme konumunu
+    verebiliyor ve ±16 pt komşular da o boşlukta kalıyordu:
+
+        motor      tık      doğru satır (eski / yeni)   başka dosya ya da boş
+        lualatex   boşluk   75 / 103 (111)              28 / 0
+        lualatex   sözcük   127 / 134 (139)             7 / 0
+        xelatex    boşluk   105 / 106 (111)             1 / 0
+        xelatex    sözcük   132 / 134 (139)             2 / 0
+        pdflatex   ikisi    değişmedi                   0 / 0
+
+    Kalan yanlışların hepsi aynı dosyada bir yan satır; aynısı pdflatex'te
+    de var (SyncTeX'in kendi çözünürlüğü). Satırların en sol ucuna da tıklayan
+    canlı kapıda (tests/test_synctex_live.py, bölüm sonu sayfası, 54 tık)
+    başka dosyaya giden: lualatex 15'ten 0'a, pdflatex 2'den 0'a.
     """
     tek = _reverse_wsl if _PLATFORM == "win32" else _reverse_native
     t0 = time.monotonic()
@@ -197,18 +218,55 @@ def reverse_search(page: int, x: float, y: float, pdf_path: str,
         return sonuc
     bitis = time.monotonic() + _EK_SORGU_BUTCESI
     gonderilme = tek(page, 1.0, 1.0, pdf_path, synctex_dir)
-    if not sonuc or _ayni_konum(sonuc, gonderilme):
+    kok = os.path.dirname(os.path.normcase(os.path.abspath(pdf_path)))
+    if _supheli(sonuc, gonderilme, kok):
         for dx in _KOMSULAR:
             if time.monotonic() > bitis:
                 break
+            if x + dx < 0:
+                continue
             komsu = tek(page, x + dx, y, pdf_path, synctex_dir)
-            if komsu and not _ayni_konum(komsu, gonderilme):
+            if not _supheli(komsu, gonderilme, kok):
                 return komsu
     return sonuc
 
 
-def _ayni_konum(a, b) -> bool:
-    return bool(a) and bool(b) and (a.file_path, a.line) == (b.file_path, b.line)
+def _supheli(sonuc, gonderilme, kok: str = "") -> bool:
+    """Sonuç kullanıcının metni olamayacak bir yer mi.
+
+    Üç durum:
+
+    - Boş sonuç.
+    - Sayfanın gönderilme konumu ya da AYNI dosyada ondan sonraki bir satır.
+      Sayfa gönderilme konumunda (köşe sorgusu) gönderiliyor; sayfadaki her
+      şey o konumdan ÖNCE okunmuş. Üç motorda da öyle kayıtlar var: bir
+      bölüm dosyasının son paragrafını sonraki dosyanın `\\newpage`i
+      kapatınca o paragrafın satır kutuları SONRAKİ dosyanın adını, kendi
+      satır numaralarını taşıyor (ölçüldü 2026-09-29: `yontem.tex:9` yerine
+      `sonuc.tex:9`, oysa sonuc.tex altı satır; pdflatex'te yalnız satırın
+      en sol ucunda).
+    - PDF'in dizininin (`kok`) dışındaki bir dosya. LuaTeX'te gönderilme
+      konumunu veren bölgelerin arasında `article.cls:0` gibi tek noktalık
+      kayıtlar var (ölçüldü 2026-09-29); komşu taraması onlara düşünce
+      editörde TeX dağıtımının sınıf dosyası açılıyordu. Projedeki kendi
+      .cls dosyası dışarıda sayılmıyor.
+
+    Tümü şüpheliyse ilk sonuç korunuyor (bkz. `reverse_search`), yani
+    yanlış alarmın bedeli yalnız ek sorgu.
+    """
+    if not sonuc:
+        return True
+    if kok and os.path.isabs(sonuc.file_path):
+        # Kökle AYNI biçimde (abspath): yoksa POSIX yolu Windows'ta sürücüsüz
+        # kalıp her sonucu dışarıda gösterirdi.
+        yol = os.path.normcase(os.path.abspath(sonuc.file_path))
+        try:
+            if os.path.commonpath([yol, kok]) != kok:
+                return True
+        except ValueError:              # başka sürücü ya da WSL yolu
+            return True
+    return (bool(gonderilme) and sonuc.file_path == gonderilme.file_path
+            and sonuc.line >= gonderilme.line)
 
 
 # Bu dosyadaki dört subprocess.run çağrısı da encoding="utf-8" GEÇMEK ZORUNDA.

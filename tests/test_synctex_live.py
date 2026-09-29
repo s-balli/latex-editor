@@ -421,3 +421,133 @@ def test_COK_DOSYALI_projede_ters_arama_baska_dosyaya_atlamiyor(cok_dosyali):
         motor, yanlis)
     assert dogru >= 5 * len(_COK_CUMLELER) - 3, "%s: doğru satır %d" % (
         motor, dogru)
+
+
+# --- Bölüm sonu: satır sonu boşluğu ve sonraki dosyanın adı (2026-09-29) ---
+#
+# Yukarıdaki test yalnız cümlelerin üstüne tıklıyor. LuaTeX'te satır sonundaki
+# boşluğun tamamı gönderilme konumunu verebiliyor; ayrıca bir bölüm dosyasının
+# son paragrafını sonraki dosyanın `\newpage`i kapatınca o paragrafın satır
+# kutuları sonraki dosyanın adını taşıyor (bkz. `gui.synctex._supheli`).
+# Kehanet: bu sayfadaki bütün içerik yontem.tex'ten, yani sayfanın metin
+# satırlarında boşluk dahil her tık yontem.tex'e gitmeli.
+
+_BOLUM_KOK = "\n".join([
+    r"\documentclass{article}",
+    r"\begin{document}",
+    r"Kok metni QXBKOK01 burada.",
+    "",
+    r"\input{yontem}",
+    r"\input{sonuc}",
+    r"\end{document}",
+]) + "\n"
+# Son paragraf dosya bitince KAPANMIYOR, sonuc.tex'in \newpage'i kapatıyor.
+_BOLUM_YONTEM = "\n".join([
+    r"\newpage",
+    r"\section{Yontem}",
+    r"Kisa cumle QXBYON01 burada.",
+    "",
+    r"Uzun paragraf QXBYON02 birden cok satira yayiliyor: armut ayva elma erik",
+    r"kiraz visne dut ahududu bogurtlen cilek karpuz kavun kayisi seftali",
+    r"musmula hurma kestane findik fistik ceviz badem ve son satir kisa.",
+]) + "\n"
+_BOLUM_SONUC = "\n".join([
+    r"\newpage",
+    r"\section{Sonuc}",
+    r"Sonuc metni QXBSON01 burada.",
+]) + "\n"
+
+
+@pytest.fixture(scope="module", params=["lualatex", "pdflatex"])
+def bolum_sonu(request):
+    """(motor, proje dizini, pdf, synctex dizini)."""
+    d = tempfile.mkdtemp(prefix="synctex_bolum_")
+    for ad, icerik in (("main.tex", _BOLUM_KOK), ("yontem.tex", _BOLUM_YONTEM),
+                       ("sonuc.tex", _BOLUM_SONUC)):
+        with open(os.path.join(d, ad), "w", encoding="utf-8", newline="\n") as f:
+            f.write(icerik)
+    komut = _derleme_komutu(os.path.join(d, "main.tex"))
+    if request.param == "pdflatex":
+        komut.append("--pdflatex")
+    r = subprocess.run(komut, capture_output=True, text=True, timeout=300,
+                       encoding="utf-8", errors="replace")
+    pdf = os.path.join(d, "main.pdf")
+    assert r.returncode == 0 and os.path.exists(pdf), r.stdout[-400:]
+    sdir = tempfile.mkdtemp(prefix="synctex_bolum_gz_")
+    shutil.move(os.path.join(d, "main.synctex.gz"),
+                os.path.join(sdir, "main.synctex.gz"))
+    yield request.param, d, pdf, sdir
+    shutil.rmtree(d, ignore_errors=True)
+    shutil.rmtree(sdir, ignore_errors=True)
+
+
+def _metin_satirlari(pdf, isaret):
+    """`isaret`i taşıyan sayfanın metin satırları: (sayfa, [(y, sol, sağ)]),
+    y synctex'in beklediği gibi sayfanın ÜSTÜNDEN; sayfa numarası atlanıyor."""
+    import pypdfium2 as pdfium
+    from gui.pdfium_lock import pdfium_lock
+    with pdfium_lock:
+        belge = pdfium.PdfDocument(pdf)
+        try:
+            for i in range(len(belge)):
+                sayfa = belge[i]
+                tp = sayfa.get_textpage()
+                try:
+                    if isaret not in tp.get_text_bounded():
+                        continue
+                    h = sayfa.get_height()
+                    satirlar = {}
+                    for k in range(tp.count_chars()):
+                        if not tp.get_text_range(k, 1).strip():
+                            continue
+                        sol, alt, sag, ust = tp.get_charbox(k)
+                        anahtar = round((alt + ust) / 2 / 4)
+                        s = satirlar.setdefault(anahtar, [h - (alt + ust) / 2, sol, sag, ""])
+                        s[1], s[2] = min(s[1], sol), max(s[2], sag)
+                        s[3] += tp.get_text_range(k, 1)
+                    return i + 1, [(y, sol, sag) for y, sol, sag, metin
+                                   in satirlar.values() if not metin.isdigit()]
+                finally:
+                    tp.close()
+                    sayfa.close()
+        finally:
+            belge.close()
+    return None, []
+
+
+def test_BOLUM_SONU_sayfasinda_bosluk_dahil_her_tik_ayni_dosyada(bolum_sonu,
+                                                                   monkeypatch):
+    r"""Metin satırlarına soldan sağa, satır sonundaki boşluk dahil tıklanıyor.
+
+    Kırılırsa: satır sonu boşluğuna ya da son paragrafın satır başına
+    tıklamak sonuc.tex'e, çoğu zaman onun `\newpage` satırına gidiyor
+    demektir. Düzeltmeden önce ölçüldü (2026-09-29): lualatex'te 54 tıktan
+    15'i, pdflatex'te satır başındaki 2'si sonuc.tex'e gidiyordu.
+
+    Ek sorgu bütçesi GENİŞ: kısa başlığın sağındaki boşluk doğru kayda ancak
+    son komşuda (11. sorgu) varıyor ve Windows'ta her sorgu ayrı bir `wsl`
+    süreci (~100 ms). Ölçüldü: tam takımla birlikte koşunca bütçe doldu ve
+    kapı yük yüzünden düştü. Bütçenin kendisini
+    test_synctex_koprusu.py'deki `test_TERS_ilk_sorgu_YAVASSA_ek_sorgu_yok`
+    sınıyor; bu kapı doğruluğu sınıyor.
+    """
+    import gui.synctex as st
+    monkeypatch.setattr(st, "_EK_SORGU_BUTCESI", 60.0)
+    motor, d, pdf, sdir = bolum_sonu
+    sayfa, satirlar = _metin_satirlari(pdf, "QXBYON01")
+    assert sayfa and len(satirlar) >= 4, "kapı boş: sayfa ya da satır yok"
+    sag_kenar = max(s[2] for s in satirlar)
+    beklenen = os.path.normcase(os.path.join(d, "yontem.tex"))
+    yanlis, toplam = [], 0
+    for y, sol, _sag in satirlar:
+        x = sol + 2
+        while x <= sag_kenar:
+            toplam += 1
+            t = reverse_search(sayfa, x, y, pdf, sdir)
+            if not t or os.path.normcase(os.path.normpath(t.file_path)) != beklenen:
+                yanlis.append("(%d,%d) -> %s" % (x, y, "%s:%d" % (
+                    os.path.basename(t.file_path), t.line) if t else "sonuç yok"))
+            x += 40
+    assert toplam >= 30, "kapı boş: yalnız %d tık" % toplam
+    assert not yanlis, "%s: %d/%d tık başka dosyaya: %s" % (
+        motor, len(yanlis), toplam, yanlis[:6])
