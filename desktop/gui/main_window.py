@@ -144,6 +144,33 @@ def _pandoc_ipucu() -> str:
         komut=FileOpsMixin._pandoc_kurulum_metni())
 
 
+def proje_klasoru(yol: str) -> str:
+    r"""Dışarıdan açılan dosyanın ağaç kökü: derlendiği KÖK belgenin klasörü,
+    kök dosyanın üst klasörlerinden birindeyse; değilse dosyanın klasörü.
+
+    Eskiden hep dosyanın klasörüydü. ÖLÇÜLDÜ (2026-09-29, v1.1.2 exe):
+    `bölümler/giriş.tex` "Birlikte Aç" ile açılınca derleme `% !TEX root`
+    ile `tez.tex`e gitti ama ağaç yalnız `bölümler/`i gösterdi ve Sürümle
+    iki dosyalık bir sürüm aldı; `tez.tex`, `.bib` ve şekiller sürüme hiç
+    girmedi (sürüm kökü ağaç kökü, bkz. version_ops._version_root). Klasörde
+    Ara ve Ctrl+P de aynı dar kökte çalışıyordu.
+
+    Kök belge başka bir yerdeyse (`% !TEX root = ../../baska/ana.tex`)
+    ağaç açılan dosyayı göstermeye devam ediyor.
+    """
+    from core.engine_detector import kok_belge
+    from core.paths import dizin_altinda_mi
+
+    dizin = os.path.dirname(os.path.abspath(yol))
+    try:
+        kok_dizin = os.path.dirname(os.path.abspath(kok_belge(yol)))
+    except OSError:
+        return dizin
+    if kok_dizin != dizin and dizin_altinda_mi(dizin, kok_dizin):
+        return kok_dizin
+    return dizin
+
+
 def ekrana_sigan_boyut(genislik: int, yukseklik: int, alan=None):
     """İstenen ilk pencere boyutunu kullanılabilir ekran alanına sığdırır.
 
@@ -225,7 +252,7 @@ class MainWindow(
         # Kural `_dis_yolu_ac`ta: ikinci örneğin yolu da aynı yerden geçiyor,
         # ikisi bir kez ayrışmıştı (bkz. o metodun ölçümü).
         if self._dis_yolu_ac(open_file, "Komut satırından"):
-            self._file_tree.set_root(os.path.dirname(open_file))
+            self._file_tree.set_root(proje_klasoru(open_file))
         # Kalan dosyalar AYNI kuraldan geçiyor; ağaç kökü yalnız ilkine
         # göre kuruluyor. `%F` ile gelen liste burada bitiyor.
         for _ek in ek_dosyalar:

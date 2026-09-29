@@ -231,3 +231,46 @@ def test_ek_dosya_YOKKEN_davranis_ayni(ana_pencere, tmp_path):
     assert acik == [os.path.normpath(str(p))]
     assert os.path.normcase(w._file_tree._root) == \
         os.path.normcase(os.path.normpath(str(tmp_path)))
+
+
+@pytest.mark.parametrize("sihirli_yorum", [True, False])
+def test_BOLUM_dosyasiyla_acilista_agac_koku_PROJE_klasoru(
+        ana_pencere, tmp_path, sihirli_yorum):
+    r"""Kök bölümün klasörüydü. ÖLÇÜLDÜ (2026-09-29, v1.1.2 exe):
+    `bölümler/giriş.tex` "Birlikte Aç" ile açılınca derleme `tez.tex`e
+    gitti ama ağaç yalnız `bölümler/`i gösterdi ve Sürümle iki dosyalık bir
+    sürüm aldı (sürüm kökü ağaç kökü); `tez.tex`, `.bib` ve şekiller
+    sürüme girmedi. İki kol: `% !TEX root` ve yalnız `\input` zinciri."""
+    proje = tmp_path / "Tez Çalışması"
+    (proje / "bölümler").mkdir(parents=True)
+    (proje / "tez.tex").write_text(
+        "\\documentclass{article}\n\\begin{document}\n"
+        "\\input{bölümler/giriş}\n\\end{document}\n", encoding="utf-8")
+    bolum = proje / "bölümler" / "giriş.tex"
+    bolum.write_text(("% !TEX root = ../tez.tex\n" if sihirli_yorum else "")
+                     + "\\section{Giriş}\n", encoding="utf-8")
+
+    w = ana_pencere(open_file=os.path.normpath(str(bolum)))
+
+    assert os.path.normcase(w._file_tree._root) == \
+        os.path.normcase(os.path.normpath(str(proje)))
+    # Açılan sekme yine bölümün kendisi
+    assert w._editor_tabs.widget(0).file_path == os.path.normpath(str(bolum))
+
+
+def test_KOK_BELGE_ust_klasorlerde_DEGILSE_agac_dosyanin_klasoru(
+        ana_pencere, tmp_path):
+    """Aşırı düzeltme kapısı: kök başka bir dalda olunca ağaç açılan dosyayı
+    göstermeye devam etmeli (kökün klasörü onu içermiyor)."""
+    (tmp_path / "baska").mkdir()
+    (tmp_path / "bolum").mkdir()
+    (tmp_path / "baska" / "ana.tex").write_text(
+        "\\documentclass{article}\n\\begin{document}\n"
+        "\\input{../bolum/b}\n\\end{document}\n", encoding="utf-8")
+    b = tmp_path / "bolum" / "b.tex"
+    b.write_text("% !TEX root = ../baska/ana.tex\nx\n", encoding="utf-8")
+
+    w = ana_pencere(open_file=os.path.normpath(str(b)))
+
+    assert os.path.normcase(w._file_tree._root) == \
+        os.path.normcase(os.path.normpath(str(tmp_path / "bolum")))
