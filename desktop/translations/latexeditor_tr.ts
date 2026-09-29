@@ -540,69 +540,69 @@ Referanslar tutarsız kaldı. Bu dosyalara yazma izni verip işlemi tekrarlayın
 </context><context>
     <name>EditorWidget</name>
     <message>
-        <location filename="../gui/editor.py" line="569" />
+        <location filename="../gui/editor.py" line="596" />
         <source>Geri Al</source>
         <translation>Geri Al</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="571" />
+        <location filename="../gui/editor.py" line="598" />
         <source>Yinele</source>
         <translation>Yinele</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="574" />
+        <location filename="../gui/editor.py" line="601" />
         <source>Kes</source>
         <translation>Kes</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="575" />
+        <location filename="../gui/editor.py" line="602" />
         <source>Kopyala</source>
         <translation>Kopyala</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="576" />
+        <location filename="../gui/editor.py" line="603" />
         <source>Yapıştır</source>
         <translation>Yapıştır</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="578" />
+        <location filename="../gui/editor.py" line="605" />
         <source>Sil</source>
         <translation>Sil</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="580" />
+        <location filename="../gui/editor.py" line="607" />
         <source>Tümünü Seç</source>
         <translation>Tümünü Seç</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1254" />
-        <location filename="../gui/editor.py" line="1249" />
+        <location filename="../gui/editor.py" line="1281" />
+        <location filename="../gui/editor.py" line="1276" />
         <source>İkili (binary) dosya; metin editöründe açılamaz.</source>
         <translation>İkili (binary) dosya; metin editöründe açılamaz.</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1301" />
-        <location filename="../gui/editor.py" line="1292" />
+        <location filename="../gui/editor.py" line="1328" />
+        <location filename="../gui/editor.py" line="1319" />
         <source>Kodlama Uyarısı</source>
         <translation>Kodlama Uyarısı</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1293" />
+        <location filename="../gui/editor.py" line="1320" />
         <source>Bu dosya UTF-16 kodlamalı ve LaTeX UTF-16 okuyamaz. UTF-8'e çevrilerek açıldı; dosya ilk kaydedildiğinde UTF-8 olacak. Otomatik kaydetme ve derlemeden önceki kayıt da buna dahil.</source>
         <translation>Bu dosya UTF-16 kodlamalı ve LaTeX UTF-16 okuyamaz. UTF-8'e çevrilerek açıldı; dosya ilk kaydedildiğinde UTF-8 olacak. Otomatik kaydetme ve derlemeden önceki kayıt da buna dahil.</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1302" />
+        <location filename="../gui/editor.py" line="1329" />
         <source>Bu dosya UTF-8 değil ({enc}). {enc} olarak açıldı ve aynı kodlamayla kaydedilecek. Sorunsuz derleme için UTF-8'e dönüştürmeniz önerilir.</source>
         <translation>Bu dosya UTF-8 değil ({enc}). {enc} olarak açıldı ve aynı kodlamayla kaydedilecek. Sorunsuz derleme için UTF-8'e dönüştürmeniz önerilir.</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1309" />
+        <location filename="../gui/editor.py" line="1336" />
         <source>Dosya Açma Hatası</source>
         <translation>Dosya Açma Hatası</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1309" />
+        <location filename="../gui/editor.py" line="1336" />
         <source>Dosya açılamadı:
 {path}
 
@@ -613,7 +613,7 @@ Referanslar tutarsız kaldı. Bu dosyalara yazma izni verip işlemi tekrarlayın
 {e}</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1399" />
+        <location filename="../gui/editor.py" line="1426" />
         <source>Bu dosya {enc} kodlamasında ve {ch} karakteri o kodlamada yok, bu yüzden kaydedilemiyor.
 
 Dosya UTF-8'e dönüştürülsün mü? (önerilen)</source>
@@ -622,22 +622,22 @@ Dosya UTF-8'e dönüştürülsün mü? (önerilen)</source>
 Dosya UTF-8'e dönüştürülsün mü? (önerilen)</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1405" />
+        <location filename="../gui/editor.py" line="1432" />
         <source>Belgedeki \usepackage[{eski}]{{inputenc}} satırı da \usepackage[utf8]{{inputenc}} yapılacak; yoksa belge derlenmez.</source>
         <translation>Belgedeki \usepackage[{eski}]{{inputenc}} satırı da \usepackage[utf8]{{inputenc}} yapılacak; yoksa belge derlenmez.</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1410" />
+        <location filename="../gui/editor.py" line="1437" />
         <source>Kodlama Yetersiz</source>
         <translation>Kodlama Yetersiz</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1503" />
+        <location filename="../gui/editor.py" line="1530" />
         <source>Kaydetme Hatası</source>
         <translation>Kaydetme Hatası</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1503" />
+        <location filename="../gui/editor.py" line="1530" />
         <source>Dosya kaydedilemedi:
 {path}
 
@@ -648,7 +648,7 @@ Dosya UTF-8'e dönüştürülsün mü? (önerilen)</translation>
 {e}</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1533" />
+        <location filename="../gui/editor.py" line="1560" />
         <source>Yeni Dosya</source>
         <translation>Yeni Dosya</translation>
     </message>
@@ -762,7 +762,7 @@ Dosya UTF-8'e dönüştürülsün mü? (önerilen)</translation>
         <translation>Yeni Dosya</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="317" />
+        <location filename="../gui/mixins/file_ops.py" line="321" />
         <location filename="../gui/mixins/file_ops.py" line="147" />
         <source>LaTeX Dosyaları (*.tex);;Tüm Dosyalar (*)</source>
         <translation>LaTeX Dosyaları (*.tex);;Tüm Dosyalar (*)</translation>
@@ -778,55 +778,55 @@ Dosya UTF-8'e dönüştürülsün mü? (önerilen)</translation>
         <translation>LaTeX Dosyaları (*.tex *.cls *.sty *.bib);;Tüm Dosyalar (*)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="218" />
+        <location filename="../gui/mixins/file_ops.py" line="221" />
         <source>Büyük dosya</source>
         <translation>Büyük dosya</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="219" />
+        <location filename="../gui/mixins/file_ops.py" line="222" />
         <source>'{ad}' {mb:.0f} MB.
 
-Açılması yaklaşık {sn:.0f} saniye sürebilir ve bu sürede pencere yanıt vermez.
+Bu boyutta bir dosya, özellikle çok uzun satırlar taşıyorsa, pencereyi bir süre yanıt vermez hâle getirebilir.
 
 Açılsın mı?</source>
         <translation>'{ad}' {mb:.0f} MB.
 
-Açılması yaklaşık {sn:.0f} saniye sürebilir ve bu sürede pencere yanıt vermez.
+Bu boyutta bir dosya, özellikle çok uzun satırlar taşıyorsa, pencereyi bir süre yanıt vermez hâle getirebilir.
 
 Açılsın mı?</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="235" />
+        <location filename="../gui/mixins/file_ops.py" line="239" />
         <source>Açılmadı: {ad}</source>
         <translation>Açılmadı: {ad}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="295" />
+        <location filename="../gui/mixins/file_ops.py" line="299" />
         <source>Motor algılandı</source>
         <translation>Motor algılandı</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="316" />
+        <location filename="../gui/mixins/file_ops.py" line="320" />
         <source>Farklı Kaydet</source>
         <translation>Farklı Kaydet</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="415" />
+        <location filename="../gui/mixins/file_ops.py" line="419" />
         <source>(boş)</source>
         <translation>(boş)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="441" />
+        <location filename="../gui/mixins/file_ops.py" line="445" />
         <source>WSL içinde: {komut}</source>
         <translation>WSL içinde: {komut}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="448" />
+        <location filename="../gui/mixins/file_ops.py" line="452" />
         <source>Dışa Aktarma</source>
         <translation>Dışa Aktarma</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="457" />
+        <location filename="../gui/mixins/file_ops.py" line="461" />
         <source>pandoc yüklü değil.
 
 Kurmak için: {komut}</source>
@@ -835,49 +835,61 @@ Kurmak için: {komut}</source>
 Kurmak için: {komut}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="464" />
+        <location filename="../gui/mixins/file_ops.py" line="468" />
         <source>Dışa aktarılacak dosya yok</source>
         <translation>Dışa aktarılacak dosya yok</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="470" />
+        <location filename="../gui/mixins/file_ops.py" line="474" />
         <source>Dışa aktarma zaten sürüyor, bitmesini bekleyin</source>
         <translation>Dışa aktarma zaten sürüyor, bitmesini bekleyin</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="488" />
+        <location filename="../gui/mixins/file_ops.py" line="492" />
         <source>Dışa Aktar</source>
         <translation>Dışa Aktar</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="489" />
+        <location filename="../gui/mixins/file_ops.py" line="493" />
         <source>Tüm Dosyalar (*)</source>
         <translation>Tüm Dosyalar (*)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="501" />
+        <location filename="../gui/mixins/file_ops.py" line="505" />
         <source>Kayıt başarısız, dışa aktarma iptal edildi</source>
         <translation>Kayıt başarısız, dışa aktarma iptal edildi</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="510" />
+        <location filename="../gui/mixins/file_ops.py" line="514" />
         <source>Dışa aktarılıyor</source>
         <translation>Dışa aktarılıyor</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="518" />
+        <location filename="../gui/mixins/file_ops.py" line="522" />
         <source>Dışa aktarıldı</source>
         <translation>Dışa aktarıldı</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="521" />
+        <location filename="../gui/mixins/file_ops.py" line="525" />
         <source>Dışa aktarma başarısız</source>
         <translation>Dışa aktarma başarısız</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="529" />
+        <location filename="../gui/mixins/file_ops.py" line="533" />
         <source>Önce bir klasör açın</source>
         <translation>Önce bir klasör açın</translation>
+    </message>
+    <message>
+        <source>'{ad}' {mb:.0f} MB.
+
+Açılması yaklaşık {sn:.0f} saniye sürebilir ve bu sürede pencere yanıt vermez.
+
+Açılsın mı?</source>
+        <translation type="vanished">'{ad}' {mb:.0f} MB.
+
+Açılması yaklaşık {sn:.0f} saniye sürebilir ve bu sürede pencere yanıt vermez.
+
+Açılsın mı?</translation>
     </message>
     <message>
         <source>pandoc yüklü değil.

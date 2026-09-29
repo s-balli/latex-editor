@@ -264,6 +264,11 @@ class EditorWidget(QsciScintilla):
         self.setMarginLineNumbers(1, True)
         self.setMarginWidth(1, "0000")
         self.linesChanged.connect(self._update_margin_width)
+        # Ctrl+tekerlek yakınlaştırması da genişliği değiştiriyor; yazı boyu
+        # ayarında olduğu gibi (bkz. apply_editor_settings) yeniden ölçülmeli.
+        # ÖLÇÜLDÜ (2026-09-29, v1.1.2 exe, 1200 satırlık dosya): yedi tık
+        # yakınlaşınca 4 haneli numaraların ilk hanesi kesildi ("117").
+        self.SCN_ZOOM.connect(self._update_margin_width)
 
         # Derleme hataları için gutter (margin 0) işareti.
         self._ERR_MARKER = 10
@@ -426,6 +431,28 @@ class EditorWidget(QsciScintilla):
         if self._theme:
             self.apply_theme(self._theme)
         self._update_margin_width()
+
+    def setText(self, text: str) -> None:
+        """Metni koy; satır kaydırma bu sürede KAPALI, sonra eski hâline döner.
+
+        Kaydırma açıkken Scintilla metni koyarken BÜTÜN satırları eşzamanlı
+        kaydırıyor; sonradan açılan kaydırma ise görünen satırlardan başlayıp
+        boşta yürüyor. ÖLÇÜLDÜ (2026-09-29, Windows'un gerçek platformu, çok
+        satırlı metin): 4 MB 4.06 sn -> 0.01 sn, 12 MB 12.13 sn -> 0.04 sn;
+        sonraki olay döngüsünde en uzun donma iki hâlde de ~1 sn, belgenin
+        sonuna gitmek 0.04 sn. Kaydırma öntanımlı açık, yani her dosya açılışı
+        (ve diskten yeniden yükleme, kurtarma) bu bedeli ödüyordu: v1.1.2
+        exe'si 12 MB'ı 13.8 sn'de açtı.
+        """
+        mod = self.wrapMode()
+        if mod == QsciScintilla.WrapMode.WrapNone:
+            super().setText(text)
+            return
+        self.setWrapMode(QsciScintilla.WrapMode.WrapNone)
+        try:
+            super().setText(text)
+        finally:
+            self.setWrapMode(mod)
 
     def mousePressEvent(self, event):
         if (event.button() == Qt.MouseButton.LeftButton and self._file_path):

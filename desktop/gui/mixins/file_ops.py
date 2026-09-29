@@ -197,11 +197,14 @@ class FileOpsMixin:
         editor.rename_bibitem_requested.connect(self._on_rename_bibitem)
         editor.goto_definition_requested.connect(self._on_goto_definition)
 
-    # Bu boyutun ustundeki dosya acilmadan once soruluyor. Acilis SENKRON ve
-    # olculdu (2026-09-02): ~0.53 sn/MB, yani 15 MB 8.4 sn, 40 MB 21 sn boyunca
-    # arayuz kilitli. Dosya secicide "Tum Dosyalar (*)" oldugu icin yanlislikla
-    # buyuk bir .log secmek kolay. Cokme yok, ama kullanici ne oldugunu
-    # anlamiyor; sormak hem uyari hem cikis yolu.
+    # Bu boyutun ustundeki dosya acilmadan once soruluyor. Dosya secicide "Tum
+    # Dosyalar (*)" oldugu icin yanlislikla buyuk bir .log secmek kolay.
+    # Kutu eskiden "yaklasik N saniye" diyordu (0.53 sn/MB, 2026-09-02).
+    # Surenin tamami satir kaydirmadan geliyordu ve `EditorWidget.setText`
+    # onu kaldirdi: cok satirli 12 MB 0.04 sn, 40 MB 0.12 sn (sonra en cok
+    # ~3 sn donma). Tek satiri cok uzun dosya ise ilk cizimde yine donuyor
+    # (OLCULDU 2026-09-29: 12 MB tek satir ~12 sn). Sure icerige bagli, o
+    # yuzden kutu sayi vermiyor; soru o dosyalar icin duruyor.
     _BUYUK_DOSYA_BAYT = 10 * 1024 * 1024
 
     def _buyuk_dosya_onayi(self, path: str) -> bool:
@@ -216,9 +219,10 @@ class FileOpsMixin:
         mb = boyut / (1024 * 1024)
         cevap = QMessageBox.question(
             self, _("Büyük dosya"),
-            _("'{ad}' {mb:.0f} MB.\n\nAçılması yaklaşık {sn:.0f} saniye sürebilir "
-              "ve bu sürede pencere yanıt vermez.\n\nAçılsın mı?").format(
-                  ad=os.path.basename(path), mb=mb, sn=mb * 0.53),
+            _("'{ad}' {mb:.0f} MB.\n\nBu boyutta bir dosya, özellikle çok uzun "
+              "satırlar taşıyorsa, pencereyi bir süre yanıt vermez hâle "
+              "getirebilir.\n\nAçılsın mı?").format(
+                  ad=os.path.basename(path), mb=mb),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No)
         return cevap == QMessageBox.StandardButton.Yes

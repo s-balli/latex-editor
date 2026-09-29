@@ -187,6 +187,42 @@ def test_update_margin_width_no_crash_on_empty(qapp):
     ed._update_margin_width()  # boş belgede çalışmalı
 
 
+def test_YAKINLASTIRMADA_satir_numarasi_sutunu_genisliyor(qapp):
+    """Ctrl+tekerlek (Scintilla yakınlaştırması) genişliği yeniden ölçmüyordu.
+    ÖLÇÜLDÜ (2026-09-29, v1.1.2 exe, 1200 satır): yedi tık yakınlaşınca
+    4 haneli numaraların ilk hanesi kesildi. Yazı boyu ayarının aynı kusuru
+    2026-09-24'te düzeltilmişti (apply_editor_settings)."""
+    ed = _editor()
+    ed.setText("\n".join("x" for _ in range(1200)))
+    normal = ed.marginWidth(1)
+    ed.zoomIn(7)
+    assert ed.marginWidth(1) > normal
+    ed.zoomOut(7)
+    assert ed.marginWidth(1) == normal
+
+
+def test_SETTEXT_satir_kaydirmayi_bekletmiyor(qapp):
+    """Kaydırma açıkken Scintilla metni koyarken BÜTÜN satırları kaydırıyor:
+    her dosya açılışı bu bedeli ödüyordu. ÖLÇÜLDÜ (2026-09-29): 12 MB
+    12.13 sn, v1.1.2 exe 13.8 sn; ekransız platformda 2 MB 0.82 sn.
+    Geçici kapatmayla 2 MB 0.005 sn: eşik iki yönde de geniş pay bırakıyor.
+    """
+    import time
+
+    from PyQt6.Qsci import QsciScintilla
+
+    ed = _editor()
+    assert ed.wrapMode() == QsciScintilla.WrapMode.WrapWord   # öntanımlı
+    satir = "% ogrenci tez calismasi icin ornek metin 0123456789 abc\n"
+    metin = satir * (2 * 1024 * 1024 // len(satir))
+    t = time.perf_counter()
+    ed.setText(metin)
+    sure = time.perf_counter() - t
+    assert ed.wrapMode() == QsciScintilla.WrapMode.WrapWord  # geri geldi
+    assert ed.text() == metin
+    assert sure < 0.25, f"2 MB setText {sure:.2f} sn (kaydırma bekletiyor)"
+
+
 # --- C.8: yorum/verbatim içinde tamamlama bastırma ---
 
 

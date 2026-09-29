@@ -418,8 +418,10 @@ def _buyuk(tmp_path, mb, ad="dev.log"):
 
 
 def test_buyuk_dosya_soruluyor_ve_hayirda_acilmiyor(qapp, tmp_path, monkeypatch):
-    """Açılış SENKRON: ~0.53 sn/MB, yani 40 MB'lık dosyada pencere 21 saniye
-    yanıt vermiyor (ölçüldü 2026-09-02).
+    """Çok büyük dosya (özellikle tek satırı çok uzun olan) pencereyi bir
+    süre dondurabiliyor: 12 MB tek satır ilk çizimde ~12 sn (ölçüldü
+    2026-09-29; çok satırlı metin artık anında yükleniyor, bkz.
+    EditorWidget.setText).
 
     Dosya seçicide "Tüm Dosyalar (*)" olduğu için yanlışlıkla büyük bir .log
     seçmek kolay; çökme yok ama kullanıcı ne olduğunu anlamıyor.
@@ -442,6 +444,10 @@ def test_buyuk_dosya_soruluyor_ve_hayirda_acilmiyor(qapp, tmp_path, monkeypatch)
 
     assert len(sorulan) == 1
     assert "11 MB" in sorulan[0] or "MB" in sorulan[0]
+    # Süre tahmini YOK: "yaklaşık 6 saniye" diyordu, exe'de 12 MB 13.8 sn
+    # sürdü; setText düzeltmesinden sonra çok satırlı 12 MB 0.04 sn. Süre
+    # içeriğe bağlı, sabit bir tahmin iki yönde de yanlış.
+    assert "saniye" not in sorulan[0], sorulan[0]
     assert stub._editor_tabs.count() == 0, "hayır denince açılmamalı"
 
 
