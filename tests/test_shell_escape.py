@@ -730,3 +730,44 @@ def test_TEX_ROOT_ile_yonlenen_belgede_de_ayni_anahtar(tmp_path):
     assert not stub._settings.d[CompileOpsMixin._SE_IZINLI], (
         "alt klasör anahtarı hesaplandı, izin silinemedi")
     assert "sıfırlandı" in stub._status.msg
+
+
+@gui
+@pytest.mark.parametrize("cevap, ek", [("Yes", "kabuk erişimi açık"),
+                                       ("No", "kabuk erişimi reddedildi")])
+def test_DERLEME_BASLADI_izin_sorusundan_SONRA_ve_kararla(
+        ana_pencere, tmp_path, monkeypatch, cevap, ek):
+    """Günlük satırı sorudan ÖNCE yazılıyordu: soru açıkken "başladı"
+    diyordu ve kararın kendisi hiç yazılmıyordu (v1.1.2 exe sınaması).
+
+    Kayıtlar modülün kendi kaydedicisinden toplanıyor, `caplog`dan değil:
+    tam takımda önceki testler kaydedicinin yayılımını değiştirebiliyor ve
+    `caplog` hiçbir şey görmüyordu (tek başına geçip takımda düştü)."""
+    import gui.mixins.compile_ops as co
+
+    yol = _yaz(tmp_path, "ana.tex", "\\documentclass{article}\n"
+               "\\usepackage{minted}\n\\begin{document}x\\end{document}\n")
+    p = ana_pencere()
+    p._open_file_in_editor(yol)
+    gonderilen = []
+    monkeypatch.setattr(p._compiler, "compile",
+                        lambda *a, **k: gonderilen.append(k) or True)
+    kayit = []
+    monkeypatch.setattr(co._logger, "info",
+                        lambda m, *a, **k: kayit.append(m % a if a else m))
+    soru_aninda = []
+
+    class _MB(_SahteMB):
+        def question(self, *a, **k):
+            soru_aninda.extend(kayit)
+            return super().question(*a, **k)
+
+    monkeypatch.setattr(co, "QMessageBox",
+                        _MB(getattr(_SahteMB.StandardButton, cevap)))
+
+    p._compile()
+
+    assert not [m for m in soru_aninda if "Derleme başladı" in m]
+    basladi = [m for m in kayit if "Derleme başladı" in m]
+    assert basladi == ["Derleme başladı: ana.tex (pdflatex), " + ek], basladi
+    assert gonderilen == [{"shell_escape": cevap == "Yes"}]

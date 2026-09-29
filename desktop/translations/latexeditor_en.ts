@@ -55,7 +55,7 @@ Enable it for '{k}'?
         <translation>No shell access answer is stored for this project</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="446" />
+        <location filename="../gui/mixins/compile_ops.py" line="457" />
         <location filename="../gui/mixins/compile_ops.py" line="410" />
         <source>Derleme sürüyor; bitmesini bekleyin veya Esc ile durdurun</source>
         <translation>Compilation in progress; wait for it to finish or stop it with Esc</translation>
@@ -66,88 +66,88 @@ Enable it for '{k}'?
         <translation>No file to compile</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="459" />
+        <location filename="../gui/mixins/compile_ops.py" line="470" />
         <location filename="../gui/mixins/compile_ops.py" line="426" />
         <source>Kayıt başarısız, derleme iptal</source>
         <translation>Save failed, compilation cancelled</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="492" />
+        <location filename="../gui/mixins/compile_ops.py" line="499" />
         <source>Derleme durduruldu</source>
         <translation>Compilation stopped</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="512" />
+        <location filename="../gui/mixins/compile_ops.py" line="519" />
         <source>Derleniyor...</source>
         <translation>Compiling...</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="544" />
+        <location filename="../gui/mixins/compile_ops.py" line="551" />
         <source>PDF açılamadı, motoru değiştirip tekrar deneyin</source>
         <translation>Could not open PDF, change the engine and try again</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="558" />
+        <location filename="../gui/mixins/compile_ops.py" line="565" />
         <source>PDF oluşturuldu ama boş, motoru değiştirip tekrar deneyin</source>
         <translation>PDF created but empty, try changing the engine</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="568" />
+        <location filename="../gui/mixins/compile_ops.py" line="575" />
         <source>hata</source>
         <translation>error(s)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="568" />
+        <location filename="../gui/mixins/compile_ops.py" line="575" />
         <source>Başarısız</source>
         <translation>Failed</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="570" />
+        <location filename="../gui/mixins/compile_ops.py" line="577" />
         <source>Başarılı</source>
         <translation>Successful</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="572" />
+        <location filename="../gui/mixins/compile_ops.py" line="579" />
         <source>uyarı</source>
         <translation>warning(s)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="697" />
+        <location filename="../gui/mixins/compile_ops.py" line="704" />
         <source>Belge {istenen} istiyor ama PDF {cikan} çıktı. Kağıt boyunu belgenin belirlemesi için \usepackage[{secenek}]{{geometry}} ekleyin.</source>
         <translation>The document asks for {istenen} but the PDF came out {cikan}. Add \usepackage[{secenek}]{{geometry}} so the document decides the paper size.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="712" />
+        <location filename="../gui/mixins/compile_ops.py" line="719" />
         <source>Derleme sonrası referans denetimi açıldı</source>
         <translation>Post-compile reference audit enabled</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="713" />
+        <location filename="../gui/mixins/compile_ops.py" line="720" />
         <source>Derleme sonrası referans denetimi kapatıldı</source>
         <translation>Post-compile reference audit disabled</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="823" />
+        <location filename="../gui/mixins/compile_ops.py" line="830" />
         <source>Hata yok</source>
         <translation>No errors</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="832" />
+        <location filename="../gui/mixins/compile_ops.py" line="839" />
         <source>Hata konumu bulunamadı</source>
         <translation>Error location not found</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="837" />
+        <location filename="../gui/mixins/compile_ops.py" line="844" />
         <source>Satır</source>
         <translation>Line</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="852" />
+        <location filename="../gui/mixins/compile_ops.py" line="859" />
         <source>Otomatik Derle</source>
         <translation>Auto Compile</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="858" />
+        <location filename="../gui/mixins/compile_ops.py" line="865" />
         <source>Manuel</source>
         <translation>Manual</translation>
     </message>

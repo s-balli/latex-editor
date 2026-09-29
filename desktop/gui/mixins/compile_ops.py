@@ -434,11 +434,22 @@ class CompileOpsMixin:
         self._imlece_dokunuldu = (
             getattr(editor, "_ilk_imlec", None) != (line, col))
         self._output_panel.clear()
-        _logger.info("Derleme başladı: %s (%s)", os.path.basename(target), engine)
+        self._derlemeyi_baslat(target, engine)
+
+    def _derlemeyi_baslat(self, target: str, engine: str):
+        """Kabuk erişimi kararı ÖNCE, "Derleme başladı" günlüğü SONRA.
+
+        Günlük satırı karardan önce yazılıyordu, yani minted'li projede izin
+        sorusu açıkken "başladı" diyordu ve kullanıcı ne kadar düşünürse
+        başlangıç zamanı o kadar yanlıştı; kararın kendisi hiç yazılmıyordu.
+        """
+        se = self._shell_escape_karari(target)
+        _logger.info("Derleme başladı: %s (%s)%s", os.path.basename(target), engine,
+                     {True: ", kabuk erişimi açık",
+                      False: ", kabuk erişimi reddedildi"}.get(se, ""))
         self._compile_target = target
         self._compile_engine = engine
-        self._compiler.compile(target, engine,
-                               shell_escape=self._shell_escape_karari(target))
+        self._compiler.compile(target, engine, shell_escape=se)
 
     def _compile_file(self, path: str):
         """Dosya ağacından sağ tıkla derle; alt dosyaysa % !TEX root köküne yönlendir."""
@@ -467,11 +478,7 @@ class CompileOpsMixin:
             self._imlece_dokunuldu = (
                 getattr(editor, "_ilk_imlec", None) != (line, col))
         self._output_panel.clear()
-        _logger.info("Derleme başladı: %s (%s)", os.path.basename(target), engine)
-        self._compile_target = target
-        self._compile_engine = engine
-        self._compiler.compile(target, engine,
-                               shell_escape=self._shell_escape_karari(target))
+        self._derlemeyi_baslat(target, engine)
 
     def _stop_compile(self):
         # Mesaj KOŞULLU: Esc her bağlamdan buraya düşüyor (bkz. `_on_esc`;
