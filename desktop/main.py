@@ -96,9 +96,30 @@ class _Uygulama(QApplication):
             alici(yol)
 
 
+def _gecici_kopya_mi(yol: str) -> bool:
+    """Çalışan paket sistemin geçici klasöründe mi (bkz. aşağısı)."""
+    import tempfile
+    try:
+        tmp = os.path.normcase(os.path.realpath(tempfile.gettempdir()))
+        yol = os.path.normcase(os.path.realpath(yol))
+        return os.path.commonpath([yol, tmp]) == tmp
+    except (ValueError, OSError):
+        return False
+
+
 def _register_file_association():
     """Windows: .tex dosyalarını 'Birlikte Aç' listesine ekle."""
     if not getattr(sys, 'frozen', False):
+        return
+    # İlişki HER açılışta o an çalışan kopyaya yazılıyor. Geçici klasörden
+    # koşan kopya (zip'in içinden açılan exe, sınama kopyası) sonra silinince
+    # `.tex`e çift tıklamak hiçbir şey açmıyordu; v1.1.2 exe sınamasında
+    # ilişki sınama boyunca geçici klasördeki kopyayı gösterdi. Kalıcı bir
+    # yerden koşan kopya eskisi gibi kendini yazıyor (yeni sürüm indirilince
+    # ilişki ona geçsin).
+    calisan = (os.environ.get('APPIMAGE', sys.executable)
+               if sys.platform == 'linux' else sys.executable)
+    if _gecici_kopya_mi(calisan):
         return
 
     if sys.platform == 'win32':

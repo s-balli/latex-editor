@@ -129,10 +129,49 @@ def test_desktop_COGUL_dosya_bildiriyor(monkeypatch, tmp_path):
     Bir gun `%f`ye donulurse (dosya basina ayri cagri) asagidaki cogul
     isleme gereksizlesir; bu test o kararin bilerek alinmasini saglar.
     """
-    icerik = _desktop_uret(monkeypatch, tmp_path, "/tmp/LaTeX Editor.AppImage")
+    icerik = _desktop_uret(monkeypatch, tmp_path, "/opt/LaTeX Editor.AppImage")
     exec_satiri = next(s for s in icerik.splitlines()
                        if s.startswith("Exec="))
     assert exec_satiri.endswith(" %F"), exec_satiri
+
+
+def test_GECICI_klasordeki_kopya_iliskiyi_KENDINE_cevirmiyor(monkeypatch,
+                                                            tmp_path):
+    """İlişki her açılışta çalışan kopyaya yazılıyor; geçici kopya (zip'in
+    içinden açılan exe, sınama kopyası) silinince `.tex`e çift tıklamak
+    hiçbir şey açmıyordu. v1.1.2 exe sınamasında ilişki sınama boyunca
+    geçici klasördeki kopyayı gösterdi."""
+    import subprocess
+    import tempfile
+
+    import main as m
+
+    ev = str(tmp_path / "ev")
+    monkeypatch.setattr(m.sys, "frozen", True, raising=False)
+    monkeypatch.setattr(m.sys, "platform", "linux")
+    monkeypatch.setattr(m.sys, "_MEIPASS", str(tmp_path), raising=False)
+    monkeypatch.setenv("APPIMAGE", os.path.join(
+        tempfile.gettempdir(), "Temp1_indirilen.zip", "LaTeX Editor.AppImage"))
+    monkeypatch.setattr(os.path, "expanduser",
+                        lambda p: p.replace("~", ev, 1) if p.startswith("~")
+                        else p)
+    monkeypatch.setattr(subprocess, "run", lambda *a, **k: None)
+
+    m._register_file_association()
+
+    assert not os.path.exists(os.path.join(ev, ".local", "share",
+                                           "applications", "latex-editor.desktop"))
+
+
+def test_gecici_kopya_OLCUTU(tmp_path):
+    import tempfile
+
+    import main as m
+
+    assert m._gecici_kopya_mi(os.path.join(tempfile.gettempdir(), "a", "b.exe"))
+    assert m._gecici_kopya_mi(str(tmp_path / "b.exe"))      # pytest'in dizini
+    assert not m._gecici_kopya_mi(os.path.join(os.path.expanduser("~"),
+                                               "Downloads", "b.exe"))
 
 
 def test_TUM_dosya_argumanlari_aliniyor(tmp_path):

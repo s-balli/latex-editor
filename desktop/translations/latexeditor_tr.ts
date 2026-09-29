@@ -4,7 +4,7 @@
   <context>
     <name>App</name>
     <message>
-        <location filename="../main.py" line="322" />
+        <location filename="../main.py" line="343" />
         <source>Uygulama zaten çalışıyor ama yanıt vermiyor.
 Açık pencereyi kullanın ya da uygulamayı kapatıp yeniden başlatın.</source>
         <translation>Uygulama zaten çalışıyor ama yanıt vermiyor.
