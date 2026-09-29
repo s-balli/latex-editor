@@ -1961,8 +1961,8 @@ Some matches in the document may be unchanged; run the command again to continue
     </message>
     <message>
         <location filename="../gui/main_window.py" line="1042" />
-        <source>VS Code tarzı inline panel. Üç seçenek: büyük/küçük harf eşleştir, tam kelime, düzenli ifade. Desen kipinde değiştirmede \1 yakalanan gruba karşılık gelir.</source>
-        <translation>VS Code style inline panel. Three options: match case, whole word, regular expression. In pattern mode, \1 in the replacement refers to a captured group.</translation>
+        <source>VS Code tarzı inline panel. Üç seçenek: büyük/küçük harf eşleştir, tam kelime, düzenli ifade. Desen kipinde değiştirmede \1 yakalanan gruba karşılık gelir. Büyük harfle yazılan Türkçe sözcükler de bulunur (I ile ı, İ ile i).</source>
+        <translation>VS Code style inline panel. Three options: match case, whole word, regular expression. In pattern mode, \1 in the replacement refers to a captured group. Turkish words typed in capitals are found too (I and ı, İ and i).</translation>
     </message>
     <message>
         <location filename="../gui/main_window.py" line="1045" />
@@ -1986,8 +1986,8 @@ Some matches in the document may be unchanged; run the command again to continue
     </message>
     <message>
         <location filename="../gui/main_window.py" line="1056" />
-        <source>Hücrelere yazarak veya CSV yükleyerek tabular tablosu üret; booktabs, hizalama, caption/label dahil. İmleç tablonun içindeyse mevcut tabloyu düzenler; Tabloyu Hizala ile kolonları hizalar.</source>
-        <translation>Build a tabular table by typing cells or loading CSV (booktabs, alignment, caption/label included). If the cursor is inside a table, it edits that table; use Align Table to align columns.</translation>
+        <source>Hücrelere yazarak veya CSV yükleyerek tabular tablosu üret; booktabs, hizalama, caption/label dahil. İmleç tablonun içindeyse mevcut tabloyu düzenler; Tabloyu Hizala ile kolonları hizalar. CSV'nin ayracı kendiliğinden bulunur (Türkçe Excel'in noktalı virgülü dahil), CSV Yükle'nin yanındaki kutudan elle de seçilebilir.</source>
+        <translation>Build a tabular table by typing cells or loading CSV (booktabs, alignment, caption/label included). If the cursor is inside a table, it edits that table; use Align Table to align columns. The CSV separator is detected, including the semicolon of Turkish Excel, and can also be chosen in the box next to Load CSV.</translation>
     </message>
     <message>
         <location filename="../gui/main_window.py" line="1058" />
@@ -2589,6 +2589,14 @@ Dictionary folder: {dizin}</translation>
         <location filename="../gui/mixins/yazim_ops.py" line="506" />
         <source>{n} kelime sözlükten çıkarıldı</source>
         <translation>{n} word(s) removed from the dictionary</translation>
+    </message>
+    <message>
+        <source>VS Code tarzı inline panel. Üç seçenek: büyük/küçük harf eşleştir, tam kelime, düzenli ifade. Desen kipinde değiştirmede \1 yakalanan gruba karşılık gelir.</source>
+        <translation type="vanished">VS Code style inline panel. Three options: match case, whole word, regular expression. In pattern mode, \1 in the replacement refers to a captured group.</translation>
+    </message>
+    <message>
+        <source>Hücrelere yazarak veya CSV yükleyerek tabular tablosu üret; booktabs, hizalama, caption/label dahil. İmleç tablonun içindeyse mevcut tabloyu düzenler; Tabloyu Hizala ile kolonları hizalar.</source>
+        <translation type="vanished">Build a tabular table by typing cells or loading CSV (booktabs, alignment, caption/label included). If the cursor is inside a table, it edits that table; use Align Table to align columns.</translation>
     </message>
     <message>
         <source>Yazım sekmesinden Denetle: belge taranır, bulgular satır numarasıyla listelenir, tıklayınca o satıra gidilir. Denetim canlı değildir, siz istemeden çalışmaz. Dil belgeden anlaşılır (% !TEX spellcheck ya da babel); Türkçe tezin İngilizce özeti gibi iki dilli belgelerde 'İkinci dil de var' kutusunu işaretleyin. Bulguya sağ tıklayarak öneri alabilir ya da kelimeyi kendi sözlüğünüze ekleyebilirsiniz.</source>

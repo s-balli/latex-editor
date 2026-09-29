@@ -211,6 +211,11 @@ def test_landing_page_yeni_ozellikleri_iceriyor():
         "changed on disk after the copy", "kopyadan sonra diskte değiştiyse",
         "blackout button", "karartma düğmesi",
         "hyphenated at line ends", "satır sonunda bölünen",
+        # v1.2.0: kişisel sözlük penceresi, CSV ayracı ve Türkçe büyük
+        # harf araması; üçü de fix( olarak geldi.
+        "Personal Dictionary window", "Kişisel Sözlük penceresinden",
+        "CSV separator is detected", "CSV'nin ayracı kendiliğinden",
+        "Turkish words typed in capitals", "Büyük harfle yazılan Türkçe",
     ):
         assert beklenen in sayfa, f"tanıtım sayfasında yok: {beklenen}"
 
