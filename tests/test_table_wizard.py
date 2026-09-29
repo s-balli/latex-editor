@@ -237,6 +237,58 @@ def test_dialog_load_block_rebuilds_align_combos(qapp):
     assert "\\begin{tabular}{lllll}" in dlg.result_text()
 
 
+@pytest.mark.parametrize("spec,govde", [("cccc", "a & b & c & d"),
+                                        ("lll", "a & b & c")])
+def test_DUZENLEME_kipinde_ESKI_hizalama_kutulari_gorunmuyor(qapp, spec, govde):
+    """Yukarıdaki kapı kutu SAYISINA bakıyordu, diyaloğu hiç göstermiyordu.
+    Eski kutular yerleşimden çıkıp `deleteLater` bekliyor ve silme `exec()`
+    dönünce işleniyor; o arada öntanımlı 640x480 boyutuyla (0,0)'da
+    görünüyorlardı. ÖLÇÜLDÜ (2026-09-29, v1.1.2 exe): var olan tabloyu
+    düzenlerken ızgara, sayı kutuları ve CSV düğmeleri gri bir katmanın
+    altındaydı. Aynı kolon sayısında da (3) oluyor: kutular her yüklemede
+    yeniden kuruluyor."""
+    from PyQt6.QtCore import QEvent
+    from PyQt6.QtWidgets import QComboBox
+
+    metin = "\\begin{tabular}{%s}\n%s \\\\\n\\end{tabular}\n" % (spec, govde)
+    dlg = TableWizardDialog()
+    dlg.load_block(parse_tabular_at(metin, 2))
+    try:
+        dlg.show()
+        qapp.processEvents()
+        gorunen = [c for c in dlg.findChildren(QComboBox) if c.isVisible()]
+        # ortam kutusu + kolon başına bir hizalama kutusu
+        assert len(gorunen) == 1 + dlg._align_box.count(), \
+            [c.geometry().getRect() for c in gorunen]
+    finally:
+        dlg.close()
+        dlg.deleteLater()
+        qapp.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+
+
+@pytest.mark.parametrize("tema", ["dark", "light"])
+def test_IZGARA_basligi_TEMANIN_zemininde(qapp, tema):
+    """Başlık yazı rengini QTableWidget kuralından devralıyor, zemini ise
+    platformunki kalıyordu. ÖLÇÜLDÜ (2026-09-29, koyu tema, gerçek
+    platform): beyaz zeminde #cccccc satır/sütun numarası, karşıtlık 1.61.
+    Karşıtlık taraması onu göremezdi: başlığın zemini hiç bildirilmemişti."""
+    from PyQt6.QtCore import QEvent
+    from PyQt6.QtGui import QColor
+
+    dlg = TableWizardDialog()
+    dlg.apply_theme(THEMES[tema])
+    try:
+        dlg.show()
+        qapp.processEvents()
+        img = dlg._grid.horizontalHeader().grab().toImage()
+        zemin = QColor(img.pixel(3, img.height() // 2)).name()
+        assert zemin == QColor(THEMES[tema]["bg_toolbar"]).name()
+    finally:
+        dlg.close()
+        dlg.deleteLater()
+        qapp.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+
+
 # =====================================================================
 # Mixin: ekle / hizala (stub MainWindow)
 # =====================================================================

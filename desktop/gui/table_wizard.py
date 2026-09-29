@@ -201,6 +201,15 @@ class TableWizardDialog(QDialog):
             f" color: {t['fg_primary']}; border: 1px solid {t['border_input']}; padding: 3px 6px; }}"
             f"QTableWidget {{ background: {t['bg_primary']}; color: {t['fg_editor']};"
             f" gridline-color: {t['border_separator']}; }}"
+            # Başlık yazı rengini QTableWidget'tan devralıyor ama zemini
+            # platformunki kalıyordu. ÖLÇÜLDÜ (2026-09-29, koyu tema, gerçek
+            # platform): beyaz zeminde #cccccc satır/sütun numarası,
+            # karşıtlık 1.61 (eşik 4.5). Çıktı panelinin tablosuyla aynı kural.
+            f"QHeaderView::section {{ background: {t['bg_toolbar']};"
+            f" color: {t['fg_muted']}; border: none;"
+            f" border-bottom: 1px solid {t['border_normal']}; padding: 2px 6px; }}"
+            f"QTableCornerButton::section {{ background: {t['bg_toolbar']};"
+            f" border: none; }}"
             f"QPlainTextEdit {{ background: {t['bg_primary']}; color: {t['fg_editor']};"
             f" border: 1px solid {t['border_separator']};"
             f" font-family: Consolas, 'DejaVu Sans Mono', monospace; font-size: 11px; }}"
@@ -247,6 +256,14 @@ class TableWizardDialog(QDialog):
             while self._align_box.count():
                 w = self._align_box.takeAt(0).widget()
                 if w:
+                    # ÖNCE GİZLE. `load_block` diyalog gösterilmeden
+                    # çağrılıyor ve silme ancak `exec()` DÖNÜNCE işleniyor
+                    # (ertelenen silme çağrıldığı döngü düzeyinde). O arada
+                    # yerleşimden çıkmış eski kutular öntanımlı 640x480
+                    # boyutuyla (0,0)'da görünüyordu. ÖLÇÜLDÜ (2026-09-29,
+                    # v1.1.2 exe): var olan tabloyu düzenlerken ızgara, sayı
+                    # kutuları ve CSV düğmeleri gri bir katmanın altındaydı.
+                    w.hide()
                     w.deleteLater()
             for col in range(self._cols.value()):
                 combo = QComboBox()
