@@ -34,6 +34,8 @@ dönüşümler saf aritmetiktir. Bunun iki sebebi var:
     (bkz. gui/pdfium_lock.py). Tek giriş noktası olunca kilit de tek yerde.
 """
 
+import math
+
 from gui.pdfium_lock import pdfium_lock
 
 
@@ -95,12 +97,20 @@ def kutu_gorsele(g, sol: float, alt: float, sag: float, ust: float,
 
     İki köşe ayrı ayrı dönüştürülüp normalleştiriliyor: 90/270'te eksenler
     takas olduğu için "sol/üst" ekranda sol/üst kalmıyor.
+
+    Dikdörtgen kesirli kutuyu TAM KAPSIYOR: sol/üst aşağı, sağ/alt yukarı
+    yuvarlanıyor. Eskiden başlangıç da boy da `int()` ile kırpılıyordu ve
+    sağ ile alt kenar 2 px'e kadar içeride kalıyordu. ÖLÇÜLDÜ (2026-09-29):
+    on karakterlik seçimde altı yakınlaştırma adımının hepsinde sağda 0.4 ile
+    1.0, altta 0.2 ile 1.0 px eksik; exe'de çift tıkla seçilen kelimenin
+    kutusu gözle 1 px kısaydı.
     """
     x1, y1 = gorsele(g, sol, ust, olcek)
     x2, y2 = gorsele(g, sag, alt, olcek)
     x0, x3 = (x1, x2) if x1 <= x2 else (x2, x1)
     y0, y3 = (y1, y2) if y1 <= y2 else (y2, y1)
-    return int(x0), int(y0), max(int(x3 - x0), 2), max(int(y3 - y0), 2)
+    sx, sy = math.floor(x0), math.floor(y0)
+    return sx, sy, max(math.ceil(x3) - sx, 2), max(math.ceil(y3) - sy, 2)
 
 
 # --- SyncTeX ---

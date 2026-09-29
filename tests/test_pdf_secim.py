@@ -158,6 +158,82 @@ def duz_pdf(tmp_path):
 # =====================================================================
 
 
+def _kaplamiyor(v, kutular, vurgular):
+    """Kesirli karakter kutularından vurgunun DIŞINDA kalan kenarlar (px)."""
+    sol = min(k[0] for k in kutular)
+    ust = min(k[1] for k in kutular)
+    sag = max(k[2] for k in kutular)
+    alt = max(k[3] for k in kutular)
+    g = [h.geometry() for h in vurgular]
+    return {ad: round(fark, 2) for ad, fark in (
+        ("sol", min(r.x() for r in g) - sol),
+        ("ust", min(r.y() for r in g) - ust),
+        ("sag", sag - max(r.x() + r.width() for r in g)),
+        ("alt", alt - max(r.y() + r.height() for r in g))) if fark > 0}
+
+
+def _karakter_kutulari(v, ilk, son):
+    with pdfium_lock:
+        sayfa = v._pdf[0]
+        tp = sayfa.get_textpage()
+        g = geometri(sayfa)
+        ham = [tp.get_charbox(i, loose=True) for i in range(ilk, son + 1)]
+    olcek = v._olcek(0)
+    kutular = []
+    for left, bottom, right, top in ham:
+        x1, y1 = gorsele(g, left, top, olcek)
+        x2, y2 = gorsele(g, right, bottom, olcek)
+        kutular.append((min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2)))
+    return kutular
+
+
+class TestVurguKenari:
+    r"""Vurgu kutusu karakterleri TAM kapsamalı.
+
+    `setGeometry(int(x), int(y), int(w), int(h))` başı da boyu da aşağı
+    yuvarlıyordu; sağ ve alt kenar 2 px'e kadar içeride kalıyordu. ÖLÇÜLDÜ
+    (2026-09-29, v1.1.2 exe): çift tıkla seçilen kelimenin kutusu 1 px kısa.
+    Yakınlaştırma adımlarında kesir her seferinde başka, o yüzden hepsinde.
+    """
+
+    def test_SECIM_vurgusu_kelimeyi_kapsiyor(self, qapp, duz_pdf):
+        v = _viewer(qapp, duz_pdf)
+        try:
+            eksikler = {}
+            for adim in range(6):
+                _surukle(qapp, v)
+                eksik = _kaplamiyor(v, _karakter_kutulari(v, 0, 9),
+                                    v._selection_highlights)
+                if eksik:
+                    eksikler[adim] = eksik
+                v.zoom_in()
+                qapp.processEvents()
+            assert not eksikler, eksikler
+        finally:
+            v.shutdown()
+            v.deleteLater()
+            qapp.processEvents()
+
+    def test_ARAMA_vurgusu_karakterleri_kapsiyor(self, qapp, duz_pdf):
+        v = _viewer(qapp, duz_pdf)
+        try:
+            eksikler = {}
+            for adim in range(6):
+                _arama_kur(qapp, v, uzunluk=5)
+                kutular = _karakter_kutulari(v, 0, 4)
+                for i, (k, h) in enumerate(zip(kutular, v._search_highlights)):
+                    eksik = _kaplamiyor(v, [k], [h])
+                    if eksik:
+                        eksikler[(adim, i)] = eksik
+                v.zoom_in()
+                qapp.processEvents()
+            assert not eksikler, eksikler
+        finally:
+            v.shutdown()
+            v.deleteLater()
+            qapp.processEvents()
+
+
 class TestDonmusSayfadaVurgu:
 
     @pytest.mark.parametrize("donme", [0, 90, 180, 270])
