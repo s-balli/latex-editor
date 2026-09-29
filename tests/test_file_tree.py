@@ -1238,6 +1238,116 @@ def test_KOK_YOLU_tek_satirda_klasor_adi_gorunuyor_tam_yol_ipucunda(qapp,
         qapp.sendPostedEvents(None, QEvent.Type.DeferredDelete)
 
 
+@pytest.mark.parametrize("platform, not_", [
+    ("win32", "(Geri Dönüşüm Kutusu'na taşınır)"),
+    ("darwin", "(Çöp Sepeti'ne taşınır)"),
+    ("linux", "(Çöpe taşınır)"),
+])
+def test_SILME_sorusu_sistemin_COP_adini_soyluyor(qapp, tmp_path, monkeypatch,
+                                                  platform, not_):
+    """ÖLÇÜLDÜ (2026-09-29, AppImage, WSLg): Linux'ta silme sorusu "Geri
+    dönüşüm kutusu" diyordu, öğe ev dizinindeki freedesktop çöpüne gitti."""
+    import sys
+
+    from PyQt6.QtWidgets import QMessageBox
+    from gui.file_tree import FileTree
+
+    monkeypatch.setattr(sys, "platform", platform)
+    sorulan = []
+    monkeypatch.setattr(QMessageBox, "exec",
+                        lambda self: sorulan.append(self.text()) or 0)
+    (tmp_path / "a.tex").write_text("x", encoding="utf-8")
+    tree = FileTree(theme=THEMES["dark"])
+    try:
+        tree._delete_file(str(tmp_path / "a.tex"))
+    finally:
+        tree.deleteLater()
+    assert sorulan and sorulan[0].endswith("\n" + not_), sorulan
+    assert (tmp_path / "a.tex").exists(), "Evet denmeden silindi"
+
+
+def _agactan_sil(p, yol, monkeypatch):
+    """Ağacın gerçek silme yolu, soruya Evet; ardından izleyicinin turu."""
+    from PyQt6.QtWidgets import QMessageBox
+
+    def _evet(self):
+        for b in self.buttons():
+            if b.text() == "Evet":
+                b.click()
+        return 0
+
+    monkeypatch.setattr(QMessageBox, "exec", _evet)
+    p._file_tree._delete_file(yol)
+    # İzleyicinin sinyali olay döngüsünde geliyor; aynı yolu elle koştur.
+    p._file_watch_on_change(yol)
+    p._file_watch_process_queue()
+
+
+def test_agactan_silinen_TEMIZ_sekme_KUTUSUZ_kapaniyor(ana_pencere, tmp_path,
+                                                       monkeypatch,
+                                                       _sahte_cop_kutusu):
+    """ÖLÇÜLDÜ (v1.1.2 exe): ağaçtan silmeyi onaylayınca bir de "dosyası
+    diskten silindi, ilgili sekme kapatılacak" kutusu çıkıyordu; izleyici
+    silmeyi dışarıdan olmuş sanıyordu."""
+    from PyQt6.QtWidgets import QMessageBox
+
+    yol = tmp_path / "bolum.tex"
+    yol.write_text("icerik\n", encoding="utf-8")
+    p = ana_pencere()
+    p._open_file_in_editor(str(yol))
+    assert p._editor_by_path(str(yol)) is not None
+    kutular = []
+    monkeypatch.setattr(QMessageBox, "information",
+                        staticmethod(lambda *a, **k: kutular.append(a[2])))
+
+    _agactan_sil(p, str(yol), monkeypatch)
+
+    assert _sahte_cop_kutusu == [str(yol)]
+    assert p._editor_by_path(str(yol)) is None, "sekme açık kaldı"
+    assert kutular == [], kutular
+
+
+def test_agactan_silinen_KLASORUN_temiz_sekmeleri_de(ana_pencere, tmp_path,
+                                                     monkeypatch):
+    from PyQt6.QtWidgets import QMessageBox
+
+    klasor = tmp_path / "bolumler"
+    klasor.mkdir()
+    (klasor / "a.tex").write_text("a\n", encoding="utf-8")
+    disarida = tmp_path / "bolumler2.tex"         # önek eşleşmesi tuzağı
+    disarida.write_text("b\n", encoding="utf-8")
+    p = ana_pencere()
+    p._open_file_in_editor(str(klasor / "a.tex"))
+    p._open_file_in_editor(str(disarida))
+    monkeypatch.setattr(QMessageBox, "information",
+                        staticmethod(lambda *a, **k: None))
+
+    _agactan_sil(p, str(klasor), monkeypatch)
+
+    assert p._editor_by_path(str(klasor / "a.tex")) is None
+    assert p._editor_by_path(str(disarida)) is not None
+
+
+def test_agactan_silinen_KIRLI_sekme_izleyicinin_sorusuna_kaliyor(
+        ana_pencere, tmp_path, monkeypatch):
+    """Aşırı düzeltme kapısı: kaydedilmemiş iş sessizce atılmamalı; izleyicinin
+    kutusu Farklı Kaydet / Sekmede Tut yolunu sunuyor."""
+    yol = tmp_path / "bolum.tex"
+    yol.write_text("icerik\n", encoding="utf-8")
+    p = ana_pencere()
+    p._open_file_in_editor(str(yol))
+    ed = p._editor_by_path(str(yol))
+    ed.insertAt("kaydedilmedi ", 0, 0)
+    sorulan = []
+    monkeypatch.setattr(p, "_handle_deleted_file",
+                        lambda e, y: sorulan.append(y))
+
+    _agactan_sil(p, str(yol), monkeypatch)
+
+    assert p._editor_by_path(str(yol)) is ed, "kirli sekme kapandı"
+    assert sorulan == [os.path.normpath(str(yol))]
+
+
 def test_KOK_YOLU_yazi_degisince_yeniden_kisaltiliyor(qapp):
     """Tema stil sayfası yazı boyunu yol konduktan SONRA verebiliyor. Kısaltma
     eski yazıyla kalırsa büyüyen yazıda metin etiketten taşar."""

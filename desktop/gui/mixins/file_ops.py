@@ -401,6 +401,24 @@ class FileOpsMixin:
             self._settings.setValue("recent_files", recent)
             self._refresh_recent_menu()
 
+    def _on_file_deleted(self, silinen: str):
+        """Dosya ağacından silindi: TEMİZ sekmesi sorusuz kapansın.
+
+        İzleyici silmeyi dışarıdan olmuş sanıyor ve "dosyası diskten silindi,
+        ilgili sekme kapatılacak" kutusunu açıyordu; oysa silmeyi kullanıcı az
+        önce onayladı. KİRLİ sekme izleyiciye bırakılıyor: onun kutusu
+        kaydedilmemiş işi kurtarma yolunu (Farklı Kaydet, Sekmede Tut) sunuyor.
+        Klasör silindiyse içindeki sekmeler de.
+        """
+        kok = os.path.normcase(os.path.normpath(silinen))
+        for i in reversed(range(self._editor_tabs.count())):
+            ed = self._editor_tabs.widget(i)
+            if not isinstance(ed, EditorWidget) or not ed.file_path or ed.isModified():
+                continue
+            yol = os.path.normcase(os.path.normpath(ed.file_path))
+            if yol == kok or yol.startswith(kok.rstrip(os.sep) + os.sep):
+                self._close_tab_safe(i)
+
     def _update_tab_title(self, editor):
         index = self._editor_tabs.indexOf(editor)
         if index < 0:

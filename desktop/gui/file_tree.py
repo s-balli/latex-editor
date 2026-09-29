@@ -34,6 +34,23 @@ _MAX_DEPTH = 5
 _ = lambda s: QCoreApplication.translate("FileTree", s)
 _logger = get_logger("file_tree")
 
+
+def cop_notu() -> str:
+    """Silinenin nereye gittiği, sistemin KENDİ adıyla (send2trash).
+
+    Metin her yerde "Geri dönüşüm kutusu" diyordu; Linux'ta masaüstünün adı
+    "Çöp", macOS'ta "Çöp Sepeti" (ölçüldü 2026-09-29, AppImage: silinen
+    öğe ev dizinindeki freedesktop çöpüne gitti). Türkçe ekler ada göre
+    değiştiği için bütün not çevriliyor, yalnız ad değil.
+    """
+    import sys
+
+    if sys.platform == "win32":
+        return _("(Geri Dönüşüm Kutusu'na taşınır)")
+    if sys.platform == "darwin":
+        return _("(Çöp Sepeti'ne taşınır)")
+    return _("(Çöpe taşınır)")
+
 # Editörde açılabilir dosyalar. TEK KAYNAK core.fs_ops.KAYNAK_UZANTILARI.
 # Burada iki sabit vardı: `_EXTENSIONS` ("derlenebilir/doğrudan ilgili") ve
 # `_EDITABLE`. İkisi de aynı dörtlüydü ve `_EXTENSIONS` HİÇ okunmuyordu
@@ -235,6 +252,9 @@ class FileTree(QWidget):
     # sekmenin de takip etmesi gerekiyor: eski yola bağlı kalan bir sekme
     # Ctrl+S'te silinmiş adı yeniden yaratır ve kullanıcı iki dosyayla kalır.
     file_renamed = pyqtSignal(str, str)
+    # Dosya ya da klasör ağaçtan silindi (çöpe gitti). Açık TEMİZ sekmesi
+    # sorusuz kapanıyor; izleyici silmeyi dışarıdan olmuş sanıp kutu açıyordu.
+    file_deleted = pyqtSignal(str)
 
     def __init__(self, parent=None, *, theme: dict = None):
         super().__init__(parent)
@@ -940,27 +960,29 @@ class FileTree(QWidget):
                 yield os.path.join(eski, os.path.relpath(y, yeni)), y
 
     def _delete_file(self, path: str):
-        """Dosyayı veya klasörü geri dönüşüm kutusuna gönder."""
+        """Dosyayı veya klasörü sistemin çöpüne gönder (bkz. `cop_notu`)."""
         name = os.path.basename(path)
         klasor_mu = os.path.isdir(path)
         msg = QMessageBox(self)
         msg.setWindowTitle(_("Sil"))
         soru = (_("'{name}' klasörünü ve İÇİNDEKİLERİ silmek istediğinize emin "
-                  "misiniz?\n(Geri dönüşüm kutusuna taşınır)") if klasor_mu else
-                _("'{name}' dosyasını silmek istediğinize emin misiniz?\n"
-                  "(Geri dönüşüm kutusuna taşınır)"))
-        msg.setText(soru.format(name=name))
+                  "misiniz?") if klasor_mu else
+                _("'{name}' dosyasını silmek istediğinize emin misiniz?"))
+        msg.setText(soru.format(name=name) + "\n" + cop_notu())
         msg.setIcon(QMessageBox.Icon.Question)
         btn_yes = msg.addButton(_("Evet"), QMessageBox.ButtonRole.YesRole)
         msg.addButton(_("Hayır"), QMessageBox.ButtonRole.NoRole)
         msg.exec()
-        if msg.clickedButton() == btn_yes:
-            try:
-                send2trash.send2trash(path)
-                self.refresh()
-            except Exception as e:
-                _logger.error("Silinemedi (send2trash): %s", path, exc_info=True)
-                QMessageBox.warning(self, _("Hata"), _("Silinemedi: {e}").format(e=e))
+        if msg.clickedButton() != btn_yes:
+            return
+        try:
+            send2trash.send2trash(path)
+        except Exception as e:
+            _logger.error("Silinemedi (send2trash): %s", path, exc_info=True)
+            QMessageBox.warning(self, _("Hata"), _("Silinemedi: {e}").format(e=e))
+            return
+        self.file_deleted.emit(path)
+        self.refresh()
 
     def apply_theme(self, t: dict):
         self._theme = t
