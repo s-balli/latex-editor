@@ -320,6 +320,9 @@ class _KaydedenEditor:
     def insertAt(self, metin, satir, sutun):
         self.yazilan = metin
 
+    def blok_ekle(self, metin):
+        self.yazilan = metin
+
     def setCursorPosition(self, satir, sutun):
         pass
 
@@ -687,6 +690,30 @@ def test_TEX_DISI_sekmede_gorsel_EKLENMIYOR(ana_pencere, tmp_path,
 
     assert (acilan, ed.text()) == ([], once)
     assert not (tmp_path / "media").exists()
+
+
+def test_SATIR_ORTASINDA_blok_kendi_satirlarina_giriyor(ana_pencere, tmp_path,
+                                                       monkeypatch):
+    r"""Blok imlecin TAM yerine giriyordu. ÖLÇÜLDÜ (2026-09-29, v1.1.2 exe):
+    satır ortasında `metin\begin{figure}` ve `\end{figure}` ardından satırın
+    geri kalanı aynı satırda. İmleç bloğun ilk satırına konuyor."""
+    _diyalog(monkeypatch, 1)
+    yol = _yaz(tmp_path / "belge.tex",
+               "\\documentclass{article}\n\\begin{document}\n"
+               "Önce sonra.\n\\end{document}\n")
+    png = str(tmp_path / "sekil.png")
+    _red_image().save(png, "PNG")
+    p = ana_pencere()
+    p._open_file_in_editor(yol)
+    ed = p._current_editor()
+    ed.setCursorPosition(2, 5)
+    p._insert_image(png)
+
+    satirlar = ed.text().splitlines()
+    assert satirlar[2] == "Önce "
+    assert satirlar[3] == "\\begin{figure}[htbp]"
+    assert satirlar[satirlar.index("\\end{figure}") + 1] == "sonra."
+    assert ed.getCursorPosition() == (3, 0)
 
 
 def test_VAZGEC_diskte_dosya_BIRAKMIYOR(ana_pencere, tmp_path, monkeypatch):

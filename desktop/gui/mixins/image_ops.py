@@ -300,10 +300,7 @@ class ImageOpsMixin:
 
         snippet = self._build_figure_snippet(template, rel_path, width, caption, label)
 
-        line, col = editor.getCursorPosition()
-        editor.insertAt(snippet, line, col)
-        editor.setCursorPosition(line, col)
-        editor.ensureLineVisible(line)
+        editor.blok_ekle(snippet)
         editor.setFocus()
 
         # YOL kaçırılamaz: `graphicx` dosyanın birebir adını istiyor, `\%`

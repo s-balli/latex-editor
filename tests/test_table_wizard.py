@@ -336,6 +336,55 @@ def test_wizard_inserts_at_cursor(qapp, monkeypatch):
     assert "Tablo eklendi" in stub._status.msg
 
 
+@pytest.mark.parametrize("metin, imlec, beklenen, imlec_sonra", [
+    # Satır başı: tablo kodu satır sonu TAŞIMIYOR, satırın geri kalanı
+    # `\end{table}`in arkasına yapışıyordu.
+    ("öncesi\nsonrası\n", (1, 0),
+     "öncesi\n{kod}\nsonrası\n", (1, 0)),
+    # Satır ortası: blok iki uçtan da ayrılıyor.
+    ("öncesi\nsonrası\n", (1, 3),
+     "öncesi\nson\n{kod}\nrası\n", (2, 0)),
+    # Satır sonu: blok alt satırdan başlıyor.
+    ("öncesi\nsonrası\n", (0, 6),
+     "öncesi\n{kod}\nsonrası\n", (1, 0)),
+    # Boş satır: fazladan satır eklenmiyor.
+    ("a\n\nb\n", (1, 0), "a\n{kod}\nb\n", (1, 0)),
+])
+def test_wizard_yeni_tablo_KENDI_satirlarinda(qapp, monkeypatch, metin, imlec,
+                                              beklenen, imlec_sonra):
+    r"""ÖLÇÜLDÜ (2026-09-29, v1.1.2 exe): Tablo Sihirbazı kodu imlecin TAM
+    yerine koyuyordu; satır ortasında `son\begin{table}`, satır başında bile
+    `\end{table}rası`."""
+    import gui.table_wizard as tw
+
+    code = "\\begin{table}\n\\begin{tabular}{l}x\\end{tabular}\n\\end{table}"
+    ed = EditorWidget()
+    ed.setText(metin)
+    ed.setCursorPosition(*imlec)
+    stub = _Stub([ed])
+
+    class FakeDlg:
+        def __init__(self, *a, **k):
+            pass
+
+        def apply_theme(self, t):
+            pass
+
+        def exec(self):
+            return True
+
+        def result_text(self):
+            return code
+
+    monkeypatch.setattr(tw, "TableWizardDialog", FakeDlg)
+    stub._table_wizard()
+
+    assert ed.text() == beklenen.replace("{kod}", code)
+    assert ed.getCursorPosition() == imlec_sonra
+    ed.undo()
+    assert ed.text() == metin, "ekleme tek geri alma adımı olmalı"
+
+
 def test_wizard_replaces_wrapped_table_whole(qapp, monkeypatch):
     """Sarmalı tabloda (\\begin{table} içinde) kılıf DAHİL değiştirilir.
 

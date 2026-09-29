@@ -1248,6 +1248,31 @@ class EditorWidget(QsciScintilla):
                 return (ln, s, e)
         return None
 
+    def blok_ekle(self, kod: str) -> None:
+        r"""Çok satırlı bloğu imlecin yerine KENDİ satırlarında ekle.
+
+        Tablo Sihirbazı ve Görsel Ekle kodu imlecin TAM yerine koyuyordu.
+        ÖLÇÜLDÜ (2026-09-29, v1.1.2 exe): satır ortasında `metin\begin{table}`
+        ve `\end{table}` ardından satırın geri kalanı; tablo kodu satır sonu
+        taşımadığı için satır BAŞINDA bile `\end{table}metin`. Tek geri alma
+        adımı; imleç bloğun ilk satırına konuyor.
+        """
+        line, col = self.getCursorPosition()
+        satir = self.text(line).rstrip("\r\n")
+        bas = (line, col)
+        if satir[:col].strip():
+            kod = "\n" + kod
+            bas = (line + 1, 0)
+        if satir[col:].strip() and not kod.endswith("\n"):
+            kod += "\n"
+        self.beginUndoAction()
+        try:
+            self.insertAt(kod, line, col)
+        finally:
+            self.endUndoAction()
+        self.setCursorPosition(*bas)
+        self.ensureLineVisible(bas[0])
+
     @property
     def file_path(self) -> str:
         return self._file_path

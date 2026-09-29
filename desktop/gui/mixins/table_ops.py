@@ -119,7 +119,7 @@ class TableOpsMixin:
                 start, end = wrapper if wrapper else (block["start"], block["end"])
                 self._replace_char_range(editor, start, end, code)
             else:
-                editor.insert(code)
+                editor.blok_ekle(code)
             editor.setFocus()
             self._status.showMessage(_("Tablo eklendi"))
             _logger.info("Tablo sihirbazı: %s", "mevcut tablo değiştirildi" if block else "yeni tablo eklendi")

@@ -581,34 +581,34 @@ References are now inconsistent. Grant write permission to these files and retry
         <translation>Select All</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1281" />
-        <location filename="../gui/editor.py" line="1276" />
+        <location filename="../gui/editor.py" line="1306" />
+        <location filename="../gui/editor.py" line="1301" />
         <source>İkili (binary) dosya; metin editöründe açılamaz.</source>
         <translation>Binary file; cannot be opened in the text editor.</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1328" />
-        <location filename="../gui/editor.py" line="1319" />
+        <location filename="../gui/editor.py" line="1353" />
+        <location filename="../gui/editor.py" line="1344" />
         <source>Kodlama Uyarısı</source>
         <translation>Encoding Warning</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1320" />
+        <location filename="../gui/editor.py" line="1345" />
         <source>Bu dosya UTF-16 kodlamalı ve LaTeX UTF-16 okuyamaz. UTF-8'e çevrilerek açıldı; dosya ilk kaydedildiğinde UTF-8 olacak. Otomatik kaydetme ve derlemeden önceki kayıt da buna dahil.</source>
         <translation>This file is UTF-16 encoded, and LaTeX cannot read UTF-16. It has been opened converted to UTF-8; the file becomes UTF-8 the first time it is saved. Autosave and the save before compiling count as well.</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1329" />
+        <location filename="../gui/editor.py" line="1354" />
         <source>Bu dosya UTF-8 değil ({enc}). {enc} olarak açıldı ve aynı kodlamayla kaydedilecek. Sorunsuz derleme için UTF-8'e dönüştürmeniz önerilir.</source>
         <translation>This file is not UTF-8 ({enc}). It was opened as {enc} and will be saved with the same encoding. Converting it to UTF-8 is recommended for trouble-free compilation.</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1336" />
+        <location filename="../gui/editor.py" line="1361" />
         <source>Dosya Açma Hatası</source>
         <translation>File Open Error</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1336" />
+        <location filename="../gui/editor.py" line="1361" />
         <source>Dosya açılamadı:
 {path}
 
@@ -619,7 +619,7 @@ References are now inconsistent. Grant write permission to these files and retry
 {e}</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1426" />
+        <location filename="../gui/editor.py" line="1451" />
         <source>Bu dosya {enc} kodlamasında ve {ch} karakteri o kodlamada yok, bu yüzden kaydedilemiyor.
 
 Dosya UTF-8'e dönüştürülsün mü? (önerilen)</source>
@@ -628,22 +628,22 @@ Dosya UTF-8'e dönüştürülsün mü? (önerilen)</source>
 Convert the file to UTF-8? (recommended)</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1432" />
+        <location filename="../gui/editor.py" line="1457" />
         <source>Belgedeki \usepackage[{eski}]{{inputenc}} satırı da \usepackage[utf8]{{inputenc}} yapılacak; yoksa belge derlenmez.</source>
         <translation>The document's \usepackage[{eski}]{{inputenc}} line will also become \usepackage[utf8]{{inputenc}}; otherwise the document will not compile.</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1437" />
+        <location filename="../gui/editor.py" line="1462" />
         <source>Kodlama Yetersiz</source>
         <translation>Encoding Cannot Represent Text</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1530" />
+        <location filename="../gui/editor.py" line="1555" />
         <source>Kaydetme Hatası</source>
         <translation>Save Error</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1530" />
+        <location filename="../gui/editor.py" line="1555" />
         <source>Dosya kaydedilemedi:
 {path}
 
@@ -654,7 +654,7 @@ Convert the file to UTF-8? (recommended)</translation>
 {e}</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1560" />
+        <location filename="../gui/editor.py" line="1585" />
         <source>Yeni Dosya</source>
         <translation>New File</translation>
     </message>
@@ -1306,7 +1306,7 @@ Some matches in the document may be unchanged; run the command again to continue
         <translation>Only \includegraphics</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/image_ops.py" line="332" />
+        <location filename="../gui/mixins/image_ops.py" line="329" />
         <location filename="../gui/mixins/image_ops.py" line="193" />
         <source>Önce bir .tex dosyası açın</source>
         <translation>Open a .tex file first</translation>
@@ -1342,7 +1342,7 @@ Some matches in the document may be unchanged; run the command again to continue
         <translation>Could not save the clipboard image</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/image_ops.py" line="316" />
+        <location filename="../gui/mixins/image_ops.py" line="313" />
         <source>Dosya adındaki {} LaTeX'te görsel yolu olarak kullanılamıyor; dosyayı yeniden adlandırın</source>
         <translation>The {} in the file name cannot be used in a LaTeX image path; rename the file</translation>
     </message>
