@@ -407,23 +407,42 @@ def _tutarli_ayrac(ornek: str, kesik: bool) -> str:
     return ""
 
 
+# Kullanıcının seçtiği "tek sütun": metinde geçmeyen bir ayraç, satır
+# bölünmüyor ama tırnak kuralları (tırnak içindeki satır sonu) işliyor.
+TEK_SUTUN = "\x1f"
+
+
 def csv_to_rows(path: str) -> list[list[str]]:
     """CSV dosyasını hücre satırlarına oku (ayraç: , ; veya sekme, otomatik).
 
     Excel'in UTF-8 BOM'u temizlenir; tamamen boş satırlar atılır. Kodlama
     otomatik: BOM, sonra utf-8, sonra cp1254 (Excel'in Türkçe varsayılanı).
     """
+    return csv_oku(path)[0]
+
+
+def csv_oku(path: str, ayrac: str = "") -> tuple[list[list[str]], str]:
+    """(satırlar, kullanılan ayraç). ``ayrac`` boşsa sezgiyle seçiliyor.
+
+    SEZGİNİN ÇÖZEMEDİĞİ DURUM: başlıksız, tek sütunlu ondalık liste
+    (`3,14` / `2,71`) ile iki sütunlu tamsayı listesi (`3` | `14`) bayt
+    bayt aynı; her satırı iki alana bölen virgül tutarlı ayraç sayılıyor.
+    Seçim kullanıcıya bırakılıyor (Tablo Sihirbazı'nda ayraç kutusu); sezgi
+    hangi ayracı seçtiğini söylüyor.
+    """
     with io.StringIO(_csv_metni(path), newline="") as f:
-        sample = f.read(4096)
-        f.seek(0)
-        delim = _tutarli_ayrac(sample, kesik=len(sample) == 4096)
+        delim = ayrac
         if not delim:
-            try:
-                delim = csv.Sniffer().sniff(sample, delimiters=",;\t").delimiter
-            except csv.Error:
-                delim = _geri_dusus_ayraci(sample)
+            sample = f.read(4096)
+            f.seek(0)
+            delim = _tutarli_ayrac(sample, kesik=len(sample) == 4096)
+            if not delim:
+                try:
+                    delim = csv.Sniffer().sniff(sample, delimiters=",;\t").delimiter
+                except csv.Error:
+                    delim = _geri_dusus_ayraci(sample)
         return [row for row in csv.reader(f, delimiter=delim)
-                if any(c.strip() for c in row)]
+                if any(c.strip() for c in row)], delim
 
 
 # --- Mevcut tabloyu bulma / hizalama ---

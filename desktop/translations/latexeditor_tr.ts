@@ -3482,143 +3482,179 @@ Geri yüklensin mi? (Geri yüklenen içerik sekmede açılır; siz kaydedene kad
 </context><context>
     <name>TableWizardDialog</name>
     <message>
-        <location filename="../gui/table_wizard.py" line="28" />
+        <location filename="../gui/table_wizard.py" line="29" />
+        <source>Otomatik</source>
+        <translation>Otomatik</translation>
+    </message>
+    <message>
+        <location filename="../gui/table_wizard.py" line="29" />
+        <source>Noktalı virgül (;)</source>
+        <translation>Noktalı virgül (;)</translation>
+    </message>
+    <message>
+        <location filename="../gui/table_wizard.py" line="30" />
+        <source>Virgül (,)</source>
+        <translation>Virgül (,)</translation>
+    </message>
+    <message>
+        <location filename="../gui/table_wizard.py" line="30" />
+        <source>Sekme</source>
+        <translation>Sekme</translation>
+    </message>
+    <message>
+        <location filename="../gui/table_wizard.py" line="348" />
+        <location filename="../gui/table_wizard.py" line="31" />
+        <source>Tek sütun</source>
+        <translation>Tek sütun</translation>
+    </message>
+    <message>
+        <location filename="../gui/table_wizard.py" line="35" />
         <source>Sol (l)</source>
         <translation>Sol (l)</translation>
     </message>
     <message>
-        <location filename="../gui/table_wizard.py" line="29" />
+        <location filename="../gui/table_wizard.py" line="36" />
         <source>Orta (c)</source>
         <translation>Orta (c)</translation>
     </message>
     <message>
-        <location filename="../gui/table_wizard.py" line="30" />
+        <location filename="../gui/table_wizard.py" line="37" />
         <source>Sağ (r)</source>
         <translation>Sağ (r)</translation>
     </message>
     <message>
-        <location filename="../gui/table_wizard.py" line="31" />
+        <location filename="../gui/table_wizard.py" line="38" />
         <source>Paragraf (p{3cm})</source>
         <translation>Paragraf (p{3cm})</translation>
     </message>
     <message>
-        <location filename="../gui/table_wizard.py" line="71" />
+        <location filename="../gui/table_wizard.py" line="78" />
         <source>Tablo Sihirbazı</source>
         <translation>Tablo Sihirbazı</translation>
     </message>
     <message>
-        <location filename="../gui/table_wizard.py" line="102" />
+        <location filename="../gui/table_wizard.py" line="109" />
         <source>Satır</source>
         <translation>Satır</translation>
     </message>
     <message>
-        <location filename="../gui/table_wizard.py" line="111" />
+        <location filename="../gui/table_wizard.py" line="118" />
         <source>Sütun</source>
         <translation>Sütun</translation>
     </message>
     <message>
-        <location filename="../gui/table_wizard.py" line="117" />
+        <location filename="../gui/table_wizard.py" line="124" />
         <source>Ortam</source>
         <translation>Ortam</translation>
     </message>
     <message>
-        <location filename="../gui/table_wizard.py" line="126" />
+        <location filename="../gui/table_wizard.py" line="133" />
         <source>CSV Yükle...</source>
         <translation>CSV Yükle...</translation>
     </message>
     <message>
-        <location filename="../gui/table_wizard.py" line="128" />
+        <location filename="../gui/table_wizard.py" line="141" />
+        <source>CSV ayracı; yüklenen dosya seçilen ayraçla yeniden okunur</source>
+        <translation>CSV ayracı; yüklenen dosya seçilen ayraçla yeniden okunur</translation>
+    </message>
+    <message>
+        <location filename="../gui/table_wizard.py" line="146" />
         <source>Koddan Yükle...</source>
         <translation>Koddan Yükle...</translation>
     </message>
     <message>
-        <location filename="../gui/table_wizard.py" line="138" />
+        <location filename="../gui/table_wizard.py" line="156" />
         <source>Hizalama:</source>
         <translation>Hizalama:</translation>
     </message>
     <message>
-        <location filename="../gui/table_wizard.py" line="146" />
+        <location filename="../gui/table_wizard.py" line="164" />
         <source>booktabs kuralları (toprule/midrule)</source>
         <translation>booktabs kuralları (toprule/midrule)</translation>
     </message>
     <message>
-        <location filename="../gui/table_wizard.py" line="148" />
+        <location filename="../gui/table_wizard.py" line="166" />
         <source>İlk satır başlık</source>
         <translation>İlk satır başlık</translation>
     </message>
     <message>
-        <location filename="../gui/table_wizard.py" line="150" />
+        <location filename="../gui/table_wizard.py" line="168" />
         <source>Dikey çizgiler (|)</source>
         <translation>Dikey çizgiler (|)</translation>
     </message>
     <message>
-        <location filename="../gui/table_wizard.py" line="151" />
+        <location filename="../gui/table_wizard.py" line="169" />
         <source>table kılıfı (caption + label)</source>
         <translation>table kılıfı (caption + label)</translation>
     </message>
     <message>
-        <location filename="../gui/table_wizard.py" line="162" />
+        <location filename="../gui/table_wizard.py" line="180" />
         <source>Tablo başlığı (caption)</source>
         <translation>Tablo başlığı (caption)</translation>
     </message>
     <message>
-        <location filename="../gui/table_wizard.py" line="165" />
+        <location filename="../gui/table_wizard.py" line="183" />
         <source>Başlık</source>
         <translation>Başlık</translation>
     </message>
     <message>
-        <location filename="../gui/table_wizard.py" line="166" />
+        <location filename="../gui/table_wizard.py" line="184" />
         <source>Etiket</source>
         <translation>Etiket</translation>
     </message>
     <message>
-        <location filename="../gui/table_wizard.py" line="177" />
+        <location filename="../gui/table_wizard.py" line="195" />
         <source>Ekle</source>
         <translation>Ekle</translation>
     </message>
     <message>
-        <location filename="../gui/table_wizard.py" line="302" />
+        <location filename="../gui/table_wizard.py" line="321" />
         <source>CSV Yükle</source>
         <translation>CSV Yükle</translation>
     </message>
     <message>
-        <location filename="../gui/table_wizard.py" line="302" />
+        <location filename="../gui/table_wizard.py" line="321" />
         <source>CSV dosyaları (*.csv *.txt);;Tüm Dosyalar (*)</source>
         <translation>CSV dosyaları (*.csv *.txt);;Tüm Dosyalar (*)</translation>
     </message>
     <message>
-        <location filename="../gui/table_wizard.py" line="312" />
+        <location filename="../gui/table_wizard.py" line="339" />
         <source>CSV okunamadı</source>
         <translation>CSV okunamadı</translation>
     </message>
     <message>
-        <location filename="../gui/table_wizard.py" line="315" />
+        <location filename="../gui/table_wizard.py" line="342" />
         <source>CSV boş görünüyor</source>
         <translation>CSV boş görünüyor</translation>
     </message>
     <message>
-        <location filename="../gui/table_wizard.py" line="363" />
-        <location filename="../gui/table_wizard.py" line="344" />
+        <location filename="../gui/table_wizard.py" line="349" />
+        <source>Otomatik: {ad}</source>
+        <translation>Otomatik: {ad}</translation>
+    </message>
+    <message>
+        <location filename="../gui/table_wizard.py" line="396" />
+        <location filename="../gui/table_wizard.py" line="377" />
         <source>Koddan Yükle</source>
         <translation>Koddan Yükle</translation>
     </message>
     <message>
-        <location filename="../gui/table_wizard.py" line="349" />
+        <location filename="../gui/table_wizard.py" line="382" />
         <source>LaTeX tablo kodunu yapıştırın (\begin{tabular} ... \end{tabular})</source>
         <translation>LaTeX tablo kodunu yapıştırın (\begin{tabular} ... \end{tabular})</translation>
     </message>
     <message>
-        <location filename="../gui/table_wizard.py" line="353" />
+        <location filename="../gui/table_wizard.py" line="386" />
         <source>Yükle</source>
         <translation>Yükle</translation>
     </message>
     <message>
-        <location filename="../gui/table_wizard.py" line="364" />
+        <location filename="../gui/table_wizard.py" line="397" />
         <source>Yapıştırdığınız kodda tabular ortamı bulunamadı</source>
         <translation>Yapıştırdığınız kodda tabular ortamı bulunamadı</translation>
     </message>
     <message>
-        <location filename="../gui/table_wizard.py" line="443" />
+        <location filename="../gui/table_wizard.py" line="476" />
         <source>Hücrelere veri yazın veya CSV yükleyin</source>
         <translation>Hücrelere veri yazın veya CSV yükleyin</translation>
     </message>

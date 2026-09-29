@@ -16,12 +16,19 @@ from PyQt6.QtWidgets import (
 )
 
 from core.latex_tables import (
-    TABLO_ORTAMLARI, VARSAYILAN_GENISLIK, TableOptions, build_tabular,
-    csv_to_rows, extract_caption_label, parse_first_tabular, spec_hizalari,
-    suggest_label, unescape_cell,
+    TABLO_ORTAMLARI, TEK_SUTUN, VARSAYILAN_GENISLIK, TableOptions,
+    build_tabular, csv_oku, extract_caption_label, parse_first_tabular,
+    spec_hizalari, suggest_label, unescape_cell,
 )
 
 _ = lambda s: QCoreApplication.translate("TableWizardDialog", s)
+
+
+def _ayrac_adlari() -> list[tuple[str, str]]:
+    """CSV ayraç kutusu: (etiket, ayraç). İlki (boş ayraç) otomatik."""
+    return [(_("Otomatik"), ""), (_("Noktalı virgül (;)"), ";"),
+            (_("Virgül (,)"), ","), (_("Sekme"), "\t"),
+            (_("Tek sütun"), TEK_SUTUN)]
 
 # Hizalama seçenekleri: (etiket, token)
 _ALIGNS = [
@@ -125,6 +132,17 @@ class TableWizardDialog(QDialog):
         top.addStretch()
         self._btn_csv = QPushButton(_("CSV Yükle..."))
         top.addWidget(self._btn_csv)
+        # Ayraç SEÇİLEBİLİR: başlıksız tek sütunlu ondalık liste (`3,14`) ile
+        # iki sütunlu tamsayı listesi bayt bayt aynı, sezgi ayıramıyor (bkz.
+        # core.latex_tables.csv_oku). Değişince son CSV yeniden okunuyor.
+        self._csv_ayrac = QComboBox()
+        for etiket, ayrac in _ayrac_adlari():
+            self._csv_ayrac.addItem(etiket, ayrac)
+        self._csv_ayrac.setToolTip(_("CSV ayracı; yüklenen dosya seçilen "
+                                     "ayraçla yeniden okunur"))
+        self._tekerleksiz(self._csv_ayrac)
+        self._son_csv = ""
+        top.addWidget(self._csv_ayrac)
         self._btn_code = QPushButton(_("Koddan Yükle..."))
         top.addWidget(self._btn_code)
         root.addLayout(top)
@@ -184,6 +202,7 @@ class TableWizardDialog(QDialog):
         self._cols.valueChanged.connect(self._on_cols_changed)
         self._env.currentTextChanged.connect(self._on_env_changed)
         self._btn_csv.clicked.connect(self._load_csv)
+        self._csv_ayrac.currentIndexChanged.connect(self._csv_yeniden_oku)
         self._btn_code.clicked.connect(self._load_from_code)
         self._caption.textChanged.connect(self._on_caption_changed)
         self._label.textEdited.connect(lambda _t: setattr(self, "_label_manual", True))
@@ -302,8 +321,16 @@ class TableWizardDialog(QDialog):
             self, _("CSV Yükle"), "", _("CSV dosyaları (*.csv *.txt);;Tüm Dosyalar (*)"))
         if not path:
             return
+        self._csv_yukle(path)
+
+    def _csv_yeniden_oku(self):
+        """Ayraç değişti: son yüklenen CSV'yi o ayraçla yeniden oku."""
+        if self._son_csv:
+            self._csv_yukle(self._son_csv)
+
+    def _csv_yukle(self, path: str):
         try:
-            rows = csv_to_rows(path)
+            rows, ayrac = csv_oku(path, self._csv_ayrac.currentData() or "")
         except (OSError, UnicodeError, csv.Error, ValueError):
             # Yalnız OSError yakalanıyordu; UnicodeDecodeError buradan kaçıp
             # slot'tan dışarı çıkıyor ve düğme sessizce hiçbir şey yapmamış
@@ -314,6 +341,12 @@ class TableWizardDialog(QDialog):
         if not rows:
             self._preview.setPlainText(_("CSV boş görünüyor"))
             return
+        self._son_csv = path
+        if not self._csv_ayrac.currentData():
+            # Sezginin seçtiği görünsün: yanlışsa kullanıcı buradan düzeltir.
+            ad = next((e for e, a in _ayrac_adlari()[1:] if a == ayrac),
+                      _("Tek sütun"))
+            self._csv_ayrac.setItemText(0, _("Otomatik: {ad}").format(ad=ad))
         self._updating = True
         try:
             ncols = max(len(r) for r in rows)

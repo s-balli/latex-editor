@@ -820,6 +820,35 @@ class TestAyracSecimi:
         assert satirlar == [["Ölçüm"], ["Birinci"], ["İkinci"]], satirlar
 
 
+class TestAyracKullanicida:
+    r"""Sezginin çözemediği durum: başlıksız tek sütunlu ondalık liste ile iki
+    sütunlu tamsayı listesi bayt bayt aynı. Seçim kullanıcıda."""
+
+    _BELIRSIZ = "3,14\n2,71\n1,41\n"
+
+    def test_SEZGI_hangi_ayraci_sectigini_soyluyor(self, tmp_path):
+        from core.latex_tables import csv_oku
+
+        p = tmp_path / "t.csv"
+        p.write_text(self._BELIRSIZ, encoding="utf-8")
+        assert csv_oku(str(p)) == ([["3", "14"], ["2", "71"], ["1", "41"]], ",")
+
+    def test_TEK_SUTUN_secilince_bolunmuyor(self, tmp_path):
+        from core.latex_tables import TEK_SUTUN, csv_oku
+
+        p = tmp_path / "t.csv"
+        p.write_bytes((self._BELIRSIZ + '"tırnaklı\nsatır"\n').encode("utf-8"))
+        assert csv_oku(str(p), TEK_SUTUN)[0] == [
+            ["3,14"], ["2,71"], ["1,41"], ["tırnaklı\nsatır"]]
+
+    def test_SECILEN_ayrac_sezgiyi_EZIYOR(self, tmp_path):
+        from core.latex_tables import csv_oku
+
+        p = tmp_path / "t.csv"
+        p.write_text("a;b\n1;2\n", encoding="utf-8")
+        assert csv_oku(str(p), ",")[0] == [["a;b"], ["1;2"]]
+
+
 # --- Kolon belirtimi okuma (2026-09-15) ---
 
 

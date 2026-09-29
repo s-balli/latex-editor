@@ -206,6 +206,27 @@ def test_csv_load_beyond_old_limits(qapp, tmp_path, monkeypatch):
     assert code.count(" \\\\\n") == rows  # tüm satırlar üretime girdi
 
 
+def test_CSV_ayraci_SECILINCE_yeniden_okunuyor(qapp, tmp_path, monkeypatch):
+    """Başlıksız tek sütunlu ondalık liste iki sütun okunuyordu ve düzeltmenin
+    yolu yoktu (sezgi bu durumu çözemiyor, bkz. core.latex_tables.csv_oku).
+    Sezginin seçtiği ayraç kutuda görünüyor; değişince dosya yeniden okunuyor."""
+    import gui.table_wizard as tw
+
+    p = tmp_path / "olcum.csv"
+    p.write_text("3,14\n2,71\n1,41\n", encoding="utf-8")
+    monkeypatch.setattr(tw.QFileDialog, "getOpenFileName",
+                        staticmethod(lambda *a, **k: (str(p), "")))
+    dlg = TableWizardDialog()
+    dlg._load_csv()
+    assert dlg._grid.columnCount() == 2
+    assert dlg._csv_ayrac.itemText(0) == "Otomatik: Virgül (,)"
+
+    dlg._csv_ayrac.setCurrentIndex(dlg._csv_ayrac.findText("Tek sütun"))
+
+    assert dlg._grid.columnCount() == 1
+    assert [r[0] for r in dlg.cells()] == ["3,14", "2,71", "1,41"]
+
+
 def test_dialog_load_block_escape_roundtrip(qapp):
     """Kaçış içeren hücre grid'e AÇILARAK yüklenir; üretimde yeniden kaçar.
 
@@ -257,8 +278,8 @@ def test_DUZENLEME_kipinde_ESKI_hizalama_kutulari_gorunmuyor(qapp, spec, govde):
         dlg.show()
         qapp.processEvents()
         gorunen = [c for c in dlg.findChildren(QComboBox) if c.isVisible()]
-        # ortam kutusu + kolon başına bir hizalama kutusu
-        assert len(gorunen) == 1 + dlg._align_box.count(), \
+        # ortam ve CSV ayracı kutusu + kolon başına bir hizalama kutusu
+        assert len(gorunen) == 2 + dlg._align_box.count(), \
             [c.geometry().getRect() for c in gorunen]
     finally:
         dlg.close()
