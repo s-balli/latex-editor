@@ -658,6 +658,24 @@ _PANDOC = _shutil.which("pandoc")
 
 class TestExportIntegration:
     @pytest.mark.skipif(not _PANDOC, reason="pandoc gerekli")
+    def test_HTML_basligi_ARA_URUNUN_adi_degil(self, tmp_path):
+        r"""`_preprocess_tex` `\title`ı gövdeye `\section*` olarak taşıyor;
+        başlıksız kalan belgede pandoc <title>'a GİRDİNİN adını yazıyordu, o
+        da ara ürün. ÖLÇÜLDÜ (2026-09-29, v1.1.2 exe):
+        <title>tez.tex.export_tmp</title>. Başlık artık hedefin adı."""
+        tex = tmp_path / "tez.tex"
+        tex.write_text(
+            "\\documentclass{article}\n\\title{Deneme Tezi}\n"
+            "\\begin{document}\n\\maketitle\nMetin.\n\\end{document}\n",
+            encoding="utf-8")
+        html = tmp_path / "Tez Çalışması (Şubat).html"
+        ok, err = export(str(tex), str(html))
+        assert ok, f"export failed: {err}"
+        baslik = re.search(r"<title>([^<]*)</title>",
+                           html.read_text(encoding="utf-8")).group(1)
+        assert baslik == "Tez Çalışması (Şubat)"
+
+    @pytest.mark.skipif(not _PANDOC, reason="pandoc gerekli")
     def test_abstract_present_in_md(self, tmp_path):
         tex = tmp_path / "d.tex"
         tex.write_text(
@@ -1593,8 +1611,10 @@ class TestBicimArgumanlariTekKaynak:
         assert "_bicim_argumanlari" in inspect.getsource(ex._pandoc_args)
 
     @pytest.mark.parametrize("hedef,beklenen", [
-        ("a.html", ["--standalone", "--embed-resources"]),
-        ("a.HTML", ["--standalone", "--embed-resources"]),
+        ("a.html", ["--standalone", "--embed-resources",
+                    "--metadata=pagetitle:a"]),
+        ("a.HTML", ["--standalone", "--embed-resources",
+                    "--metadata=pagetitle:a"]),
         ("a.txt", ["-t", "plain"]),
         ("a.docx", []),
         ("a.md", []),

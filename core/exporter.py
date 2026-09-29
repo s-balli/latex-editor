@@ -898,7 +898,15 @@ def _bicim_argumanlari(dest_path: str, bibs=()) -> list[str]:
     args = []
     ext = os.path.splitext(dest_path)[1].lower()
     if ext == ".html":
-        args += ["--standalone", "--embed-resources"]
+        args += ["--standalone", "--embed-resources",
+                 # <title> hedefin adı. pandoc başlığı `\title`dan alıyor,
+                 # ama `_preprocess_tex` onu gövdeye `\section*` olarak
+                 # taşıyor; başlıksız belgede pandoc GİRDİNİN adını
+                 # yazıyordu, o da ara ürün. ÖLÇÜLDÜ (2026-09-29, v1.1.2
+                 # exe): <title>tez.tex.export_tmp</title>, tarayıcı
+                 # sekmesinde bu ad.
+                 "--metadata=pagetitle:"
+                 + os.path.splitext(os.path.basename(dest_path))[0]]
     elif ext == ".txt":
         # pandoc .txt'yi varsayılan olarak markdown işler; gerçek plain text iste
         # (ayrıca plain text citation-aware olmadığından citeproc burada çözülür)
