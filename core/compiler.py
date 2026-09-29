@@ -386,8 +386,10 @@ class LatexCompiler(QObject):
         almıyor, bash ölünce oturumun ön plan grubuyla birlikte gidiyorlar.
         Ana kabukta HUP yakalanırsa (`trap`) bash ölmüyor ve `pdflatex`
         sahipsiz koşmaya devam ediyor. Yani derle.sh'e, örneğin iptalde geçici
-        dizini silmek için, `trap ... HUP` EKLENMEMELİ. O dizin (`mktemp -d`)
-        iptalde kalıyor; WSL'in systemd'si /tmp'yi her açılışta boşaltıyor.
+        dizini silmek için, `trap ... HUP` EKLENMEMELİ. O dizin iptalde
+        kalıyor ve bir SONRAKİ derleme onu süpürüyor: derle.sh sahibi artık
+        yaşamayan `latex-editor.*` dizinlerini başlarken siliyor (bkz.
+        `eski_gecicileri_supur`).
 
         Grup öldürme YALNIZ süreç kendi grubunun lideriyse: `_start_native`
         onu yeni oturumda başlatıyor. Lider değilse `killpg` başka bir grubu

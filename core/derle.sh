@@ -628,6 +628,41 @@ if [ "$USE_WATCH" = true ] && [ ! -f "${DOSYALAR[0]}" ]; then
     exit 1
 fi
 
+# Geçici dizinler: `latex-editor.XXXXXXXX`, içinde sahibinin PID'i.
+#
+# Durdurma ve zaman aşımı geçici dizini BIRAKIYORDU (aux, log, yarım PDF,
+# `synctex(busy)`): Windows'ta WSL yalnız doğrudan başlattığı bash'i SIGHUP'la
+# düşürüyor, Linux'ta süreç grubu SIGKILL'le ölüyor, ikisinde de temizlik
+# koşamıyor. `trap ... HUP` ile temizlemek DURDURMAYI bozar: ÖLÇÜLDÜ
+# (2026-09-29), ana kabuk HUP'u yakalayınca ölmüyor ve pdflatex sahipsiz
+# koşmaya devam ediyor (bkz. compiler._sureci_oldur). Onun yerine her
+# çalıştırma, sahibi artık yaşamayan eski dizinleri siliyor. Ölçüt ad, işaret
+# ve ölü sahip: genel `tmp.*` adlı dizinlere, canlı bir derlemenin ve saatlerce
+# yaşayan izleme kipinin dizinine dokunulmuyor. Taban çağıranın TMPDIR'i;
+# `derle_dosya` içindeki `local TMPDIR` onu gölgelediği için burada alınıyor.
+GECICI_TABAN="${TMPDIR:-/tmp}"
+
+gecici_dizin_ac() {
+    local d
+    d=$(mktemp -d "$GECICI_TABAN/latex-editor.XXXXXXXX") || return 1
+    echo "$$" > "$d/.derle.pid"
+    printf '%s' "$d"
+}
+
+eski_gecicileri_supur() {
+    # Başka kullanıcının dizini 0700 (mktemp): işaretini okuyamıyoruz, atlanıyor.
+    local d pid
+    for d in "$GECICI_TABAN"/latex-editor.*; do
+        [ -d "$d" ] || continue
+        pid=$(cat "$d/.derle.pid" 2>/dev/null) || continue
+        case "$pid" in ''|*[!0-9]*) continue ;; esac
+        kill -0 "$pid" 2>/dev/null && continue
+        rm -rf "$d" 2>/dev/null || true
+    done
+}
+
+eski_gecicileri_supur
+
 # minted paketi kullanılıyor mu kontrol et
 minted_kontrol() {
     local KLASOR="$1"
@@ -759,7 +794,7 @@ derle_dosya() {
     if [ -n "${WATCH_TMPDIR:-}" ]; then
         TMPDIR="$WATCH_TMPDIR"
     else
-        TMPDIR=$(mktemp -d)
+        TMPDIR=$(gecici_dizin_ac)
         cd "$KLASOR" && find . -mindepth 1 -type d 2>/dev/null | while read -r SUBDIR; do
             mkdir -p "$TMPDIR/$SUBDIR"
         done
@@ -1216,8 +1251,9 @@ else
     MOTOR="lualatex"
 fi
 
-# Kalıcı geçici dizin — derlemeler arasında yeniden kullanılır
-WATCH_TMPDIR=$(mktemp -d)
+# Kalıcı geçici dizin: derlemeler arasında yeniden kullanılır. İşaretindeki
+# PID bu kabuk, izleme sürdükçe başka çalıştırmalar onu süpürmüyor.
+WATCH_TMPDIR=$(gecici_dizin_ac)
 (cd "$WATCH_KLASOR" && find . -mindepth 1 -type d 2>/dev/null) | while read -r SUBDIR; do
     mkdir -p "$WATCH_TMPDIR/$SUBDIR"
 done

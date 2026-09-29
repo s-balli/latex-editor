@@ -1497,3 +1497,95 @@ class TestYardimciAracSuzgeci:
             assert m, degisken
             assert "$ARAC_DESENI" in m.group(0), degisken
             assert "$ARAC_SESSIZ" in m.group(0), degisken
+
+
+class TestGeciciDizinSupurme:
+    r"""Durdurulan derlemenin geçici dizini bir sonraki çalıştırmada siliniyor.
+
+    Durdurma ve zaman aşımı dizini BIRAKIYORDU (aux, log, yarım PDF,
+    `synctex(busy)`). ÖLÇÜLDÜ (2026-09-29): Windows'ta WSL yalnız doğrudan
+    başlattığı bash'i SIGHUP'la düşürüyor, Linux'ta süreç grubu SIGKILL'le
+    ölüyor, ikisinde de temizlik koşamıyor; `trap ... HUP` ise durdurmayı
+    bozuyor (bkz. compiler._sureci_oldur). Taban TMPDIR ile testin kendi
+    dizini, gerçek /tmp'ye dokunulmuyor.
+    """
+
+    @staticmethod
+    def _dizin(taban, ad, pid=None):
+        d = taban / ad
+        d.mkdir()
+        (d / "tez.aux").write_text("x", encoding="utf-8")
+        if pid is not None:
+            (d / ".derle.pid").write_text("%s\n" % pid, encoding="utf-8")
+        return d
+
+    @staticmethod
+    def _olu_pid():
+        p = subprocess.Popen(["true"])
+        p.wait()
+        return p.pid
+
+    @staticmethod
+    def _kos(taban, cwd, *args, timeout=60):
+        return subprocess.run(
+            [BASH, SCRIPT, *args], cwd=str(cwd), capture_output=True,
+            text=True, timeout=timeout, encoding="utf-8",
+            env=dict(os.environ, TMPDIR=str(taban)))
+
+    def test_YALNIZ_sahibi_olmus_bizim_dizin_siliniyor(self, tmp_path):
+        """Canlı derlemenin (izleme kipi saatlerce yaşıyor), işaretsiz,
+        bozuk işaretli ve başka programın genel `tmp.*` adlı dizinine
+        dokunulmamalı."""
+        taban = tmp_path / "taban"
+        taban.mkdir()
+        olu = self._dizin(taban, "latex-editor.olu00001", self._olu_pid())
+        kalmali = [
+            self._dizin(taban, "latex-editor.canli001", os.getpid()),
+            self._dizin(taban, "latex-editor.isaretsz"),
+            self._dizin(taban, "latex-editor.bozuk001", "abc"),
+            self._dizin(taban, "tmp.yabanci1", self._olu_pid()),
+        ]
+        self._kos(taban, tmp_path, str(tmp_path / "yok.tex"))
+        assert not olu.exists(), "sahibi ölmüş dizin kaldı"
+        assert [d.name for d in kalmali if not d.exists()] == []
+
+    def test_DURDURULAN_derlemenin_dizini_sonrakinde_siliniyor(self, tmp_path):
+        """Gerçek derleme sonsuz döngüde, uygulamanın Linux'ta yaptığı gibi
+        süreç grubuyla öldürülüyor."""
+        taban = tmp_path / "taban"
+        taban.mkdir()
+        tex = tmp_path / "sonsuz.tex"
+        tex.write_text("\\documentclass{article}\n\\begin{document}\nx"
+                       "\\def\\x{\\x}\\x\n\\end{document}\n", encoding="utf-8")
+        proc = subprocess.Popen(
+            [BASH, SCRIPT, str(tex), "--pdflatex"], cwd=str(tmp_path),
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            start_new_session=True, env=dict(os.environ, TMPDIR=str(taban)))
+        dizinler = []
+        try:
+            son = time.monotonic() + 60
+            while time.monotonic() < son:
+                dizinler = list(taban.glob("latex-editor.*"))
+                if dizinler and list(dizinler[0].glob("*.log")):
+                    break
+                time.sleep(0.2)
+            assert dizinler, "geçici dizin açılmadı"
+            isaret = (dizinler[0] / ".derle.pid").read_text(encoding="utf-8")
+            assert isaret.strip() == str(proc.pid), "işaret betiğin PID'i değil"
+        finally:
+            os.killpg(proc.pid, signal.SIGKILL)
+            proc.wait(timeout=10)
+        # Kapının kapısı: kusurun koşulu gerçekten oluşmalı
+        assert list(taban.glob("latex-editor.*")) == dizinler, \
+            "durdurulan derlemenin dizini zaten kalmıyor"
+        self._kos(taban, tmp_path, str(tmp_path / "yok.tex"))
+        assert list(taban.glob("latex-editor.*")) == [], "sonraki çalıştırma silmedi"
+
+    def test_BASARILI_derleme_dizin_birakmiyor(self, tmp_path):
+        taban = tmp_path / "taban"
+        taban.mkdir()
+        tex = tmp_path / "tez.tex"
+        tex.write_text(MINIMAL_TEX, encoding="utf-8")
+        r = self._kos(taban, tmp_path, str(tex), timeout=120)
+        assert r.returncode == 0, r.stdout
+        assert list(taban.iterdir()) == []
