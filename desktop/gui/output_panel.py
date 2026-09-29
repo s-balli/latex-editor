@@ -60,7 +60,7 @@ def _hint_templates() -> dict:
         "listings_language": _("Listings dili yüklenemedi. \\usepackage[turkish]{babel} kullanıyorsanız bu bilinen bir çakışmadır: language=C yerine language={[ANSI]C} yazın. Değilse dil adını kontrol edin (C, Python, Pascal, Java...)"),
         "shell_escape_needed": _("Bu paket kabuk erişimi (-shell-escape) istiyor ve bu derlemede kapalıydı. İzni daha önce reddettiyseniz Derle > Kabuk Erişimi İznini Sıfırla'yı seçin; bir sonraki derlemede yeniden sorulur."),
         "pygmentize_missing": _("minted, Pygments'ın pygmentize komutunu bulamadı. Bu hata kabuk erişimi kapalıyken de çıkar; önce onu açın. Açıksa Pygments'ı kurun."),
-        "missing_glyph": _("Karakterin {font} yazı tipinde karşılığı yok, PDF'e yazılmadan atlandı ve derleme yine de başarılı göründü. En sık sebebi XeLaTeX/LuaLaTeX ile [T1]{fontenc} kullanmak; ş, ı, İ ve ğ sessizce düşer. Çözüm: \\usepackage{iftex} ekleyip fontenc ile inputenc satırlarını \\ifPDFTeX ... \\fi bloğuna alın"),
+        "missing_glyph": _("{font} yazı tipinde karşılığı olmayan karakter PDF'e yazılmadı, derleme yine de başarılı göründü. Sık sebebi XeLaTeX/LuaLaTeX ile [T1]{fontenc}: ş, ı, İ ve ğ düşer. Çözüm: \\usepackage{iftex} ekleyip fontenc ile inputenc satırlarını \\ifPDFTeX ... \\fi içine alın"),
     }
 
 
@@ -172,6 +172,14 @@ class OutputPanel(QWidget):
         self._suggest_list.customContextMenuRequested.connect(self._on_list_context_menu)
         self._suggest_list.itemClicked.connect(self._on_result_click)
         self._suggest_tab_index = self._tabs.addTab(self._suggest_list, _("Öneriler"))
+
+        # Uzun ipucu SATIRA SIĞSIN. Kaydırma yokken öğe tek satırdı ve
+        # çözüm kısmı yatay kaydırmanın arkasında kalıyordu. ÖLÇÜLDÜ
+        # (2026-09-29, gerçek Windows platformu, 1000 px panel): eksik harf
+        # ipucu 2132 px, 1134 px'i görünmüyordu; kaydırmayla 998 px'e sığıyor
+        # ve panel boyu değişince yeniden kırılıyor.
+        for liste in (self._error_list, self._warn_list, self._suggest_list):
+            liste.setWordWrap(True)
 
         # Ham log sekmesi
         self._log_text = QPlainTextEdit()

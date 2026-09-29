@@ -31,6 +31,37 @@ def _suggest_texts(panel) -> list[str]:
             for i in range(panel._suggest_list.count())]
 
 
+@pytest.mark.parametrize("genislik", [1000, 600])
+def test_UZUN_ipucu_satira_SIGIYOR(qapp, genislik):
+    """Liste öğesi tek satırdı: eksik harf ipucunun çözümü yatay kaydırmanın
+    arkasında kalıyordu. ÖLÇÜLDÜ (2026-09-29, gerçek Windows platformu, 1000
+    px panel): öğe 2132 px, 1134 px'i görünmüyordu."""
+    from core.log_parser import LatexWarning
+
+    panel = _panel()
+    panel.resize(genislik, 300)
+    panel.show()
+    r = CompileResult(success=True)
+    r.warnings = [LatexWarning(message="Missing character: There is no ş "
+                               "(U+015F) in font ec-lmr10!",
+                               file_path="", line_number=0)]
+    panel.show_result(r)
+    qapp.processEvents()
+    try:
+        liste = panel._warn_list
+        assert "iftex" in liste.item(0).text(), "ipucu çıkmadı"
+        # %2 pay: Qt'nin kırılmış öğe ölçüsü birkaç px taşabiliyor (ölçüldü:
+        # Linux offscreen 1000 px'te 9 px, Windows'ta 0); kusurlu hâlde
+        # taşma görünüm alanının katları (Windows 1134 px, offscreen 2644).
+        pay = liste.viewport().width() // 50
+        assert liste.visualItemRect(liste.item(0)).width() <= \
+            liste.viewport().width() + pay
+        assert liste.horizontalScrollBar().maximum() <= pay
+        assert panel._error_list.wordWrap() and panel._suggest_list.wordWrap()
+    finally:
+        panel.deleteLater()
+
+
 def test_kurulum_onerisi_doktor_satiri_getirir(qapp):
     panel = _panel()
     result = CompileResult(success=False)
