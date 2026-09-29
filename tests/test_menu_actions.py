@@ -641,3 +641,126 @@ def test_LOG_KLASORU_linuxta_TEMIZ_ortamla_aciliyor(ana_pencere, monkeypatch):
     w._open_log_dir()
     assert len(acilan) == 1
     assert w._status.currentMessage().startswith("Log:")
+
+
+# --- Metin içi bağlantılar da temiz ortamla ---
+#
+# Hakkında kutusunun ve güncelleme penceresinin bağlantılarını Qt KENDİSİ
+# açıyor (QLabel/QTextBrowser openExternalLinks -> QDesktopServices) ve o yol
+# xdg-open'a paketin kütüphane yolunu geçiriyor: AppImage'de açılmıyordu.
+# ÖLÇÜLDÜ (2026-09-29, WSL, gerçek Hakkında kutusunda gerçek tıklama): işleyici
+# yokken tıklama Qt'nin QPlatformServices::openUrl'üne gidiyor, temiz
+# xdg_open hiç çağrılmıyor. Düzeltme main._WebAcici (http/https işleyicisi).
+
+
+@pytest.fixture
+def web_acici(qapp):
+    """Kayıtlı main._WebAcici; kayıt süreç geneli, testten sonra siliniyor."""
+    import main as giris
+    from PyQt6.QtGui import QDesktopServices
+
+    acici = giris._WebAcici()
+    acici.kaydet()
+    yield acici
+    for sema in ("http", "https"):
+        QDesktopServices.unsetUrlHandler(sema)
+
+
+@pytest.fixture
+def hakkinda_baglantisi(qapp, monkeypatch):
+    """`_show_about`un kurduğu kutu (kipsiz, gizli): (etiket, GitHub bağlantısının
+    yeri). Yer, fare etiket üzerinde gezdirilip linkHovered ile bulunuyor."""
+    import types
+    from PyQt6.QtCore import QPoint, Qt
+    from PyQt6.QtTest import QTest
+    from PyQt6.QtWidgets import QApplication, QLabel, QMessageBox, QWidget
+    from gui.main_window import MainWindow
+    from gui.theme import THEMES
+
+    kutular = []
+
+    def about(ebeveyn, baslik, metin):
+        k = QMessageBox(ebeveyn)
+        k.setText(metin)
+        k.setAttribute(Qt.WidgetAttribute.WA_DontShowOnScreen, True)
+        k.show()
+        QApplication.processEvents()
+        kutular.append(k)
+
+    monkeypatch.setattr(QMessageBox, "about", staticmethod(about))
+    ebeveyn = QWidget()
+    ebeveyn._theme_mgr = types.SimpleNamespace(theme=THEMES["dark"])
+    MainWindow._show_about(ebeveyn)
+    etiket = kutular[-1].findChild(QLabel, "qt_msgbox_label")
+    uzerinde = []
+    etiket.linkHovered.connect(uzerinde.append)
+    for y in range(0, etiket.height(), 3):
+        for x in range(0, etiket.width(), 4):
+            QTest.mouseMove(etiket, QPoint(x, y))
+            if uzerinde and uzerinde[-1].startswith("https://github.com"):
+                yield etiket, QPoint(x, y)
+                kutular[-1].close()
+                return
+    pytest.fail("GitHub bağlantısı etikette bulunamadı, kapı boşa düşmesin")
+
+
+def _tikla(etiket, yer):
+    from PyQt6.QtCore import Qt
+    from PyQt6.QtTest import QTest
+    QTest.mouseClick(etiket, Qt.MouseButton.LeftButton,
+                     Qt.KeyboardModifier.NoModifier, yer)
+
+
+def test_HAKKINDA_baglantisi_TEMIZ_ortamla_aciliyor(web_acici,
+                                                   hakkinda_baglantisi,
+                                                   monkeypatch):
+    import core.paths as yollar
+
+    acilan = []
+    monkeypatch.setattr(yollar, "xdg_open", lambda u: acilan.append(u) or True)
+    _tikla(*hakkinda_baglantisi)
+    assert acilan == ["https://github.com/s-balli/latex-editor"], acilan
+
+
+def test_XDG_OPEN_yoksa_Qt_yoluna_dusuyor(web_acici, hakkinda_baglantisi,
+                                          monkeypatch):
+    """Minimal Linux'ta xdg-open yok: Qt'nin kendi yolu denenmeli. İşleyicinin
+    içinden QDesktopServices çağrısı Qt'de işleyiciyi atlıyor, döngü yok."""
+    import core.paths as yollar
+    from PyQt6.QtGui import QDesktopServices
+
+    qt_yolu = []
+    monkeypatch.setattr(yollar, "xdg_open", lambda u: False)
+    # Python özniteliği: yalnız işleyicinin İÇİNDEKİ çağrı buraya geliyor,
+    # tıklamanın kendisi C++ yolundan geçiyor.
+    monkeypatch.setattr(QDesktopServices, "openUrl",
+                        staticmethod(lambda u: qt_yolu.append(u.toString())))
+    _tikla(*hakkinda_baglantisi)
+    assert qt_yolu == ["https://github.com/s-balli/latex-editor"], qt_yolu
+
+
+@pytest.mark.parametrize("platform, kayitli", [("linux", True),
+                                               ("win32", False),
+                                               ("darwin", False)])
+def test_UYGULAMA_isleyiciyi_YALNIZ_linuxta_kaydediyor(monkeypatch, platform,
+                                                      kayitli):
+    """Windows ve macOS'ta Qt'nin yolu doğru; sızıntı yalnız Linux paketinde."""
+    import sys as _sys
+    import main as giris
+
+    kaydedilen = []
+
+    class _Sahte:
+        def __init__(self, ebeveyn):
+            pass
+
+        def kaydet(self):
+            kaydedilen.append(True)
+
+    # QApplication kurulmadan: ikinci bir Qt uygulaması süreçte kurulamaz
+    monkeypatch.setattr(giris.QApplication, "__init__", lambda self, argv: None)
+    monkeypatch.setattr(giris, "_WebAcici", _Sahte)
+    monkeypatch.setattr(_sys, "platform", platform)
+    nesne = giris._Uygulama.__new__(giris._Uygulama)
+    giris._Uygulama.__init__(nesne, [])
+    assert bool(kaydedilen) is kayitli

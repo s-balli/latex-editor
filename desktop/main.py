@@ -6,7 +6,8 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, _HERE)
 sys.path.insert(0, os.path.join(_HERE, '..'))
 
-from PyQt6.QtCore import QEvent, QStandardPaths
+from PyQt6.QtCore import QEvent, QObject, QStandardPaths, QUrl, pyqtSlot
+from PyQt6.QtGui import QDesktopServices
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from core.i18n import init as init_i18n
@@ -24,6 +25,29 @@ from gui.single_instance import SingleInstance
 from core.paths import macos_path_tamamla                    # noqa: E402
 
 macos_path_tamamla()
+
+
+class _WebAcici(QObject):
+    """Linux'ta web adreslerini temiz ortamla açan QDesktopServices işleyicisi.
+
+    Qt'nin kendi açtığı bağlantılar (Hakkında kutusu, güncelleme penceresi)
+    `QDesktopServices.openUrl`a gidiyor ve o yol xdg-open'a paketin kütüphane
+    yolunu geçiriyor: AppImage'de bağlantı açılmıyordu. Aynı yol F18'de
+    "Tarayıcıda Aç" için ölçülmüştü (bkz. core.paths.xdg_open); düğmeler
+    düzeltilmiş, metin içi bağlantılar kalmıştı. Kayıtlı işleyici bütün
+    http/https açışlarını buraya getiriyor.
+    """
+
+    @pyqtSlot(QUrl)
+    def ac(self, url):
+        from core.paths import xdg_open
+        if not xdg_open(url.toString()):
+            # İşleyicinin İÇİNDEN çağrı Qt'nin kendi yoluna gidiyor, döngü yok
+            QDesktopServices.openUrl(url)
+
+    def kaydet(self):
+        for sema in ("http", "https"):
+            QDesktopServices.setUrlHandler(sema, self, "ac")
 
 
 class _Uygulama(QApplication):
@@ -48,6 +72,10 @@ class _Uygulama(QApplication):
         super().__init__(argv)
         self._bekleyen = []
         self._alici = None
+        # Uygulama boyunca yaşamalı: Qt işleyiciyi yalnız işaretçiyle tutuyor
+        self._web = _WebAcici(self)
+        if sys.platform.startswith("linux"):
+            self._web.kaydet()
 
     def event(self, olay):
         if olay.type() == QEvent.Type.FileOpen:
