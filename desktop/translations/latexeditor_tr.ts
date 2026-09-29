@@ -166,29 +166,30 @@ Bu izin belgenin BİLGİSAYARINIZDA KOMUT ÇALIŞTIRMASINA olanak verir. Yalnız
 </context><context>
     <name>Compiler</name>
     <message>
-        <location filename="../../core/compiler.py" line="299" />
+        <location filename="../../core/compiler.py" line="382" />
+        <location filename="../../core/compiler.py" line="313" />
+        <source>WSL bulunamadı</source>
+        <translation>WSL bulunamadı</translation>
+    </message>
+    <message>
+        <location filename="../../core/compiler.py" line="318" />
         <source>WSL derlemeyi başlatamadı, dağıtım kurulu olmayabilir</source>
         <translation>WSL derlemeyi başlatamadı, dağıtım kurulu olmayabilir</translation>
     </message>
     <message>
-        <location filename="../../core/compiler.py" line="347" />
+        <location filename="../../core/compiler.py" line="366" />
         <source>Derleme hatası</source>
         <translation>Derleme hatası</translation>
     </message>
     <message>
-        <location filename="../../core/compiler.py" line="350" />
+        <location filename="../../core/compiler.py" line="369" />
         <source>Süreç başlatılamadı, WSL yüklü mü?</source>
         <translation>Süreç başlatılamadı, WSL yüklü mü?</translation>
     </message>
     <message>
-        <location filename="../../core/compiler.py" line="352" />
+        <location filename="../../core/compiler.py" line="371" />
         <source>Süreç başlatılamadı, bash/derle.sh bulunamadı</source>
         <translation>Süreç başlatılamadı, bash/derle.sh bulunamadı</translation>
-    </message>
-    <message>
-        <location filename="../../core/compiler.py" line="363" />
-        <source>WSL bulunamadı</source>
-        <translation>WSL bulunamadı</translation>
     </message>
 </context><context>
     <name>DoiFetch</name>

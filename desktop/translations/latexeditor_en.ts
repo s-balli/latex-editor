@@ -166,29 +166,30 @@ Enable it for '{k}'?
 </context><context>
     <name>Compiler</name>
     <message>
-        <location filename="../../core/compiler.py" line="299" />
+        <location filename="../../core/compiler.py" line="382" />
+        <location filename="../../core/compiler.py" line="313" />
+        <source>WSL bulunamadı</source>
+        <translation>WSL not found</translation>
+    </message>
+    <message>
+        <location filename="../../core/compiler.py" line="318" />
         <source>WSL derlemeyi başlatamadı, dağıtım kurulu olmayabilir</source>
         <translation>WSL could not start the compile; a distribution may not be installed</translation>
     </message>
     <message>
-        <location filename="../../core/compiler.py" line="347" />
+        <location filename="../../core/compiler.py" line="366" />
         <source>Derleme hatası</source>
         <translation>Compilation error</translation>
     </message>
     <message>
-        <location filename="../../core/compiler.py" line="350" />
+        <location filename="../../core/compiler.py" line="369" />
         <source>Süreç başlatılamadı, WSL yüklü mü?</source>
         <translation>Could not start process, is WSL installed?</translation>
     </message>
     <message>
-        <location filename="../../core/compiler.py" line="352" />
+        <location filename="../../core/compiler.py" line="371" />
         <source>Süreç başlatılamadı, bash/derle.sh bulunamadı</source>
         <translation>Could not start process, bash/derle.sh not found</translation>
-    </message>
-    <message>
-        <location filename="../../core/compiler.py" line="363" />
-        <source>WSL bulunamadı</source>
-        <translation>WSL not found</translation>
     </message>
 </context><context>
     <name>DoiFetch</name>

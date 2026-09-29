@@ -327,6 +327,62 @@ class TestWslDagitimYok:
         assert r.errors == [] and r.suggestions == []
 
 
+class TestWslKuruluDegil:
+    r"""WSL HİÇ kurulu değil: Windows'un yerleşik başlatıcısı koşuyor.
+
+    `System32\wsl.exe` WSL kurulmadan da var (`wsl --install` için) ve
+    iletisinde hata KODU satırı YOK, yani `TestWslDagitimYok`un yolu onu
+    görmüyordu: WSL'siz yeni bir Windows'ta ilk derleme "Başarısız, 0 hata"
+    ve "motoru değiştirin" diyordu. İleti başlatıcının KENDİ kaynağından
+    (`en-US\wsl.exe.mui`, 10.0.19041.3636; tr-TR karşılığı yok, İngilizce
+    kalıyor). Başlatıcının çıktı kodlaması ölçülemedi (bu makinede WSL
+    kurulu), iki kodlama da `_on_output`tan geçiriliyor.
+    """
+
+    ILETI = ("Windows Subsystem for Linux is not installed.\r\n"
+             "For information please visit https://aka.ms/wslinstall\r\n")
+
+    @staticmethod
+    def _derle(monkeypatch, tmp_path, ham: bytes, kod=1):
+        monkeypatch.setattr(compiler_mod, "PLATFORM", "win32")
+        tex = tmp_path / "tez.tex"
+        tex.write_text("x", encoding="utf-8")
+        c = LatexCompiler()
+        c._tex_path, c._tex_dir, c._tex_name = str(tex), str(tmp_path), "tez"
+        c._start_time = time.time()
+        c._pdf_damgasi_once = None
+        c._output = ""
+        c.process = SimpleNamespace(
+            readAllStandardOutput=lambda: SimpleNamespace(data=lambda: ham))
+        c._on_output()
+        sonuclar = []
+        c.compilation_finished.connect(sonuclar.append)
+        c._on_finished(kod, QProcess.ExitStatus.NormalExit)
+        return sonuclar[-1]
+
+    @pytest.mark.parametrize("kodlama", ["utf-16-le", "ascii"])
+    def test_ileti_HATA_ve_KURULUM_onerisi_oluyor(self, monkeypatch, tmp_path,
+                                                 kodlama):
+        from gui.mixins.compile_ops import _basarisizlik_aciklandi
+
+        r = self._derle(monkeypatch, tmp_path, self.ILETI.encode(kodlama))
+        assert [e.message for e in r.errors] == [
+            "WSL: Windows Subsystem for Linux is not installed. "
+            "For information please visit https://aka.ms/wslinstall"]
+        # WSL'in hiç bulunamadığı kolla (FailedToStart) aynı öneri
+        assert [s.install_command for s in r.suggestions] == [
+            "wsl --install  (yönetici PowerShell, ardından yeniden başlat)"]
+        assert _basarisizlik_aciklandi(r), "yanlış motor önerisi açılacak"
+
+    def test_belgedeki_adres_satirin_parcasiysa_DOKUNULMUYOR(self, monkeypatch,
+                                                            tmp_path):
+        """TeX bağlamında geçen adres WSL iletisi değil."""
+        cikti = ("l.12 bkz. https://aka.ms/wslinstall adresi\n"
+                 "PDF olusmadi\n").encode("utf-8")
+        r = self._derle(monkeypatch, tmp_path, cikti)
+        assert r.errors == [] and r.suggestions == []
+
+
 # =====================================================================
 # İptal ettiğimiz derleme, log'a "hata" yazmıyor
 #

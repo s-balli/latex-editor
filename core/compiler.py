@@ -30,6 +30,14 @@ _RE_ANSI = re.compile(rb'\x1b\[[0-9;]*m')
 # bağlı: "Wsl" adlı bir klasörün yolu (/mnt/c/.../Wsl/tez.tex) eşleşmesin.
 _RE_WSL_KODU = re.compile(r"^[^/\n]*:\s*Wsl/\w", re.M)
 
+# WSL HİÇ kurulu değilken Windows'un yerleşik başlatıcısı (System32\wsl.exe)
+# koşuyor ve iletisinde hata kodu satırı YOK. Metin başlatıcının kendi
+# kaynağından (en-US\wsl.exe.mui, 10.0.19041.3636; Türkçesi yok):
+# "Windows Subsystem for Linux is not installed. / For information please
+# visit https://aka.ms/wslinstall". Adres satırın SONUNDA: TeX bağlamında
+# geçen adres eşleşmesin.
+_RE_WSL_KURULU_DEGIL = re.compile(r"https://aka\.ms/wslinstall\s*$", re.M)
+
 
 def _find_derle_sh() -> str:
     """derle.sh'nin yolunu bul."""
@@ -290,11 +298,22 @@ class LatexCompiler(QObject):
         wsl.exe'den geçtiği için yanlış yönlendirme, asıl sebep yalnız Log
         sekmesindeydi (ölçüldü 2026-09-29, ölçülmüş wsl.exe iletisiyle,
         gerçek derleyici ve panel). Komut Ortam Denetimi'ninkiyle aynı.
+
+        WSL HİÇ kurulu değilse ileti yerleşik başlatıcıdan geliyor ve kod
+        satırı taşımıyor (bkz. `_RE_WSL_KURULU_DEGIL`); öneri o zaman
+        wsl.exe'nin hiç bulunamadığı koldakiyle (`_on_error`) aynı.
         """
-        if not _RE_WSL_KODU.search(self._output):
+        kurulu_degil = bool(_RE_WSL_KURULU_DEGIL.search(self._output))
+        if not kurulu_degil and not _RE_WSL_KODU.search(self._output):
             return
         metin = " ".join(s.strip() for s in self._output.splitlines() if s.strip())
         result.errors.append(LatexError(message="WSL: " + metin[:300]))
+        if kurulu_degil:
+            result.suggestions.append(LatexSuggestion(
+                message=_("WSL bulunamadı"),
+                install_command="wsl --install  (yönetici PowerShell, ardından yeniden başlat)",
+            ))
+            return
         result.suggestions.append(LatexSuggestion(
             message=_("WSL derlemeyi başlatamadı, dağıtım kurulu olmayabilir"),
             install_command="wsl --install -d Ubuntu   "
