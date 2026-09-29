@@ -380,7 +380,7 @@ class OutlinePanel(QWidget):
             f"QTreeWidget {{ background: {t['bg_secondary']}; color: {t['fg_primary']}; border: none; font-size: 12px; }}"
             f"QTreeWidget::item {{ padding: 2px 4px; }}"
             f"QTreeWidget::item:hover {{ background: {t['bg_hover']}; }}"
-            f"QTreeWidget::item:selected {{ background: {t['bg_pressed']}; }}"
+            f"QTreeWidget::item:selected {{ background: {t['bg_pressed']}; color: {t['fg_bright']}; }}"
         )
         self._tree.itemClicked.connect(self._on_item_clicked)
         layout.addWidget(self._tree)
@@ -498,7 +498,7 @@ class OutlinePanel(QWidget):
             f"QTreeWidget {{ background: {t['bg_secondary']}; color: {t['fg_primary']}; border: none; font-size: 12px; }}"
             f"QTreeWidget::item {{ padding: 2px 4px; }}"
             f"QTreeWidget::item:hover {{ background: {t['bg_hover']}; }}"
-            f"QTreeWidget::item:selected {{ background: {t['bg_pressed']}; }}"
+            f"QTreeWidget::item:selected {{ background: {t['bg_pressed']}; color: {t['fg_bright']}; }}"
         )
         # Mevcut öğelerin renklerini güncelle
         colors = {

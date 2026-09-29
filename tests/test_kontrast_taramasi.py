@@ -62,6 +62,9 @@ _ISTISNA_TEMALAR = {"solarized_light"}
 
 _RE_BLOK = re.compile(r"([^{}]*?)\{([^{}]*)\}")
 _RE_BILDIRIM = re.compile(r"([a-z-]+)\s*:\s*([^;]+)")
+# Seçili öğesini vurgulu yazı rengiyle çizen öğe görünümleri (bkz. _bulgular)
+_GORUNUMLER = ("QTreeWidget", "QListWidget", "QTableWidget",
+               "QTreeView", "QListView", "QTableView")
 _RE_RENK = re.compile(r"^#([0-9a-fA-F]{6})$")
 _RE_RGBA = re.compile(r"rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)")
 # {t['x']}, {_t['x']}, {self._theme['x']}, {self._theme.get('x', '#fff')}
@@ -210,6 +213,15 @@ def _bulgular(qss, kaynak):
     for sec, d in bloklar:
         ust = taban.get(sec.split(":")[0].strip(), {})
         on = d.get("color") or ust.get("color")
+        if ":selected" in sec and sec.split(":")[0].strip() in _GORUNUMLER:
+            # Seçili öğe üst kuralın `color`ını ALMIYOR: Qt onu vurgulu yazı
+            # rengiyle çiziyor, belirtilmezse siyah. ÖLÇÜLDÜ (2026-09-28,
+            # v1.1.2 exe'si ve gerçek platformda grab()): dosya ağacı, anahat
+            # ve sonuç listelerinde seçili satır beş koyu temada siyah
+            # yazıyla çiziliyordu (2.2-2.4); tarama üst rengi miras sayıp
+            # 6.1 buluyordu. Menülerde öyle değil, seçili öğe açık renk.
+            on = (d.get("color") or d.get("selection-color")
+                  or ust.get("selection-color") or "#000000")
         arka = (d.get("background") or d.get("background-color")
                 or ust.get("background") or ust.get("background-color"))
         if not on or not arka or _saydam(arka):
@@ -250,6 +262,27 @@ def test_widget_stylesheetleri_karsitligi():
                          for x in _bulgular(_qss_uret(govde, t), yer)]
 
     assert not kotu, "eşiğin altında kalan kurallar: %s" % sorted(set(kotu))
+
+
+def test_secili_oge_kurallari_yazi_rengi_veriyor():
+    """Öğe görünümünün `::item:selected` kuralı kendi yazı rengini vermeli.
+
+    Vermeyince Qt seçili satırı siyah yazıyla çiziyor (bkz. _bulgular).
+    Dosya ağacı ve sonuç listeleri stil sayfasını değişkende kuruyor ve
+    `setStyleSheet` taraması onları görmüyor; bu yüzden kaynak satır satır.
+    ÖLÇÜLDÜ (2026-09-28): eski kurallarla o tarama 7 kuralın 5'ini buldu.
+    """
+    # Gövde `{t['x']}` yer tutucuları taşıyor, yani tek `}` kuralı bitirmiyor
+    desen = re.compile(r"(%s)::item:selected\s*\{\{(.*?)\}\}" % "|".join(_GORUNUMLER))
+    bulunan, eksik = 0, []
+    for yol, metin in _kaynaklar():
+        for no, satir in enumerate(metin.splitlines(), 1):
+            for m in desen.finditer(satir):
+                bulunan += 1
+                if "color" not in m.group(2):
+                    eksik.append("%s:%d" % (yol, no))
+    assert bulunan >= 7, "desen kural görmüyor, test boş: %d" % bulunan
+    assert not eksik, "seçili öğeye yazı rengi verilmemiş: %s" % eksik
 
 
 @gui

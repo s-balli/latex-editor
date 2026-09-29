@@ -81,7 +81,7 @@ class PdfBookmarksMixin:
             f"QTreeWidget {{ background: {t['bg_secondary']}; color: {t['fg_primary']}; border: none; border-right: 1px solid {t['border_subtle']}; font-size: 11px; }}"
             f"QTreeWidget::item {{ padding: 2px 4px; }}"
             f"QTreeWidget::item:hover {{ background: {t['bg_hover']}; }}"
-            f"QTreeWidget::item:selected {{ background: {t['bg_pressed']}; }}"
+            f"QTreeWidget::item:selected {{ background: {t['bg_pressed']}; color: {t['fg_bright']}; }}"
         )
 
     def _yer_imi_yollari(self):
@@ -166,7 +166,7 @@ class PdfBookmarksMixin:
             f"QTreeWidget {{ background: {t['bg_secondary']}; color: {t['fg_primary']}; border: none; border-right: 1px solid {t['border_subtle']}; font-size: 11px; }}"
             f"QTreeWidget::item {{ padding: 2px 4px; }}"
             f"QTreeWidget::item:hover {{ background: {t['bg_hover']}; }}"
-            f"QTreeWidget::item:selected {{ background: {t['bg_pressed']}; }}"
+            f"QTreeWidget::item:selected {{ background: {t['bg_pressed']}; color: {t['fg_bright']}; }}"
         )
 
     def _toggle_bookmarks(self, checked: bool):

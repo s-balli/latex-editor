@@ -963,7 +963,7 @@ class OutputPanel(QWidget):
                 f" font-size: 12px; border: none; }}"
                 f"QListWidget::item {{ padding: 4px 6px; border-bottom: 1px solid {t['bg_item_hover']}; }}"
                 f"QListWidget::item:hover {{ background: {t['bg_item_hover']}; }}"
-                f"QListWidget::item:selected {{ background: {t['bg_pressed']}; }}"
+                f"QListWidget::item:selected {{ background: {t['bg_pressed']}; color: {t['fg_bright']}; }}"
             )
 
         self._error_list.setStyleSheet(liste_stili(t["sem_error"]))
@@ -999,7 +999,7 @@ class OutputPanel(QWidget):
             f" font-size: 12px; border: none; gridline-color: {t['bg_item_hover']}; }}"
             f"QTableWidget::item {{ padding: 2px 6px; }}"
             f"QTableWidget::item:hover {{ background: {t['bg_item_hover']}; }}"
-            f"QTableWidget::item:selected {{ background: {t['bg_pressed']}; }}"
+            f"QTableWidget::item:selected {{ background: {t['bg_pressed']}; color: {t['fg_bright']}; }}"
             f"QHeaderView::section {{ background: {t['bg_toolbar']}; color: {t['fg_muted']};"
             f" border: none; border-bottom: 1px solid {t['border_normal']}; padding: 3px 6px; }}"
         )
