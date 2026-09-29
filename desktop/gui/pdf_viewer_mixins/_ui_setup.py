@@ -570,9 +570,11 @@ class PdfUISetupMixin:
     def _save_as(self):
         if not self._pdf_path or not os.path.exists(self._pdf_path):
             return
-        name = os.path.basename(self._pdf_path)
+        # TAM yol: yalnız ad verilince diyalog sürecin çalışma dizininde
+        # açılıyordu (ölçüldü 2026-09-28, v1.1.2 exe'si: exe'nin
+        # başlatıldığı klasör); .tex için Farklı Kaydet belgenin klasöründe.
         try:
-            dest, _sel_filter = QFileDialog.getSaveFileName(self, _("PDF'i Farklı Kaydet"), name, _("PDF Dosyaları (*.pdf)"))
+            dest, _sel_filter = QFileDialog.getSaveFileName(self, _("PDF'i Farklı Kaydet"), self._pdf_path, _("PDF Dosyaları (*.pdf)"))
         except Exception as e:
             from core.log import get_logger
             get_logger("pdf_viewer").error("SaveAs dialog hatası: %s", e, exc_info=True)

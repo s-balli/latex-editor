@@ -1275,12 +1275,19 @@ def test_SUNUMDA_imlec_bekleyince_GIZLENIYOR_titreme_geri_getirmiyor(
 # =====================================================================
 
 
-def _kaydet_akisi(monkeypatch, viewer, kaynak, hedef):
-    """_save_as'i dosya diyaloğu ve uyarı kutusu vekilleriyle koştur."""
+def _kaydet_akisi(monkeypatch, viewer, kaynak, hedef, diyaloga=None):
+    """_save_as'i dosya diyaloğu ve uyarı kutusu vekilleriyle koştur.
+
+    ``diyaloga`` verilirse diyaloğa geçen argümanlar oraya ekleniyor."""
     from PyQt6.QtWidgets import QFileDialog, QMessageBox
     kutular = []
-    monkeypatch.setattr(QFileDialog, "getSaveFileName",
-                        staticmethod(lambda *a, **k: (hedef, "PDF")))
+
+    def diyalog(*a, **k):
+        if diyaloga is not None:
+            diyaloga.append(a)
+        return hedef, "PDF"
+
+    monkeypatch.setattr(QFileDialog, "getSaveFileName", staticmethod(diyalog))
     monkeypatch.setattr(QMessageBox, "warning",
                         staticmethod(lambda *a, **k: kutular.append(a[1:3])))
     monkeypatch.setattr(viewer, "_pdf_path", str(kaynak), raising=False)
@@ -1311,10 +1318,17 @@ def test_BASARILI_kaydetmede_kutu_YOK(viewer, monkeypatch, tmp_path):
     kaynak.write_bytes(b"%PDF-1.4\n")
     hedef = tmp_path / "kopya.pdf"
 
-    kutular = _kaydet_akisi(monkeypatch, viewer, kaynak, str(hedef))
+    diyaloga = []
+    kutular = _kaydet_akisi(monkeypatch, viewer, kaynak, str(hedef), diyaloga)
 
     assert hedef.exists()
     assert kutular == []
+    # Diyalog PDF'in KLASÖRÜNDE açılmalı. Yalnız ad veriliyordu ve Qt onu
+    # sürecin çalışma dizinine göre çözüyordu (ölçüldü 2026-09-28, v1.1.2
+    # exe'si: diyalog exe'nin başlatıldığı klasörde açıldı).
+    baslangic = diyaloga[0][2]
+    assert os.path.dirname(baslangic) == str(tmp_path), baslangic
+    assert os.path.basename(baslangic) == "belge.pdf"
 
 
 @gui
