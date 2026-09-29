@@ -669,9 +669,33 @@ def _jats_latex(deger: str) -> str:
     return _RE_ETIKET.sub("", deger)
 
 
+def _yinelenen_alt_basligi_at(baslik: str) -> str:
+    """Alt başlık başlığın AYNISIYSA tek başlık.
+
+    Crossref başlığı "başlık: alt başlık" diye birleştiriyor ve yayıncının
+    verisinde ikisi aynı olunca başlık iki kez basılıyordu. ÖLÇÜLDÜ
+    (2026-09-28, exe 1.1.2, 10.1002/pssr.201409365, Wiley): "Influence of
+    electronic structures of doped TiO2 on their photocatalysis: Influence
+    of electronic structures of doped TiO2 on their photocatalysis".
+    Yarılar boşluk dışında aynı olmalı (Wiley JATS girintisini yarılarda
+    farklı veriyor); başlığın kendisi iki nokta taşıyorsa ikisi birlikte
+    yineleniyor.
+    """
+    def ozu(p):
+        return " ".join(p.split())
+
+    parcalar = baslik.split(": ")
+    yari = len(parcalar) // 2          # tek sayıda parçada yarılar eşit boy değil
+    ilk, son = parcalar[:yari], parcalar[yari:]
+    if [ozu(p) for p in ilk] == [ozu(p) for p in son]:
+        return ": ".join(ilk)
+    return baslik
+
+
 def _deger_duzelt(ad: str, deger: str) -> str:
     """Alan değerinin ölçülen kusurlarını gider."""
     if ad == "title":
+        deger = _yinelenen_alt_basligi_at(deger)
         # İlk adım: yalnız `{}` ekliyor, sonraki kaçış ve çeviriler
         # parantezin İÇİNDE çalışıyor (`{NF}-{κB}` -> `{NF}-{{$\kappa$}B}`).
         deger = _buyuk_harf_koru(deger)

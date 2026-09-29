@@ -509,6 +509,24 @@ class TestNormallestir:
         büyük (Wnt) ya da noktalamadan sonra gelen kelime."""
         assert self._alan(ham, "title") == beklenen
 
+    @pytest.mark.parametrize("ham,beklenen", [
+        # Gerçek kayıt 10.1002/pssr.201409365 (Wiley, girintili JATS)
+        ("Influence of doped TiO\n  <sub>2</sub>\n  on photocatalysis: "
+         "Influence of doped TiO\n    <sub>2</sub>\n    on photocatalysis",
+         "Influence of doped {TiO}\\textsubscript{2} on photocatalysis"),
+        # Başlığın kendisi iki nokta taşıyorsa ikisi birlikte yineleniyor
+        ("graph theory: an introduction: graph theory: an introduction",
+         "graph theory: an introduction"),
+        # Aşırı düzeltme kapısı: gerçek alt başlık, tek sayıda parça
+        ("graph theory: an introduction", "graph theory: an introduction"),
+        ("graph theory: graph theory: again", "graph theory: graph theory: again"),
+    ])
+    def test_ALT_BASLIK_basligin_aynisiysa_TEK_kez_yaziliyor(self, ham, beklenen):
+        """Crossref "başlık: alt başlık" birleştiriyor; yayıncının verisinde
+        ikisi aynı olunca başlık iki kez basılıyordu (bkz.
+        `_yinelenen_alt_basligi_at`)."""
+        assert self._alan(ham, "title") == beklenen
+
     def test_ADRES_ve_KIMLIK_alani_CEVRILMIYOR(self):
         r"""Adres ve DOI metin değil: `<211::AID-JBM11>` SICI DOI'lerinin
         parçası, adresteki Yunan harfi bağlantının parçası."""
