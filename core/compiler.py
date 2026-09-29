@@ -25,6 +25,11 @@ DEFAULT_TIMEOUT_MS = 120_000
 # ANSI renk dizisi (bayt uzayında): chunk sınırında bölünen dizi metne ham kaçmasın
 _RE_ANSI = re.compile(rb'\x1b\[[0-9;]*m')
 
+# wsl.exe'nin KENDİ hata kodu satırı ("Hata kodu: Wsl/Service/WSL_E_...").
+# İletinin kendisi Windows diline göre değişiyor, kod değişmiyor. Satır başına
+# bağlı: "Wsl" adlı bir klasörün yolu (/mnt/c/.../Wsl/tez.tex) eşleşmesin.
+_RE_WSL_KODU = re.compile(r"^[^/\n]*:\s*Wsl/\w", re.M)
+
 
 def _find_derle_sh() -> str:
     """derle.sh'nin yolunu bul."""
@@ -268,10 +273,33 @@ class LatexCompiler(QObject):
             result.pdf_path = pdf_path
 
         result.success = (exit_code == 0 and bool(result.pdf_path))
+        if PLATFORM == "win32" and not result.success:
+            self._wsl_hatasini_acikla(result)
 
         if not self._finished_emitted:
             self._finished_emitted = True
             self.compilation_finished.emit(result)
+
+    def _wsl_hatasini_acikla(self, result) -> None:
+        """wsl.exe KENDİSİ düştüyse (bash hiç başlamadı) sebebi söyle.
+
+        wsl.exe var ama dağıtım yoksa (Ubuntu kurulmamış yeni bir Windows)
+        derleme `FailedToStart`a DÜŞMÜYOR: wsl.exe başlıyor, kendi hatasını
+        yazıp çıkıyor. Panel "Başarısız, 0 hata" diyor ve genel "motoru
+        değiştirip tekrar deneyin" önerisini açıyordu; her motor aynı
+        wsl.exe'den geçtiği için yanlış yönlendirme, asıl sebep yalnız Log
+        sekmesindeydi (ölçüldü 2026-09-29, ölçülmüş wsl.exe iletisiyle,
+        gerçek derleyici ve panel). Komut Ortam Denetimi'ninkiyle aynı.
+        """
+        if not _RE_WSL_KODU.search(self._output):
+            return
+        metin = " ".join(s.strip() for s in self._output.splitlines() if s.strip())
+        result.errors.append(LatexError(message="WSL: " + metin[:300]))
+        result.suggestions.append(LatexSuggestion(
+            message=_("WSL derlemeyi başlatamadı, dağıtım kurulu olmayabilir"),
+            install_command="wsl --install -d Ubuntu   "
+                            "(kurulu dağıtımları görmek için: wsl --list --verbose)",
+        ))
 
     def _yollari_windows_yap(self, result) -> None:
         """Ayrıştırılan yolları Windows biçimine çevir (yalnız Windows'ta).

@@ -254,6 +254,79 @@ class TestWslKurulumOnerisi:
         assert results and results[0].suggestions == []
 
 
+class TestWslDagitimYok:
+    r"""wsl.exe VAR, dağıtım YOK: derleme `FailedToStart`a düşmüyor.
+
+    Ubuntu kurulmamış yeni bir Windows'un olağan hâli: wsl.exe başlıyor,
+    kendi hatasını yazıp çıkıyor. Panel "Başarısız, 0 hata" diyor ve genel
+    "motoru değiştirip tekrar deneyin" önerisini açıyordu; her motor aynı
+    wsl.exe'den geçtiği için yanlış yönlendirme, asıl sebep yalnız Log
+    sekmesindeydi (ölçüldü 2026-09-29, gerçek derleyici ve panel).
+
+    İleti ÖLÇÜLMÜŞ sözleşme (tests/test_wsl_koprusu.py: gerçek wsl.exe,
+    rc 4294967295, STDOUT'a UTF-16LE).
+    """
+
+    ILETI = ("Sağlanan ada sahip dağıtım yok.\r\n"
+             "Hata kodu: Wsl/Service/WSL_E_DISTRO_NOT_FOUND\r\n")
+
+    @staticmethod
+    def _bitir(monkeypatch, tmp_path, cikti, kod=4294967295,
+               platform="win32", pdf=False):
+        monkeypatch.setattr(compiler_mod, "PLATFORM", platform)
+        tex = tmp_path / "tez.tex"
+        tex.write_text("x", encoding="utf-8")
+        c = LatexCompiler()
+        c._tex_path, c._tex_dir, c._tex_name = str(tex), str(tmp_path), "tez"
+        c._start_time = time.time()
+        c._pdf_damgasi_once = None
+        if pdf:
+            (tmp_path / "tez.pdf").write_bytes(b"%PDF-1.5 taze")
+        c._output = cikti
+        sonuclar = []
+        c.compilation_finished.connect(sonuclar.append)
+        c._on_finished(kod, QProcess.ExitStatus.NormalExit)
+        return sonuclar[-1]
+
+    def test_ileti_HATA_ve_ORTAM_DENETIMI_onerisi_oluyor(self, monkeypatch,
+                                                        tmp_path):
+        r = self._bitir(monkeypatch, tmp_path, self.ILETI)
+        assert [e.message for e in r.errors] == [
+            "WSL: Sağlanan ada sahip dağıtım yok. "
+            "Hata kodu: Wsl/Service/WSL_E_DISTRO_NOT_FOUND"]
+        # Ortam Denetimi'ninkiyle aynı komut (bkz. core/env_check.py)
+        assert r.suggestions and r.suggestions[0].install_command.startswith(
+            "wsl --install -d Ubuntu")
+
+    def test_motor_degistir_onerisi_ACILMIYOR(self, monkeypatch, tmp_path):
+        from gui.mixins.compile_ops import _basarisizlik_aciklandi
+
+        r = self._bitir(monkeypatch, tmp_path, self.ILETI)
+        assert _basarisizlik_aciklandi(r), "yanlış motor önerisi açılacak"
+
+    def test_WSL_kodu_yoksa_DOKUNULMUYOR(self, monkeypatch, tmp_path):
+        """Motorun kendi başarısızlığı WSL hatası sayılmamalı."""
+        r = self._bitir(monkeypatch, tmp_path, "PDF olusmadi\n", kod=1)
+        assert r.errors == [] and r.suggestions == []
+
+    def test_Wsl_ADLI_klasorun_yolu_hata_kodu_sanilmiyor(self, monkeypatch,
+                                                       tmp_path):
+        cikti = ("[derleniyor] /mnt/c/Users/ali/Wsl/tez.tex\n"
+                 "dosya: /mnt/c/Users/ali/Wsl/tez.tex\nPDF olusmadi\n")
+        r = self._bitir(monkeypatch, tmp_path, cikti, kod=1)
+        assert r.errors == [] and r.suggestions == []
+
+    def test_BASARILI_derlemede_wsl_uyarisi_hata_sayilmiyor(self, monkeypatch,
+                                                          tmp_path):
+        """wsl.exe kendi uyarılarını da yazabiliyor, derleme yine başarılı."""
+        r = self._bitir(monkeypatch, tmp_path, self.ILETI, kod=0, pdf=True)
+        assert r.success and r.errors == [] and r.suggestions == []
+
+    def test_yalniz_WINDOWSTA(self, monkeypatch, tmp_path):
+        r = self._bitir(monkeypatch, tmp_path, self.ILETI, platform="linux")
+        assert r.errors == [] and r.suggestions == []
+
+
 # =====================================================================
 # İptal ettiğimiz derleme, log'a "hata" yazmıyor
 #
