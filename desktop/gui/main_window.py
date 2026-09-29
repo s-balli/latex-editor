@@ -389,8 +389,13 @@ class MainWindow(
         else:
             self._pandoc_available = pandoc_available()
         for fmt_name, ext in FORMATS.items():
-            act = export_menu.addAction(f"{fmt_name} ({ext})")
-            act.triggered.connect(lambda checked, f=fmt_name, e=ext: self._export_file(f, e))
+            # Biçim adları (DOCX, HTML, Markdown) çevrilmiyor; "Plain Text"
+            # Türkçe arayüzde İngilizce kalıyordu: menü, kutu başlığı ve
+            # süzgeç (ölçüldü 2026-09-28, v1.1.2 exe'si). Ad yalnız gösterim,
+            # biçimi hedefin uzantısı seçiyor.
+            ad = _("Düz Metin") if fmt_name == "Plain Text" else fmt_name
+            act = export_menu.addAction(f"{ad} ({ext})")
+            act.triggered.connect(lambda checked, f=ad, e=ext: self._export_file(f, e))
             self._export_actions.append(act)
             if not self._pandoc_available:
                 act.setToolTip(_pandoc_ipucu())

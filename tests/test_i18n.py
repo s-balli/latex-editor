@@ -686,3 +686,62 @@ class TestKatalogButunlugu:
             assert ayrisan == [], (
                 "%s: %d ileti .qm ile ayrışıyor (lrelease unutuldu mu?), "
                 "ilk ikisi: %s" % (dil, len(ayrisan), ayrisan[:2]))
+
+
+class TestQtDosyaKutusuTurkce:
+    """Qt'nin kendi dosya kutusu Türkçe arayüzde İngilizce etiket göstermesin.
+
+    Linux'ta yerel kutu yoksa (KDE, WSLg) Qt kendi kutusunu açıyor. Qt 6.11
+    iki etikete kısayol harfi ekledi ve qtbase_tr.qm eski metinleri çeviriyor:
+    "&Look in:" ve "Files of &type:" İngilizce kalıyordu (ölçüldü 2026-09-29,
+    AppImage 1.1.2, WSLg). Karşılıkları gui/qt_katalog_eki.py ile uygulamanın
+    kataloğunda.
+
+    Kehanet Qt'nin KENDİ kutusu: aynı kutu katalogsuz kurulup etiketleri
+    okunuyor, Türkçe kataloglarla da aynı kalan etiket çevrilmemiş demek.
+    "Dosya adı" etiketini qtbase zaten çeviriyor; o da aynı kalırsa kataloglar
+    hiç devreye girmemiş demektir, test boş geçmez. Sıra core/i18n.py'deki
+    gibi: önce uygulamanın kataloğu, sonra qtbase (Qt en son kurulana önce
+    bakıyor).
+    """
+
+    _ETIKETLER = ("lookInLabel", "fileNameLabel", "fileTypeLabel")
+
+    @classmethod
+    def _etiketler(cls, kip, dizin):
+        from PyQt6.QtWidgets import QFileDialog, QLabel
+        d = QFileDialog(None, "", str(dizin), "LaTeX (*.tex)")
+        d.setOption(QFileDialog.Option.DontUseNativeDialog, True)
+        d.setAcceptMode(kip)
+        try:
+            return {ad: d.findChild(QLabel, ad).text() for ad in cls._ETIKETLER}
+        finally:
+            d.deleteLater()
+
+    def test_widget_kutusunda_ingilizce_etiket_kalmiyor(self, tmp_path):
+        from PyQt6.QtCore import QLibraryInfo, QTranslator
+
+        if not isinstance(QTranslator, type):
+            pytest.skip("PyQt6 mock'lanmış, gerçek kutu kurulamaz")
+        from PyQt6.QtWidgets import QApplication, QFileDialog
+
+        app = QApplication.instance() or QApplication([])
+        kipler = (QFileDialog.AcceptMode.AcceptSave,
+                  QFileDialog.AcceptMode.AcceptOpen)
+        ham = {k: self._etiketler(k, tmp_path) for k in kipler}
+        uygulama, qt = QTranslator(), QTranslator()
+        assert uygulama.load(os.path.join(_find_trans_dir(), "latexeditor_tr.qm"))
+        if not qt.load("qtbase_tr", QLibraryInfo.path(
+                QLibraryInfo.LibraryPath.TranslationsPath)):
+            pytest.skip("qtbase_tr.qm bu PyQt6 kurulumunda yok")
+        app.installTranslator(uygulama)
+        app.installTranslator(qt)
+        try:
+            for k in kipler:
+                tr = self._etiketler(k, tmp_path)
+                ayni = {ad: tr[ad] for ad in self._ETIKETLER
+                        if tr[ad] == ham[k][ad]}
+                assert ayni == {}, "%s: çevrilmeyen etiketler %s" % (k, ayni)
+        finally:
+            app.removeTranslator(qt)
+            app.removeTranslator(uygulama)

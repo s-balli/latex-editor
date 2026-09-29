@@ -280,6 +280,22 @@ def test_hicbir_kisayol_iki_kez_kaydedilmiyor():
     )
 
 
+def test_disa_aktar_menusu_turkce_ve_kutuya_ayni_ad(ana_pencere, monkeypatch):
+    """"Plain Text (.txt)" Türkçe arayüzde İngilizce kalıyordu; aynı ad kutu
+    başlığına ve süzgece de gidiyordu (ölçüldü 2026-09-28, v1.1.2 exe'si).
+    Eylem gerçekten tetikleniyor: kutuya giden ad menüdekiyle aynı olmalı."""
+    w = ana_pencere()
+    etiketler = [a.text() for a in w._export_actions]
+    assert "Düz Metin (.txt)" in etiketler, etiketler
+    assert not any("Plain Text" in e for e in etiketler), etiketler
+    gelen = []
+    monkeypatch.setattr(w, "_pandoc_available", True, raising=False)
+    monkeypatch.setattr(w, "_export_file", lambda ad, uz: gelen.append((ad, uz)))
+    txt = next(a for a in w._export_actions if a.text().endswith("(.txt)"))
+    txt.trigger()
+    assert gelen == [("Düz Metin", ".txt")], gelen
+
+
 @pytest.mark.parametrize("dizi", ["F5", "Shift+F5"])
 def test_SUNUM_baslat_tuslari_gecerli_sayfadan_aciyor(ana_pencere, tmp_path,
                                                      dizi):
