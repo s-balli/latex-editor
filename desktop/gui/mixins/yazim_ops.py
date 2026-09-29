@@ -187,7 +187,16 @@ def _sikistirilmisi_ac(dizin: str, dil: str) -> None:
 
 
 def kullanici_sozlugu_yolu(dil: str) -> str:
-    """Kullanıcının eklediği kelimeler. Log dizininin komşusu (aynı klasör)."""
+    """Kullanıcının eklediği kelimeler.
+
+    Log dizininin komşusu DEĞİL: log GenericDataLocation'da
+    (`%LOCALAPPDATA%\\LatexEditor`), bu ise AppLocalDataLocation'da ve o
+    uygulamanın ADINI yola katıyor (bkz. core/log.py). ÖLÇÜLDÜ (2026-09-29,
+    v1.1.2 exe): `%LOCALAPPDATA%\\LaTeX Editor\\LatexEditor\\sozluk-tr_TR.txt`.
+    Yol yine de kararlı: yalnız çalışma anında soruluyor, ad main.py'de
+    ondan önce veriliyor. Taşınırsa eski dosya taşınmalı, yoksa kullanıcının
+    kelimeleri kaybolur.
+    """
     kok = os.path.normpath(os.path.join(
         QStandardPaths.writableLocation(
             QStandardPaths.StandardLocation.AppLocalDataLocation),

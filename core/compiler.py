@@ -352,6 +352,15 @@ class LatexCompiler(QObject):
         `wsl.exe` öldürülünce WSL içindeki ağaç da ölüyor (aynı ölçüm), o
         kol olduğu gibi kalıyor.
 
+        Windows'ta ağacın NEDEN öldüğü ölçüldü (2026-09-29, `wait` ile
+        bekleyen kabukta `trap`): WSL yalnız DOĞRUDAN başlattığı süreci,
+        derle.sh'in bash'ini, SIGHUP'la düşürüyor; alt kabuk ve motor sinyal
+        almıyor, bash ölünce oturumun ön plan grubuyla birlikte gidiyorlar.
+        Ana kabukta HUP yakalanırsa (`trap`) bash ölmüyor ve `pdflatex`
+        sahipsiz koşmaya devam ediyor. Yani derle.sh'e, örneğin iptalde geçici
+        dizini silmek için, `trap ... HUP` EKLENMEMELİ. O dizin (`mktemp -d`)
+        iptalde kalıyor; WSL'in systemd'si /tmp'yi her açılışta boşaltıyor.
+
         Grup öldürme YALNIZ süreç kendi grubunun lideriyse: `_start_native`
         onu yeni oturumda başlatıyor. Lider değilse `killpg` başka bir grubu
         (uygulamanın kendisini) hedefleyebilirdi, o yüzden denenmiyor.
