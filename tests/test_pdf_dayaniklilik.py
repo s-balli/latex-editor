@@ -553,8 +553,29 @@ def test_clear_sonrasi_TUS_OLAYI_konumu_bozamiyor(viewer, qapp):
     viewer.eventFilter(hedef, _tus(_K().Key_End))
 
     assert viewer._current_page >= 0, viewer._current_page
-    viewer._update_nav()
-    assert "0 / 0" not in viewer._lbl_page.text(), viewer._lbl_page.text()
+    # Etiket artik -1'i ayirt etmiyor: belge yokken dogru yazi da "0 / 0"
+    # (bkz. test_belge_yokken_sayac_SIFIR_diyor). Kusuru yukaridaki dogrudan
+    # denetim yakaliyor.
+
+
+@gui
+def test_belge_yokken_sayac_SIFIR_diyor(qapp, tmp_path):
+    """Belge yokken sayac "Sayfa 1 / 0" diyordu.
+
+    Olculdu (2026-09-29, exe ve AppImage 1.1.2): acilista ilk derlemeye
+    kadar arac cubugunda bu yaziyordu. Uc durum: belge hic yok, belge
+    yuklu, belge kapatildi.
+    """
+    v = PdfViewer(theme=THEMES["dark"])
+    try:
+        assert v._lbl_page.text().endswith("0 / 0"), v._lbl_page.text()
+        assert v.load_pdf(_pdf_kur(tmp_path))
+        assert "1 / 2" in v._lbl_page.text(), v._lbl_page.text()
+        v.clear()
+        assert v._lbl_page.text().endswith("0 / 0"), v._lbl_page.text()
+    finally:
+        v.shutdown()
+        v.close()
 
 
 @gui

@@ -49,6 +49,22 @@ class PdfRenderMixin:
         if not os.path.exists(path):
             return False
         try:
+            # Görünüm ile sayaç ayrışıyordu. ÖLÇÜLDÜ (2026-09-29, altı sayfalık
+            # belge, 3. sayfadayken yeniden yükleme; exe 1.1.2'de de görüldü):
+            #   Windows    kaydırma yerinde, sayaç "Sayfa 1", ekranda 3. sayfa
+            #   offscreen  kaydırma 0'a iniyor, sayaç "Sayfa 6"
+            # Sunum (F5) sayaçtan başladığı için yanlış slayttan açılıyordu.
+            # Offscreen'deki gizli yer tutuculardan (bkz. _create_placeholders)
+            # ve yerleşmemiş etiketlerden sayfa hesaplayan kaydırma olayından.
+            # Konum artık AÇIKÇA kuruluyor: aynı belgede (her derleme) eski
+            # kaydırma ve sayfa, başka belgede baş.
+            ayni_belge = bool(self._pdf_path) and (
+                os.path.normcase(os.path.abspath(self._pdf_path))
+                == os.path.normcase(os.path.abspath(path)))
+            dikey = self._scroll.verticalScrollBar()
+            yatay = self._scroll.horizontalScrollBar()
+            konum = (dikey.value(), yatay.value()) if ayni_belge else (0, 0)
+            onceki_sayfa = self._current_page
             if self._pdf:
                 with pdfium_lock:
                     self._pdf.close()
@@ -68,12 +84,16 @@ class PdfRenderMixin:
                 self._page_count = len(self._pdf)
             self._sayfa_pt.clear()
             self._pdf_path = path
-            self._current_page = 0
             self._render_gen += 1
             self._pres_cache.clear()
             self._render_worker.open_document(path, self._render_gen)
             self._search_worker.open_document(path, self._render_gen)
             self._create_placeholders()
+            dikey.setValue(konum[0])
+            yatay.setValue(konum[1])
+            # Kaydırma olayının arada hesapladığı sayfayı eziyor (SONRA atanıyor).
+            self._current_page = (min(onceki_sayfa, self._page_count - 1)
+                                  if ayni_belge and self._page_count > 0 else 0)
             self.update_bookmarks()
             self._clear_search()
             self._restore_search()      # açık arama derlemeyi atlatsın
@@ -268,6 +288,12 @@ class PdfRenderMixin:
         self._clear_pages()
         if not self._pdf:
             return
+        # Yer tutucular eklenir eklenmez GÖSTERİLİYOR. Görünür bir ebeveynin
+        # yerleşimine eklenen widget, Qt'nin kuyruğa attığı bir çağrı gelene
+        # kadar gizli kalıyor ve gizli widget yerleşimde yer tutmuyor. Arada
+        # eşzamanlı bir yerleşim geçişi olursa (offscreen'de araç çubuğunu
+        # sığdırmak yapıyor) kaydırma aralığı çöküp konum 0'a iniyordu
+        # (bkz. load_pdf).
         if self._dual_page:
             self._create_dual_placeholders()
         else:
@@ -281,6 +307,7 @@ class PdfRenderMixin:
                 label.installEventFilter(self)
                 self._page_labels.append(label)
                 self._pages_layout.addWidget(label)
+                label.show()
 
     def _create_dual_placeholders(self):
         i = 0
@@ -304,6 +331,7 @@ class PdfRenderMixin:
             row_widget = QWidget()
             row_widget.setLayout(row)
             self._pages_layout.addWidget(row_widget)
+            row_widget.show()
             i += 2
 
     def _request_render(self, index: int):

@@ -238,3 +238,60 @@ class TestKaydirmaSayfayiBelirlemeye_devam_ediyor:
             assert gorucu._current_page == hedef, (
                 "%d. sayfaya kaydırıldı, sayaç %r"
                 % (hedef + 1, gorucu._lbl_page.text()))
+
+
+@gui
+class TestBelgeYuklenince_gorunum_ve_sayac_ayrismiyor:
+    """Başka PDF yüklenince görüntü eski kaydırma konumunda kalıyordu, sayaç
+    ise "Sayfa 1" diyordu. Ölçüldü (2026-09-28, exe 1.1.2): sayaç 1 derken
+    ekranda 3. sayfa; sunum (F5) sayaçtan başladığı için 3. slayttan açıldı.
+
+    Aynı belge yeniden yüklenince (her derleme) kaydırma korunuyor; o zaman
+    sayaç da korunmalı, 1'e düşmemeli.
+    """
+
+    @staticmethod
+    def _ucuncu_sayfada(v):
+        v._zoom_uygula(1.0)
+        assert _yerlesti(v)
+        v._scroll_to_page(2)
+        _zamanlayici_kossun()
+        assert v._current_page == 2
+        assert v._scroll.verticalScrollBar().value() > 0, "koşul kurulmadı"
+
+    def test_BASKA_belge_basa_donuyor(self, gorucu, belge, tmp_path):
+        import shutil
+        self._ucuncu_sayfada(gorucu)
+        baska = str(tmp_path / "baska.pdf")
+        shutil.copy(belge, baska)
+        assert gorucu.load_pdf(baska)
+        assert _yerlesti(gorucu)
+        _zamanlayici_kossun()
+        assert gorucu._scroll.verticalScrollBar().value() == 0, \
+            "görüntü eski belgenin kaydırma konumunda kaldı"
+        assert gorucu._current_page == 0
+        assert "1 / %d" % SAYFA in gorucu._lbl_page.text()
+
+    def test_CIFT_sayfa_kipinde_de_kaydirma_korunuyor(self, gorucu):
+        """Çift sayfa kipinde yer tutucular satır widget'larının içinde."""
+        gorucu._toggle_dual_page(True)
+        assert _yerlesti(gorucu)
+        self._ucuncu_sayfada(gorucu)
+        once = gorucu._scroll.verticalScrollBar().value()
+        gorucu.refresh()
+        assert _yerlesti(gorucu)
+        _zamanlayici_kossun()
+        assert gorucu._scroll.verticalScrollBar().value() == once, \
+            "kaydırma korunmadı"
+        assert gorucu._current_page == 2, gorucu._lbl_page.text()
+
+    def test_AYNI_belge_yeniden_yuklenince_sayac_korunuyor(self, gorucu):
+        self._ucuncu_sayfada(gorucu)
+        once = gorucu._scroll.verticalScrollBar().value()
+        gorucu.refresh()
+        assert _yerlesti(gorucu)
+        _zamanlayici_kossun()
+        assert gorucu._scroll.verticalScrollBar().value() == once, \
+            "kaydırma korunmadı"
+        assert gorucu._current_page == 2, gorucu._lbl_page.text()
+        assert "3 / %d" % SAYFA in gorucu._lbl_page.text()

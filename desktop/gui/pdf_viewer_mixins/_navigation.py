@@ -13,7 +13,11 @@ _ = lambda s: QCoreApplication.translate("PdfViewer", s)
 class PdfNavigationMixin:
 
     def _update_nav(self):
-        pages = _("Sayfa {cur} / {total}").format(cur=self._current_page + 1, total=max(self._page_count, 0))
+        # Belge yokken sayaç "Sayfa 1 / 0" diyordu: sıfır sayfalı belgenin
+        # birinci sayfası. Ölçüldü (2026-09-29, exe ve AppImage 1.1.2): her
+        # açılışta ilk derlemeye kadar araç çubuğunda bu yazıyordu.
+        cur = self._current_page + 1 if self._page_count > 0 else 0
+        pages = _("Sayfa {cur} / {total}").format(cur=cur, total=max(self._page_count, 0))
         if self._pdf_path and os.path.exists(self._pdf_path):
             size = os.path.getsize(self._pdf_path)
             pages += f"  ({size / 1024:.0f} KB)"
