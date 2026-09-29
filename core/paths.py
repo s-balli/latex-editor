@@ -21,6 +21,30 @@ def clean_child_env() -> dict:
             if k not in ("LD_LIBRARY_PATH", "LD_PRELOAD")}
 
 
+def xdg_open(hedef: str) -> bool:
+    """Linux'ta dosya, klasör ya da adresi `xdg-open` ile aç, TEMİZ ortamla.
+
+    Klasörde Aç, PDF'teki web bağlantısı, güncelleme sayfası ve günlük
+    klasörü bu yolla açılıyor. Eskiden ortam temizlenmiyordu (`webbrowser`
+    ve `QDesktopServices` da süreç ortamını geçiriyor). ÖLÇÜLDÜ (2026-09-29,
+    v1.1.2 AppImage'in gerçek süreç ortamı, WSL Ubuntu): `LD_LIBRARY_PATH`
+    paketin `_internal` dizinini gösteriyor ve GNOME'da xdg-open'ın
+    kullandığı `gio` "undefined symbol: g_string_free_and_steal" ile
+    düşüyor; temiz ortamda aynı komut çalışıyor.
+
+    Komut başlatılamazsa (xdg-utils kurulu değil) False.
+    """
+    import subprocess
+    try:
+        subprocess.Popen(["xdg-open", hedef], env=clean_child_env(),
+                         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                         start_new_session=True)
+        return True
+    except OSError:
+        _logger.warning("xdg-open başlatılamadı: %s", hedef, exc_info=True)
+        return False
+
+
 def dizin_altinda_mi(dizin: str, kok: str) -> bool:
     r"""``dizin`` gerçekten ``kok``un altında mı; kararı DOSYA SİSTEMİ verir.
 

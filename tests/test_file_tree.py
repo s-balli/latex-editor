@@ -902,6 +902,33 @@ def test_KLASORDE_AC_komut_VARSA_calisiyor(qapp, tmp_path, monkeypatch):
         assert isinstance(cagrilar[0], list)
 
 
+def test_KLASORDE_AC_linuxta_paketin_KUTUPHANE_YOLUNU_gecirmiyor(
+        qapp, tmp_path, monkeypatch):
+    """AppImage'in `LD_LIBRARY_PATH`i xdg-open'a geçiyordu ve GNOME'da onun
+    kullandığı `gio` "undefined symbol: g_string_free_and_steal" ile
+    düşüyordu (ölçüldü 2026-09-29, v1.1.2 AppImage'in gerçek süreç ortamı).
+    Klasör açılmıyor, kullanıcı hiçbir şey görmüyordu."""
+    import subprocess
+    import sys as _sys
+    from gui import file_tree as ft
+
+    dosya = tmp_path / "ana.tex"
+    dosya.write_text("x\n", encoding="utf-8")
+    monkeypatch.setattr(_sys, "platform", "linux")
+    monkeypatch.setenv("LD_LIBRARY_PATH", "/tmp/.mount_x/usr/bin/_internal")
+    cagrilar = []
+    monkeypatch.setattr(subprocess, "Popen",
+                        lambda argv, **k: cagrilar.append((argv, k)) or object())
+    monkeypatch.setattr(ft.QMessageBox, "warning",
+                        staticmethod(lambda *a, **k: None))
+
+    _KlasorStub()._open_in_explorer(str(dosya))
+
+    assert [c[0] for c in cagrilar] == [["xdg-open", str(tmp_path)]]
+    ortam = cagrilar[0][1].get("env")
+    assert ortam is not None and "LD_LIBRARY_PATH" not in ortam
+
+
 # =====================================================================
 # Kapsam disi kalmis iki kural (olculdu 2026-09-07)
 # =====================================================================

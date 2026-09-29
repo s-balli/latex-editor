@@ -1262,14 +1262,15 @@ class MainWindow(
         log_dir = os.path.dirname(log)
         if not os.path.isdir(log_dir):
             os.makedirs(log_dir, exist_ok=True)
-        # AppImage sandbox'ta dosya yöneticisi açılamaz — panoya kopyala
-        is_appimage = getattr(sys, 'frozen', False) and os.environ.get('APPIMAGE')
-        if is_appimage:
-            from PyQt6.QtWidgets import QApplication
-            QApplication.clipboard().setText(log_dir)
-            self._status.showMessage(_("Panoya kopyalandı, terminalde cd ile geçin:") + f" {log_dir}")
-            return
-        ok = QDesktopServices.openUrl(QUrl.fromLocalFile(log_dir))
+        # Linux'ta temiz ortamla. AppImage'de hiç denenmeyip panoya
+        # kopyalanıyordu ("sandbox'ta dosya yöneticisi açılamaz"); AppImage
+        # sandbox değil, açılmamasının sebebi paketin kütüphane yolunun
+        # sızmasıydı (bkz. core.paths.xdg_open). Açılamazsa pano yine yedek.
+        if sys.platform.startswith("linux"):
+            from core.paths import xdg_open
+            ok = xdg_open(log_dir)
+        else:
+            ok = QDesktopServices.openUrl(QUrl.fromLocalFile(log_dir))
         if ok:
             self._status.showMessage(f"Log: {log_dir}")
         else:
@@ -1385,7 +1386,10 @@ class MainWindow(
         if msg.clickedButton() == btn_open:
             from PyQt6.QtGui import QDesktopServices
             from PyQt6.QtCore import QUrl
-            QDesktopServices.openUrl(QUrl(url))
+            from core.paths import xdg_open
+            # Linux'ta temiz ortamla (AppImage, bkz. core.paths.xdg_open)
+            if not (sys.platform.startswith("linux") and xdg_open(url)):
+                QDesktopServices.openUrl(QUrl(url))
 
     def _on_no_update(self):
         """Güncelleme yok — sadece manuel kontrolde bilgi ver."""

@@ -1198,6 +1198,9 @@ def test_SUNUMDA_slayttaki_BAGLANTI_calisiyor(qapp, tmp_path, monkeypatch,
     from PyQt6.QtCore import QEvent, Qt
     acilan = []
     monkeypatch.setattr(webbrowser, "open", lambda u, *a, **k: acilan.append(u))
+    # Linux'ta adres temiz ortamla xdg-open'a gidiyor (core.paths.xdg_open)
+    monkeypatch.setattr("gui.pdf_viewer_mixins._events.xdg_open",
+                        lambda u: acilan.append(u) or True)
     v, kareler = _baglantili_sunum(qapp, tmp_path)
     try:
         _fare_olayi(v._presentation_label, QEvent.Type.MouseButtonPress,

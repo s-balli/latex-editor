@@ -25,6 +25,7 @@ from core.log import get_logger
 # sürükleniyor — bu depoda paketleme tanımlarında bilfiil yaşandı.
 from core.project_search import SKIP_DIRS as _SKIP_DIRS
 from core import fs_ops
+from core.paths import xdg_open
 from PyQt6.QtCore import QCoreApplication
 
 # Ağaç çiziminde inilen en derin seviye (bu dosyaya özgü)
@@ -803,8 +804,9 @@ class FileTree(QWidget):
                 subprocess.Popen(f'explorer /select,"{path}"')
             elif sys.platform == "darwin":
                 subprocess.Popen(["open", "-R", path])
-            else:
-                subprocess.Popen(["xdg-open", os.path.dirname(path)])
+            elif not xdg_open(os.path.dirname(path)):
+                # AppImage kütüphane yolu sızmasın (bkz. core.paths.xdg_open)
+                raise OSError(_("xdg-open başlatılamadı"))
         except OSError as e:
             _logger.error("Klasör açılamadı: %s", path, exc_info=True)
             QMessageBox.warning(

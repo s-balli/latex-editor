@@ -143,6 +143,11 @@ def guncelleme_diyalogu(qapp, monkeypatch):
         monkeypatch.setattr(
             QMessageBox, "clickedButton",
             lambda self: (dugmeler[0] if tikla and dugmeler else None))
+        # Linux'ta adres önce temiz ortamlı xdg-open'a gidiyor (AppImage).
+        # Yamalanmayınca bu test Linux'ta GERÇEK bir xdg-open başlatıyor ve
+        # url'yi hiç yakalamıyordu (ölçüldü 2026-09-29, WSL, sahte xdg-open).
+        monkeypatch.setattr("core.paths.xdg_open",
+                            lambda u: yak.setdefault("url", u) is not None)
         monkeypatch.setattr(
             QDesktopServices, "openUrl",
             staticmethod(lambda u: yak.setdefault("url", u.toString())))

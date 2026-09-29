@@ -615,3 +615,21 @@ def test_ozelliklerde_her_baslikin_altinda_aciklamasi_var(qapp, monkeypatch):
         "aralarındaki açıklama kaymış olabilir")
     # Kapı boşa düşmesin: gerçekten başlık var mı
     assert ozl.count("</b><br>") >= 10, ozl.count("</b><br>")
+
+
+def test_LOG_KLASORU_linuxta_TEMIZ_ortamla_aciliyor(ana_pencere, monkeypatch):
+    """AppImage'de hiç açılmayıp panoya kopyalanıyordu ("sandbox'ta dosya
+    yöneticisi açılamaz"). AppImage sandbox değil; açılmamasının sebebi
+    paketin kütüphane yolunun sızmasıydı (bkz. core.paths.xdg_open)."""
+    import sys as _sys
+    import core.paths as yollar
+
+    w = ana_pencere()
+    acilan = []
+    monkeypatch.setattr(_sys, "platform", "linux")
+    monkeypatch.setenv("APPIMAGE", "/tmp/LaTeX_Editor.AppImage")
+    monkeypatch.setattr(_sys, "frozen", True, raising=False)
+    monkeypatch.setattr(yollar, "xdg_open", lambda y: acilan.append(y) or True)
+    w._open_log_dir()
+    assert len(acilan) == 1
+    assert w._status.currentMessage().startswith("Log:")

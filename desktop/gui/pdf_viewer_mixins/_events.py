@@ -1,11 +1,13 @@
 """PdfViewer event filter mixin — sunum/sayfa olay yonlendirme + link tiklama + metin secme."""
 
+import sys
 import webbrowser
 
 from PyQt6.QtCore import QCoreApplication, QEvent, Qt, QTimer
 from PyQt6.QtWidgets import QMessageBox
 
 from core.log import get_logger
+from core.paths import xdg_open
 from gui.pdfium_lock import pdfium_lock
 from gui.pdf_donusum import geometri, kullaniciya
 
@@ -194,7 +196,11 @@ class PdfEventsMixin:
             return False
         kind, data = resolved
         if kind == "uri":
-            webbrowser.open(data)
+            # Linux'ta temiz ortamla: `webbrowser` süreç ortamını geçiriyor
+            # ve AppImage'in kütüphane yolu tarayıcıyı açan `gio`yu
+            # düşürüyordu (bkz. core.paths.xdg_open).
+            if not (sys.platform.startswith("linux") and xdg_open(data)):
+                webbrowser.open(data)
         elif kind == "guvensiz_uri":
             self._guvensiz_baglanti(data)
         elif kind in ("goto", "dest"):

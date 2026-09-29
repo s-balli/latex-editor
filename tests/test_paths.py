@@ -108,6 +108,29 @@ def test_clean_child_env_keeps_env_when_clean(monkeypatch):
     assert clean_child_env() == dict(__import__("os").environ)
 
 
+def test_xdg_open_TEMIZ_ortamla_basliyor(monkeypatch):
+    """Paketin kütüphane yolu sızınca GNOME'da xdg-open'ın kullandığı `gio`
+    düşüyordu (ölçüldü 2026-09-29, v1.1.2 AppImage). Başlatılamayan komut
+    istisna değil False (çağıranlar slottan geliyor)."""
+    import subprocess
+    from core.paths import xdg_open
+
+    monkeypatch.setenv("LD_LIBRARY_PATH", "/tmp/.mount_x/usr/bin/_internal")
+    monkeypatch.setenv("LD_PRELOAD", "x.so")
+    alinan = []
+    monkeypatch.setattr(subprocess, "Popen",
+                        lambda argv, **k: alinan.append((argv, k)) or object())
+    assert xdg_open("https://example.com/a b") is True
+    argv, k = alinan[0]
+    assert argv == ["xdg-open", "https://example.com/a b"]
+    assert "LD_LIBRARY_PATH" not in k["env"] and "LD_PRELOAD" not in k["env"]
+
+    def yok(*a, **k):
+        raise FileNotFoundError(2, "xdg-open")
+    monkeypatch.setattr(subprocess, "Popen", yok)
+    assert xdg_open("/tmp") is False
+
+
 class TestWslKendiDosyaSistemi:
     r"""`\\wsl.localhost\<dağıtım>\...` biçiminin GERİ çevrimi.
 

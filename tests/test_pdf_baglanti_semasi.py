@@ -207,6 +207,8 @@ def test_TIKLAMA_yalniz_guvenli_dalda_kabuga_gidiyor(monkeypatch, cozum,
     uyari = []
     monkeypatch.setattr("gui.pdf_viewer_mixins._events.webbrowser.open",
                         lambda u: acilan.append(u))
+    monkeypatch.setattr("gui.pdf_viewer_mixins._events.xdg_open",
+                        lambda u: acilan.append(u) or True)
     monkeypatch.setattr("gui.pdf_viewer_mixins._events.QMessageBox.warning",
                         lambda *a, **k: uyari.append(a))
     monkeypatch.setattr("gui.pdf_viewer_mixins._events.resolve_link_action",
@@ -222,6 +224,30 @@ def test_TIKLAMA_yalniz_guvenli_dalda_kabuga_gidiyor(monkeypatch, cozum,
     else:
         assert acilan == [], "güvensiz adres kabuğa gitti"
         assert uyari, "kullanıcıya sebep söylenmedi"
+
+
+@pdfli
+@pytest.mark.parametrize("xdg_basladi, tarayici", [(True, []), (False, ["https://example.com"])])
+def test_LINUXTA_web_adresi_TEMIZ_ortamla_aciliyor(monkeypatch, xdg_basladi,
+                                                   tarayici):
+    """`webbrowser` süreç ortamını geçiriyor ve AppImage'in kütüphane yolu
+    GNOME'da tarayıcıyı açan `gio`yu düşürüyordu (ölçüldü 2026-09-29,
+    v1.1.2 AppImage). Linux'ta adres `core.paths.xdg_open`a gidiyor; o
+    başlatılamazsa `webbrowser` yedek."""
+    import sys as _sys
+    xdg, web = [], []
+    monkeypatch.setattr(_sys, "platform", "linux")
+    monkeypatch.setattr("gui.pdf_viewer_mixins._events.xdg_open",
+                        lambda u: xdg.append(u) or xdg_basladi)
+    monkeypatch.setattr("gui.pdf_viewer_mixins._events.webbrowser.open",
+                        lambda u: web.append(u))
+    monkeypatch.setattr("gui.pdf_viewer_mixins._events.resolve_link_action",
+                        lambda raw, link: ("uri", "https://example.com"))
+
+    _Gorucu()._handle_link_click(None, None)
+
+    assert xdg == ["https://example.com"]
+    assert web == tarayici
 
 
 @pdfli
