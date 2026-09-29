@@ -376,6 +376,39 @@ def _gercek_yol(yol: str) -> str:
         return yol
 
 
+def _kullanici_yoluna(sonuc, pdf_path: str):
+    """Ters aramanın sonucunu kullanıcının PDF'e verdiği yol biçimine çevir.
+
+    Sorgu `_gercek_yol`dan geçiyor ve TeX dosya adlarını çalışma dizininin
+    GERÇEK yoluyla kaydediyor (getcwd bağları çözüyor). Proje sembolik bağ
+    ya da dizin bağlantısı altındaysa sonuç bu yüzden bağsız biçimde
+    geliyordu; macOS'ta `/var` ve `/tmp` de birer bağ. Proje kökü ise
+    kullanıcının yolundan hesaplanıyor (`reverse_search`): her sonuç proje
+    dışı sayılıp şüpheli oluyor, başka dosyaya atlama kuralı (`_supheli`)
+    devre dışı kalıyor ve editör dosyayı kullanıcının açtığından başka bir
+    yolla açıyordu. ÖLÇÜLDÜ (2026-09-29, macos-15, bölüm sonu sayfası):
+    lualatex'te 88 tıkın 88'i `/private/var/...` ile döndü, gösterilen ilk
+    altısının beşi `sonuc.tex`e atlıyordu.
+
+    PDF'in gerçek klasörü altındaki sonuç, aynı göreli yolla kullanıcının
+    klasörüne taşınıyor; dışındakine (TeX dağıtımının dosyaları) dokunulmuyor.
+    """
+    if not sonuc or not os.path.isabs(sonuc.file_path):
+        return sonuc
+    klasor = os.path.dirname(os.path.abspath(pdf_path))
+    gercek = os.path.dirname(_gercek_yol(os.path.abspath(pdf_path)))
+    if os.path.normcase(klasor) == os.path.normcase(gercek):
+        return sonuc
+    try:
+        ic = os.path.relpath(sonuc.file_path, gercek)
+    except ValueError:                # başka sürücü
+        return sonuc
+    if ic == os.pardir or ic.startswith(os.pardir + os.sep):
+        return sonuc
+    sonuc.file_path = os.path.join(klasor, ic)
+    return sonuc
+
+
 def _forward_native(tex_path: str, line: int, col: int, pdf_path: str,
                     synctex_dir: str = "") -> ForwardResult | None:
     tex_path = _gercek_yol(tex_path)
@@ -411,8 +444,8 @@ def _forward_native(tex_path: str, line: int, col: int, pdf_path: str,
 # yönlü ve bedeli yok: synctex kesirli koordinatı zaten kabul ediyor.
 def _reverse_wsl(page: int, x: float, y: float, pdf_path: str,
                 synctex_dir: str = "") -> ReverseResult | None:
-    pdf_path = _gercek_yol(pdf_path)      # bkz. _forward_wsl'deki gerekçe
-    wsl_pdf = windows_to_wsl(pdf_path)
+    gercek_pdf = _gercek_yol(pdf_path)    # bkz. _forward_wsl'deki gerekçe
+    wsl_pdf = windows_to_wsl(gercek_pdf)
     cmd = ["wsl", "-e", "synctex", "edit",
            "-o", f"{page}:{x:f}:{y:f}:{wsl_pdf}"]
     if synctex_dir:
@@ -431,8 +464,8 @@ def _reverse_wsl(page: int, x: float, y: float, pdf_path: str,
             # sisteminde duruyorsa dağıtım adı yalnız oradan öğrenilebiliyor
             # (gerekçe ve üretilmiş örnek core/paths.py'de).
             parsed.file_path = wsl_to_windows(parsed.file_path,
-                                              ornek=pdf_path)
-        return parsed
+                                              ornek=gercek_pdf)
+        return _kullanici_yoluna(parsed, pdf_path)
     except subprocess.TimeoutExpired as e:
         _logger.warning("SyncTeX reverse (WSL) zaman aşımı: sayfa %d (%s)", page, e)
         return None
@@ -455,8 +488,8 @@ def _reverse_wsl_toplu(page: int, noktalar: list, pdf_path: str,
     konumsal parametre olarak gidiyor (`"$@"`), yol betiğe gömülmüyor:
     boşluklu ve Türkçe yollar tek sorgudaki gibi aynen geçiyor.
     """
-    pdf_path = _gercek_yol(pdf_path)      # bkz. _forward_wsl'deki gerekçe
-    wsl_pdf = windows_to_wsl(pdf_path)
+    gercek_pdf = _gercek_yol(pdf_path)    # bkz. _forward_wsl'deki gerekçe
+    wsl_pdf = windows_to_wsl(gercek_pdf)
     betik = (('d="$1"; shift; ' if synctex_dir else '')
              + 'for o in "$@"; do synctex edit -o "$o"'
              + (' -d "$d"' if synctex_dir else '')
@@ -486,8 +519,8 @@ def _reverse_wsl_toplu(page: int, noktalar: list, pdf_path: str,
         parsed = _parse_reverse("\n".join(blok)) if kod == "0" else None
         if parsed:
             # `ornek` PDF'in Windows yolu (bkz. _reverse_wsl).
-            parsed.file_path = wsl_to_windows(parsed.file_path, ornek=pdf_path)
-        sonuclar.append(parsed)
+            parsed.file_path = wsl_to_windows(parsed.file_path, ornek=gercek_pdf)
+        sonuclar.append(_kullanici_yoluna(parsed, pdf_path))
         blok = []
     if len(sonuclar) != len(noktalar):
         # wsl.exe kabuğu hiç başlatamadı (dağıtım yok) ya da çıktı yarım.
@@ -497,9 +530,9 @@ def _reverse_wsl_toplu(page: int, noktalar: list, pdf_path: str,
 
 def _reverse_native(page: int, x: float, y: float, pdf_path: str,
                     synctex_dir: str = "") -> ReverseResult | None:
-    pdf_path = _gercek_yol(pdf_path)
+    gercek_pdf = _gercek_yol(pdf_path)
     cmd = ["synctex", "edit",
-           "-o", f"{page}:{x:f}:{y:f}:{pdf_path}"]
+           "-o", f"{page}:{x:f}:{y:f}:{gercek_pdf}"]
     if synctex_dir:
         cmd += ["-d", synctex_dir]
     try:
@@ -510,7 +543,7 @@ def _reverse_native(page: int, x: float, y: float, pdf_path: str,
             return ARAC_YOK
         if r.returncode != 0 or r.stdout is None:
             return None
-        return _parse_reverse(r.stdout)
+        return _kullanici_yoluna(_parse_reverse(r.stdout), pdf_path)
     except subprocess.TimeoutExpired as e:
         _logger.warning("SyncTeX reverse (native) zaman aşımı: sayfa %d (%s)", page, e)
         return None

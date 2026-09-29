@@ -330,6 +330,7 @@ def _ters_senaryo(monkeypatch, platform, harita, varsayilan=None):
     with patch("gui.synctex.subprocess.run", side_effect=sahte_run):
         s = st.reverse_search(1, 100.0, 200.0, pdf)
     _ters_senaryo.surec = len(surec)
+    _ters_senaryo.yol = s.file_path if s else None
     if not s:
         return None, sorulan
     return (s.file_path.replace("\\", "/").rsplit("/", 1)[-1], s.line), sorulan
@@ -420,6 +421,31 @@ def test_TERS_PROJE_DISI_dosya_supheli(monkeypatch, platform):
     sonuc, _sorulan = _ters_senaryo(monkeypatch, platform, {
         1.0: _GONDERILME, 100.0: _GONDERILME, 92.0: sinif, 108.0: _DOGRU})
     assert sonuc == ("giris.tex", 6), "sınıf dosyası dönüyor"
+
+
+@pytest.mark.parametrize("platform", _PLATFORMLAR)
+def test_TERS_BAGLI_projede_sonuc_KULLANICININ_yolunda(monkeypatch, platform):
+    """Proje sembolik bağ ya da dizin bağlantısı altında (macOS'ta `/var` ve
+    `/tmp` de öyle): TeX dosya adlarını GERÇEK yolla kaydediyor, sonuç bağsız
+    biçimde geliyordu. Proje kökü kullanıcının yolundan hesaplandığı için her
+    sonuç proje dışı sayılıyor, sonraki dosyaya atlama kuralı işlemiyordu
+    (ölçüldü 2026-09-29, macos-15, bkz. `_kullanici_yoluna`). Burada bağı
+    `_gercek_yol` taklit ediyor: kullanıcının `p` klasörü gerçekte
+    `gercek/p`; synctex yalnız gerçek yolu biliyor."""
+    if (platform == "win32") != (sys.platform == "win32"):
+        pytest.skip("yol biçimi yalnız kendi platformunda kurulabiliyor")
+    if platform == "win32":
+        kullanici, gercek = "C:\\p", "C:\\gercek\\p"
+    else:
+        kullanici, gercek = "/mnt/c/p", "/mnt/c/gercek/p"
+    monkeypatch.setattr(st, "_gercek_yol",
+                        lambda y: y.replace(kullanici, gercek, 1))
+    sonuc, _sorulan = _ters_senaryo(monkeypatch, platform, {
+        1.0: ("/mnt/c/gercek/p/yontem.tex", 3),
+        100.0: ("/mnt/c/gercek/p/yontem.tex", 9),
+        92.0: ("/mnt/c/gercek/p/giris.tex", 9)})
+    assert sonuc == ("giris.tex", 9), "sonraki dosyaya atlama kuralı işlemedi"
+    assert _ters_senaryo.yol == os.path.join(kullanici, "giris.tex")
 
 
 @pytest.mark.parametrize("platform", _PLATFORMLAR)
