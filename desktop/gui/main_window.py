@@ -186,7 +186,9 @@ def ekrana_sigan_boyut(genislik: int, yukseklik: int, alan=None):
     yükseklikte çerçeve kadar taşma kalabilir; asıl kusur olan genişlik
     taşması tamamen kapanıyor.
 
-    `alan` yalnızca test için: ekransız ortamda gerçek bir QScreen yok.
+    `alan` verilmezse birincil ekran; ekransız ortamda gerçek bir QScreen
+    yok. Pencere başka ekrandaysa ya da çerçeve payı düşülecekse çağıran
+    verir (bkz. yardim_penceresi).
     """
     if alan is None:
         ekran = QApplication.primaryScreen()
@@ -194,6 +196,80 @@ def ekrana_sigan_boyut(genislik: int, yukseklik: int, alan=None):
             return genislik, yukseklik
         alan = ekran.availableGeometry()
     return min(genislik, alan.width()), min(yukseklik, alan.height())
+
+
+def yardim_penceresi(ebeveyn, tema: dict, baslik: str, html: str,
+                     genislik: int, yukseklik: int | None = None,
+                     soru: str = "", dugmeler: tuple | None = None) -> bool:
+    """Metni kaydırılabilir, ekrana sığan bir pencerede göster.
+
+    Klavye Kısayolları ve güncelleme bildirimi birer QMessageBox'tı.
+    QMessageBox boyunu içeriğe sabitliyor, ekrana bakmıyor: 1080p ekranda
+    %150 ölçekte kısayol kutusu çalışma alanını 10-18 px, %175'te 121 px
+    aşıyordu; son satır yarım kalıyor, Tamam düğmesi ekranın dışında
+    kalıyordu (ölçüldü 2026-09-29, v1.1.2 exe'si 1.75 ölçekte: 147 px).
+    Güncelleme bildirimi v1.1.2'nin gerçek sürüm notlarıyla 414x724 çıktı,
+    1366x768 ekranda %100'de bile 27 px taşıyordu. Özellikler'in sabit
+    950x600'ü de %175'te taşıyordu.
+
+    `yukseklik` verilmezse içerik kadar isteniyor: içerik sığıyorsa kaydırma
+    çubuğu çıkmıyor. `dugmeler` (kabul, vazgeç) verilirse Tamam yerine o
+    ikisi konuyor; `soru` düğmelerin üstünde, metinle birlikte kaymadan
+    duruyor. Kabule basıldıysa True döner. Modül düzeyinde, çünkü testler
+    bu pencereyi açan yöntemleri iskelet bir QWidget ile çağırıyor.
+    """
+    from PyQt6.QtWidgets import (QDialog, QDialogButtonBox, QLabel,
+                                 QTextBrowser, QVBoxLayout)
+    dlg = QDialog(ebeveyn)
+    dlg.setWindowTitle(baslik)
+    layout = QVBoxLayout(dlg)
+    layout.setContentsMargins(12, 12, 12, 12)
+    browser = QTextBrowser()
+    # Zemin ACIKCA veriliyor: QTextBrowser uygulamanin stylesheet'ine
+    # takilmiyor, kendi palet Base rengini (beyaz) koruyor. Koyu temada
+    # bu pencere beyaz zemin uzerine krem yazi oluyordu, karsitlik 1.37
+    # (olculdu 2026-09-03, esik 4.50).
+    browser.setStyleSheet(
+        "QTextBrowser {{ background: {bg}; color: {fg};"
+        " border: 1px solid {kenar}; }}".format(
+            bg=tema["bg_primary"], fg=tema["fg_primary"],
+            kenar=tema["border_normal"]))
+    browser.setHtml(html)
+    browser.setOpenExternalLinks(True)
+    layout.addWidget(browser)
+    ek = 0
+    if soru:
+        etiket = QLabel(soru)
+        layout.addWidget(etiket)
+        ek = etiket.sizeHint().height() + layout.spacing()
+    kutu = QDialogButtonBox()
+    if dugmeler:
+        kabul = kutu.addButton(dugmeler[0],
+                               QDialogButtonBox.ButtonRole.AcceptRole)
+        kutu.addButton(dugmeler[1], QDialogButtonBox.ButtonRole.RejectRole)
+        kabul.setDefault(True)
+    else:
+        kutu.addButton(QDialogButtonBox.StandardButton.Ok)
+    kutu.accepted.connect(dlg.accept)
+    kutu.rejected.connect(dlg.reject)
+    layout.addWidget(kutu)
+    if yukseklik is None:
+        # KOPYA ölçülüyor: QTextBrowser kendi belgesinin genişliğini
+        # yönetiyor, gösterilmemiş pencerede verilen genişlik hemen
+        # varsayılana dönüyor ve boy yanlış genişlikte ölçülüyordu (ölçüldü,
+        # Fusion: 10 px eksik, kaydırma çubuğu kaldı).
+        belge = browser.document().clone(dlg)
+        belge.setTextWidth(genislik - 2 * 12 - 2)   # kenar payları, çerçeve
+        yukseklik = (int(belge.size().height()) + 50 + ek
+                     + kutu.sizeHint().height())
+    # Diyalog ebeveyninin ekranında açılıyor; kendisi henüz gösterilmediği
+    # için dlg.screen() çok ekranda birincil ekranı döndürebilir.
+    ekran = ebeveyn.screen()
+    # Başlık çubuğu resize'a dahil değil, payı alandan düşülüyor.
+    alan = (ekran.availableGeometry().adjusted(0, 0, 0, -40)
+            if ekran is not None else None)
+    dlg.resize(*ekrana_sigan_boyut(genislik, yukseklik, alan))
+    return dlg.exec() == QDialog.DialogCode.Accepted.value
 
 
 class MainWindow(
@@ -938,7 +1014,7 @@ class MainWindow(
         html += "<b>" + _("Tanıma Git") + "</b><br>"
         html += "Alt+" + _("Tıklama") + " · " + _("\\ref/\\cite tanıma git (\\label veya .bib girişi)")
         html += "</span>"
-        QMessageBox.information(self, _("Klavye Kısayolları"), html)
+        yardim_penceresi(self, t, _("Klavye Kısayolları"), html, 600)
 
     def _show_features(self):
         t = self._theme_mgr.theme
@@ -1115,25 +1191,7 @@ class MainWindow(
             f"{right}</td>"
             f"</tr></table>"
         )
-        from PyQt6.QtWidgets import QDialog, QVBoxLayout, QTextBrowser
-        dlg = QDialog(self)
-        dlg.setWindowTitle(_("Özellikler"))
-        dlg.resize(950, 600)
-        layout = QVBoxLayout(dlg)
-        layout.setContentsMargins(12, 12, 12, 12)
-        browser = QTextBrowser()
-        # Zemin ACIKCA veriliyor: QTextBrowser uygulamanin stylesheet'ine
-        # takilmiyor, kendi palet Base rengini (beyaz) koruyor. Koyu temada
-        # bu pencere beyaz zemin uzerine krem yazi oluyordu, karsitlik 1.37
-        # (olculdu 2026-09-03, esik 4.50).
-        browser.setStyleSheet(
-            "QTextBrowser {{ background: {bg}; color: {fg};"
-            " border: 1px solid {kenar}; }}".format(
-                bg=t["bg_primary"], fg=c, kenar=t["border_normal"]))
-        browser.setHtml(html)
-        browser.setOpenExternalLinks(True)
-        layout.addWidget(browser)
-        dlg.exec()
+        yardim_penceresi(self, t, _("Özellikler"), html, 950, 600)
 
     def _show_about(self):
         from core.version import VERSION
@@ -1339,8 +1397,6 @@ class MainWindow(
         tag = info.get("tag", "")
         url = info.get("url", "")
         notes = info.get("notes", "")
-        msg = QMessageBox(self)
-        msg.setWindowTitle(_("Güncelleme Mevcut"))
         t = self._theme_mgr.theme
         c = t["fg_primary"]
         html = f"<span style='color:{c}'>"
@@ -1378,12 +1434,13 @@ class MainWindow(
         html += (f"<p><a href='{_kacir(url)}' style='color:{vurgu}'>"
                  f"{_('İndirmek için Releases sayfasını aç')}</a></p>")
         html += "</span>"
-        msg.setText(html)
-        msg.setInformativeText(_("Şimdi indirip kurmak ister misiniz?"))
-        btn_open = msg.addButton(_("Tarayıcıda Aç"), QMessageBox.ButtonRole.AcceptRole)
-        msg.addButton(_("Daha Sonra"), QMessageBox.ButtonRole.RejectRole)
-        msg.exec()
-        if msg.clickedButton() == btn_open:
+        # Kaydırılabilir, ekrana sığan pencere: QMessageBox gerçek v1.1.2
+        # notlarıyla 1366x768 ekranda düğmeleri görev çubuğunun altında
+        # bırakıyordu (bkz. yardim_penceresi).
+        if yardim_penceresi(
+                self, t, _("Güncelleme Mevcut"), html, 500,
+                soru=_("Şimdi indirip kurmak ister misiniz?"),
+                dugmeler=(_("Tarayıcıda Aç"), _("Daha Sonra"))):
             from PyQt6.QtGui import QDesktopServices
             from PyQt6.QtCore import QUrl
             from core.paths import xdg_open

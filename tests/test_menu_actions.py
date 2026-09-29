@@ -301,7 +301,7 @@ def test_YORUM_komutu_TURKCE_arayuzde_ingilizce_kalmiyor(ana_pencere,
     """"Yorum Toggle" Türkçe arayüzde İngilizce kalmıştı: Düzenle menüsünde,
     Klavye Kısayolları'nda ve Özellikler'de (ölçüldü 2026-09-29, v1.1.2
     exe'si). Menü ve kısayol kutusu GERÇEKTEN kuruluyor, metin oradan."""
-    from PyQt6.QtWidgets import QMessageBox
+    from PyQt6.QtWidgets import QDialog, QMessageBox, QTextBrowser
 
     w = ana_pencere()
     metinler = []
@@ -316,10 +316,15 @@ def test_YORUM_komutu_TURKCE_arayuzde_ingilizce_kalmiyor(ana_pencere,
     assert "Yorum Sa&tırı Yap/Kaldır" in metinler, metinler
     assert not [m for m in metinler if "Toggle" in m]
 
+    # Kutu bir QTextBrowser penceresi (bkz. yardim_penceresi); QMessageBox
+    # yakalaması, eski yola dönülürse test modal döngüde kilitlenmesin diye.
     yakalanan = []
     monkeypatch.setattr(QMessageBox, "information",
                         lambda parent, baslik, metin, *a, **k:
                         yakalanan.append(metin))
+    monkeypatch.setattr(QTextBrowser, "setHtml",
+                        lambda self, h: yakalanan.append(h))
+    monkeypatch.setattr(QDialog, "exec", lambda self: 0)
     w._show_shortcuts()
     assert yakalanan and "Ctrl+/ · Yorum Satırı Yap/Kaldır" in yakalanan[0]
     assert "Toggle" not in yakalanan[0]
@@ -516,20 +521,23 @@ def _yardim_diyaloglari(monkeypatch):
             super().__init__()
             self._theme_mgr = types.SimpleNamespace(theme=THEMES["dark"])
 
-    yakalanan = {}
+    # İkisi de QTextBrowser penceresi (bkz. yardim_penceresi). QMessageBox
+    # yakalaması, eski yola dönülürse test modal döngüde kilitlenmesin diye.
+    yakalanan = []
     monkeypatch.setattr(
         QMessageBox, "information",
         staticmethod(lambda parent, baslik, metin, *a, **k:
-                     yakalanan.setdefault("kisayol", metin)))
+                     yakalanan.append(metin)))
     monkeypatch.setattr(
         QTextBrowser, "setHtml",
-        lambda self, h: yakalanan.setdefault("ozellik", h))
+        lambda self, h: yakalanan.append(h))
     monkeypatch.setattr(QDialog, "exec", lambda self: 0)
 
     MainWindow._show_shortcuts(_Vekil())
+    kis = "".join(yakalanan)
+    yakalanan.clear()
     MainWindow._show_features(_Vekil())
-    kis = yakalanan.get("kisayol", "")
-    ozl = yakalanan.get("ozellik", "")
+    ozl = "".join(yakalanan)
     assert len(kis) > 500 and len(ozl) > 500, (
         "kapı boşa düşmesin, diyalog gövdeleri yakalanamadı "
         f"({len(kis)}, {len(ozl)} karakter)")

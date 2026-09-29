@@ -35,8 +35,10 @@ CACHE_INTERVAL = 86400  # 24 saat (saniye)
 
 # Diyalogda gosterilecek not tavani. Eskiden 500'du ve v1.0.19'un 3577
 # karakterlik changelog'unun %86'si kayboluyordu (13 maddeden 2'si yarim
-# goruunuyordu). Tavan tamamen kalkarsa QMessageBox kaydirilamadigi icin
-# diyalog ekrandan tasar; kirpildiginda kullaniciya soyleniyor.
+# goruunuyordu). Pencere kaydirilabilir ve ekrana sigiyor (bkz.
+# main_window.yardim_penceresi; QMessageBox'ken 1500 bile 1366x768'de
+# tasiyordu); tavan bildirimi kisa tutuyor, kirpildiginda kullaniciya
+# soyleniyor.
 _NOT_TAVANI = 1500
 _RE_BASLIK = re.compile(r"\s*#{1,6}\s")
 # Madde başlangıcı: `- `, `* `, `+ `, `1. `, `1) `. Devam satırları

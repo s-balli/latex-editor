@@ -115,8 +115,8 @@ TEMEL = {"tag": "v1.0.21", "url": "https://example.org/r", "notes": "not"}
 def guncelleme_diyalogu(qapp, monkeypatch):
     """`_on_update_found`u koştur; (HTML, tarayıcıya giden ham url) döndür."""
     from PyQt6.QtGui import QDesktopServices
-    from PyQt6.QtWidgets import QMessageBox, QWidget
-    from gui.main_window import MainWindow
+    from PyQt6.QtWidgets import QWidget
+    import gui.main_window as mw
     from gui.theme import THEMES
 
     class _Vekil(QWidget):
@@ -128,21 +128,12 @@ def guncelleme_diyalogu(qapp, monkeypatch):
 
     def _calistir(info, tikla=False):
         yak = {}
-        dugmeler = []
-        asil_add = QMessageBox.addButton
 
-        def _add(self, *a, **k):
-            b = asil_add(self, *a, **k)
-            dugmeler.append(b)
-            return b
+        def _pencere(ebeveyn, tema, baslik, html, *a, **k):
+            yak["h"] = html
+            return tikla                # "Tarayıcıda Aç"a basıldı mı
 
-        monkeypatch.setattr(QMessageBox, "setText",
-                            lambda self, h: yak.setdefault("h", h))
-        monkeypatch.setattr(QMessageBox, "exec", lambda self: 0)
-        monkeypatch.setattr(QMessageBox, "addButton", _add)
-        monkeypatch.setattr(
-            QMessageBox, "clickedButton",
-            lambda self: (dugmeler[0] if tikla and dugmeler else None))
+        monkeypatch.setattr(mw, "yardim_penceresi", _pencere)
         # Linux'ta adres önce temiz ortamlı xdg-open'a gidiyor (AppImage).
         # Yamalanmayınca bu test Linux'ta GERÇEK bir xdg-open başlatıyor ve
         # url'yi hiç yakalamıyordu (ölçüldü 2026-09-29, WSL, sahte xdg-open).
@@ -152,7 +143,7 @@ def guncelleme_diyalogu(qapp, monkeypatch):
             QDesktopServices, "openUrl",
             staticmethod(lambda u: yak.setdefault("url", u.toString())))
 
-        MainWindow._on_update_found(_Vekil(), info)
+        mw.MainWindow._on_update_found(_Vekil(), info)
         assert len(yak.get("h", "")) > 100, "kapı boşa düşmesin, gövde yok"
         return yak.get("h", ""), yak.get("url")
 

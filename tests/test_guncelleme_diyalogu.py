@@ -10,9 +10,9 @@ Yani satır sonları HTML'de boşluğa çöküyordu ve 13 madde tek paragrafa
 yapışıyordu. Notlar ayrıca kaçışsız gömülüyordu: sürüm notuna bir `<`
 girdiği gün gösterim bozulurdu.
 
-Testler QMessageBox'ı değiştirip GERÇEK `_on_update_found`'u çağırıyor.
-İlk probum HTML'i kendisi kurmuştu, yani düzeltilen kodu değil kendi
-kopyasını ölçüyordu ve düzeltmeden sonra da "bozuk" diyordu.
+Testler pencereyi (`yardim_penceresi`) değiştirip GERÇEK `_on_update_found`'u
+çağırıyor. İlk probum HTML'i kendisi kurmuştu, yani düzeltilen kodu değil
+kendi kopyasını ölçüyordu ve düzeltmeden sonra da "bozuk" diyordu.
 """
 
 import pytest
@@ -28,38 +28,15 @@ except ImportError:  # pragma: no cover
 gui = pytest.mark.skipif(not _VAR, reason="PyQt6 / gui modülleri gerekli")
 
 
-class _SahteRol:
-    AcceptRole = 0
-    RejectRole = 1
+class _Yakalayici:
+    """`yardim_penceresi` yerine: gelen HTML'i yakala, pencere açma."""
 
+    metin = ""
 
-class _SahteKutu:
-    """QMessageBox yerine: setText'e geleni yakala, exec hiçbir şey yapmasın."""
-
-    son = None
-    ButtonRole = _SahteRol
-
-    def __init__(self, *a, **k):
-        self.metin = ""
-        _SahteKutu.son = self
-
-    def setWindowTitle(self, s):
-        pass
-
-    def setText(self, s):
-        self.metin = s
-
-    def setInformativeText(self, s):
-        pass
-
-    def addButton(self, *a):
-        return object()
-
-    def exec(self):
-        return 0
-
-    def clickedButton(self):
-        return None
+    @staticmethod
+    def ac(ebeveyn, tema, baslik, html, *a, **k):
+        _Yakalayici.metin = html
+        return False            # "Daha Sonra"
 
 
 class _SahtePencere:
@@ -87,12 +64,13 @@ def qapp():
 @pytest.fixture
 def diyalog(qapp, monkeypatch):
     """(bilgi) -> diyalogda çizilen düz metin."""
-    monkeypatch.setattr(mw, "QMessageBox", _SahteKutu)
+    monkeypatch.setattr(mw, "yardim_penceresi", _Yakalayici.ac)
 
     def calistir(bilgi):
+        _Yakalayici.metin = ""      # önceki testten kalan gövde sayılmasın
         mw.MainWindow._on_update_found(_SahtePencere(), bilgi)
         belge = QTextDocument()
-        belge.setHtml(_SahteKutu.son.metin)
+        belge.setHtml(_Yakalayici.metin)
         return belge.toPlainText()
 
     return calistir
@@ -101,11 +79,12 @@ def diyalog(qapp, monkeypatch):
 @pytest.fixture
 def ham_html(qapp, monkeypatch):
     """(bilgi) -> diyaloğa verilen HAM HTML."""
-    monkeypatch.setattr(mw, "QMessageBox", _SahteKutu)
+    monkeypatch.setattr(mw, "yardim_penceresi", _Yakalayici.ac)
 
     def calistir(bilgi):
+        _Yakalayici.metin = ""
         mw.MainWindow._on_update_found(_SahtePencere(), bilgi)
-        return _SahteKutu.son.metin
+        return _Yakalayici.metin
 
     return calistir
 
@@ -161,6 +140,51 @@ def test_notlar_bossa_bolum_hic_yok(diyalog):
     cizilen = diyalog(_bilgi(""))
 
     assert "notları:" not in cizilen
+
+
+@gui
+@pytest.mark.parametrize("dugme, acilmali", [("Tarayıcıda Aç", True),
+                                              ("Daha Sonra", False)])
+def test_GERCEK_pencerede_dugmeler_dogru_isliyor(qapp, monkeypatch, dugme,
+                                                acilmali):
+    """Pencere yamalanmadan: düğmeye gerçekten basılıyor.
+
+    Bildirim QMessageBox'tan kaydırılabilir pencereye taşındı (bkz.
+    `yardim_penceresi`); yukarıdaki kapılar pencereyi yamalıyor, yani hangi
+    düğmeye basıldığının `_on_update_found`a doğru dönmesini görmüyorlar.
+    Soru düğmelerin üstünde durmalı, Enter eskisi gibi Tarayıcıda Aç olmalı.
+    """
+    import types
+    from PyQt6.QtGui import QDesktopServices
+    from PyQt6.QtWidgets import (QDialog, QDialogButtonBox, QLabel,
+                                 QMessageBox, QWidget)
+    from gui.theme import THEMES
+
+    goren, acilan = {}, []
+
+    def bas(dlg):
+        kutu = dlg.findChild(QDialogButtonBox)
+        goren["varsayilan"] = [b.text() for b in kutu.buttons() if b.isDefault()]
+        goren["etiketler"] = [e.text() for e in dlg.findChildren(QLabel)]
+        next(b for b in kutu.buttons() if b.text() == dugme).click()
+        return dlg.result()
+
+    monkeypatch.setattr(QDialog, "exec", bas)
+    # Eski yola dönülürse test modal döngüde kilitlenmesin, düşsün
+    monkeypatch.setattr(QMessageBox, "exec", lambda self: 0)
+    monkeypatch.setattr("core.paths.xdg_open",
+                        lambda u: acilan.append(u) or True)
+    monkeypatch.setattr(QDesktopServices, "openUrl",
+                        staticmethod(lambda u: acilan.append(u.toString())))
+    pencere = QWidget()
+    pencere._theme_mgr = types.SimpleNamespace(theme=THEMES["dark"])
+    pencere._status = types.SimpleNamespace(showMessage=lambda *a: None)
+
+    mw.MainWindow._on_update_found(pencere, _bilgi("- madde"))
+
+    assert acilan == (["https://ornek/releases"] if acilmali else []), acilan
+    assert goren["varsayilan"] == ["Tarayıcıda Aç"], goren
+    assert "Şimdi indirip kurmak ister misiniz?" in goren["etiketler"], goren
 
 
 # ---------------------------------------------------------------------------
