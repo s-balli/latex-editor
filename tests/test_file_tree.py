@@ -1165,3 +1165,64 @@ def test_BOLUM_sekmesinde_input_agaci_KOKE_gore(qapp, tmp_path):
     finally:
         tree.deleteLater()
         qapp.processEvents()
+
+
+def test_KOK_YOLU_tek_satirda_klasor_adi_gorunuyor_tam_yol_ipucunda(qapp,
+                                                                   tmp_path):
+    """Kök etiketi sözcük kaydırmalıydı. ÖLÇÜLDÜ (2026-09-29, v1.1.2 exe):
+    boşluksuz uzun yol üç satırda kesildi, açık klasörün ADI hiç görünmedi.
+    Genel stil sayfasıyla kuruluyor: stilsiz yerleşim kapısı bu depoda
+    sonsuz bir Resize döngüsünü görmemişti."""
+    from PyQt6.QtCore import QEvent, QObject
+    from gui.stylesheet import build_stylesheet
+
+    derin = (tmp_path / "Cok Uzun Bir Klasor Adi Olan Proje"
+             / "Tez Calismasi (Subat)" / "bolumler")
+    derin.mkdir(parents=True)
+
+    class _Sayac(QObject):
+        n = 0
+
+        def eventFilter(self, obj, olay):
+            if olay.type() == QEvent.Type.Resize:
+                self.n += 1
+            return False
+
+    tree = FileTree(theme=THEMES["dark"])
+    tree.setStyleSheet(build_stylesheet(THEMES["dark"]))
+    etiket = tree._root_label
+    sayac = _Sayac()
+    etiket.installEventFilter(sayac)
+    try:
+        tree.resize(210, 500)
+        tree.show()
+        tree.set_root(str(derin))
+        for _ in range(30):
+            qapp.processEvents()
+        metin = etiket.text()
+        assert "\n" not in metin
+        assert metin.endswith("bolumler"), metin
+        assert etiket.toolTip() == os.path.normpath(str(derin))
+        assert (etiket.fontMetrics().horizontalAdvance(metin)
+                <= etiket.contentsRect().width())
+        assert sayac.n < 10, f"etiket {sayac.n} kez yeniden boyutlandı"
+    finally:
+        tree.deleteLater()
+        qapp.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+
+
+def test_KOK_YOLU_yazi_degisince_yeniden_kisaltiliyor(qapp):
+    """Tema stil sayfası yazı boyunu yol konduktan SONRA verebiliyor. Kısaltma
+    eski yazıyla kalırsa büyüyen yazıda metin etiketten taşar."""
+    from PyQt6.QtGui import QFont
+    from gui.file_tree import _YolEtiketi
+
+    etiket = _YolEtiketi()
+    etiket.resize(160, 24)
+    etiket.yol_koy("C:\\Users\\ali\\" + "Uzun Klasor Adi\\" * 6 + "tez")
+    buyuk = QFont(etiket.font())
+    buyuk.setPixelSize(2 * max(1, etiket.fontMetrics().height()))
+    etiket.setFont(buyuk)
+    assert etiket.text().endswith("tez"), etiket.text()
+    assert (etiket.fontMetrics().horizontalAdvance(etiket.text())
+            <= etiket.contentsRect().width()), etiket.text()

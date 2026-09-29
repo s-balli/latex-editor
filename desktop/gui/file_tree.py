@@ -5,11 +5,11 @@ import re
 
 import send2trash
 
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QUrl
+from PyQt6.QtCore import QEvent, Qt, QTimer, pyqtSignal, QUrl
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QTreeWidget, QTreeWidgetItem,
-    QPushButton, QLabel, QMenu, QMessageBox, QInputDialog,
+    QPushButton, QLabel, QMenu, QMessageBox, QInputDialog, QSizePolicy,
 )
 from PyQt6.QtCore import QFileSystemWatcher, QMimeData
 
@@ -180,6 +180,49 @@ class _DragTree(QTreeWidget):
         return mime
 
 
+class _YolEtiketi(QLabel):
+    """Ağaç kökünün yolu: TEK satır, SOLDAN kısaltılmış, tamamı ipucunda.
+
+    Eskiden sözcük kaydırmalı düz bir QLabel'dı. Boşluksuz uzun yol ancak
+    birkaç yerden kırılıyor, etiket yerleşimin verdiği yükseklikte
+    kesiliyordu. ÖLÇÜLDÜ (2026-09-29, v1.1.2 exe): üç satır görünüyor,
+    ikincisi "C:\\Users\\...\\claude\\" ile bitiyor; açık klasörün ADI
+    hiç görünmüyor. Soldan kısaltınca yolun SONU kalıyor: klasörün adı ve
+    üstündeki proje klasörü, ki kullanıcının asıl baktığı o.
+
+    Genişlik yerleşimden geliyor, metinden değil (`Ignored`): kısaltılmamış
+    yol etiketin en küçük genişliği olup paneli genişletmesin.
+    """
+
+    def __init__(self):
+        super().__init__("")
+        self._yol = ""
+        self.setSizePolicy(QSizePolicy.Policy.Ignored,
+                           QSizePolicy.Policy.Preferred)
+
+    def yol_koy(self, yol: str):
+        self._yol = yol
+        self.setToolTip(yol)
+        self._sigdir()
+
+    def resizeEvent(self, event):
+        super().resizeEvent(event)
+        self._sigdir()
+
+    def changeEvent(self, event):
+        # Tema stil sayfası yazı boyunu veriyor (10px): kısaltma o yazıyla.
+        super().changeEvent(event)
+        if event.type() in (QEvent.Type.FontChange, QEvent.Type.StyleChange):
+            self._sigdir()
+
+    def _sigdir(self):
+        metin = self.fontMetrics().elidedText(
+            self._yol, Qt.TextElideMode.ElideLeft,
+            max(0, self.contentsRect().width()))
+        if metin != self.text():
+            self.setText(metin)
+
+
 class FileTree(QWidget):
     file_open_requested = pyqtSignal(str)
     compile_requested = pyqtSignal(str)
@@ -235,8 +278,7 @@ class FileTree(QWidget):
         self._bar_widget = bar_widget
 
         # Klasör yolu
-        self._root_label = QLabel("")
-        self._root_label.setWordWrap(True)
+        self._root_label = _YolEtiketi()
         layout.addWidget(self._root_label)
 
         # Ağaç
@@ -304,7 +346,7 @@ class FileTree(QWidget):
         if yeni == self._root:
             return
         self._root = yeni
-        self._root_label.setText(self._root)
+        self._root_label.yol_koy(self._root)
         self.refresh()
         self.root_changed.emit(self._root)
 
