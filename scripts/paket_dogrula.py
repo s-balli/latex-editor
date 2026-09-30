@@ -20,8 +20,9 @@ PyInstaller Qt hook'u topluyor; dusarsa arayuz Turkce acilir ama Qt'nin
 urettigi sag tik menuleri ve dugmeler Ingilizce kalir.
 
 Ayrica pakete OLU AGIRLIK girmedigi de denetleniyor: `.xz` sozlukler
-(1.6 MB), `.ts` ceviri kaynaklari (~300 KB) ve Qt'nin kullanilmayan dil
-kataloglari (99 dosya, 6.9 MB; scripts/paket_suzgeci.py eliyor).
+(1.6 MB), `.ts` ceviri kaynaklari (~300 KB), Qt'nin kullanilmayan dil
+kataloglari (99 dosya, 6.9 MB; scripts/paket_suzgeci.py eliyor) ve
+uygulamanin artik kullanmadigi Pillow (6.1 MB; spec excludes eliyor).
 
 Kullanim:
     python scripts/paket_dogrula.py "desktop/dist/LaTeX Editor.exe"
@@ -172,6 +173,15 @@ def dogrula(yol: str) -> int:
         if var_mi(istenmeyen):
             hata.append("spylls'in kullanilmayan sozlugu paketlenmis: %s"
                         % istenmeyen)
+    # Pillow: uygulama kullanmiyor (pdf_render ham tampon), ama pypdfium2'nin
+    # tembel `to_pil` ice aktarimi yuzunden PyInstaller onu, kurulu oldugu
+    # ortamda, spec'teki excludes olmadan yine topluyor (1.2.1 exe'sinde
+    # 6.1 MB). Onefile'da ikilileri (`PIL/_imaging...`), onedir'de dizini
+    # ve Linux tekerleginin `pillow.libs`i goruluyor.
+    pil = [a for a in duz
+           if "/PIL/" in "/" + a or "/pillow.libs/" in "/" + a]
+    if pil:
+        hata.append("Pillow paketlenmis (olu agirlik): %s" % sorted(pil)[:3])
 
     print("paket icerigi: %d girdi" % len(duz))
     # Yalniz DENETLENENLER listeleniyor. Qt'nin butun dilleri yazilsaydi

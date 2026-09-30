@@ -39,9 +39,11 @@ def modname(request):
 
 
 # Eksikliği SKIP sebebi olan üçüncü parti paketler. Bunun DIŞINDAki her
-# ImportError bizim kodumuzun hatasıdır ve testi kırmalıdır.
+# ImportError bizim kodumuzun hatasıdır ve testi kırmalıdır. `PIL` listede
+# DEĞİL: uygulama Pillow'u artık kullanmıyor (bkz. gui/pdf_render.py), yani
+# bir modülün onu içe aktarması Pillow'suz pakette çökme demek.
 _UCUNCU_PARTI = {
-    "PyQt6", "Qsci", "pypdfium2", "PIL", "send2trash", "dulwich",
+    "PyQt6", "Qsci", "pypdfium2", "send2trash", "dulwich",
 }
 
 

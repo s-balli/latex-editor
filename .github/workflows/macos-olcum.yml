@@ -87,7 +87,8 @@ jobs:
       - name: Bagimliliklar arm64'te kuruluyor mu
         run: |
           python -m pip install --upgrade pip
-          python -m pip install -r desktop/requirements.txt pytest
+          # Pillow yalniz testlerin kehaneti (bkz. ci.yml test isi).
+          python -m pip install -r desktop/requirements.txt pytest Pillow
           python -c "import platform; print('python mimarisi:', platform.machine())"
           python -c "import PyQt6.QtWidgets, PyQt6.Qsci, pypdfium2, PIL, send2trash, dulwich, spylls; print('import: ok')"
 
@@ -464,7 +465,8 @@ jobs:
       - name: Python bagimliliklari
         run: |
           # python-docx: uretilen .docx acilabiliyor mu kapisi icin (bkz. ci.yml)
-          python -m pip install --quiet -r desktop/requirements.txt pytest python-docx
+          # Pillow: yalniz testlerin kehaneti (bkz. ci.yml test isi)
+          python -m pip install --quiet -r desktop/requirements.txt pytest python-docx Pillow
 
       # HARF DUYARSIZLIGI. "Klasorde Ara"nin kok denetimi harf vakalarini
       # `os.name != "nt"` ile atliyor ve gerekce "POSIX'te farkli yazim farkli

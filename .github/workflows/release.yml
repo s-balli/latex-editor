@@ -68,10 +68,12 @@ jobs:
           sudo chown -R "$USER" ~/apt-arsiv
           echo "onbellekteki paket: $(ls ~/apt-arsiv/*.deb 2>/dev/null | wc -l)"
 
+      # Pillow yalniz testlerin kehaneti (bkz. ci.yml test isi); yapi islerine
+      # kurulmuyor, paketlere girmiyor.
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -r desktop/requirements.txt pytest
+          pip install -r desktop/requirements.txt pytest Pillow
 
       - name: Run tests
         env:

@@ -77,8 +77,12 @@ a = Analysis(
     # kullaniyor (surum notlari diyalogu). Haric tutulunca exe HIC
     # ACILMIYOR: ModuleNotFoundError, gui/main_window.py satir 6.
     # `email` de ayni sebeple listede degil, bkz. yukaridaki not.
+    # `PIL` uygulamada KULLANILMIYOR (pdf_render ham tamponu kullaniyor);
+    # pypdfium2'nin tembel `to_pil` ice aktarimi yuzunden Pillow kurulu
+    # ortamda yine toplaniyordu (1.2.1 exe'sinde 6.1 MB).
+    # scripts/paket_dogrula.py pakette olmadigini denetliyor.
     # tests/test_spec_excludes.py bu sinifi topluca koruyor.
-    excludes=['tkinter', 'unittest', 'test', 'xmlrpc', 'pydoc', 'curses', 'lib2to3', 'idlelib', 'pip', 'setuptools'],
+    excludes=['tkinter', 'unittest', 'test', 'xmlrpc', 'pydoc', 'curses', 'lib2to3', 'idlelib', 'pip', 'setuptools', 'PIL'],
     noarchive=False,
     optimize=0,
 )

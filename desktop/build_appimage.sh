@@ -73,6 +73,13 @@ if command -v inkscape &>/dev/null; then
     TMP_SVG=$(mktemp /tmp/icon_XXXXXX.svg)
     sed 's/viewBox="0 0 256 256"/viewBox="-32 0 320 256"/' "$ICON_SVG" > "$TMP_SVG"
     inkscape -w 640 -h 512 "$TMP_SVG" -o /tmp/icon_render.png 2>/dev/null
+    # Pillow YALNIZ bu kirpma ve olcekleme icin, yapim araci olarak:
+    # uygulama onu kullanmiyor ve requirements.txt'te yok (2026-09-30).
+    # CI inkscape kurdugu icin bu dal orada kosuyor; kurulum olmasa
+    # `set -e` yapimi burada durdururdu. PyInstaller yukarida coktan kostu;
+    # venv yeniden kullanilirsa spec'teki excludes ve paket_dogrula.py onu
+    # paketin disinda tutuyor.
+    pip install -q Pillow
     python3 -c "
 from PIL import Image
 img = Image.open('/tmp/icon_render.png')

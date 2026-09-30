@@ -593,6 +593,69 @@ class TestPaketCevirileri:
 
 
 # ==========================================================================
+# Pillow pakete girmemeli
+#
+# Uygulama Pillow'u 2026-09-30'dan beri kullanmiyor (pdf_render ham tamponu
+# dogrudan QImage'e veriyor). pypdfium2'nin tembel `to_pil` ice aktarimi
+# yuzunden PyInstaller onu, kurulu oldugu ortamda, excludes olmadan yine
+# topluyor: yayinlanan 1.2.1 exe'sinde 6.1 MB.
+# ==========================================================================
+
+class TestPaketPillow:
+
+    @pytest.mark.parametrize("parca", [
+        "PIL/_imaging.cp312-win_amd64.pyd",                        # onefile
+        "_internal/PIL/_imaging.cpython-312-x86_64-linux-gnu.so",  # onedir
+        "_internal/pillow.libs/libjpeg-8a13c6e0.so.62.4.0",        # Linux
+    ])
+    def test_PILLOW_olu_agirlik_sayiliyor(self, tmp_path, capsys,
+                                          _sozluk_hazir, parca):
+        pd = _paket_dogrula()
+        paket = _sahte_paket(str(tmp_path / "pilli"))
+        yol = os.path.join(paket, *parca.split("/"))
+        os.makedirs(os.path.dirname(yol), exist_ok=True)
+        open(yol, "wb").close()
+        rc = pd.dogrula(paket)
+        cikti = capsys.readouterr().out
+        assert rc != 0, "Pillow'lu paket temiz sayildi: " + parca
+        assert "Pillow paketlenmis" in cikti, cikti
+
+    def test_adi_PIL_ile_BASLAYAN_klasor_suclanmiyor(self, tmp_path,
+                                                     _sozluk_hazir):
+        """Asiri gevsek kapi olmasin: yol parcasi TAM `PIL` olmali."""
+        pd = _paket_dogrula()
+        paket = _sahte_paket(str(tmp_path / "pilsiz"))
+        yol = os.path.join(paket, "PILOT", "notlar.txt")
+        os.makedirs(os.path.dirname(yol), exist_ok=True)
+        open(yol, "wb").close()
+        assert pd.dogrula(paket) == 0
+
+    def test_APPIMAGE_betigi_PILi_kullanmadan_once_kuruyor(self):
+        """Pillow requirements'ta yok; betik simgeyi Pillow'la kirpiyor.
+
+        CI inkscape kuruyor, yani o dal yayin yapiminda KOSUYOR ve `set -e`
+        yuzunden Pillow'suz venv'de yapimi durdururdu. Kusur yalniz etiketle
+        kosan yayin akisinda gorunurdu, o yuzden burada metinden bakiliyor.
+        """
+        metin = _oku(os.path.join(_MASAUSTU, "build_appimage.sh"))
+        kullanim = metin.find("from PIL import")
+        if kullanim == -1:
+            return                        # Pillow'a dayanan adim kalmamis
+        kurulum = metin.find("pip install -q Pillow")
+        assert 0 <= kurulum < kullanim, (
+            "build_appimage.sh Pillow'u kurmadan kullaniyor")
+
+    @pytest.mark.parametrize("spec", ["LaTeX Editor.spec",
+                                      "latex-editor-linux.spec",
+                                      "latex-editor-macos.spec"])
+    def test_UC_SPEC_de_PIL_i_disliyor(self, spec):
+        metin = _oku(os.path.join(_MASAUSTU, spec))
+        m = re.search(r"excludes=\[(.*?)\]", metin, re.S)
+        assert m and "'PIL'" in m.group(1), (
+            "%s Pillow'u paketten dislamiyor" % spec)
+
+
+# ==========================================================================
 # Qt'nin KULLANILMAYAN dil kataloglari pakete girmemeli
 #
 # PyInstaller'in Qt hook'u `QtCore -> ['qt', 'qtbase']`, `Qsci ->

@@ -25,12 +25,19 @@ def render_page_to_qimage(page, scale: float, invert: bool = False) -> QImage:
     #
     # `.copy()` ham tamponu ayrıştırıyor; kilit oraya kadar yetiyor,
     # invertPixels saf Qt.
+    #
+    # PILLOW YOK: PDFium sayfayı RGB sırasında çiziyor (`rev_byteorder`) ve
+    # ham tampon satır adımıyla (stride) doğrudan QImage'e veriliyor. Eskiden
+    # `bitmap.to_pil().tobytes()` vardı; Pillow'un tek işi bu çeviriydi ve
+    # onu zorunlu kılıyordu (1.2.1 exe'sinde 6.1 MB, pakete giren 11.3.0
+    # için 13 güvenlik danışması). ÖLÇÜLDÜ (2026-09-30): iki test PDF'i ve
+    # altı şablon, dört ölçekte eski yolla piksel piksel aynı (pypdfium2
+    # 4.30.0'da 60/60, 5.13.0'da 56/56). Biçim sayfaya değil seçeneklere
+    # bağlı: varsayılanlar her sayfada 3 kanal üretiyor.
     with pdfium_lock:
-        bitmap = page.render(scale=scale)
-        pil_img = bitmap.to_pil()
-        raw = pil_img.tobytes()
-        w, h = pil_img.size
-        img = QImage(raw, w, h, w * 3, QImage.Format.Format_RGB888).copy()
+        bitmap = page.render(scale=scale, rev_byteorder=True)
+        img = QImage(bytes(bitmap.buffer), bitmap.width, bitmap.height,
+                     bitmap.stride, QImage.Format.Format_RGB888).copy()
     if invert:
         img.invertPixels()
     return img
