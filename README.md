@@ -45,11 +45,18 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 > gh attestation verify LaTeX_Editor_v<version>_Windows.exe --repo s-balli/latex-editor
 > ```
 >
-> The attestation is signed through Sigstore and recorded in the public Rekor transparency log, so it can be verified independently of this repository. Attestations start with the first release published after v1.0.23; earlier files have none and the command will report that. For the macOS `.dmg` they start with the first release after v1.2.0.
+> The attestation is signed through Sigstore and recorded in the public Rekor transparency log, so it can be verified independently of this repository. Attestations start with the first release published after v1.0.23; earlier files have none and the command will report that. For the macOS `.dmg` they start with v1.2.1.
 
 ---
 
 ## Version History
+
+### v1.2.1: Same Place, Two Names
+
+- **Ctrl+click in the PDF could jump to the next file in a project opened through a symbolic link.** TeX records file names with the folder's real path, so SyncTeX answered with a different path than the one the project was opened with. Every answer then looked like it came from outside the project, and the rule that keeps a click at a chapter's end in the right file stopped working. On macOS this hit every project in a temporary folder, because `/var` and `/tmp` are links there: on a chapter-end page 88 of 88 clicks came back with the other path, and with LuaLaTeX five of the first six went to the next file. Answers are now mapped back to the project's own path.
+- **The macOS `.dmg` now carries a signed build provenance attestation**, like the Windows exe and the AppImage, so `gh attestation verify` works on it too.
+- **The AppImage no longer carries an unused second copy of the translations** together with their `.ts` sources. The release check now inspects the AppImage you download instead of an intermediate folder, which is why the copy went unnoticed.
+- **The test suite passes on macOS (Apple Silicon) for the first time**, with and without TeX installed.
 
 ### v1.2.0: Through the User's Eyes
 

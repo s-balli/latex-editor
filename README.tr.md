@@ -45,11 +45,18 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 > gh attestation verify LaTeX_Editor_v<sürüm>_Windows.exe --repo s-balli/latex-editor
 > ```
 >
-> Kanıt Sigstore ile imzalanıp herkese açık Rekor şeffaflık kütüğüne yazılıyor, yani bu depodan bağımsız olarak da doğrulanabiliyor. Kanıtlar v1.0.23'ten SONRA yayınlanan ilk sürümle başlıyor; daha eski dosyalarda yok ve komut bunu bildiriyor. macOS `.dmg` dosyasında kanıt v1.2.0'dan sonraki ilk sürümle başlıyor.
+> Kanıt Sigstore ile imzalanıp herkese açık Rekor şeffaflık kütüğüne yazılıyor, yani bu depodan bağımsız olarak da doğrulanabiliyor. Kanıtlar v1.0.23'ten SONRA yayınlanan ilk sürümle başlıyor; daha eski dosyalarda yok ve komut bunu bildiriyor. macOS `.dmg` dosyasında kanıt v1.2.1 ile başlıyor.
 
 ---
 
 ## Sürüm Geçmişi
+
+### v1.2.1: Aynı Yer, İki Ad
+
+- **Sembolik bağ üzerinden açılan projede PDF'e Ctrl+tık sonraki dosyaya atlayabiliyordu.** TeX dosya adlarını klasörün gerçek yoluyla kaydediyor, bu yüzden SyncTeX projenin açıldığı yoldan farklı bir yol döndürüyordu. Her cevap proje dışından gelmiş gibi görünüyor, bölüm sonundaki tıklamayı doğru dosyada tutan kural da çalışmıyordu. macOS'ta `/var` ve `/tmp` birer bağ olduğu için geçici klasördeki her proje etkileniyordu: bölüm sonu sayfasında 88 tıklamanın 88'i öbür yolla döndü, LuaLaTeX'te ilk altısının beşi sonraki dosyaya gitti. Cevaplar artık projenin kendi yoluna çevriliyor.
+- **macOS `.dmg` artık imzalı derleme kanıtı taşıyor**, Windows exe'si ve AppImage gibi; `gh attestation verify` onda da çalışıyor.
+- **AppImage çevirilerin hiç okunmayan ikinci bir kopyasını** `.ts` kaynaklarıyla birlikte taşımıyor. Yayın denetimi artık ara klasöre değil, indirdiğiniz AppImage'e bakıyor; kopya bu yüzden fark edilmemişti.
+- **Test takımı macOS'ta (Apple Silicon) ilk kez hatasız geçiyor**, TeX kurulu olsa da olmasa da.
 
 ### v1.2.0: Kullanıcının Gözünden
 
