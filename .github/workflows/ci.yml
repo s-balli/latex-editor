@@ -77,6 +77,21 @@ jobs:
       - name: Bagimlilik surumleri kaydi (ODR B3)
         run: pip freeze | grep -iE "pyqt6|qscintilla|pypdfium|pillow|send2trash|dulwich|spylls|pytest"
 
+      # GUVENLIK DANISMASI. Dependabot masaustu bagimliliklarini GORMUYOR:
+      # requirements.txt aralik veriyor, bagimlilik grafigi paketleri
+      # surumsuz listeliyor ve uyari uretmiyor. Olculdu (2026-09-30):
+      # yayinlanan paketler Pillow 11.3.0 tasiyordu, 13 danismasi vardi,
+      # depoda uyari 0. pip-audit gereksinimleri ayri bir ortamda COZUP pakete
+      # girecek tam surumleri PyPI'nin danisma verisiyle karsilastiriyor;
+      # bilinen acik varsa is duser. Yalniz 3.12'de: paketler onunla
+      # uretiliyor. Test kurulumu (pytest, Pillow) denetlenmiyor, pakete
+      # girmiyor.
+      - name: Pakete giren surumlerde bilinen acik var mi (pip-audit)
+        if: matrix.python-version == '3.12'
+        run: |
+          pip install "pip-audit==2.10.1"
+          pip-audit --progress-spinner off -r desktop/requirements.txt -r desktop/requirements-build.txt
+
       - name: Lint (ruff)
         run: |
           pip install "ruff==0.16.2"
