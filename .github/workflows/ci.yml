@@ -15,7 +15,7 @@ jobs:
         # requires-python >=3.10: en eski desteklenen + güncel
         python-version: ['3.10', '3.12']
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Tanıtım sayfası kapısı git tarihini okuyor (bkz.
           # tests/test_install_lists.py). Öntanımlı sığ klonda kapı
@@ -23,7 +23,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
 
@@ -77,6 +77,21 @@ jobs:
       - name: Bagimlilik surumleri kaydi (ODR B3)
         run: pip freeze | grep -iE "pyqt6|qscintilla|pypdfium|pillow|send2trash|dulwich|spylls|pytest"
 
+      # GUVENLIK DANISMASI. Dependabot masaustu bagimliliklarini GORMUYOR:
+      # requirements.txt aralik veriyor, bagimlilik grafigi paketleri
+      # surumsuz listeliyor ve uyari uretmiyor. Olculdu (2026-09-30):
+      # yayinlanan paketler Pillow 11.3.0 tasiyordu, 13 danismasi vardi,
+      # depoda uyari 0. pip-audit gereksinimleri ayri bir ortamda COZUP pakete
+      # girecek tam surumleri PyPI'nin danisma verisiyle karsilastiriyor;
+      # bilinen acik varsa is duser. Yalniz 3.12'de: paketler onunla
+      # uretiliyor. Test kurulumu (pytest, Pillow) denetlenmiyor, pakete
+      # girmiyor.
+      - name: Pakete giren surumlerde bilinen acik var mi (pip-audit)
+        if: matrix.python-version == '3.12'
+        run: |
+          pip install "pip-audit==2.10.1"
+          pip-audit --progress-spinner off -r desktop/requirements.txt -r desktop/requirements-build.txt
+
       - name: Lint (ruff)
         run: |
           pip install "ruff==0.16.2"
@@ -116,7 +131,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Tanıtım sayfası kapısı git tarihini okuyor (bkz.
           # tests/test_install_lists.py). Öntanımlı sığ klonda kapı
@@ -124,7 +139,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           # release.yml'deki build-windows job'ı ile AYNI sürüm: exe hangi
           # yorumlayıcıyla paketleniyorsa testler de onunla koşsun
@@ -195,7 +210,7 @@ jobs:
     runs-on: ubuntu-22.04
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Tanıtım sayfası kapısı git tarihini okuyor (bkz.
           # tests/test_install_lists.py). Öntanımlı sığ klonda kapı
@@ -203,7 +218,7 @@ jobs:
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.12'
 
@@ -216,7 +231,7 @@ jobs:
       # Anahtarda "v1" var: paket listesi degisirse elle artirilmali, yoksa
       # eksik paket eski onbellekten gelmis gibi gorunur.
       - name: APT paket onbellegi
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/apt-arsiv
           key: apt-texlive-${{ runner.os }}-v1
