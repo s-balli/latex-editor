@@ -51,6 +51,11 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 
 ## Sürüm Geçmişi
 
+### v1.2.3: Yeni Motor
+
+- **PDF önizlemesi daha yeni bir PDFium kullanıyor.** Paketler Mayıs 2024 tarihli pypdfium2 4.30.0'ı (PDFium 126) taşıyordu. 4.x'in sonraki tek sürümü metin çıkarmadaki bir gerileme yüzünden geri çekildiği için sürüm sınırı her derlemeyi orada tutuyordu. Artık pypdfium2 5.13.0 (PDFium 153) taşıyorlar; tam test takımı onunla Windows, Linux ve macOS'ta geçiyor. Paketler 0,6 ile 0,9 MB arasında büyüdü.
+- **Her değişiklik artık paketlere giren kütüphanelerin bilinen açıklarına karşı denetleniyor.** CI, bir sürümün taşıyacağı tam sürümleri çözüp PyPI'nin güvenlik verisiyle karşılaştırıyor. 1.2.2'nin çıkardığı Pillow sürümünü yakalayacak olan denetim bu.
+
 ### v1.2.2: Daha Hafif
 
 - **Pillow üç paketten de çıktı.** Uygulama onu tek bir adım için kullanıyordu: çizilen PDF sayfasını Qt'ye aktarmak. PDFium artık sayfayı Qt'nin okuduğu bayt sırasında çiziyor ve görüntü doğrudan Qt'ye gidiyor. Eski yolla 60 çizimde (iki test PDF'i ve altı şablon, dört yakınlaştırma düzeyi) piksel piksel karşılaştırıldı, 60'ı da aynı. Paketler Pillow 11.3.0 taşıyordu; GitHub Advisory Database'de bu sürüm için 13 güvenlik kaydı var (10'u yüksek, 3'ü orta önemde) ve hepsinin düzeltmesi yalnız 12.x'te. Uygulama bu kodlara hiç uğramıyordu (PSD, FITS, JPEG 2000 gibi biçimlerin çözücüleri), ama kütüphane paketteydi.

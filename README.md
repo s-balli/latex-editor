@@ -51,6 +51,11 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 
 ## Version History
 
+### v1.2.3: Newer Engine
+
+- **The PDF preview uses a newer PDFium.** The packages carried pypdfium2 4.30.0 from May 2024 (PDFium 126). The only later 4.x release had been withdrawn over a text extraction regression, so the version limit kept every build there. They now carry pypdfium2 5.13.0 (PDFium 153), and the full test suite passes with it on Windows, Linux and macOS. The packages grow by 0.6 to 0.9 MB.
+- **Every change is now checked against known vulnerabilities in the libraries that go into the packages.** CI resolves the exact versions a release would ship and compares them with PyPI's advisory data. This is the check that would have caught the Pillow version 1.2.2 removed.
+
 ### v1.2.2: Lighter
 
 - **Pillow is gone from all three packages.** The app used it for a single step: handing the rendered PDF page to Qt. PDFium now renders in the byte order Qt reads and the image goes to Qt directly. Compared pixel by pixel with the old path on 60 renders (two test PDFs and six templates, four zoom levels), all 60 are identical. The packages carried Pillow 11.3.0, for which the GitHub Advisory Database lists 13 advisories (10 high, 3 medium), all fixed only in 12.x. The app never reached the affected code, which sits in decoders for formats such as PSD, FITS and JPEG 2000, but the library was in the package.
