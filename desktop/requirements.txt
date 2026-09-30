@@ -20,7 +20,12 @@ pypdfium2>=4.20,<5
 #
 # Disa aktarmaya GEREKMIYOR: core/exporter.py pandoc cagiriyor ve
 # gorsellerle yaptigi is yalnizca YOLLARI metin olarak duzeltmek.
-Pillow>=10.0,<12
+#
+# UST SINIR 13: `<12` iken yayin 11.3.0'da kaliyordu. GitHub Advisory
+# Database'de 11.3.0 icin 13 danisma var ve hepsinin duzeltmesi 12.1.1 ile
+# 12.3.0 arasinda (olculdu 2026-09-30); sinir geri cekilirse paket yine
+# acikli surumu tasir.
+Pillow>=10.0,<13
 send2trash>=1.8,<2
 dulwich>=1.0,<2
 # Yazim denetimi. Hunspell'in SAF PYTHON portu: pyenchant gibi yerel bir C
