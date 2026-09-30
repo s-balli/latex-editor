@@ -1,6 +1,10 @@
 PyQt6>=6.6,<7
 PyQt6-QScintilla>=2.14,<3
-pypdfium2>=4.20,<5
+# pypdfium2 UST SINIR 6 (2026-09-30): `<5` iken paketler 4.30.0'da (Mayis
+# 2024) kaliyordu; 4.x'in sonraki tek surumu 4.30.1, PDFium'daki bir metin
+# cikarma gerilemesi yuzunden geri cekilmis. Windows gelistirme ortaminda
+# tam takim 5.13.0 ile zaten geciyordu.
+pypdfium2>=4.20,<6
 # Pillow GEREKMIYOR (2026-09-30'da cikarildi): pdf_render.py PDFium'un ham
 # tamponunu dogrudan QImage'e veriyor, gerekcesi ve olcumu orada. Testler
 # Pillow'u yalniz kehanet olarak kullaniyor; CI onu test isinde ayrica
