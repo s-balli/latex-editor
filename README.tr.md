@@ -51,6 +51,12 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 
 ## Sürüm Geçmişi
 
+### v1.2.2: Daha Hafif
+
+- **Pillow üç paketten de çıktı.** Uygulama onu tek bir adım için kullanıyordu: çizilen PDF sayfasını Qt'ye aktarmak. PDFium artık sayfayı Qt'nin okuduğu bayt sırasında çiziyor ve görüntü doğrudan Qt'ye gidiyor. Eski yolla 60 çizimde (iki test PDF'i ve altı şablon, dört yakınlaştırma düzeyi) piksel piksel karşılaştırıldı, 60'ı da aynı. Paketler Pillow 11.3.0 taşıyordu; GitHub Advisory Database'de bu sürüm için 13 güvenlik kaydı var (10'u yüksek, 3'ü orta önemde) ve hepsinin düzeltmesi yalnız 12.x'te. Uygulama bu kodlara hiç uğramıyordu (PSD, FITS, JPEG 2000 gibi biçimlerin çözücüleri), ama kütüphane paketteydi.
+- **İndirmeler küçüldü:** Windows exe'si 6,4 MB, AppImage 5,7 MB, macOS `.dmg` 4,6 MB küçük; yayın adımlarıyla yapılan derlemelerde ölçüldü.
+- **Yayın denetimi, Pillow bir pakete geri girerse artık düşüyor.** PyInstaller, Pillow kurulu her derleme makinesinde onu kendiliğinden pakete alıyordu.
+
 ### v1.2.1: Aynı Yer, İki Ad
 
 - **Sembolik bağ üzerinden açılan projede PDF'e Ctrl+tık sonraki dosyaya atlayabiliyordu.** TeX dosya adlarını klasörün gerçek yoluyla kaydediyor, bu yüzden SyncTeX projenin açıldığı yoldan farklı bir yol döndürüyordu. Her cevap proje dışından gelmiş gibi görünüyor, bölüm sonundaki tıklamayı doğru dosyada tutan kural da çalışmıyordu. macOS'ta `/var` ve `/tmp` birer bağ olduğu için geçici klasördeki her proje etkileniyordu: bölüm sonu sayfasında 88 tıklamanın 88'i öbür yolla döndü, LuaLaTeX'te ilk altısının beşi sonraki dosyaya gitti. Cevaplar artık projenin kendi yoluna çevriliyor.
@@ -469,7 +475,7 @@ sudo apt-get install texlive-base texlive-binaries texlive-latex-base \
 
 Python kurulumu gerektirmez. `dist/` klasöründen `LaTeX Editor.exe` dosyasını istediğiniz klasöre kopyalayın ve çift tıklayarak çalıştırın. `derle.sh` betiği exe'nin içine gömülüdür, ayrıca kopyalamaya gerek yok.
 
-**Boyut:** ~63 MB (PyQt6, pypdfium2, send2trash dahil)
+**Boyut:** yayınlanan exe ~50 MB (PyQt6, pypdfium2, send2trash dahil)
 
 **Exe'yi oluşturmak için:**
 

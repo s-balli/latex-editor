@@ -51,6 +51,12 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 
 ## Version History
 
+### v1.2.2: Lighter
+
+- **Pillow is gone from all three packages.** The app used it for a single step: handing the rendered PDF page to Qt. PDFium now renders in the byte order Qt reads and the image goes to Qt directly. Compared pixel by pixel with the old path on 60 renders (two test PDFs and six templates, four zoom levels), all 60 are identical. The packages carried Pillow 11.3.0, for which the GitHub Advisory Database lists 13 advisories (10 high, 3 medium), all fixed only in 12.x. The app never reached the affected code, which sits in decoders for formats such as PSD, FITS and JPEG 2000, but the library was in the package.
+- **Smaller downloads:** the Windows exe is 6.4 MB smaller, the AppImage 5.7 MB and the macOS `.dmg` 4.6 MB, measured on builds made with the release steps.
+- **The release check now fails if Pillow gets back into a package.** PyInstaller picked it up on its own on any build machine where Pillow was installed.
+
 ### v1.2.1: Same Place, Two Names
 
 - **Ctrl+click in the PDF could jump to the next file in a project opened through a symbolic link.** TeX records file names with the folder's real path, so SyncTeX answered with a different path than the one the project was opened with. Every answer then looked like it came from outside the project, and the rule that keeps a click at a chapter's end in the right file stopped working. On macOS this hit every project in a temporary folder, because `/var` and `/tmp` are links there: on a chapter-end page 88 of 88 clicks came back with the other path, and with LuaLaTeX five of the first six went to the next file. Answers are now mapped back to the project's own path.
@@ -468,7 +474,7 @@ sudo apt-get install texlive-base texlive-binaries texlive-latex-base \
 
 No Python installation required. Copy `LaTeX Editor.exe` from `dist/` to any folder and double-click to run. `derle.sh` is embedded in the exe, no need to copy separately.
 
-**Size:** ~63 MB (includes PyQt6, pypdfium2, send2trash)
+**Size:** ~50 MB for the released exe (includes PyQt6, pypdfium2, send2trash)
 
 **To build the exe:**
 
