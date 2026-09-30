@@ -29,7 +29,7 @@ jobs:
     runs-on: macos-15          # arm64 Apple Silicon (macos-13 Intel'dir)
     timeout-minutes: 25
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           # Tanitim sayfasi kapisi git tarihini okuyor (bkz.
           # tests/test_install_lists.py).
@@ -76,7 +76,7 @@ jobs:
           head -20 "$RUNNER_TEMP/cikti.txt" || true
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           # release.yml'deki paketleme isleriyle AYNI surum
           python-version: '3.12'
@@ -132,10 +132,10 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.12'
 
@@ -269,12 +269,12 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.12'
 
@@ -551,7 +551,7 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: BasicTeX kur
         run: |
@@ -627,10 +627,10 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.12'
 
@@ -711,10 +711,10 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.12'
 
@@ -819,7 +819,7 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 40
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Yayindan .dmg indir
         env:
@@ -898,7 +898,7 @@ jobs:
           screencapture -x "$RUNNER_TEMP/ekran.png" 2>&1 || echo "screencapture calismadi"
           ls -lh "$RUNNER_TEMP/ekran.png" 2>/dev/null || echo "goruntu yok"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: macos-ekran-goruntusu
@@ -988,7 +988,7 @@ jobs:
       # bakilabiliyor ne de baska bir platformun ciktisiyla
       # karsilastirilabiliyordu. Kaynak .tex de yaniyor gidiyor, cunku
       # karsilastirma ancak AYNI kaynakla anlamli.
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: macos-uretilen-pdf
@@ -1004,7 +1004,7 @@ jobs:
             || echo "screencapture calismadi"
           ls -lh "$RUNNER_TEMP/ekran-derleme.png" 2>/dev/null || echo "goruntu yok"
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: macos-derleme-goruntusu
