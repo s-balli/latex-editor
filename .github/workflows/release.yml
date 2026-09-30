@@ -381,8 +381,14 @@ jobs:
   # com.apple.quarantine` calistirir. Notarization Developer ID istiyor.
   build-macos:
     needs: test
+    # Izinler build-windows'taki gibi: kanit adimi (asagida) id-token,
+    # attestations ve artifact-metadata istiyor; job duzeyinde yazilinca
+    # `contents: write` de tekrar yazilmali.
     permissions:
       contents: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
@@ -479,6 +485,15 @@ jobs:
           name: LaTeX Editor v${{ steps.ver.outputs.VERSION }}
           body_path: release-notes.md
           fail_on_unmatched_files: true
+
+      # Bkz. build-windows'taki ayni adimin gerekcesi. Bu isde yoktu: v1.2.0
+      # yayininda exe ve AppImage kanit tasiyordu, .dmg tasimiyordu
+      # (olculdu 2026-09-29, `gh api .../attestations/<ozet>`). Konu .dmg,
+      # cunku kullanicinin indirdigi dosya o; .app onun icinde.
+      - name: Derleme kaniti (imzali provenance)
+        uses: actions/attest@v4
+        with:
+          subject-path: desktop/dist/LaTeX_Editor_v${{ steps.ver.outputs.VERSION }}_macOS_arm64.dmg
 
   # Yayin cikinca winget-pkgs'e surum yukseltme PR'i ac. Ilk surum (1.0.19)
   # ELLE gonderildi (microsoft/winget-pkgs#429063); bu eylem yalniz var olan

@@ -45,7 +45,7 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 > gh attestation verify LaTeX_Editor_v<version>_Windows.exe --repo s-balli/latex-editor
 > ```
 >
-> The attestation is signed through Sigstore and recorded in the public Rekor transparency log, so it can be verified independently of this repository. Attestations start with the first release published after v1.0.23; earlier files have none and the command will report that.
+> The attestation is signed through Sigstore and recorded in the public Rekor transparency log, so it can be verified independently of this repository. Attestations start with the first release published after v1.0.23; earlier files have none and the command will report that. For the macOS `.dmg` they start with the first release after v1.2.0.
 
 ---
 
