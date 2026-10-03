@@ -168,19 +168,26 @@ def birlesik_metin(text: str) -> str:
     Harita gerekmediği için toplu NFC burada serbest ve gerekli: kopyalanan
     metin başka programlara gidiyor, orada birleşik biçim bekleniyor.
 
-    Satır sonu tiresi (U+0002, bkz. `arama_metni`) atılıyor: bölünmüş bir
-    sözcüğü kopyalayan kullanıcı araya görünmez bir denetim karakteri
-    yapıştırıyordu.
+    Satır sonu tiresi atılıyor: bölünmüş bir sözcüğü kopyalayan kullanıcı
+    araya görünmez bir karakter yapıştırıyordu. İKİ işaret var (aşağıdaki
+    not): kopyalanan seçim `get_text_range`ten geliyor ve orada tire U+FFFE.
+    2026-10-03'e kadar yalnız aramanın U+0002'si atılıyordu; gerçek kopyada
+    U+FFFE kalıyordu, çünkü test seçim metnini elle U+0002'li yazıyordu.
     """
-    text = text.replace(_SATIR_SONU_TIRESI, "")
+    text = text.replace(_SATIR_SONU_TIRESI, "").replace(_SECIM_SATIR_SONU_TIRESI, "")
     if not any(a in text for a in _AKSAN_BIRLESIK):
         return unicodedata.normalize("NFC", text)
     return unicodedata.normalize("NFC", aksanlari_birlestir(text)[0])
 
 
-# pdfium satır sonundaki tireyi U+0002 olarak veriyor ve iki yarıyı araya
-# satır sonu koymadan birleştiriyor (ölçüm `arama_metni`nde).
+# pdfium satır sonundaki tireyi bir işaretle veriyor ve iki yarıyı araya
+# satır sonu koymadan birleştiriyor (ölçüm `arama_metni`nde). İşaret
+# çağrılan işleve bağlı. ÖLÇÜLDÜ (2026-10-03, tests/veri/tireli_arama.pdf;
+# pypdfium2 4.30 ve 5.13 aynı): `get_text_bounded` (PDF araması) U+0002,
+# açık aralıklı `get_text_range` (seçim ve kopyalama) U+FFFE. İkincisi
+# kaçışla değil `chr` ile yazılı: kaynakta görünmez karakter olmasın.
 _SATIR_SONU_TIRESI = "\x02"
+_SECIM_SATIR_SONU_TIRESI = chr(0xFFFE)
 
 
 def arama_metni(ham: str) -> tuple[str, list[tuple[int, int]] | None]:

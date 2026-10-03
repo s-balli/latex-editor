@@ -725,6 +725,37 @@ class TestSatirSonu:
         assert birlesik_metin("karşılaştırılabi\x02lirlik") == \
             "karşılaştırılabilirlik"
 
+    def test_GERCEK_secim_metni_kopyada_isaret_birakmiyor(self):
+        """Kopya GERÇEK seçim metniyle: tests/veri/tireli_arama.pdf.
+
+        Seçim `get_text_range(baslangic, sayi)` kullanıyor ve pdfium o yolda
+        satır sonu tiresini U+FFFE olarak veriyor; aramanın
+        `get_text_bounded`ındaki U+0002 olarak DEĞİL (ölçüldü 2026-10-03,
+        pypdfium2 4.30 ve 5.13 aynı). Yukarıdaki test kopyayı elle yazılmış
+        U+0002'li bir metinle sınıyordu, yani gerçek kopya yolunu hiç
+        görmüyordu: 13 bölünmüş sözcüğün 13'ünde panoya U+FFFE gidiyordu.
+        İşaretler kaçışla değil `chr` ile: kaynakta görünmez karakter olmasın.
+        """
+        import os
+        import pypdfium2
+        from gui.pdfium_lock import pdfium_lock
+
+        yol = os.path.join(os.path.dirname(__file__), "veri", "tireli_arama.pdf")
+        with pdfium_lock:
+            belge = pypdfium2.PdfDocument(yol)
+            try:
+                sayfa = belge[0].get_textpage()
+                secim = sayfa.get_text_range(0, sayfa.count_chars())
+            finally:
+                belge.close()
+        isaretler = (chr(0xFFFE), chr(2))
+        assert any(i in secim for i in isaretler), \
+            "kapı boş: seçim metninde satır sonu tiresi yok"
+        kopya = birlesik_metin(secim)
+        assert not any(i in kopya for i in isaretler), \
+            "panoya giden metinde satır sonu işareti kaldı"
+        assert "sürdürülebilirlik" in kopya
+
     def test_GERCEK_pdfte_kaynaktaki_her_gecis_bulunuyor(self):
         """Gerçek pdflatex çıktısı (tests/veri/tireli_arama.*): kaynaktaki
         her sözcük ve ardışık sözcük ikilisi, kaynakta kaç kez geçiyorsa PDF'te
