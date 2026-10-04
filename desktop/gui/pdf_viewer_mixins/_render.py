@@ -412,6 +412,7 @@ class PdfRenderMixin:
         scroll_y = self._scroll.verticalScrollBar().value()
 
         bas = self._ilk_gorunur_aday(scroll_y)
+        bulundu = False
         for i in range(bas, len(self._page_labels)):
             label = self._page_labels[i]
             if i >= self._page_count:
@@ -421,7 +422,15 @@ class PdfRenderMixin:
             label_bottom = label_top + label.height()
 
             label_bottom_abs = label_y + label.height()
-            if sayfayi_guncelle and label_y <= scroll_y < label_bottom_abs:
+            # İLK eşleşen: çift sayfada satırın sol sayfası. Döngü sağ
+            # sayfayı da eşleştirip sayacı eziyordu; kaydırınca sayaç sağ,
+            # düğme ve yer imiyle sol sayfayı gösteriyordu ve sunum (F5)
+            # sayaçtan başladığı için sol sayfayı atlıyordu. ÖLÇÜLDÜ
+            # (2026-10-04, altı sayfa): 3-4 satırına kaydırınca "Sayfa 4 / 6",
+            # `_update_nav` iki kez.
+            if (sayfayi_guncelle and not bulundu
+                    and label_y <= scroll_y < label_bottom_abs):
+                bulundu = True
                 if self._current_page != i:
                     self._current_page = i
                     self._update_nav()

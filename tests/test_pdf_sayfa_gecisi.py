@@ -305,3 +305,47 @@ class TestBelgeYuklenince_gorunum_ve_sayac_ayrismiyor:
             "kaydırma korunmadı"
         assert gorucu._current_page == 2, gorucu._lbl_page.text()
         assert "3 / %d" % SAYFA in gorucu._lbl_page.text()
+
+
+@gui
+class TestCiftSayfaSatirSatir:
+    """Çift sayfa kipinde sayaç satırın SOL sayfası, düğmeler satır satır.
+
+    ÖLÇÜLDÜ (2026-10-04, altı sayfa, %50): 3-4 satırına kaydırınca sayaç
+    "Sayfa 4 / 6", yer imiyle 3. sayfaya gidince "Sayfa 3 / 6"; 3.
+    sayfadayken ">" sayacı 4 yaptı, görüntü kımıldamadı. Sunum (F5)
+    sayaçtan başladığı için kaydırdıktan sonra sol sayfayı atlıyordu.
+    """
+
+    @staticmethod
+    def _cift(v):
+        v._zoom_uygula(0.5)
+        assert _yerlesti(v)
+        v._toggle_dual_page(True)
+        assert _yerlesti(v)
+
+    def test_KAYDIRINCA_sayac_satirin_SOL_sayfasi(self, gorucu):
+        self._cift(gorucu)
+        dikey = gorucu._scroll.verticalScrollBar()
+        for sol in (2, 4, 0):
+            dikey.setValue(_ust(gorucu, sol) + 30)
+            _dongu(30)
+            assert gorucu._current_page == sol, gorucu._lbl_page.text()
+
+    def test_DUGMELER_satir_satir_ve_goruntu_her_basista_kimildiyor(self, gorucu):
+        self._cift(gorucu)
+        dikey = gorucu._scroll.verticalScrollBar()
+        assert gorucu._current_page == 0, "koşul kurulmadı"
+        assert not gorucu._btn_prev.isEnabled()
+        for beklenen in (2, 4):
+            once = dikey.value()
+            gorucu.next_page()
+            _zamanlayici_kossun()
+            assert gorucu._current_page == beklenen, gorucu._lbl_page.text()
+            assert dikey.value() > once, "görüntü kımıldamadı"
+        assert not gorucu._btn_next.isEnabled(), "son satırda '>' açık"
+        once = dikey.value()
+        gorucu.prev_page()
+        _zamanlayici_kossun()
+        assert gorucu._current_page == 2, gorucu._lbl_page.text()
+        assert dikey.value() < once, "görüntü kımıldamadı"

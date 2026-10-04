@@ -26,24 +26,39 @@ class PdfNavigationMixin:
         # sığdırılıyor; yoksa etiket kırpılır, komşusu üstüne biner.
         self._cubugu_sigdir()
         self._lbl_zoom.setText(f"{int(self._zoom * 100)}%")
-        self._btn_prev.setEnabled(self._current_page > 0)
-        self._btn_next.setEnabled(self._current_page < self._page_count - 1)
+        self._btn_prev.setEnabled(0 <= self._komsu_sayfa(-1) < self._page_count)
+        self._btn_next.setEnabled(0 <= self._komsu_sayfa(1) < self._page_count)
         self._btn_save.setEnabled(bool(self._pdf_path and self._page_count > 0))
         self._btn_invert.setEnabled(bool(self._pdf and self._page_count > 0))
         self._btn_present.setEnabled(bool(self._pdf and self._page_count > 0))
         has_bookmarks = self._bookmark_tree.topLevelItemCount() > 0 if hasattr(self, '_bookmark_tree') else False
         self._btn_bookmarks.setEnabled(has_bookmarks)
 
+    def _komsu_sayfa(self, yon: int) -> int:
+        """Sonraki (yon=1) ya da önceki (yon=-1) sayfa.
+
+        Çift sayfa kipinde adım SATIR: satırlar (0,1), (2,3)... ve hedef,
+        satırın sol sayfası. Sayfa sayfa ilerlemek satırın sol sayfasından
+        sağına geçerken görüntüyü kımıldatmıyordu. ÖLÇÜLDÜ (2026-10-04,
+        altı sayfa): 3. sayfadayken ">" sayacı 4 yaptı, kaydırma 677'de
+        kaldı; düğme her satırda yarım adım ölüydü.
+        """
+        if getattr(self, "_dual_page", False):
+            return (self._current_page // 2 + yon) * 2
+        return self._current_page + yon
+
     def prev_page(self):
-        if self._current_page > 0:
-            self._current_page -= 1
-            self._scroll_to_page(self._current_page)
+        hedef = self._komsu_sayfa(-1)
+        if 0 <= hedef < self._page_count:
+            self._current_page = hedef
+            self._scroll_to_page(hedef)
             self._update_nav()
 
     def next_page(self):
-        if self._current_page < self._page_count - 1:
-            self._current_page += 1
-            self._scroll_to_page(self._current_page)
+        hedef = self._komsu_sayfa(1)
+        if 0 <= hedef < self._page_count:
+            self._current_page = hedef
+            self._scroll_to_page(hedef)
             self._update_nav()
 
     def _scroll_to_page(self, index: int):
