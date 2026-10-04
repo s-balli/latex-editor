@@ -51,6 +51,12 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 
 ## Sürüm Geçmişi
 
+### v1.2.4: Daha Kararlı Önizleme
+
+- **PDF'te satır sonunda bölünmüş bir sözcüğü kopyalamak artık görünmez bir karakter taşımıyor.** PDF'te seçilip kopyalanan metinde, satır sonunda bölünmüş her sözcüğün ortasına bir U+FFFE işareti giriyordu. Arama bu işareti zaten atıyordu; kopya da artık sözcüğü düzgün birleştiriyor.
+- **Hiçbir şeyi değiştirmeyen bir yakınlaştırmadan sonra görüntü artık geri zıplamıyor.** Sayfa zaten sığmışken "Genişliğe Sığdır"a basmak ya da %300 sınırında yakınlaştırmak, yakınlaştırmanın konum kaydını bekletiyordu. Başka bir sayfaya kaydırdıktan sonraki ilk pencere boyu değişikliği ya da sayfa sayısını değiştiren bir derleme, görüntüyü yakınlaştırmanın yapıldığı yere geri atıyordu. Bu, PDF bölmesi araç çubuğunun tamamına yetecek kadar genişken oluyordu.
+- **Çift sayfa görünümünde sayaç ve düğmeler sayfa çiftine göre çalışıyor.** Sayfa sayacı kaydırırken sağ sayfayı, bir yere gidince sol sayfayı gösteriyordu; F5 ile başlatılan sunum bu yüzden bir sayfa geç başlayabiliyordu. Sayaç artık çiftin sol sayfasını gösteriyor; "<" ve ">" düğmeleri yarım adım yerine bir sayfa çifti ilerliyor.
+
 ### v1.2.3: Yeni Motor
 
 - **PDF önizlemesi daha yeni bir PDFium kullanıyor.** Paketler Mayıs 2024 tarihli pypdfium2 4.30.0'ı (PDFium 126) taşıyordu. 4.x'in sonraki tek sürümü metin çıkarmadaki bir gerileme yüzünden geri çekildiği için sürüm sınırı her derlemeyi orada tutuyordu. Artık pypdfium2 5.13.0 (PDFium 153) taşıyorlar; tam test takımı onunla Windows, Linux ve macOS'ta geçiyor. Paketler 0,6 ile 0,9 MB arasında büyüdü.

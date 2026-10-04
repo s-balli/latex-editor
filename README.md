@@ -51,6 +51,12 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 
 ## Version History
 
+### v1.2.4: Steadier Preview
+
+- **Copying a word the PDF hyphenated at a line end no longer pastes an invisible character.** Text selected in the PDF and copied carried a U+FFFE marker into the middle of every word split across lines. Search already removed the marker; the copy now joins the word cleanly too.
+- **The PDF view no longer jumps back after a zoom that changed nothing.** Pressing "Fit Width" when the page already fit, or zooming in at the 300% limit, kept the zoom's position mark waiting. After you scrolled to another page, the next window resize or a compile that changed the page count threw the view back to where the zoom was made. This showed when the PDF pane was wide enough for its whole toolbar.
+- **Two-page view counts and steps by spread.** The page counter showed the right page while scrolling and the left page after a jump, so a presentation started with F5 could begin one page late. The counter now shows the left page of the spread, and the "<" and ">" buttons move a whole spread instead of half a step.
+
 ### v1.2.3: Newer Engine
 
 - **The PDF preview uses a newer PDFium.** The packages carried pypdfium2 4.30.0 from May 2024 (PDFium 126). The only later 4.x release had been withdrawn over a text extraction regression, so the version limit kept every build there. They now carry pypdfium2 5.13.0 (PDFium 153), and the full test suite passes with it on Windows, Linux and macOS. The packages grow by 0.6 to 0.9 MB.
