@@ -331,8 +331,9 @@ class TestKodlama:
         cagrilar = [n for n in ast.walk(agac)
                     if isinstance(n, ast.Call)
                     and isinstance(n.func, ast.Attribute) and n.func.attr == "run"]
-        # ileri/geri x WSL/yerli + ters aramanın toplu WSL sorgusu
-        assert len(cagrilar) == 5, f"beklenen 5 subprocess.run, bulunan {len(cagrilar)}"
+        # ileri x WSL/yerli, geri yerli ve geri WSL'in toplu sorgusu (tek
+        # sorguluk geri WSL kolu 2026-10-04'te ölü kod olarak kalktı)
+        assert len(cagrilar) == 4, f"beklenen 4 subprocess.run, bulunan {len(cagrilar)}"
         for c in cagrilar:
             kw = {k.arg for k in c.keywords}
             assert "encoding" in kw and "errors" in kw
