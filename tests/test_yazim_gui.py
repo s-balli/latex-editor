@@ -10,6 +10,10 @@ böylece testler spylls ve 9 MB'lık tr_TR olmadan da koşuyor (CI'da ikisi de
 yok).
 """
 
+import os
+import subprocess
+import sys
+import textwrap
 from types import SimpleNamespace
 
 import pytest
@@ -511,6 +515,68 @@ def test_denetleyici_yokken_sozluge_ekleme_cokmez(qapp):
 def test_cleanup_thread_yokken_cokmez(qapp):
     s = _Stub()
     s._cleanup_yazim()                      # patlamamalı
+
+
+_KOK = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+_KAPANIS_COCUGU = textwrap.dedent('''
+    import os, sys, threading
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    sys.path.insert(0, os.path.join(r"{kok}", "desktop"))
+    sys.path.insert(0, r"{kok}")
+    import core.log as _gunluk          # günlük hapiste (bkz. test_pdf_viewer_yikim)
+    _gunluk.LOG_DIR = r"{gunluk}"
+    _gunluk.LOG_FILE = os.path.join(_gunluk.LOG_DIR, "latex-editor.log")
+    from PyQt6.QtCore import QEvent
+    from PyQt6.QtWidgets import QApplication, QWidget
+    app = QApplication([])
+    import core.yazim as yazim
+    import gui.mixins.yazim_ops as yo
+
+    # Yükleme pencere silinene kadar sürüyor; dosya sistemine dokunulmuyor.
+    birak = threading.Event()
+    yazim.Denetleyici.yukle = lambda self, *a, **k: birak.wait(20)
+    yo._sozluk_dizini_gerekli_mi = lambda dil: ""
+    yo.kullanici_sozlugu_yolu = lambda dil: ""
+    yo._KAPANIS_BEKLEMESI_MS = 50
+
+    class Pencere(QWidget):
+        _cleanup_yazim = yo.YazimOpsMixin._cleanup_yazim
+
+    w = Pencere()
+    w._yazim_thread = yo.YazimYukleThread("tr_TR", "", w)
+    w._yazim_thread.start()
+    w._cleanup_yazim()
+    w.deleteLater()
+    QApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    print("PENCERE SILINDI", flush=True)
+    birak.set()
+''')
+
+
+def test_kapanista_BITMEYEN_yukleme_sureci_dusurmuyor(tmp_path):
+    """Sözlük yüklenirken kapanış süreci ÖLDÜRMEMELİ.
+
+    Yükleme kesilemiyor ve kapanış onu sınırlı bekliyor. Bekleme dolunca iş
+    parçacığı pencereyle birlikte siliniyordu: "QThread: Destroyed while
+    thread is still running", süreç Aborted. ÖLÇÜLDÜ (2026-10-04, gerçek
+    MainWindow, 6 sn'lik yükleme): çıkış 134; yükte gerçek yükleme 7-8 sn.
+    Çocukta yükleme pencere silinene kadar sürüyor, bekleme 50 ms'ye
+    indiriliyor ki test uzamasın.
+
+    AYRI SÜREÇTE koşuyor: ölçülen şey sürecin ölmesi (bkz.
+    test_pdf_viewer_yikim).
+    """
+    cy = tmp_path / "cocuk.py"
+    gunluk = tmp_path / "gunluk"
+    cy.write_text(_KAPANIS_COCUGU.format(kok=_KOK, gunluk=gunluk), encoding="utf-8")
+    r = subprocess.run([sys.executable, str(cy)], capture_output=True, text=True,
+                       encoding="utf-8", errors="replace", timeout=120)
+    # Çocuğun günlüğü hapiste yazıldı mı: yazılmadıysa gerçek dosyaya gitmiştir.
+    assert (gunluk / "latex-editor.log").exists(), r.stderr[-400:]
+    durum = "çıkış=%s stderr=%s" % (r.returncode, (r.stderr or "")[-400:])
+    assert "PENCERE SILINDI" in (r.stdout or ""), durum
+    assert r.returncode == 0, durum
 
 
 # =====================================================================

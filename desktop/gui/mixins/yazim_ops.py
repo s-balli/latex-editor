@@ -13,6 +13,7 @@ TASARIM: denetim CANLI DEĞİL, komutla çalışır.
 Sözlük yükleme AYRI İŞ PARÇACIĞINDA: 3.5 sn arayüzü dondurur.
 """
 
+import atexit
 import lzma
 import os
 import re
@@ -208,7 +209,9 @@ def kullanici_sozlugu_yolu(dil: str) -> str:
 
 
 class YazimYukleThread(QThread):
-    """Sözlüğü arka planda yükler. ÖLÇÜLDÜ: tr_TR 3.5 sn."""
+    """Sözlüğü arka planda yükler. ÖLÇÜLDÜ: tr_TR boş makinede 3.5 sn,
+    işlemci doluyken 7-8 sn (2026-10-04). Kesilemiyor; kapanışta bkz.
+    `YazimOpsMixin._cleanup_yazim`."""
     yuklendi = pyqtSignal(object)      # Denetleyici
     hata = pyqtSignal(str)
 
@@ -234,6 +237,21 @@ class YazimYukleThread(QThread):
         except Exception as e:                            # noqa: BLE001
             log.warning("yazım sözlüğü yüklenemedi: %s", e)
             self.hata.emit(str(e))
+
+
+# Kapanışta BİTMEMİŞ sözlük yüklemeleri: pencereden ayrılıp burada tutuluyor
+# ve süreç çıkarken bekleniyor (bkz. `YazimOpsMixin._cleanup_yazim`). PDF
+# çizim işçisi aynı kalıbı kullanıyor (pdf_render_worker._alive_workers).
+_KAPANIS_BEKLEMESI_MS = 3000
+_kapanista_bitmeyen: list = []
+
+
+def _cikista_yuklemeleri_bekle():
+    for t in _kapanista_bitmeyen:
+        t.wait(30000)
+
+
+atexit.register(_cikista_yuklemeleri_bekle)
 
 
 class YazimOpsMixin:
@@ -509,9 +527,26 @@ class YazimOpsMixin:
             self._yazim_calistir()
 
     def _cleanup_yazim(self):
-        """Kapanışta iş parçacığını bekle. Yarıda kalan QThread çökmeye yol
-        açıyor (bu depoda yaşandı: GC sırasında SIGABRT)."""
+        """Kapanışta sözlük yüklemesini bekle; bitmezse pencereden ayır.
+
+        Yarıda kalan QThread çökmeye yol açıyor (bu depoda yaşandı: GC
+        sırasında SIGABRT). Bekleme sınırlı ama yükleme kesilemiyor ve
+        süresi beklemeyi aşıyordu. ÖLÇÜLDÜ (2026-10-04): işlemci doluyken
+        tr_TR 7-8 sn; "Denetle"den hemen sonra kapanınca 3 sn beklenip
+        vazgeçiliyor, çıkışta pencere silinirken çalışan iş parçacığı da
+        siliniyordu: "QThread: Destroyed while thread is still running",
+        süreç Aborted (WSL'de yeniden üretildi; 1 sn'lik yüklemede temiz).
+        Ayrılan iş parçacığı modülde tutulup çıkışta bekleniyor, yani pencere
+        bekletilmeden kapanıyor. Sonucunu artık kimse beklemediği için
+        sinyalleri kesiliyor. `quit()` yok: `run()` olay döngüsü işletmiyor.
+        """
         t = getattr(self, "_yazim_thread", None)
-        if t is not None and t.isRunning():
-            t.quit()
-            t.wait(3000)
+        if t is None or not t.isRunning() or t.wait(_KAPANIS_BEKLEMESI_MS):
+            return
+        for sinyal in (t.yuklendi, t.hata):
+            try:
+                sinyal.disconnect()
+            except TypeError:
+                pass                            # bağlı alıcı yok
+        t.setParent(None)
+        _kapanista_bitmeyen.append(t)
