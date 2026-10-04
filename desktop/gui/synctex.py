@@ -435,6 +435,11 @@ def _forward_native(tex_path: str, line: int, col: int, pdf_path: str,
         return ARAC_YOK
 
 
+# Toplu sorguda her `synctex edit`in çıktısının sonuna düşen işaret; ardından
+# o sorgunun çıkış kodu geliyor.
+_TOPLU_AYRAC = "@@latex-editor-synctex@@"
+
+
 # Koordinat synctex'e KESİRLİ veriliyor. `int(x)`/`int(y)` ile kırpılıyordu
 # ve bunun bir gerekçesi yazılı değildi; kullanıcının tıkladığı nokta bir
 # puntoya kadar kaydırılmış oluyordu. Satır yüksekliği ~9 pt, yani 1 pt
@@ -442,43 +447,10 @@ def _forward_native(tex_path: str, line: int, col: int, pdf_path: str,
 # kırpmak 11 noktada FARKLI satır döndürüyor; tam isabet 76'ya karşı 80,
 # istenen satırdan ortalama sapma 4.7'ye karşı 4.5. Kazanç küçük ama tek
 # yönlü ve bedeli yok: synctex kesirli koordinatı zaten kabul ediyor.
-def _reverse_wsl(page: int, x: float, y: float, pdf_path: str,
-                synctex_dir: str = "") -> ReverseResult | None:
-    gercek_pdf = _gercek_yol(pdf_path)    # bkz. _forward_wsl'deki gerekçe
-    wsl_pdf = windows_to_wsl(gercek_pdf)
-    cmd = ["wsl", "-e", "synctex", "edit",
-           "-o", f"{page}:{x:f}:{y:f}:{wsl_pdf}"]
-    if synctex_dir:
-        cmd += ["-d", windows_to_wsl(synctex_dir)]
-    try:
-        r = subprocess.run(cmd, capture_output=True, text=True,
-                           encoding="utf-8", errors="replace", timeout=_ZAMAN_ASIMI,
-                           startupinfo=_SI, creationflags=_SUBPROCESS_FLAGS)
-        if r.returncode == _KOMUT_YOK:
-            return ARAC_YOK
-        if r.returncode != 0 or r.stdout is None:
-            return None
-        parsed = _parse_reverse(r.stdout)
-        if parsed:
-            # `ornek` PDF'in Windows yolu: proje WSL'in KENDİ dosya
-            # sisteminde duruyorsa dağıtım adı yalnız oradan öğrenilebiliyor
-            # (gerekçe ve üretilmiş örnek core/paths.py'de).
-            parsed.file_path = wsl_to_windows(parsed.file_path,
-                                              ornek=gercek_pdf)
-        return _kullanici_yoluna(parsed, pdf_path)
-    except subprocess.TimeoutExpired as e:
-        _logger.warning("SyncTeX reverse (WSL) zaman aşımı: sayfa %d (%s)", page, e)
-        return None
-    except (FileNotFoundError, OSError) as e:
-        _logger.warning("SyncTeX reverse (WSL) çalıştırılamadı: sayfa %d (%s)", page, e)
-        return ARAC_YOK
-
-
-# Toplu sorguda her `synctex edit`in çıktısının sonuna düşen işaret; ardından
-# o sorgunun çıkış kodu geliyor.
-_TOPLU_AYRAC = "@@latex-editor-synctex@@"
-
-
+#
+# Tek noktalık `_reverse_wsl` kaldırıldı (2026-10-04): Windows kolu
+# (`_reverse_search_wsl`) hep bu toplu sürümü çağırıyordu, o işlev hiçbir
+# yerden çağrılmıyordu (kapsam taramasında görüldü).
 def _reverse_wsl_toplu(page: int, noktalar: list, pdf_path: str,
                        synctex_dir: str = ""):
     """Birden çok noktayı TEK `wsl -e sh` sürecinde sor.
@@ -518,7 +490,9 @@ def _reverse_wsl_toplu(page: int, noktalar: list, pdf_path: str,
             return ARAC_YOK
         parsed = _parse_reverse("\n".join(blok)) if kod == "0" else None
         if parsed:
-            # `ornek` PDF'in Windows yolu (bkz. _reverse_wsl).
+            # `ornek` PDF'in Windows yolu: proje WSL'in KENDİ dosya
+            # sisteminde duruyorsa dağıtım adı yalnız oradan öğrenilebiliyor
+            # (gerekçe ve üretilmiş örnek core/paths.py'de).
             parsed.file_path = wsl_to_windows(parsed.file_path, ornek=gercek_pdf)
         sonuclar.append(_kullanici_yoluna(parsed, pdf_path))
         blok = []

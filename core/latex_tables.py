@@ -482,17 +482,9 @@ def _is_passthrough(s: str) -> bool:
             or s.startswith("\\end{"))
 
 
-def _row_cells(line: str) -> list[str] | None:
-    r"""Satır tablo veri satırıysa hücrelerini, değilse None döndür.
-
-    Kural satırları (\toprule vb.), \end satırı, yorum ve boş satırlar None.
-    Tek satırlık kullanım içindir; sarılmış satırlar için _logical_rows.
-    """
-    s = line.strip()
-    if _is_passthrough(s):
-        return None
-    cells = [c.strip() for c in _RE_SPLIT_CELLS.split(s.rstrip("\\").strip())]
-    return None if cells == [""] else cells
+# Tek satırlık `_row_cells` kaldırıldı (2026-10-04): hiçbir yerden
+# çağrılmıyordu (kapsam taramasında görüldü); veri satırlarını
+# `_logical_rows` ayırıyor.
 
 
 def _logical_rows(lines):

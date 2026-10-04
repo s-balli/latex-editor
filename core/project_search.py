@@ -379,9 +379,5 @@ def search_project(root: str, query: str, *, case_sensitive: bool = False,
     return bulgular, False
 
 
-def dosyaya_gore_grupla(bulgular: list[Bulgu]) -> list[tuple[str, list[Bulgu]]]:
-    """Bulguları dosya sırasını koruyarak grupla — sunum kolaylığı için."""
-    gruplar: dict[str, list[Bulgu]] = {}
-    for b in bulgular:
-        gruplar.setdefault(b.path, []).append(b)
-    return list(gruplar.items())
+# `dosyaya_gore_grupla` kaldırıldı (2026-10-04): hiçbir yerden çağrılmıyordu
+# (kapsam taramasında görüldü).

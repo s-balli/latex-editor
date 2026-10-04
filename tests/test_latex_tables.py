@@ -290,7 +290,8 @@ class TestFormat:
 class TestSarilmisSatir:
     r"""Sarılmış tablo satırı ikiye bölünmemeli (2026-08-30 denetimi, A2).
 
-    _row_cells satırın `\\` ile bitip bitmediğine bakmıyor, format_tabular da
+    _row_cells satırın `\\` ile bitip bitmediğine bakmıyordu (sonradan ölü
+    kod olarak kaldırıldı), format_tabular da
     HER kaynak satırının sonuna koşulsuz ` \\` ekliyordu. Kaynakta iki satıra
     sarılmış tek bir tablo satırı ikiye bölünüyor, ilki tek hücreli kalıyor ve
     LaTeX "Extra alignment tab" hatası veriyordu.
