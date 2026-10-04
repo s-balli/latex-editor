@@ -106,7 +106,17 @@ def _zamanlayici_kossun():
 
 
 def _yerlesti(v):
-    """Ölçek değişikliği yerleşsin: iki turda aynı geometri."""
+    """Ölçek değişikliği yerleşsin: çapa tükensin, iki turda aynı geometri.
+
+    "İki turda aynı" TEK BAŞINA YETMİYOR: yükte yerleşim geçişi hiç olmadan
+    iki ölçüm aynı çıkıyor (etiket boyu yeni, kaydırma aralığı eski).
+    ÖLÇÜLDÜ (2026-10-04, işlemci %100, WSL): bu dosya 9 koşunun 7'sinde
+    kurulumda düştü. İzde burası döndüğünde çapa hâlâ bekliyordu; test 3.
+    sayfaya gitti, geç gelen `rangeChanged` çapayı uygulayıp görüntüyü 1.
+    sayfaya attı. Yakınlaştırmanın çapası ancak yerleşim geçişinde tükeniyor.
+    """
+    if not _bekle(lambda: v._bekleyen_zoom_capasi is None):
+        return False
     onceki = None
     bitis = time.monotonic() + 3.0
     while time.monotonic() < bitis:

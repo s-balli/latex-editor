@@ -227,6 +227,51 @@ def test_capa_UYGULANDIKTAN_sonra_temizleniyor(gorucu):
     assert v._bekleyen_zoom_capasi is None
 
 
+@gui
+def test_ETKISIZ_zoomun_capasi_sonradan_gorunumu_geri_atmiyor(gorucu):
+    """Kırılırsa: başka sayfaya geçtikten sonraki ilk derleme görüntüyü
+    etkisiz yakınlaştırmanın yapıldığı eski sayfaya atıyor.
+
+    Sığdırılmışken yine "Genişliğe Sığdır" ölçeği değiştirmiyor; aralık da
+    değişmediği için çapa BEKLİYORDU. ÖLÇÜLDÜ (2026-10-04): 2. sayfadayken
+    ikinci sığdırma, 5. sayfaya kaydırma, belge bir sayfa uzayıp yeniden
+    yüklenince görüntü ve sayaç 2. sayfaya döndü.
+
+    Görüntüleyici GENİŞ: araç çubuğu sığmazsa `_cubugu_sigdir` her
+    `_update_nav`da çubuğun boyunu bir an değiştiriyor, aralık değişiyor ve
+    çapa hemen tükeniyor. ÖLÇÜLDÜ (Windows, gerçek yazı tipleri): 700 px'te
+    görüntü alanı 566 ile 570 px arasında gidip geliyor; kusur, çubuğun
+    sığdığı bölmede görünüyor.
+    """
+    v = gorucu
+    v.resize(1100, 600)
+    assert _bekle(lambda: v._scroll.viewport().width() > 1000)
+    v.fit_width()
+    assert _bekle(lambda: v._bekleyen_zoom_capasi is None)
+    assert _olcek_yerlesti(v)
+    _ortala(v, 1)
+    olcek = v._zoom
+    v.fit_width()                       # zaten sığdırılmış
+    assert v._zoom == olcek, "koşul kurulmadı: ikinci sığdırma ölçeği değiştirdi"
+    _dongu(50)
+    et = v._page_labels[4]
+    v._scroll.verticalScrollBar().setValue(
+        et.mapTo(v._pages_widget, QPoint(0, 0)).y() + 50)
+    _dongu(30)
+    assert v._current_page == 4, "koşul kurulmadı: 5. sayfaya gidilmedi"
+    assert v._bekleyen_zoom_capasi is not None, (
+        "koşul kurulmadı: etkisiz yakınlaştırmanın çapası beklemiyor "
+        "(araç çubuğu sığmıyor olabilir)")
+    # Aynı yolda bir sayfa uzamış belge: her derleme böyle yükleniyor ve
+    # sayfa sayısı değiştiği için kaydırma aralığı da değişiyor.
+    _cok_sayfali_pdf(v._pdf_path, SAYFA_SAYISI + 1)
+    assert v.load_pdf(v._pdf_path)
+    assert _bekle(lambda: v._bekleyen_zoom_capasi is None), "yerleşim geçmedi"
+    assert _olcek_yerlesti(v)
+    assert _orta_icerik(v)[0] == 4, "görüntü 5. sayfadan atıldı"
+    assert v._current_page == 4, v._lbl_page.text()
+
+
 # =====================================================================
 # Sığdırma ve sınırlar: bu yollar hiç koşmuyordu
 # =====================================================================

@@ -117,20 +117,23 @@ class PdfNavigationMixin:
         yatay.setValue(max(0, min(hedef, yatay.maximum())))
 
     def _zoom_capasi_al(self):
-        """Görüntünün ORTASINDAKİ (sayfa, sayfa içi oran).
+        """Görüntünün ORTASINDAKİ (sayfa, sayfa içi oran) ve kaydırma değeri.
 
         Ölçek değişince sayfa yükseklikleri büyüyor, kaydırma çubuğunun
         değeri ise duruyor: kullanıcının baktığı yer kayıyor. ÖLÇÜLDÜ
         (2026-09-07, altı sayfalık belge, %75'ten dört adım): görüntünün
         ortası 4. sayfanın %50'sinden 3. sayfanın %77'sine gidiyor, yani
         bir sayfa geriye. Yakınlaştırma da uzaklaştırma da bunu yapıyor.
+
+        Kaydırma değeri çapanın hangi görünüm için alındığını söylüyor (bkz.
+        `_zoom_capasini_uygula`).
         """
         dikey = self._scroll.verticalScrollBar()
         orta = dikey.value() + self._scroll.viewport().height() // 2
         for i, etiket in enumerate(self._page_labels):
             ust = etiket.mapTo(self._pages_widget, QPoint(0, 0)).y()
             if ust <= orta < ust + etiket.height():
-                return i, (orta - ust) / max(etiket.height(), 1)
+                return i, (orta - ust) / max(etiket.height(), 1), dikey.value()
         return None
 
     def _zoom_capasini_uygula(self):
@@ -147,7 +150,19 @@ class PdfNavigationMixin:
         self._bekleyen_zoom_capasi = None       # yeniden girmeyi kes
         if capa is None:
             return
-        i, oran = capa
+        i, oran, deger = capa
+        # Çapa yalnız ALINDIĞI görünüm için geçerli. Etkisiz yakınlaştırma
+        # (%300 tavanında yakınlaştırma, sığdırılmışken yine "Genişliğe
+        # Sığdır") aralığı değiştirmediği için çapa BEKLİYOR ve sonraki ilk
+        # aralık değişikliği onu uyguluyordu. ÖLÇÜLDÜ (2026-10-04, altı
+        # sayfalık belge): 2. sayfadayken etkisiz yakınlaştırma, 5. sayfaya
+        # kaydırma, ardından belge bir sayfa uzayıp yeniden yüklenince ya da
+        # pencere boyu değişince görüntü ve sayaç 2. sayfaya döndü. Yerleşim
+        # geçişinden ÖNCE yapılan bir sayfa geçişini de aynı yoldan geri
+        # alıyordu (yük altında testin kurulumunda görüldü). Değer
+        # değiştiyse arada kaydırılmış ya da bir yere gidilmiş: çapa bayat.
+        if self._scroll.verticalScrollBar().value() != deger:
+            return
         if i >= len(self._page_labels):
             return
         etiket = self._page_labels[i]
