@@ -656,6 +656,32 @@ class _KilitTutan:
         return False
 
 
+def _baska_thread_alabiliyor(sure=5.0):
+    """Kilit BASKA bir thread'den, sureyle alinabiliyor mu (sizinti denetimi).
+
+    Ayni thread'den `acquire(blocking=False)` iki yonden YETMIYOR. Kilit
+    RLock: UI thread'inin sizdirdigi kilide ayni thread yeniden girebiliyor,
+    sizinti gorunmuyor. Isciler ise kilidi mesru olarak kisa sure tutuyor ve
+    bloklamasiz deneme bunu sizinti saniyor. OLCULDU (2026-10-04): sizinti
+    mutasyonuyla bu dosyanin kilit testleri tek basina geciyordu; kilit
+    birakilir birakilmaz baska bir thread alinca eski denetim, sizinti
+    yokken 3/3 "kilit sizdi" dedi.
+    """
+    from gui.pdfium_lock import pdfium_lock
+    sonuc = []
+
+    def _dene():
+        ok = pdfium_lock.acquire(timeout=sure)
+        sonuc.append(ok)
+        if ok:
+            pdfium_lock.release()
+
+    t = threading.Thread(target=_dene, daemon=True)
+    t.start()
+    t.join(sure + 1)
+    return sonuc == [True]
+
+
 def test_fare_hareketi_MESGUL_kilidi_beklemiyor(_pdf_gorucu):
     """Kirilirsa: imlec yolu kilidi yine BEKLEYEREK aliyor demektir.
 
@@ -670,11 +696,22 @@ def test_fare_hareketi_MESGUL_kilidi_beklemiyor(_pdf_gorucu):
 
 
 def test_fare_hareketi_kilit_BOSKEN_calisiyor(_pdf_gorucu):
-    """Karsi durum: duzeltme imleci tumuyle olduren bir sey olmamali."""
+    """Karsi durum: duzeltme imleci tumuyle olduren bir sey olmamali.
+
+    Hareket kilit BU thread'de tutulurken yapiliyor: RLock imlec yolunun
+    yeniden girmesine izin veriyor, isciler araya giremiyor. "Kilit bos"
+    varsayimi iscilerle yarisiyordu; `load_pdf` cizim ve arama iscilerine
+    belgeyi actiriyor, ikisi de acarken kilidi tutuyor ve hareket ~5 ms
+    sonra geliyor. OLCULDU (2026-10-04): isci acilisi kilit altinda 300 ms
+    geciktirilince test, yuk altindaki tam takimdaki iletisiyle dustu.
+    """
+    from gui.pdfium_lock import pdfium_lock
     v, label, sayac = _pdf_gorucu
     sayac.clear()
-    v.eventFilter(label, _fare_hareketi(30, 50))
+    with pdfium_lock:
+        v.eventFilter(label, _fare_hareketi(30, 50))
     assert len(sayac) == 1, "kilit bosken imlec yolu pdfium'a sormadi"
+    assert _baska_thread_alabiliyor(), "imlec yolu aldigi kilidi birakmadi"
 
 
 def test_MESGUL_kilitte_cok_sayida_hareket_hizli(_pdf_gorucu):
@@ -713,15 +750,15 @@ def test_TIKLAMA_yolu_kilidi_BEKLIYOR(_pdf_gorucu):
 
 
 def test_atlanan_hareket_KILIDI_SIZDIRMIYOR(_pdf_gorucu):
-    """`acquire(blocking=False)` basarisiz olunca release edilmemeli."""
-    from gui.pdfium_lock import pdfium_lock
+    """`acquire(blocking=False)` basarisiz olunca release edilmemeli.
 
+    Denetim baska thread'den ve sureli: bkz. `_baska_thread_alabiliyor`.
+    """
     v, label, _sayac = _pdf_gorucu
     with _KilitTutan():
         v.eventFilter(label, _fare_hareketi(30, 50))
     # Kilit serbest kalmis olmali
-    assert pdfium_lock.acquire(blocking=False), "kilit sizdi"
-    pdfium_lock.release()
+    assert _baska_thread_alabiliyor(), "kilit sizdi"
     # Ve yol yeniden calisiyor olmali
     v.eventFilter(label, _fare_hareketi(31, 51))
 
