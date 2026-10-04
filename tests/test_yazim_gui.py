@@ -492,6 +492,80 @@ def test_ikinci_dil_ANAHTARI_degistiriyor(qapp, sahte_thread):
     assert sahte_thread.baslatilan == [("tr_TR", "en_US")]
 
 
+class _ElleBitenThread:
+    """Yüklemesi testte elle bitirilen sahte iş parçacığı.
+
+    Gerçeği gibi bitene kadar `isRunning()` True; `bitir` sonucu bağlı
+    alıcılara verip ancak ondan sonra biter (gerçekte de `yuklendi` iş
+    parçacığı sonlanmadan yayılıyor).
+    """
+
+    baslayan = []
+
+    def __init__(self, dil, ikinci, parent=None):
+        self.anahtar = (dil, ikinci)
+        self._bitti = False
+        self._alicilar = []
+        self.yuklendi = SimpleNamespace(connect=self._alicilar.append)
+        self.hata = SimpleNamespace(connect=lambda f: None)
+        _ElleBitenThread.baslayan.append(self)
+
+    def isRunning(self):
+        return not self._bitti
+
+    def start(self):
+        pass
+
+    def bitir(self):
+        d = Denetleyici(dil=self.anahtar[0])
+        d._sozluk = _SahteSozluk([])
+        for f in self._alicilar:
+            f(d)
+        self._bitti = True
+        return d
+
+
+@pytest.fixture
+def elle_biten(monkeypatch):
+    _ElleBitenThread.baslayan = []
+    monkeypatch.setattr("gui.mixins.yazim_ops.YazimYukleThread", _ElleBitenThread)
+    return _ElleBitenThread.baslayan
+
+
+def test_yukleme_SURERKEN_dil_degisince_ESKI_sozlukle_sonuc_yok(qapp, elle_biten):
+    """Kırılırsa: kullanıcı dili değiştirip yeniden basıyor, sonuç önceki
+    dilin sözlüğüyle geliyor (İngilizce metne Türkçe bulgular).
+
+    Eskiden yükleme sürerken gelen istek yok sayılıyordu; yükleme bitince
+    sonuç yüklenen (artık istenmeyen) sözlükle gösteriliyordu.
+    """
+    s = _Stub(editor=_editor("deneme metni"))
+    s._on_yazim_denetle_requested("tr_TR", False)      # tr yükleniyor
+    s._on_yazim_denetle_requested("en_US", False)      # dil değişti
+    elle_biten[0].bitir()
+    assert s._output_panel._yazim_list.count() == 0, \
+        "artık istenmeyen sözlükle sonuç gösterildi"
+    assert [t.anahtar for t in elle_biten] == [("tr_TR", ""), ("en_US", "")], \
+        "istenen dil yüklenmedi"
+    en = elle_biten[1].bitir()
+    assert s._yazim_denetleyici is en
+    assert s._output_panel._yazim_list.count() == 2
+
+
+def test_yukleme_SURERKEN_ayni_istek_ESKI_sozlukle_denetlemiyor(qapp, elle_biten):
+    """tr yüklüyken en istendi; en yüklenirken yeniden basılınca denetim
+    eski (tr) sözlükle yapılıyordu: anahtar yükleme başında en'e geçiyor,
+    denetleyici ise tr kalıyordu."""
+    s = _hazir_stub("deneme metni", dogrular=[])       # tr_TR yüklü
+    s._on_yazim_denetle_requested("en_US", False)      # en yükleniyor
+    s._on_yazim_denetle_requested("en_US", False)      # yeniden basıldı
+    assert s._output_panel._yazim_list.count() == 0, \
+        "yüklenen dil gelmeden eski sözlükle denetlendi"
+    en = elle_biten[0].bitir()
+    assert s._yazim_denetleyici is en
+    assert s._output_panel._yazim_list.count() == 2
+
+
 def test_menu_eylemi_dili_BELGEDEN_seciyor(qapp):
     s = _hazir_stub("% !TEX spellcheck = en_US\nHello world")
     s._yazim_denetle()

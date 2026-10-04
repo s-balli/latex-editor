@@ -259,7 +259,9 @@ class YazimOpsMixin:
 
     def _init_yazim(self):
         self._yazim_denetleyici = None
-        self._yazim_anahtar = None          # (dil, ikinci), yüklü olanın
+        self._yazim_anahtar = None          # (dil, ikinci), yüklü ya da yüklenenin
+        self._yazim_istenen = None          # (dil, ikinci), son "Denetle"nin
+        self._yazim_yukleniyor = False      # yüklemenin sonucu bekleniyor
         self._yazim_thread = None
         self._output_panel.yazim_denetle_requested.connect(
             self._on_yazim_denetle_requested)
@@ -299,27 +301,52 @@ class YazimOpsMixin:
             return
         ikinci_dil = ("en_US" if dil == "tr_TR" else "tr_TR") if ikinci else ""
         anahtar = (dil, ikinci_dil)
+        self._yazim_istenen = anahtar
+
+        # Yükleme sürerken gelen istek yalnız KAYDEDİLİYOR; yükleme bitince
+        # son isteğe bakılıyor (bkz. `_on_yazim_yuklendi`). Eskiden yok
+        # sayılıyordu: dil değiştirilip yeniden basılınca sonuç ESKİ dilin
+        # sözlüğüyle gösteriliyordu. Yeni dil yüklenirken aynı dille yeniden
+        # basmak da denetimi hemen eski sözlükle yapıyordu, çünkü anahtar
+        # yükleme başında yeni dile geçiyor ama denetleyici eskisi kalıyor.
+        # Ölçüt `isRunning()` DEĞİL, arayüzün kendi bayrağı: `yuklendi`
+        # iş parçacığı sonlanmadan yayılıyor, sonuç işlendikten hemen sonra
+        # gelen istek yoksa kaybolabilirdi.
+        if self._yazim_yukleniyor:
+            return
 
         if self._yazim_denetleyici is not None and self._yazim_anahtar == anahtar:
             self._yazim_calistir()
             return
+        self._yazim_yuklemeyi_baslat(anahtar)
 
-        if self._yazim_thread is not None and self._yazim_thread.isRunning():
-            return                                  # zaten yükleniyor
+    def _yazim_yuklemeyi_baslat(self, anahtar):
         self._output_panel.yazim_mesgul(_("sözlük yükleniyor..."))
+        self._yazim_yukleniyor = True
         self._yazim_anahtar = anahtar
-        self._yazim_thread = YazimYukleThread(dil, ikinci_dil, self)
+        self._yazim_thread = YazimYukleThread(anahtar[0], anahtar[1], self)
         self._yazim_thread.yuklendi.connect(self._on_yazim_yuklendi)
         self._yazim_thread.hata.connect(self._on_yazim_hata)
         self._yazim_thread.start()
 
     def _on_yazim_yuklendi(self, denetleyici):
+        self._yazim_yukleniyor = False
         self._yazim_denetleyici = denetleyici
+        if self._yazim_istenen not in (None, self._yazim_anahtar):
+            # Yükleme sürerken BAŞKA bir dil istendi: sonucu artık istenmeyen
+            # sözlükle göstermek yerine istenen dil yükleniyor.
+            self._yazim_yuklemeyi_baslat(self._yazim_istenen)
+            return
         self._output_panel.yazim_mesgul("")
         self._yazim_calistir()
 
     def _on_yazim_hata(self, mesaj: str):
-        self._yazim_anahtar = None
+        self._yazim_yukleniyor = False
+        basarisiz, self._yazim_anahtar = self._yazim_anahtar, None
+        if self._yazim_istenen not in (None, basarisiz):
+            # Artık istenmeyen dilin hatası değil, istenen dil deneniyor.
+            self._yazim_yuklemeyi_baslat(self._yazim_istenen)
+            return
         self._output_panel.yazim_mesgul("")
         # spylls yoksa ya da sözlük dosyası bulunamadıysa: sessizce yutma,
         # kullanıcı "Denetle"ye bastı ve bir şey beklemekte.
