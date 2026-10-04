@@ -184,6 +184,25 @@ def _yeni_tarama(v):
     return istek, cur
 
 
+def _ilk_gorunur(v):
+    """Görünür pencerenin ilk sayfası, çizim durumuna BAKMADAN.
+
+    `_dogrusal_tarama`nın istek listesi "görünür VE henüz çizilmemiş"
+    sayfaları veriyor: çizim işçisi ilk görünür sayfayı test okumadan
+    çizince liste bir sonrakinden başlıyordu. ÖLÇÜLDÜ (2026-10-04, WSL tam
+    takım, yük altında): "oran=0.75: ilk görünür 45, başlangıç 43". Tek
+    sayfa kipinde başlangıç ilk görünürün tam bir gerisinde, yani fark 2
+    ancak 44 çizilmişse çıkar.
+    """
+    vh = v._scroll.viewport().rect().height()
+    sy = v._scroll.verticalScrollBar().value()
+    for i, label in enumerate(v._page_labels[:v._page_count]):
+        ust = label.mapTo(v._pages_widget, QPoint(0, 0)).y() - sy
+        if ust + label.height() >= -200 and ust <= vh + 200:
+            return i
+    return None
+
+
 class TestRenderVisibleBaslangic:
 
     def test_ikili_arama_dogrusal_taramayla_ayni(self, qapp, viewer, tmp_path):
@@ -238,13 +257,13 @@ class TestRenderVisibleBaslangic:
             sb.setValue(int(vmax * oran))
             qapp.processEvents()
             sy = sb.value()
-            gercek_ilk = _dogrusal_tarama(viewer)[0]
+            ilk = _ilk_gorunur(viewer)
             bas = viewer._ilk_gorunur_aday(sy)
             assert bas >= 0
-            if gercek_ilk:
-                assert 0 <= gercek_ilk[0] - bas <= 1, (
-                    f"oran={oran}: ilk görünür {gercek_ilk[0]}, başlangıç {bas}"
-                )
+            assert ilk is not None, f"oran={oran}: görünür sayfa yok"
+            assert 0 <= ilk - bas <= 1, (
+                f"oran={oran}: ilk görünür {ilk}, başlangıç {bas}"
+            )
         # Belgenin sonunda 0'dan başlamıyor olmalı — düzeltmenin bütün özeti.
         sb.setValue(vmax)
         qapp.processEvents()
