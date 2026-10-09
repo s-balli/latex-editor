@@ -371,7 +371,14 @@ def _ilk_dest(v):
     poz = ctypes.c_int(0)
     link = praw.FPDF_LINK()
     with pdfium_lock:
-        ok = praw.FPDFLink_Enumerate(v._pdf[0].raw, ctypes.byref(poz),
+        # Sayfa nesnesi TUTULUYOR: bağlantı sayfaya ait ve nesne bırakılınca
+        # pdfium sayfayı kapatıyor (uygulama da böyle, bkz. _events
+        # `_link_at_pos`). `v._pdf[0].raw` geçici nesnenin tutamacıydı;
+        # pypdfium2 5.14.0 nesneyi artık hemen topladığı için CI'da Linux'ta
+        # segfault, Windows'ta "access violation reading 0x30" verdi (koşu
+        # 37966339265). 5.13.0'da nesneyi bir öz başvuru döngüsü yaşatıyordu.
+        sayfa = v._pdf[0]
+        ok = praw.FPDFLink_Enumerate(sayfa.raw, ctypes.byref(poz),
                                      ctypes.byref(link))
         assert ok, "kapı boş koşuyor: PDF'te bağlantı yok"
         return praw.FPDFLink_GetDest(v._pdf.raw, link)
