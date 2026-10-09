@@ -51,6 +51,12 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 
 ## Version History
 
+### v1.2.5: While the Dictionary Loads
+
+- **Closing the app while the spell-check dictionary was still loading no longer crashes it on exit.** Loading a dictionary takes a few seconds. If the window closed in that time, the app crashed on the way out. It now waits for the load to finish before it exits.
+- **Switching the spell-check language while a dictionary was loading no longer checks with the old one.** The text was marked with the dictionary that was loading instead of the one you picked. The app now remembers the latest choice and loads it as soon as the current load finishes.
+- **The PDF preview uses PDFium 156.** The packages carry pypdfium2 5.14.0 (1.2.4 had 5.13.0 with PDFium 153). The full test suite passes with it on Windows, Linux and macOS, and the packages change by less than 0.1 MB.
+
 ### v1.2.4: Steadier Preview
 
 - **Copying a word the PDF hyphenated at a line end no longer pastes an invisible character.** Text selected in the PDF and copied carried a U+FFFE marker into the middle of every word split across lines. Search already removed the marker; the copy now joins the word cleanly too.

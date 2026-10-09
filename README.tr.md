@@ -51,6 +51,12 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 
 ## Sürüm Geçmişi
 
+### v1.2.5: Sözlük Yüklenirken
+
+- **Yazım denetimi sözlüğü yüklenirken kapatılan uygulama artık çıkışta çökmüyor.** Sözlük yüklemek birkaç saniye sürüyor. Pencere bu sırada kapanırsa uygulama çıkarken çöküyordu. Artık yüklemenin bitmesini bekleyip öyle çıkıyor.
+- **Sözlük yüklenirken dil değiştirince denetim artık eski sözlükle yapılmıyor.** Metin, seçtiğiniz dilin değil yüklenmekte olan sözlüğün sonucuyla işaretleniyordu. Uygulama artık son seçimi hatırlıyor ve süren yükleme biter bitmez onu yüklüyor.
+- **PDF önizlemesi PDFium 156 kullanıyor.** Paketler pypdfium2 5.14.0 taşıyor (1.2.4'te 5.13.0 ve PDFium 153 vardı). Tam test takımı onunla Windows, Linux ve macOS'ta geçiyor; paket boyutları 0,1 MB'tan az değişti.
+
 ### v1.2.4: Daha Kararlı Önizleme
 
 - **PDF'te satır sonunda bölünmüş bir sözcüğü kopyalamak artık görünmez bir karakter taşımıyor.** PDF'te seçilip kopyalanan metinde, satır sonunda bölünmüş her sözcüğün ortasına bir U+FFFE işareti giriyordu. Arama bu işareti zaten atıyordu; kopya da artık sözcüğü düzgün birleştiriyor.
