@@ -9,6 +9,9 @@ on:
 jobs:
   test:
     runs-on: ubuntu-22.04
+    # Takılan bir test GitHub'ın öntanımlı 6 saat sınırına kadar beklemesin
+    # (test-windows ve derle işlerindeki 20 dakika burada yoktu).
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:

@@ -28,3 +28,9 @@ select = ["E9", "F", "W605"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+# 5 dakikayı aşan test bütün iş parçacıklarının yığınını günlüğe döker; test
+# DURDURULMAZ. En uzun testler birkaç saniye sürdüğüne göre bu süreye ulaşmak
+# takılmadır. Sebep: 2026-10-04'te Windows tam koşusunda
+# test_BOLUM_sekmesinden_disa_aktarma_KOKU_aktariyor 36 dakika takıldı;
+# yığın alınamadığı için nedeni bilinmiyor.
+faulthandler_timeout = 300
