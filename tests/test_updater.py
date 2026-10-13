@@ -3,6 +3,7 @@ import pytest
 """updater.py — güncelleme kontrolü testleri."""
 
 import json as _json
+import logging
 
 from core.updater import (
     _parse_semver, _is_newer, check_for_update, _extract_changelog,
@@ -513,3 +514,50 @@ class TestCokSatirliMaddeKirpma:
         tavan = len(isaret + "ilk madde\n" + isaret + "ikinci madde uzun ve\n") + 3
         kesik, _ = _satira_hizali_kirp(metin, tavan)
         assert kesik == isaret + "ilk madde", kesik
+
+
+# --- Denetimin sonucu günlüğe yazılıyor ---
+
+
+# Düzey `latex_editor.updater`in KENDİSİNE veriliyor: `caplog.at_level`
+# yalnız kök günlükçüyü ayarlıyor, test_log'un `fresh_log` sökümü ise
+# `latex_editor`ı WARNING'de bırakıyor; tam takımda INFO satırları üst
+# günlükçüde eleniyordu (yalnız koşunca geçiyordu).
+_GUNLUKCU = "latex_editor.updater"
+
+
+def _gunluk(caplog):
+    return " ".join(r.getMessage() for r in caplog.records
+                    if r.name == _GUNLUKCU)
+
+
+def test_ulasilamayinca_NEDEN_gunluge_yaziliyor(monkeypatch, caplog):
+    """Açılış denetimi sessiz: GitHub'a ulaşılamayınca arayüz bir şey
+    göstermiyor ve hiçbir yerde iz kalmıyordu. 2026-10-09'da "yeni sürümü
+    görmüyor" şikâyetinde denetimin koşup koşmadığı ve neden düştüğü
+    (bağlantı, hız sınırı, sertifika) ancak dolaylı yoldan çıkarılabildi."""
+    import urllib.error
+
+    import core.updater as up
+    up._cached_time = 0.0
+    up._cached_result = None
+
+    def _dus(*a, **k):
+        raise urllib.error.URLError("ag yok")
+    monkeypatch.setattr(up.urllib.request, "urlopen", _dus)
+    with caplog.at_level(logging.INFO, logger=_GUNLUKCU):
+        assert up.check_for_update(force=True) == {"error": "network"}
+    kayit = _gunluk(caplog)
+    assert "ulaşılamadı" in kayit and "ag yok" in kayit, kayit
+
+
+@pytest.mark.parametrize("tag,beklenen", [
+    ("v99.0.0", "yeni sürüm v99.0.0"),
+    ("v0.0.1", "güncel"),
+])
+def test_denetimin_SONUCU_gunluge_yaziliyor(monkeypatch, caplog, tag, beklenen):
+    up = _yanitla(monkeypatch, '{"tag_name": "%s", "html_url": "u"}' % tag)
+    with caplog.at_level(logging.INFO, logger=_GUNLUKCU):
+        up.check_for_update(force=True)
+    kayit = _gunluk(caplog)
+    assert beklenen in kayit and "v" + VERSION in kayit, kayit

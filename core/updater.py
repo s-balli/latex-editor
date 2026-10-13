@@ -23,7 +23,15 @@ import urllib.error
 import re
 from typing import Optional, Tuple
 
+from core.log import get_logger
 from core.version import VERSION
+
+# Açılış denetimi sessiz: sonucu hiçbir yerde görünmüyordu. 2026-10-09'da
+# "yeni sürümü görmüyor" şikâyetinde denetimin koşup koşmadığı ve neden
+# düştüğü yalnız kayıt defterindeki son başarılı denetim zamanından dolaylı
+# çıkarılabildi. INFO: çevrimdışı bir makinede düşen denetim uygulama
+# hatası değil.
+_logger = get_logger("updater")
 
 GITHUB_OWNER = "s-balli"
 GITHUB_REPO = "latex-editor"
@@ -161,7 +169,9 @@ def fetch_latest_release() -> Optional[dict]:
     # kaçmaydı. Arayüz kendi geniş `except Exception`ı ile örtüyordu, yani
     # kullanıcıya çökme olarak yansımıyordu; örtmeyen her çağıran patlıyordu.
     except (urllib.error.URLError, urllib.error.HTTPError,
-            json.JSONDecodeError, UnicodeDecodeError, TimeoutError, OSError):
+            json.JSONDecodeError, UnicodeDecodeError, TimeoutError, OSError) as e:
+        _logger.info("Güncelleme denetimi: GitHub'a ulaşılamadı (%s: %s)",
+                     type(e).__name__, e)
         return None
 
 
@@ -198,6 +208,8 @@ def check_for_update(force: bool = False) -> Optional[dict]:
     if not isinstance(tag, str) or not tag:
         return {"error": "network"}
     if not _is_newer(tag, VERSION):
+        _logger.info("Güncelleme denetimi: güncel (en son %s, çalışan v%s)",
+                     tag, VERSION)
         # Güncelleme yok — cache'e None kaydet (24h tekrar sorma)
         _cached_result = None
         _cached_time = now
@@ -231,6 +243,7 @@ def check_for_update(force: bool = False) -> Optional[dict]:
         "notes": notlar,
         "kirpildi": kirpildi,
     }
+    _logger.info("Güncelleme denetimi: yeni sürüm %s (çalışan v%s)", tag, VERSION)
     # Cache'e kaydet
     _cached_result = result
     _cached_time = now
