@@ -498,8 +498,8 @@ jobs:
           subject-path: desktop/dist/LaTeX_Editor_v${{ steps.ver.outputs.VERSION }}_macOS_arm64.dmg
 
   # Yayin cikinca winget-pkgs'e surum yukseltme PR'i ac. Ilk surum (1.0.19)
-  # ELLE gonderildi (microsoft/winget-pkgs#429063); bu eylem yalniz var olan
-  # bir paketi guncelleyebiliyor, paket yoksa hata verip duruyor.
+  # ELLE gonderildi ve 2026-10-15'te kabul edildi (microsoft/winget-pkgs#429063);
+  # eylem yalniz var olan bir paketi guncelleyebiliyor.
   #
   # NEDEN build-windows'a BAGLI: eylem yayindaki varliklari GitHub API'sinden
   # okuyup adreslerini komac'a veriyor. Once kosarsa .exe henuz yuklenmemis
@@ -509,26 +509,19 @@ jobs:
   #
   # TOKEN: GITHUB_TOKEN YETMEZ. Eylem baska bir depoya (microsoft/winget-pkgs
   # catalinizA) yaziyor; is akisinin kendi jetonu yalniz bu depoda gecerli.
-  # WINGET_TOKEN sirri, `public_repo` yetkili klasik bir kisisel erisim
-  # jetonu olmali. Sir tanimli degilse is SESSIZCE ATLANIYOR: yayin akisinin
-  # tamami winget yuzunden kirmizi olmasin.
+  # WINGET_TOKEN sirri `public_repo` VE `workflow` yetkili klasik bir kisisel
+  # erisim jetonu olmali: komac PR'dan once catali esitliyor ve ana depo is
+  # akisi dosyalarini degistirdiyse `workflow` yetkisi olmadan esitleme 422
+  # ile dusuyor (olculdu 2026-10-15). Sir tanimli degilse is SESSIZCE
+  # ATLANIYOR: yayin akisinin tamami winget yuzunden kirmizi olmasin.
   winget:
     needs: build-windows
     runs-on: ubuntu-latest
     # SURUMU ENGELLEMEZ. winget yayina EK bir kanal; surumun kendisi ondan
     # bagimsiz ve dosyalar bu is kosmadan once zaten yuklenmis oluyor.
-    # Token yokken isi atlamanin gerekcesi neyse bu da o: yayin akisinin
-    # tamami winget yuzunden kirmizi olmasin.
-    #
-    # SU AN ONEMLI: paket winget-pkgs'te HENUZ YOK (ilk PR moderator onayi
-    # bekliyor, olculdu: yeni paket kuyrugunun ortancasi ~7 gun). Eylem
-    # paketi bulamayinca hata verip duruyor, yani o gun gelene kadar HER
-    # surum bu isten kirmizi donerdi.
-    #
-    # Basarisizlik GIZLENMIYOR: is listede sari uyariyla duruyor, yalnizca
-    # akisi durdurmuyor. Paket kabul edildikten sonra o surumun `winget`
-    # isini Actions ekranindan tek basina yeniden calistirmak yeterli;
-    # eylem yayin bilgisini API'den okuyor, yayin zaten yerinde.
+    # Basarisizlik GIZLENMIYOR: is listede kirmizi duruyor, yalnizca akisi
+    # durdurmuyor. Dusen isi Actions ekranindan tek basina yeniden calistirmak
+    # yeterli; yayin zaten yerinde.
     continue-on-error: true
     # env IS DUZEYINDE, adim duzeyinde DEGIL: `secrets` baglami adim `if`inde
     # kullanilamiyor (GitHub'in izin verdigi baglamlar arasinda yok), adimin
@@ -538,6 +531,7 @@ jobs:
       WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
     steps:
       - name: WinGet'e surum bildir
+        id: winget
         if: env.WINGET_TOKEN != ''
         uses: vedantmgoyal9/winget-releaser@v2
         with:
@@ -547,3 +541,40 @@ jobs:
           # (ornegin bir kurulum programi) yanlislikla gonderilmesin.
           installers-regex: '_Windows\.exe$'
           token: ${{ secrets.WINGET_TOKEN }}
+
+      - uses: actions/checkout@v7
+        if: steps.winget.outputs.pr-url != ''
+
+      # NOTU KISALT. komac notu GitHub yayin sayfasinin TAMAMINDAN aliyor ve
+      # metni degistiren secenegi yok: 1.2.5'te nota iki dilin kurulum
+      # bolumleriyle 86 satir girdi (microsoft/winget-pkgs#453477). Acilan
+      # PR'in dalindaki locale manifesti cekiliyor, not etiket notuyla (yayin
+      # sayfasindaki degisiklik listesinin kaynagi) degistiriliyor ve ayni
+      # dala ikinci commit olarak yaziliyor. Manifesti once yerelde uretip
+      # sonra gondermek denendi ve OLMADI (2026-10-15, gecici PR #18):
+      # `--dry-run` dosya yazmiyor, `--submit`siz komac CI'da terminal sorusu
+      # bekleyip dusuyor. `pr-url` komac ciktisinin son satiri; PR numarasi
+      # sondaki rakamlardan aliniyor. Catal jetonun sahibininki.
+      - name: winget notunu kisalt
+        if: steps.winget.outputs.pr-url != ''
+        env:
+          GH_TOKEN: ${{ secrets.WINGET_TOKEN }}
+          PR_SATIRI: ${{ steps.winget.outputs.pr-url }}
+        run: |
+          V="${GITHUB_REF_NAME#v}"
+          N=$(printf '%s' "$PR_SATIRI" | grep -oE '[0-9]+$')
+          DAL=$(gh pr view "$N" --repo microsoft/winget-pkgs --json headRefName --jq .headRefName)
+          YOL="manifests/s/s-balli/LaTeXEditor/$V/s-balli.LaTeXEditor.locale.en-US.yaml"
+          # actions/checkout tag'i hafifletiyor; etiket notu icin gercek tag
+          # nesnesini cek (bkz. build-windows'taki ayni adim).
+          git fetch --no-tags --force origin "+refs/tags/${GITHUB_REF_NAME}:refs/tags/${GITHUB_REF_NAME}"
+          git tag -l --format='%(contents)' "$GITHUB_REF_NAME" > "$RUNNER_TEMP/not.txt"
+          mkdir -p "$RUNNER_TEMP/m"
+          D="$RUNNER_TEMP/m/s-balli.LaTeXEditor.locale.en-US.yaml"
+          SHA=$(gh api "repos/s-balli/winget-pkgs/contents/$YOL?ref=$DAL" --jq .sha)
+          gh api "repos/s-balli/winget-pkgs/contents/$YOL?ref=$DAL" --jq .content | base64 -d > "$D"
+          python3 scripts/winget_notu.py "$RUNNER_TEMP/m" "$RUNNER_TEMP/not.txt"
+          gh api -X PUT "repos/s-balli/winget-pkgs/contents/$YOL" \
+            -f message="Shorten ReleaseNotes to the release changelog" \
+            -f content="$(base64 -w0 "$D")" -f sha="$SHA" -f branch="$DAL" \
+            --jq '"not kisaltildi: microsoft/winget-pkgs#'"$N"' commit " + .commit.sha'
