@@ -288,60 +288,59 @@ jobs:
   # ============================================================
   # GECICI ON UCUS ISI. BIRLESTIRILMEYECEK.
   #
-  # release.yml'in yeni winget isinin adimlari, GONDERMEDEN: v1.2.5 icin
-  # manifest `komac update --dry-run --output` ile yerelde uretiliyor, not
-  # etiket notuyla degistiriliyor (scripts/winget_notu.py), gonderim yolu
-  # `komac submit --dry-run` ile PR ACMADAN deneniyor. 1.2.5'in PR'i
-  # (microsoft/winget-pkgs#453477) acik oldugu icin --skip-pr-check; catal
-  # esitleme ve temizlik adimlari burada yok (catala yaziyorlar).
+  # release.yml'in yeni "winget notunu kisalt" adimi, ACIK PR'A DOKUNMADAN:
+  # microsoft/winget-pkgs#453477'nin (1.2.5) dalindan locale manifesti
+  # cekiliyor, not etiket notuyla degistiriliyor; yazma yolu (contents API,
+  # ayni jeton) catalda PR dalindan acilan GECICI bir dalda deneniyor, geri
+  # okunup karsilastiriliyor ve dal siliniyor.
   # ============================================================
   onucus-winget:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
     env:
-      KOMAC_SURUM: '2.17.1'
       ETIKET: v1.2.5
+      N: '453477'
     steps:
       - uses: actions/checkout@v7
 
-      - name: komac kur (release.yml ile ayni)
+      - name: Not kisaltma adimi, PR'a DOKUNMADAN
         env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          mkdir -p "$RUNNER_TEMP/komac"
-          gh release download "v$KOMAC_SURUM" --repo russellbanks/Komac \
-            --pattern "komac-$KOMAC_SURUM-x86_64-unknown-linux-gnu.tar.gz" \
-            --dir "$RUNNER_TEMP/komac"
-          tar -xzf "$RUNNER_TEMP/komac/komac-$KOMAC_SURUM-x86_64-unknown-linux-gnu.tar.gz" \
-            -C "$RUNNER_TEMP/komac"
-          ikili=$(find "$RUNNER_TEMP/komac" -type f -name komac | head -1)
-          test -n "$ikili" || { echo "::error::komac ikilisi arsivde yok"; exit 1; }
-          chmod +x "$ikili"
-          dirname "$ikili" >> "$GITHUB_PATH"
-          "$ikili" --version
-
-      - name: Manifest, not ve gonderim (GONDERMEDEN)
-        env:
-          GITHUB_TOKEN: ${{ secrets.WINGET_TOKEN }}
+          GH_TOKEN: ${{ secrets.WINGET_TOKEN }}
         run: |
           V="${ETIKET#v}"
-          URL="https://github.com/${{ github.repository }}/releases/download/${ETIKET}/LaTeX_Editor_v${V}_Windows.exe"
+          # pr-url'nin iki olasi bicimi (komac ciktisinin son satiri)
+          for s in "https://github.com/microsoft/winget-pkgs/pull/$N" \
+                   "Successfully created microsoft/winget-pkgs#$N"; do
+            test "$(printf '%s' "$s" | grep -oE '[0-9]+$')" = "$N" || { echo "::error::numara cikmadi: $s"; exit 1; }
+          done
+          DAL=$(gh pr view "$N" --repo microsoft/winget-pkgs --json headRefName --jq .headRefName)
+          echo "PR dali: $DAL"
+          YOL="manifests/s/s-balli/LaTeXEditor/$V/s-balli.LaTeXEditor.locale.en-US.yaml"
           git fetch --no-tags --force origin "+refs/tags/${ETIKET}:refs/tags/${ETIKET}"
           git tag -l --format='%(contents)' "$ETIKET" > "$RUNNER_TEMP/not.txt"
-          echo "etiket notu: $(wc -l < "$RUNNER_TEMP/not.txt") satir"
-          komac update s-balli.LaTeXEditor --version "$V" --urls "$URL" \
-            --dry-run --skip-pr-check --output "$RUNNER_TEMP/manifest"
-          echo "=== uretilen dosyalar"
-          find "$RUNNER_TEMP/manifest" -type f
-          python3 scripts/winget_notu.py "$RUNNER_TEMP/manifest" "$RUNNER_TEMP/not.txt"
-          L=$(find "$RUNNER_TEMP/manifest" -name '*.locale.*.yaml' | head -1)
-          echo "=== locale manifesti"
-          cat "$L"
-          yq -e '.ReleaseNotes' "$L" > "$RUNNER_TEMP/notlar.txt"
-          echo "ReleaseNotes satiri: $(wc -l < "$RUNNER_TEMP/notlar.txt")"
-          if grep -q "chmod" "$RUNNER_TEMP/notlar.txt"; then
+          mkdir -p "$RUNNER_TEMP/m"
+          D="$RUNNER_TEMP/m/s-balli.LaTeXEditor.locale.en-US.yaml"
+          SHA=$(gh api "repos/s-balli/winget-pkgs/contents/$YOL?ref=$DAL" --jq .sha)
+          gh api "repos/s-balli/winget-pkgs/contents/$YOL?ref=$DAL" --jq .content | base64 -d > "$D"
+          echo "once: $(wc -l < "$D") satir, ReleaseNotes $(yq '.ReleaseNotes' "$D" | wc -l) satir"
+          python3 scripts/winget_notu.py "$RUNNER_TEMP/m" "$RUNNER_TEMP/not.txt"
+          echo "sonra: $(wc -l < "$D") satir, ReleaseNotes $(yq '.ReleaseNotes' "$D" | wc -l) satir"
+          yq '.ReleaseNotes' "$D" | head -1 | grep -qx "While the Dictionary Loads"
+          if yq '.ReleaseNotes' "$D" | grep -q chmod; then
             echo "::error::kurulum satirlari notta kalmis"; exit 1
           fi
-          head -1 "$RUNNER_TEMP/notlar.txt" | grep -qx "While the Dictionary Loads"
-          echo "=== gonderim, PR acmadan"
-          komac submit "$RUNNER_TEMP/manifest" --yes --dry-run
+          echo "=== kisaltilmis locale manifesti"
+          cat "$D"
+          # YAZMA YOLU: PR dalina degil, ondan acilan GECICI dala; sonra siliniyor.
+          GECICI="onucus-not-$GITHUB_RUN_ID"
+          BAS=$(gh api "repos/s-balli/winget-pkgs/git/ref/heads/$DAL" --jq .object.sha)
+          gh api -X POST repos/s-balli/winget-pkgs/git/refs \
+            -f ref="refs/heads/$GECICI" -f sha="$BAS" --jq '"gecici dal: " + .ref'
+          trap 'gh api -X DELETE "repos/s-balli/winget-pkgs/git/refs/heads/$GECICI" && echo "gecici dal silindi"' EXIT
+          gh api -X PUT "repos/s-balli/winget-pkgs/contents/$YOL" \
+            -f message="Shorten ReleaseNotes to the release changelog" \
+            -f content="$(base64 -w0 "$D")" -f sha="$SHA" -f branch="$GECICI" \
+            --jq '"yazildi: commit " + .commit.sha'
+          gh api "repos/s-balli/winget-pkgs/contents/$YOL?ref=$GECICI" --jq .content | base64 -d > "$RUNNER_TEMP/geri.yaml"
+          cmp "$RUNNER_TEMP/geri.yaml" "$D" || { echo "::error::geri okunan dosya farkli"; exit 1; }
+          echo "geri okunan dosya yazilanla ayni"

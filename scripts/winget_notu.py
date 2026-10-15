@@ -4,9 +4,9 @@
 komac notu GitHub yayin sayfasinin TAMAMINDAN aliyor (yayin sayfasinin HTML'i)
 ve metni degistiren bir secenegi yok: 1.2.5'te nota iki dilin kurulum
 bolumleriyle 86 satir girdi, `winget show` hepsini gosteriyor. release.yml'in
-winget isi manifestleri once `komac update --dry-run --output` ile yerelde
-uretiyor, bu betik notu yayin sayfasindaki degisiklik listesinin kaynagiyla
-(etiket notu) degistiriyor, sonra `komac submit` gonderiyor.
+winget isi PR'i acildiktan sonra dalindaki locale manifestini cekiyor, bu
+betik notu yayin sayfasindaki degisiklik listesinin kaynagiyla (etiket notu)
+degistiriyor, is ayni dala ikinci commit olarak yaziyor.
 
     python3 scripts/winget_notu.py <manifest_klasoru> <not_dosyasi>
 """
