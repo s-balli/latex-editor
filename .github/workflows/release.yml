@@ -498,37 +498,38 @@ jobs:
           subject-path: desktop/dist/LaTeX_Editor_v${{ steps.ver.outputs.VERSION }}_macOS_arm64.dmg
 
   # Yayin cikinca winget-pkgs'e surum yukseltme PR'i ac. Ilk surum (1.0.19)
-  # ELLE gonderildi (microsoft/winget-pkgs#429063); bu eylem yalniz var olan
-  # bir paketi guncelleyebiliyor, paket yoksa hata verip duruyor.
+  # ELLE gonderildi ve 2026-10-15'te kabul edildi (microsoft/winget-pkgs#429063);
+  # komac yalniz var olan bir paketi guncelleyebiliyor.
   #
-  # NEDEN build-windows'a BAGLI: eylem yayindaki varliklari GitHub API'sinden
-  # okuyup adreslerini komac'a veriyor. Once kosarsa .exe henuz yuklenmemis
-  # olur ve installers-regex hicbir sey bulamaz.
+  # NEDEN build-windows'a BAGLI: komac kurulum dosyasini yayindan indirip
+  # ozetini aliyor. Once kosarsa .exe henuz yuklenmemis olur.
   #
   # NEDEN AYRI IS: build-windows duserse winget'e yanlis surum bildirilmesin.
   #
-  # TOKEN: GITHUB_TOKEN YETMEZ. Eylem baska bir depoya (microsoft/winget-pkgs
+  # TOKEN: GITHUB_TOKEN YETMEZ. komac baska bir depoya (microsoft/winget-pkgs
   # catalinizA) yaziyor; is akisinin kendi jetonu yalniz bu depoda gecerli.
-  # WINGET_TOKEN sirri, `public_repo` yetkili klasik bir kisisel erisim
-  # jetonu olmali. Sir tanimli degilse is SESSIZCE ATLANIYOR: yayin akisinin
-  # tamami winget yuzunden kirmizi olmasin.
+  # WINGET_TOKEN sirri `public_repo` VE `workflow` yetkili klasik bir kisisel
+  # erisim jetonu olmali: komac PR'dan once catali esitliyor ve ana depo is
+  # akisi dosyalarini degistirdiyse `workflow` yetkisi olmadan esitleme 422
+  # ile dusuyor (olculdu 2026-10-15). Sir tanimli degilse is SESSIZCE
+  # ATLANIYOR: yayin akisinin tamami winget yuzunden kirmizi olmasin.
+  #
+  # NEDEN winget-releaser DEGIL, komac DOGRUDAN: eylemin cagirdigi komac notu
+  # GitHub yayin sayfasinin TAMAMINDAN aliyor ve metni degistiren secenegi
+  # yok; 1.2.5'te nota iki dilin kurulum bolumleriyle 86 satir girdi
+  # (microsoft/winget-pkgs#453477). Manifest once `--dry-run --output` ile
+  # yerelde uretiliyor, not etiket notuyla degistiriliyor (yayin sayfasindaki
+  # degisiklik listesinin de kaynagi; scripts/winget_notu.py), sonra `komac
+  # submit` ile gonderiliyor. komac surumu SABIT: eylem her kosuda en
+  # yenisini kuruyordu (2.17.1, 1.2.5 PR'ini acan surum).
   winget:
     needs: build-windows
     runs-on: ubuntu-latest
     # SURUMU ENGELLEMEZ. winget yayina EK bir kanal; surumun kendisi ondan
     # bagimsiz ve dosyalar bu is kosmadan once zaten yuklenmis oluyor.
-    # Token yokken isi atlamanin gerekcesi neyse bu da o: yayin akisinin
-    # tamami winget yuzunden kirmizi olmasin.
-    #
-    # SU AN ONEMLI: paket winget-pkgs'te HENUZ YOK (ilk PR moderator onayi
-    # bekliyor, olculdu: yeni paket kuyrugunun ortancasi ~7 gun). Eylem
-    # paketi bulamayinca hata verip duruyor, yani o gun gelene kadar HER
-    # surum bu isten kirmizi donerdi.
-    #
-    # Basarisizlik GIZLENMIYOR: is listede sari uyariyla duruyor, yalnizca
-    # akisi durdurmuyor. Paket kabul edildikten sonra o surumun `winget`
-    # isini Actions ekranindan tek basina yeniden calistirmak yeterli;
-    # eylem yayin bilgisini API'den okuyor, yayin zaten yerinde.
+    # Basarisizlik GIZLENMIYOR: is listede kirmizi duruyor, yalnizca akisi
+    # durdurmuyor. Dusen isi Actions ekranindan tek basina yeniden calistirmak
+    # yeterli; yayin zaten yerinde.
     continue-on-error: true
     # env IS DUZEYINDE, adim duzeyinde DEGIL: `secrets` baglami adim `if`inde
     # kullanilamiyor (GitHub'in izin verdigi baglamlar arasinda yok), adimin
@@ -536,14 +537,44 @@ jobs:
     # ikisi de cozuluyor.
     env:
       WINGET_TOKEN: ${{ secrets.WINGET_TOKEN }}
+      KOMAC_SURUM: '2.17.1'
     steps:
+      - uses: actions/checkout@v7
+        if: env.WINGET_TOKEN != ''
+
+      - name: komac kur
+        if: env.WINGET_TOKEN != ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/komac"
+          gh release download "v$KOMAC_SURUM" --repo russellbanks/Komac \
+            --pattern "komac-$KOMAC_SURUM-x86_64-unknown-linux-gnu.tar.gz" \
+            --dir "$RUNNER_TEMP/komac"
+          tar -xzf "$RUNNER_TEMP/komac/komac-$KOMAC_SURUM-x86_64-unknown-linux-gnu.tar.gz" \
+            -C "$RUNNER_TEMP/komac"
+          ikili=$(find "$RUNNER_TEMP/komac" -type f -name komac | head -1)
+          test -n "$ikili" || { echo "::error::komac ikilisi arsivde yok"; exit 1; }
+          chmod +x "$ikili"
+          dirname "$ikili" >> "$GITHUB_PATH"
+          "$ikili" --version
+
+      # Yalniz Windows .exe gidiyor (adi yayin adimlarindan): AppImage, .zsync
+      # ve .dmg winget'e gitmez.
       - name: WinGet'e surum bildir
         if: env.WINGET_TOKEN != ''
-        uses: vedantmgoyal9/winget-releaser@v2
-        with:
-          identifier: s-balli.LaTeXEditor
-          # Yalniz Windows .exe. AppImage ve .zsync zaten eslesmiyor ama
-          # desen acikca yaziliyor: yayina ilerde baska bir .exe girerse
-          # (ornegin bir kurulum programi) yanlislikla gonderilmesin.
-          installers-regex: '_Windows\.exe$'
-          token: ${{ secrets.WINGET_TOKEN }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.WINGET_TOKEN }}
+        run: |
+          V="${GITHUB_REF_NAME#v}"
+          URL="https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/LaTeX_Editor_v${V}_Windows.exe"
+          # actions/checkout tag'i hafifletiyor; etiket notu icin gercek tag
+          # nesnesini cek (bkz. build-windows'taki ayni adim).
+          git fetch --no-tags --force origin "+refs/tags/${GITHUB_REF_NAME}:refs/tags/${GITHUB_REF_NAME}"
+          git tag -l --format='%(contents)' "$GITHUB_REF_NAME" > "$RUNNER_TEMP/not.txt"
+          komac sync-fork
+          komac update s-balli.LaTeXEditor --version "$V" --urls "$URL" \
+            --dry-run --output "$RUNNER_TEMP/manifest"
+          python3 scripts/winget_notu.py "$RUNNER_TEMP/manifest" "$RUNNER_TEMP/not.txt"
+          komac submit "$RUNNER_TEMP/manifest" --yes
+          komac cleanup --only-merged

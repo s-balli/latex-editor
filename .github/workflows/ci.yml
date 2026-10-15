@@ -284,3 +284,64 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
         run: python -m pytest tests/test_derle_sh.py tests/test_synctex_live.py tests/test_tablo_derleme.py tests/test_ipucu_derleme.py tests/test_pdf_baglanti_derleme.py tests/test_kaynakca_derleme.py -v
+
+  # ============================================================
+  # GECICI ON UCUS ISI. BIRLESTIRILMEYECEK.
+  #
+  # release.yml'in yeni winget isinin adimlari, GONDERMEDEN: v1.2.5 icin
+  # manifest `komac update --dry-run --output` ile yerelde uretiliyor, not
+  # etiket notuyla degistiriliyor (scripts/winget_notu.py), gonderim yolu
+  # `komac submit --dry-run` ile PR ACMADAN deneniyor. 1.2.5'in PR'i
+  # (microsoft/winget-pkgs#453477) acik oldugu icin --skip-pr-check; catal
+  # esitleme ve temizlik adimlari burada yok (catala yaziyorlar).
+  # ============================================================
+  onucus-winget:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      KOMAC_SURUM: '2.17.1'
+      ETIKET: v1.2.5
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: komac kur (release.yml ile ayni)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/komac"
+          gh release download "v$KOMAC_SURUM" --repo russellbanks/Komac \
+            --pattern "komac-$KOMAC_SURUM-x86_64-unknown-linux-gnu.tar.gz" \
+            --dir "$RUNNER_TEMP/komac"
+          tar -xzf "$RUNNER_TEMP/komac/komac-$KOMAC_SURUM-x86_64-unknown-linux-gnu.tar.gz" \
+            -C "$RUNNER_TEMP/komac"
+          ikili=$(find "$RUNNER_TEMP/komac" -type f -name komac | head -1)
+          test -n "$ikili" || { echo "::error::komac ikilisi arsivde yok"; exit 1; }
+          chmod +x "$ikili"
+          dirname "$ikili" >> "$GITHUB_PATH"
+          "$ikili" --version
+
+      - name: Manifest, not ve gonderim (GONDERMEDEN)
+        env:
+          GITHUB_TOKEN: ${{ secrets.WINGET_TOKEN }}
+        run: |
+          V="${ETIKET#v}"
+          URL="https://github.com/${{ github.repository }}/releases/download/${ETIKET}/LaTeX_Editor_v${V}_Windows.exe"
+          git fetch --no-tags --force origin "+refs/tags/${ETIKET}:refs/tags/${ETIKET}"
+          git tag -l --format='%(contents)' "$ETIKET" > "$RUNNER_TEMP/not.txt"
+          echo "etiket notu: $(wc -l < "$RUNNER_TEMP/not.txt") satir"
+          komac update s-balli.LaTeXEditor --version "$V" --urls "$URL" \
+            --dry-run --skip-pr-check --output "$RUNNER_TEMP/manifest"
+          echo "=== uretilen dosyalar"
+          find "$RUNNER_TEMP/manifest" -type f
+          python3 scripts/winget_notu.py "$RUNNER_TEMP/manifest" "$RUNNER_TEMP/not.txt"
+          L=$(find "$RUNNER_TEMP/manifest" -name '*.locale.*.yaml' | head -1)
+          echo "=== locale manifesti"
+          cat "$L"
+          yq -e '.ReleaseNotes' "$L" > "$RUNNER_TEMP/notlar.txt"
+          echo "ReleaseNotes satiri: $(wc -l < "$RUNNER_TEMP/notlar.txt")"
+          if grep -q "chmod" "$RUNNER_TEMP/notlar.txt"; then
+            echo "::error::kurulum satirlari notta kalmis"; exit 1
+          fi
+          head -1 "$RUNNER_TEMP/notlar.txt" | grep -qx "While the Dictionary Loads"
+          echo "=== gonderim, PR acmadan"
+          komac submit "$RUNNER_TEMP/manifest" --yes --dry-run
