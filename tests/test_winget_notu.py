@@ -123,6 +123,17 @@ def test_main_klasordeki_locale_dosyasini_degistiriyor(tmp_path):
     assert kurulum.read_text(encoding="utf-8") == "PackageIdentifier: s-balli.LaTeXEditor\n"
 
 
+def test_CRLF_dosyada_not_da_CRLF_yaziliyor(tmp_path):
+    """komac manifesti CRLF yazıyor; not LF yazılınca dosya karışık kalıyordu."""
+    locale = tmp_path / "s-balli.LaTeXEditor.locale.en-US.yaml"
+    locale.write_bytes(_MANIFEST.replace("\n", "\r\n").encode("utf-8"))
+    not_dosyasi = tmp_path / "not.txt"
+    not_dosyasi.write_text(_NOT, encoding="utf-8")
+    assert winget_notu.main(["", str(tmp_path), str(not_dosyasi)]) == 0
+    beklenen = winget_notu.notu_degistir(_MANIFEST, _NOT).replace("\n", "\r\n")
+    assert locale.read_bytes().decode("utf-8") == beklenen
+
+
 @pytest.mark.parametrize("durum", ["locale_yok", "not_bos"])
 def test_main_eksikte_DUSUYOR(tmp_path, durum):
     """Sessizce eski notla gondermesin: iş akışı bu çıkışla duruyor."""

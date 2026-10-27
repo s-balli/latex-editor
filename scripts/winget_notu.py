@@ -21,11 +21,14 @@ def notu_degistir(metin: str, not_metni: str) -> str:
     Alan bir blok skaler (`|-`) olarak yaziliyor; eski deger ust duzeydeki
     bir sonraki anahtara kadar (girintili ya da bos satirlar) atiliyor. Alan
     yoksa ReleaseNotesUrl'den, o da yoksa ManifestType'tan once ekleniyor.
+    Satir sonu dosyanin kendisininki: komac CRLF yaziyor, not LF yazilirsa
+    dosya karisik kaliyor.
     """
+    sonu = "\r\n" if "\r\n" in metin else "\n"
     blok = ["ReleaseNotes: |-"] + [
         ("  " + s) if s.strip() else ""
         for s in not_metni.strip("\n").split("\n")]
-    satirlar = metin.split("\n")
+    satirlar = metin.split(sonu)
     cikti, i, yazildi = [], 0, False
     while i < len(satirlar):
         s = satirlar[i]
@@ -43,7 +46,7 @@ def notu_degistir(metin: str, not_metni: str) -> str:
             yazildi = True
         cikti.append(s)
         i += 1
-    return "\n".join(cikti)
+    return sonu.join(cikti)
 
 
 def main(argv) -> int:
