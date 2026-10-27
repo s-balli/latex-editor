@@ -37,6 +37,8 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 
 ➜ **[Download (Releases) sayfası](https://github.com/s-balli/latex-editor/releases)**
 
+➜ **Windows'ta winget ile:** `winget install s-balli.LaTeXEditor`; kurduktan sonra `latex-editor` komutuyla açılır.
+
 > ⚠️ **Önemli:** Uygulama yalnızca GUI'yi içerir. LaTeX derleyicisi (`lualatex`/`pdflatex`/`xelatex`) ayrıca **TeX Live** ile kurulmalıdır — Windows'ta **WSL** üzerinden, Linux'ta `apt` ile. Detaylar için [Gereksinimler](#gereksinimler) bölümüne bakın.
 
 > 🔏 **İndirdiğinizi doğrulama.** Sürüm dosyaları kod imzalı değil, o yüzden Windows SmartScreen ilk açılışta uyarı veriyor. Ama imzalı bir derleme kanıtı taşıyorlar; bu daha temel bir soruyu cevaplıyor: bu dosya gerçekten bu depodan, bu iş akışı koşusunda mı üretildi? GitHub CLI ile bakabilirsiniz:

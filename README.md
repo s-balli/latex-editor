@@ -37,6 +37,8 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 
 ➜ **[Download (Releases) page](https://github.com/s-balli/latex-editor/releases)**
 
+➜ **Windows, with winget:** `winget install s-balli.LaTeXEditor`, then start it with `latex-editor`.
+
 > ⚠️ **Important:** The app only includes the GUI. The LaTeX compiler (`lualatex`/`pdflatex`/`xelatex`) must be installed separately via **TeX Live** — on Windows through **WSL**, on Linux via `apt`. See [Requirements](#requirements) section for details.
 
 > 🔏 **Verifying your download.** Release binaries are not code-signed, so Windows SmartScreen will warn on first run. They do carry a signed build provenance attestation, which answers a more basic question: was this file really built from this repository, by this workflow run? Check it with the GitHub CLI:

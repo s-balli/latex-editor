@@ -328,7 +328,7 @@
       <div class="card-grid grid-3 download">
         <article class="card dl">
           <h3>🪟 Windows</h3>
-          <p><span class="tr">Taşınabilir <code>.exe</code>. Derleme için <a href="https://learn.microsoft.com/en-us/windows/wsl/install" target="_blank" rel="noopener">WSL</a> + TeX Live gerekir.</span></p>
+          <p><span class="tr">Taşınabilir <code>.exe</code>. Derleme için <a href="https://learn.microsoft.com/en-us/windows/wsl/install" target="_blank" rel="noopener">WSL</a> + TeX Live gerekir. winget'te de var (bkz. Kurulum).</span></p>
           <a class="primary-btn" href="https://github.com/s-balli/latex-editor/releases"><span class="tr">↓ Windows .exe</span></a>
         </article>
         <article class="card dl">
@@ -366,6 +366,11 @@ sudo apt-get install texlive-base texlive-binaries texlive-latex-base \
   texlive-latex-extra texlive-latex-recommended texlive-lang-european texlive-luatex texlive-xetex \
   texlive-fonts-extra texlive-science texlive-bibtex-extra texlive-font-utils \
   texlive-extra-utils biber texlive-publishers texlive-humanities texlive-pstricks python3-pygments pandoc</code></pre><button class="copy-btn" type="button"><span class="tr">Kopyala</span></button></div>
+            </li>
+            <li>
+              
+              <span class="tr"><code>.exe</code>'yi indirmek yerine uygulamayı PowerShell'de winget ile de kurabilirsin. Sonra <code>latex-editor</code> komutuyla açılır:</span>
+              <div class="cmd"><pre><code>winget install s-balli.LaTeXEditor</code></pre><button class="copy-btn" type="button"><span class="tr">Kopyala</span></button></div>
             </li>
           </ol>
         </article>

@@ -231,6 +231,9 @@ p { margin: 0 0 1em; }
 .setup .setup-col h3 { font-size: 1.1rem; }
 .steps { margin: 12px 0 0; padding-left: 22px; display: grid; gap: 18px; }
 .steps > li { line-height: 1.55; }
+/* Komut adi tireden bolunmesin: satir sonuna denk gelen `latex-editor`
+   "latex-" ve "editor" diye ikiye bolunuyordu (1024 px'te goruldu). */
+.steps code { white-space: nowrap; }
 .cmd { position: relative; margin-top: 10px; }
 .cmd pre {
   margin: 0;
