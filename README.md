@@ -51,6 +51,11 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 
 ## Version History
 
+### v1.2.6: Ctrl++ on Turkish Q
+
+- **Ctrl++ now enlarges the editor text on the Turkish Q keyboard.** There the + sign is Shift+4, so the key arrives with Shift held and the editor did not treat it as Ctrl++. Ctrl+- made the text smaller, and the only way back was Ctrl+Numpad+.
+- **The update check now writes its result to the app log.** It records whether the app is up to date, which newer version it found, or why it could not reach GitHub. Before, a check that could not reach GitHub left no trace.
+
 ### v1.2.5: While the Dictionary Loads
 
 - **Closing the app while the spell-check dictionary was still loading no longer crashes it on exit.** Loading a dictionary takes a few seconds. If the window closed in that time, the app crashed on the way out. It now waits for the load to finish before it exits.

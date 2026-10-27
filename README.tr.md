@@ -51,6 +51,11 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 
 ## Sürüm Geçmişi
 
+### v1.2.6: Türkçe Q'da Ctrl++
+
+- **Ctrl++ artık Türkçe Q klavyede editördeki yazıyı büyütüyor.** Bu düzende + işareti Shift+4'te; tuş Shift basılı geldiği için editör onu Ctrl++ saymıyordu. Ctrl+- yazıyı küçültüyor, geri büyütmenin tek yolu Ctrl+Numpad+ oluyordu.
+- **Güncelleme denetimi sonucunu artık uygulama günlüğüne yazıyor.** Uygulamanın güncel olup olmadığını, hangi yeni sürümü bulduğunu ya da GitHub'a neden ulaşamadığını kaydediyor. Önceden GitHub'a ulaşamayan bir denetim hiçbir iz bırakmıyordu.
+
 ### v1.2.5: Sözlük Yüklenirken
 
 - **Yazım denetimi sözlüğü yüklenirken kapatılan uygulama artık çıkışta çökmüyor.** Sözlük yüklemek birkaç saniye sürüyor. Pencere bu sırada kapanırsa uygulama çıkarken çöküyordu. Artık yüklemenin bitmesini bekleyip öyle çıkıyor.
