@@ -641,6 +641,14 @@ class EditorWidget(QsciScintilla):
               and event.modifiers() == Qt.KeyboardModifier.NoModifier
               and self._cifti_sil()):
             pass
+        elif (event.key() == Qt.Key.Key_Plus
+              and event.modifiers() == _CTRL_SHIFT):
+            # Ctrl++ +'yı Shift'le yazan düzende de büyütüyor (Türkçe Q'da
+            # Shift+4). QScintilla yalnız Shift'siz Ctrl++'yı tanıyor. ÖLÇÜLDÜ
+            # (2026-10-27, gerçek pencere, 041f Türkçe Q): Ctrl+Shift+4
+            # `key=+ text=4` geliyor, editör büyümüyordu; Ctrl+- küçültüyordu,
+            # geri büyütmenin tek yolu Ctrl+Numpad+'ydı.
+            self.zoomIn()
         elif _ctrl_metni(event):
             # Ctrl'lü tuşun METNİ yazılmıyor, komutu (Ctrl+Z, Ctrl+-) çalışıyor.
             # QScintilla bağlı olmayan tuşun metnini yazıyordu; Windows'ta Ctrl

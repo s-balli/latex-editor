@@ -296,3 +296,28 @@ def test_Ctrl_ile_gelen_metin_YAZILMIYOR_AltGr_ile_gelen_yaziliyor(qapp, key, me
     _cursor_end(ed)
     QApplication.sendEvent(ed, QKeyEvent(QEvent.Type.KeyPress, key, mods, metin))
     assert ed.text(0) == beklenen
+
+
+# (key, text, değiştiriciler) gerçek pencerede ölçüldü (2026-10-27, 041f
+# Türkçe Q); Ctrl+Shift+7 aynı ölçümün 2026-09-27'deki kaydı.
+@pytest.mark.parametrize("key, metin, mods, beklenen_zoom, beklenen", [
+    (Qt.Key.Key_Plus, "4", _C | _S, 1, "ab"),              # Ctrl++ (Shift+4)
+    (Qt.Key.Key_Plus, "+", _C | Qt.KeyboardModifier.KeypadModifier, 1, "ab"),
+    (Qt.Key.Key_4, "4", _C, 0, "ab"),
+    (Qt.Key.Key_Slash, "7", _C | _S, 0, "ab"),
+    (Qt.Key.Key_Plus, "+", _S, 0, "ab+"),
+], ids=["ctrl_shift_4", "ctrl_numpad_arti", "ctrl_4", "ctrl_shift_7", "shift_4"])
+def test_Ctrl_arti_Turkce_Qda_da_BUYUTUYOR(qapp, key, metin, mods, beklenen_zoom,
+                                          beklenen):
+    """Ctrl++ editörü büyütmüyordu: Türkçe Q'da + Shift+4'te, olay Ctrl+Shift
+    ile geliyor ve QScintilla yalnız Shift'siz Ctrl++'yı tanıyor. Ctrl+-
+    küçültüyordu; geri büyütmenin tek yolu Ctrl+Numpad+'ydı."""
+    from PyQt6.QtCore import QEvent
+    from PyQt6.QtGui import QKeyEvent
+    ed = _editor()
+    ed.setText("ab")
+    _cursor_end(ed)
+    ed.zoomTo(0)
+    QApplication.sendEvent(ed, QKeyEvent(QEvent.Type.KeyPress, key, mods, metin))
+    assert ed.SendScintilla(ed.SCI_GETZOOM) == beklenen_zoom
+    assert ed.text(0) == beklenen
