@@ -169,6 +169,11 @@ p { margin: 0 0 1em; }
 
 /* ===== Card grids ===== */
 .card-grid { display: grid; gap: 16px; margin-top: 28px; }
+/* Grid ogesi ontanimli olarak icindeki en uzun satirdan daralamiyor
+   (min-width: auto). Kurulum'daki apt-get kutusu bu yuzden 375 px'lik
+   telefonda sayfayi 941 px'e genisletiyordu; 0 ile kutu kendi icinde
+   kayiyor. .steps de grid, ogelerinde ayni ayar var. */
+.card-grid > * { min-width: 0; }
 .grid-4 { grid-template-columns: repeat(4, 1fr); }
 .grid-3 { grid-template-columns: repeat(3, 1fr); }
 .grid-2 { grid-template-columns: repeat(2, 1fr); }
@@ -230,7 +235,7 @@ p { margin: 0 0 1em; }
 .setup { grid-template-columns: 1fr; max-width: 860px; }
 .setup .setup-col h3 { font-size: 1.1rem; }
 .steps { margin: 12px 0 0; padding-left: 22px; display: grid; gap: 18px; }
-.steps > li { line-height: 1.55; }
+.steps > li { line-height: 1.55; min-width: 0; }
 /* Komut adi tireden bolunmesin: satir sonuna denk gelen `latex-editor`
    "latex-" ve "editor" diye ikiye bolunuyordu (1024 px'te goruldu). */
 .steps code { white-space: nowrap; }
