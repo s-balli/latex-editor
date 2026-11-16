@@ -134,6 +134,12 @@ class FileOpsMixin:
             if reply != "save":                 # discard
                 editor.setModified(False)
         _logger.info("Klasör açıldı: %s", path)
+        # Süren derleme eski projenin: bitince onun PDF'ini ve hatalarını
+        # yeni klasörün üstüne yüklüyordu (ölçüldü 2026-11-16, test_file_ops).
+        # Esc ile aynı yol; iskelet sınıflarda (testler) yöntem yok.
+        if (getattr(self, "_compiler", None) is not None
+                and self._compiler.is_busy() and hasattr(self, "_stop_compile")):
+            self._stop_compile()
         for i in range(self._editor_tabs.count() - 1, -1, -1):
             self._close_tab_safe(i)  # dirty kalmadı; iptal edilemez
         self._pdf_viewer.clear()

@@ -170,6 +170,27 @@ def test_open_folder_discard_sekmeler_kapanir_kok_degisir(qapp, tmp_path, monkey
 # --- _new_file: kayıt başarısızsa sekme açılmasın ---
 
 
+def test_KLASOR_DEGISINCE_suren_derleme_DURUYOR(ana_pencere, tmp_path,
+                                               monkeypatch):
+    """Klasör değişince süren derleme durmuyordu: bitince eski projenin
+    PDF'ini yükleyip `_current_pdf`, hata listesi ve paneli yeni klasör
+    açıkken eski projeye bağlıyordu (durum makinesi taraması, 2026-11-16).
+    Esc ile aynı yoldan durduruluyor."""
+    p = ana_pencere()
+    yeni = tmp_path / "yeni_proje"
+    yeni.mkdir()
+    monkeypatch.setattr(
+        "gui.mixins.file_ops.QFileDialog.getExistingDirectory",
+        lambda *a, **k: str(yeni))
+    durduruldu = []
+    monkeypatch.setattr(p._compiler, "is_busy", lambda: True)
+    monkeypatch.setattr(p._compiler, "stop", lambda: durduruldu.append(1))
+
+    p._open_folder()
+
+    assert durduruldu, "klasör değişti ama süren derleme durmadı"
+
+
 def test_new_file_kayit_basarisiz_tab_eklenmez(qapp, tmp_path, monkeypatch):
     stub = _Stub([])
     monkeypatch.setattr(
