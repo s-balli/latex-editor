@@ -328,3 +328,36 @@ def test_ACILIS_denetimi_KAPATILABILIYOR_elle_denetim_CALISIYOR(ana_pencere,
     assert len(denetim) == 1, "kapatılan açılış denetimi yine koştu"
     kapali._check_for_update_manual()
     assert len(denetim) == 2, "elle denetim ayara takıldı"
+
+
+@gui
+def test_MODAL_acikken_bildirim_ERTELENIYOR_ve_KAYBOLMUYOR(qapp, monkeypatch):
+    """Çökme sonrası açılışta kurtarma sorusu (modal) ekrandayken sessiz
+    denetim yeni sürüm bulunca ikinci bir modal açıyordu: iki soru üst üste
+    (durum makinesi taraması, 2026-11-16). Modal açıkken bildirim ertelenmeli,
+    modal kapanınca gösterilmeli."""
+    from PyQt6.QtWidgets import QWidget
+
+    class _Pencere(_SahtePencere):
+        def _on_update_found(self, bilgi):
+            return mw.MainWindow._on_update_found(self, bilgi)
+
+    gosterilen = []
+    monkeypatch.setattr(mw, "yardim_penceresi",
+                        lambda *a, **k: gosterilen.append(1) or False)
+    ertelenen = []
+    monkeypatch.setattr(mw.QTimer, "singleShot",
+                        staticmethod(lambda ms, fn: ertelenen.append(fn)))
+    modal = QWidget()
+    monkeypatch.setattr(QApplication, "activeModalWidget",
+                        staticmethod(lambda: modal))
+
+    p = _Pencere()
+    p._on_update_found(_bilgi("not"))
+    assert gosterilen == [], "modal açıkken ikinci modal açıldı"
+    assert len(ertelenen) == 1, "bildirim ertelenmedi, kayboldu"
+
+    monkeypatch.setattr(QApplication, "activeModalWidget",
+                        staticmethod(lambda: None))
+    ertelenen[0]()
+    assert gosterilen == [1], "modal kapanınca bildirim gösterilmedi"

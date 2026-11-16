@@ -1394,6 +1394,12 @@ class MainWindow(
 
     def _on_update_found(self, info: dict):
         """Yeni sürüm bulundu — kullanıcıya bildir."""
+        # Başka bir modal açıksa (çökme sonrası kurtarma sorusu gibi) ertele:
+        # iki soru üst üste açılıyordu (ölçüldü 2026-11-16,
+        # test_guncelleme_diyalogu). Modal kapanınca bildirim gösteriliyor.
+        if QApplication.activeModalWidget() is not None:
+            QTimer.singleShot(1000, lambda: self._on_update_found(info))
+            return
         self._status.showMessage("")
         tag = info.get("tag", "")
         url = info.get("url", "")
