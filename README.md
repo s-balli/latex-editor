@@ -985,6 +985,10 @@ wsl which lualatex
 
 PDF is shown automatically after successful compilation. Check if `.pdf` file exists in the file tree.
 
+### A file in a deeply nested folder does not open or save
+
+Windows limits paths to 260 characters unless long path support is turned on, and deep folders (for example a thesis under OneDrive) can exceed it. Turn it on once (as administrator, then restart): Local Group Policy Editor > Computer Configuration > Administrative Templates > System > Filesystem > "Enable Win32 long paths", or set `LongPathsEnabled` to `1` under `HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\FileSystem`. Moving the project to a shorter path also works.
+
 ## Dependencies
 
 ### Desktop

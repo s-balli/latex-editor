@@ -986,6 +986,10 @@ wsl which lualatex
 
 Derleme başarılı olduktan sonra PDF otomatik gösterilir. Dosya ağacında `.pdf` dosyası oluşmuş mu kontrol edin.
 
+### Derin bir klasördeki dosya açılmıyor ya da kaydedilmiyor
+
+Windows, uzun yol desteği açılmadıkça yolları 260 karakterle sınırlar; derin klasörler (örneğin OneDrive altındaki bir tez) bu sınırı aşabilir. Desteği bir kez açın (yönetici olarak, sonra bilgisayarı yeniden başlatın): Yerel Grup İlkesi Düzenleyicisi > Bilgisayar Yapılandırması > Yönetim Şablonları > Sistem > Dosya Sistemi > "Win32 uzun yollarını etkinleştir", ya da `HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\FileSystem` altında `LongPathsEnabled` değerini `1` yapın. Projeyi daha kısa bir yola taşımak da işe yarar.
+
 ## Bağımlılıklar
 
 ### Masaüstü
