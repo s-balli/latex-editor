@@ -1710,8 +1710,8 @@ class MainWindow(
     # _doi_runner diske YAZMIYOR (yalnız ağdan okuyup sinyal yayıyor) ama yine
     # de bekleniyor: 8 sn'lik zaman aşımıyla çalışan bir thread pencere yok
     # edilirken canlı kalırsa sinyali ölü bir nesneye ulaşır.
-    _BG_WRITERS = (("_snapshot_runner", 15000), ("_export_runner", 10000),
-                   ("_doi_runner", 9000))
+    _BG_WRITERS = (("_snapshot_runner", 15000), ("_geri_yukleme_runner", 15000),
+                   ("_export_runner", 10000), ("_doi_runner", 9000))
 
     def _wait_background_writers(self):
         """Diske yazan daemon thread'lerin bitmesini bekle.

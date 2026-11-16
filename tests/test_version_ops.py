@@ -843,6 +843,44 @@ def test_GERI_YUKLEME_simdiki_hali_GECMISTE_birakiyor(qapp, tmp_path,
     assert gecmiste("KAYDEDILMEMIS taslak")
 
 
+def test_GERI_YUKLEME_oncesi_surum_ARAYUZU_DONDURMUYOR(qapp, tmp_path,
+                                                      monkeypatch):
+    """Geri yükleme öncesi sürüm ana iş parçacığında alınıyordu. ÖLÇÜLDÜ
+    (2026-11-16): `\\\\wsl.localhost` yolundaki 1085 dosyalık klasörde
+    64-69 sn arayüz dondu, tek şablonda 1,6 sn; Ctrl+K aynı nedenle arka
+    plana alınmıştı (durum makinesi taraması). Sürüm arka planda alınmalı,
+    bu sırada dosya düzenlemeye kapalı olmalı (sürüme girmeyen değişiklik
+    geri yüklemeyle ezilmesin) ve sonra geri yükleme yapılmalı."""
+    import threading
+    import gui.mixins.version_ops as vo
+
+    stub, ed, tex = _stub_with_editor(tmp_path, monkeypatch)
+    _snap(qapp, stub)
+    ilk = V.history(str(tmp_path))[0].sha
+    ed.setText("SONRAKI IS\n")
+    ed.save_file()
+    _evet(monkeypatch)
+
+    gercek = vo.versioning.snapshot
+    gorulen = []
+
+    def izle(root, msg):
+        gorulen.append((threading.current_thread() is threading.main_thread(),
+                        ed.isReadOnly()))
+        return gercek(root, msg)
+
+    monkeypatch.setattr(vo.versioning, "snapshot", izle)
+    stub._on_version_action("restore", ilk)
+
+    assert gorulen == [(False, True)], (
+        "(ana iş parçacığında mı, dosya kilitli mi): %r" % gorulen)
+    assert "merhaba" in open(tex, encoding="utf-8").read()
+    assert ed.isReadOnly() is False, "kilit kalktı mı"
+    assert any("SONRAKI IS" in (V.file_content(str(tmp_path), e.sha,
+                                               "ana.tex") or "")
+               for e in V.history(str(tmp_path)))
+
+
 def test_FARK_ekrani_editorde_GORUNENI_karsilastiriyor(ana_pencere, tmp_path,
                                                        monkeypatch):
     """Fark diskle yapılıyordu. ÖLÇÜLDÜ (2026-09-23, gerçek pencere): kirli

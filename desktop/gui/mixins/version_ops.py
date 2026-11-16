@@ -7,7 +7,8 @@ görmez: anlık görüntü metaforu. Klasör .git içeriyorsa olduğu gibi kulla
 import os
 import threading
 
-from PyQt6.QtCore import QCoreApplication, QObject, pyqtSignal
+from PyQt6 import sip
+from PyQt6.QtCore import QCoreApplication, QEventLoop, QObject, pyqtSignal
 from PyQt6.QtWidgets import QInputDialog, QMessageBox
 
 from core import versioning
@@ -525,15 +526,43 @@ class VersionOpsMixin:
                 return False
             if hasattr(self, "_file_watch_record_save"):
                 self._file_watch_record_save(editor.file_path)
+        # Sürüm ARKA PLANDA alınıyor, sonuç yerel olay döngüsüyle bekleniyor.
+        # Ana iş parçacığında alınıyordu; ÖLÇÜLDÜ (2026-11-16)
+        # `\\wsl.localhost` yolunda 1085 dosyalık klasörde 64-69 sn, tek
+        # şablonda 1,6 sn arayüz donuyordu. Ctrl+K'nın işçisi kullanılmıyor:
+        # o bitince geçmiş sekmesine geçip "Sürüm kaydedildi" diyor.
+        # Beklerken dosya düzenlemeye kapalı: sürüme girmeyen bir değişiklik
+        # geri yüklemeyle ezilmesin.
+        if getattr(self, "_geri_yukleme_runner", None) is None:
+            self._geri_yukleme_runner = _SnapshotRunner()
+        sonuc = {}
+        dongu = QEventLoop()
+
+        def bitti(ok, hata, entry):
+            sonuc["ok"] = ok
+            dongu.quit()
+
+        runner = self._geri_yukleme_runner
+        runner.done.connect(bitti)
+        salt_okunur = editor.isReadOnly()
+        editor.setReadOnly(True)
+        self._snapshot_busy = True
+        self._status.showMessage(_("Şimdiki hâl sürüme alınıyor") + "...")
         try:
-            versioning.snapshot(
-                root, _("Geri yüklemeden önce: {f}").format(f=rel))
-        except Exception:
-            _logger.error("Geri yükleme öncesi sürüm alınamadı: %s", root,
-                          exc_info=True)
+            runner.start(root, _("Geri yüklemeden önce: {f}").format(f=rel),
+                         False)
+            dongu.exec()
+        finally:
+            runner.done.disconnect(bitti)
+            self._snapshot_busy = False
+            if not sip.isdeleted(editor):
+                editor.setReadOnly(salt_okunur)
+        if not sonuc.get("ok"):
             self._status.showMessage(
                 _("Şimdiki hâl sürüme alınamadı, geri yükleme iptal"))
             return False
+        if sip.isdeleted(editor):
+            return False                       # beklerken sekme kapandı
         return True
 
     def _restore_version(self, root: str, sha: str, rel: str, editor):

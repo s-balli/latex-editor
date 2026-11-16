@@ -92,62 +92,62 @@ Bu izin belgenin BİLGİSAYARINIZDA KOMUT ÇALIŞTIRMASINA olanak verir. Yalnız
         <translation>PDF oluşturuldu ama boş, motoru değiştirip tekrar deneyin</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="575" />
+        <location filename="../gui/mixins/compile_ops.py" line="578" />
         <source>hata</source>
         <translation>hata</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="575" />
+        <location filename="../gui/mixins/compile_ops.py" line="578" />
         <source>Başarısız</source>
         <translation>Başarısız</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="577" />
+        <location filename="../gui/mixins/compile_ops.py" line="580" />
         <source>Başarılı</source>
         <translation>Başarılı</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="579" />
+        <location filename="../gui/mixins/compile_ops.py" line="582" />
         <source>uyarı</source>
         <translation>uyarı</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="704" />
+        <location filename="../gui/mixins/compile_ops.py" line="707" />
         <source>Belge {istenen} istiyor ama PDF {cikan} çıktı. Kağıt boyunu belgenin belirlemesi için \usepackage[{secenek}]{{geometry}} ekleyin.</source>
         <translation>Belge {istenen} istiyor ama PDF {cikan} çıktı. Kağıt boyunu belgenin belirlemesi için \usepackage[{secenek}]{{geometry}} ekleyin.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="719" />
+        <location filename="../gui/mixins/compile_ops.py" line="722" />
         <source>Derleme sonrası referans denetimi açıldı</source>
         <translation>Derleme sonrası referans denetimi açıldı</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="720" />
+        <location filename="../gui/mixins/compile_ops.py" line="723" />
         <source>Derleme sonrası referans denetimi kapatıldı</source>
         <translation>Derleme sonrası referans denetimi kapatıldı</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="830" />
+        <location filename="../gui/mixins/compile_ops.py" line="833" />
         <source>Hata yok</source>
         <translation>Hata yok</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="839" />
+        <location filename="../gui/mixins/compile_ops.py" line="842" />
         <source>Hata konumu bulunamadı</source>
         <translation>Hata konumu bulunamadı</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="844" />
+        <location filename="../gui/mixins/compile_ops.py" line="847" />
         <source>Satır</source>
         <translation>Satır</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="859" />
+        <location filename="../gui/mixins/compile_ops.py" line="862" />
         <source>Otomatik Derle</source>
         <translation>Otomatik Derle</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/compile_ops.py" line="865" />
+        <location filename="../gui/mixins/compile_ops.py" line="868" />
         <source>Manuel</source>
         <translation>Manuel</translation>
     </message>
@@ -581,34 +581,34 @@ Referanslar tutarsız kaldı. Bu dosyalara yazma izni verip işlemi tekrarlayın
         <translation>Tümünü Seç</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1306" />
-        <location filename="../gui/editor.py" line="1301" />
+        <location filename="../gui/editor.py" line="1314" />
+        <location filename="../gui/editor.py" line="1309" />
         <source>İkili (binary) dosya; metin editöründe açılamaz.</source>
         <translation>İkili (binary) dosya; metin editöründe açılamaz.</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1353" />
-        <location filename="../gui/editor.py" line="1344" />
+        <location filename="../gui/editor.py" line="1361" />
+        <location filename="../gui/editor.py" line="1352" />
         <source>Kodlama Uyarısı</source>
         <translation>Kodlama Uyarısı</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1345" />
+        <location filename="../gui/editor.py" line="1353" />
         <source>Bu dosya UTF-16 kodlamalı ve LaTeX UTF-16 okuyamaz. UTF-8'e çevrilerek açıldı; dosya ilk kaydedildiğinde UTF-8 olacak. Otomatik kaydetme ve derlemeden önceki kayıt da buna dahil.</source>
         <translation>Bu dosya UTF-16 kodlamalı ve LaTeX UTF-16 okuyamaz. UTF-8'e çevrilerek açıldı; dosya ilk kaydedildiğinde UTF-8 olacak. Otomatik kaydetme ve derlemeden önceki kayıt da buna dahil.</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1354" />
+        <location filename="../gui/editor.py" line="1362" />
         <source>Bu dosya UTF-8 değil ({enc}). {enc} olarak açıldı ve aynı kodlamayla kaydedilecek. Sorunsuz derleme için UTF-8'e dönüştürmeniz önerilir.</source>
         <translation>Bu dosya UTF-8 değil ({enc}). {enc} olarak açıldı ve aynı kodlamayla kaydedilecek. Sorunsuz derleme için UTF-8'e dönüştürmeniz önerilir.</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1361" />
+        <location filename="../gui/editor.py" line="1369" />
         <source>Dosya Açma Hatası</source>
         <translation>Dosya Açma Hatası</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1361" />
+        <location filename="../gui/editor.py" line="1369" />
         <source>Dosya açılamadı:
 {path}
 
@@ -619,7 +619,7 @@ Referanslar tutarsız kaldı. Bu dosyalara yazma izni verip işlemi tekrarlayın
 {e}</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1451" />
+        <location filename="../gui/editor.py" line="1459" />
         <source>Bu dosya {enc} kodlamasında ve {ch} karakteri o kodlamada yok, bu yüzden kaydedilemiyor.
 
 Dosya UTF-8'e dönüştürülsün mü? (önerilen)</source>
@@ -628,22 +628,22 @@ Dosya UTF-8'e dönüştürülsün mü? (önerilen)</source>
 Dosya UTF-8'e dönüştürülsün mü? (önerilen)</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1457" />
+        <location filename="../gui/editor.py" line="1465" />
         <source>Belgedeki \usepackage[{eski}]{{inputenc}} satırı da \usepackage[utf8]{{inputenc}} yapılacak; yoksa belge derlenmez.</source>
         <translation>Belgedeki \usepackage[{eski}]{{inputenc}} satırı da \usepackage[utf8]{{inputenc}} yapılacak; yoksa belge derlenmez.</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1462" />
+        <location filename="../gui/editor.py" line="1470" />
         <source>Kodlama Yetersiz</source>
         <translation>Kodlama Yetersiz</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1555" />
+        <location filename="../gui/editor.py" line="1563" />
         <source>Kaydetme Hatası</source>
         <translation>Kaydetme Hatası</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1555" />
+        <location filename="../gui/editor.py" line="1563" />
         <source>Dosya kaydedilemedi:
 {path}
 
@@ -654,7 +654,7 @@ Dosya UTF-8'e dönüştürülsün mü? (önerilen)</translation>
 {e}</translation>
     </message>
     <message>
-        <location filename="../gui/editor.py" line="1585" />
+        <location filename="../gui/editor.py" line="1593" />
         <source>Yeni Dosya</source>
         <translation>Yeni Dosya</translation>
     </message>
@@ -753,43 +753,43 @@ Dosya UTF-8'e dönüştürülsün mü? (önerilen)</translation>
         <translation>Klasör Aç</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="162" />
+        <location filename="../gui/mixins/file_ops.py" line="168" />
         <source>Dosya Açık</source>
         <translation>Dosya Açık</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="163" />
+        <location filename="../gui/mixins/file_ops.py" line="169" />
         <source>{ad} başka bir sekmede açık. Önce o sekmeyi kapatın ya da başka bir ad seçin.</source>
         <translation>{ad} başka bir sekmede açık. Önce o sekmeyi kapatın ya da başka bir ad seçin.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="169" />
+        <location filename="../gui/mixins/file_ops.py" line="175" />
         <source>Yeni Dosya</source>
         <translation>Yeni Dosya</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="347" />
-        <location filename="../gui/mixins/file_ops.py" line="170" />
+        <location filename="../gui/mixins/file_ops.py" line="353" />
+        <location filename="../gui/mixins/file_ops.py" line="176" />
         <source>LaTeX Dosyaları (*.tex);;Tüm Dosyalar (*)</source>
         <translation>LaTeX Dosyaları (*.tex);;Tüm Dosyalar (*)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="200" />
+        <location filename="../gui/mixins/file_ops.py" line="206" />
         <source>Dosya Aç</source>
         <translation>Dosya Aç</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="201" />
+        <location filename="../gui/mixins/file_ops.py" line="207" />
         <source>LaTeX Dosyaları (*.tex *.cls *.sty *.bib);;Tüm Dosyalar (*)</source>
         <translation>LaTeX Dosyaları (*.tex *.cls *.sty *.bib);;Tüm Dosyalar (*)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="244" />
+        <location filename="../gui/mixins/file_ops.py" line="250" />
         <source>Büyük dosya</source>
         <translation>Büyük dosya</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="245" />
+        <location filename="../gui/mixins/file_ops.py" line="251" />
         <source>'{ad}' {mb:.0f} MB.
 
 Bu boyutta bir dosya, özellikle çok uzun satırlar taşıyorsa, pencereyi bir süre yanıt vermez hâle getirebilir.
@@ -802,37 +802,37 @@ Bu boyutta bir dosya, özellikle çok uzun satırlar taşıyorsa, pencereyi bir 
 Açılsın mı?</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="262" />
+        <location filename="../gui/mixins/file_ops.py" line="268" />
         <source>Açılmadı: {ad}</source>
         <translation>Açılmadı: {ad}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="325" />
+        <location filename="../gui/mixins/file_ops.py" line="331" />
         <source>Motor algılandı</source>
         <translation>Motor algılandı</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="346" />
+        <location filename="../gui/mixins/file_ops.py" line="352" />
         <source>Farklı Kaydet</source>
         <translation>Farklı Kaydet</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="467" />
+        <location filename="../gui/mixins/file_ops.py" line="479" />
         <source>(boş)</source>
         <translation>(boş)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="496" />
+        <location filename="../gui/mixins/file_ops.py" line="508" />
         <source>WSL içinde: {komut}</source>
         <translation>WSL içinde: {komut}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="503" />
+        <location filename="../gui/mixins/file_ops.py" line="515" />
         <source>Dışa Aktarma</source>
         <translation>Dışa Aktarma</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="512" />
+        <location filename="../gui/mixins/file_ops.py" line="524" />
         <source>pandoc yüklü değil.
 
 Kurmak için: {komut}</source>
@@ -841,47 +841,47 @@ Kurmak için: {komut}</source>
 Kurmak için: {komut}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="519" />
+        <location filename="../gui/mixins/file_ops.py" line="531" />
         <source>Dışa aktarılacak dosya yok</source>
         <translation>Dışa aktarılacak dosya yok</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="525" />
+        <location filename="../gui/mixins/file_ops.py" line="537" />
         <source>Dışa aktarma zaten sürüyor, bitmesini bekleyin</source>
         <translation>Dışa aktarma zaten sürüyor, bitmesini bekleyin</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="543" />
+        <location filename="../gui/mixins/file_ops.py" line="555" />
         <source>Dışa Aktar</source>
         <translation>Dışa Aktar</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="544" />
+        <location filename="../gui/mixins/file_ops.py" line="556" />
         <source>Tüm Dosyalar (*)</source>
         <translation>Tüm Dosyalar (*)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="556" />
+        <location filename="../gui/mixins/file_ops.py" line="568" />
         <source>Kayıt başarısız, dışa aktarma iptal edildi</source>
         <translation>Kayıt başarısız, dışa aktarma iptal edildi</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="565" />
+        <location filename="../gui/mixins/file_ops.py" line="577" />
         <source>Dışa aktarılıyor</source>
         <translation>Dışa aktarılıyor</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="573" />
+        <location filename="../gui/mixins/file_ops.py" line="585" />
         <source>Dışa aktarıldı</source>
         <translation>Dışa aktarıldı</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="576" />
+        <location filename="../gui/mixins/file_ops.py" line="588" />
         <source>Dışa aktarma başarısız</source>
         <translation>Dışa aktarma başarısız</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_ops.py" line="584" />
+        <location filename="../gui/mixins/file_ops.py" line="596" />
         <source>Önce bir klasör açın</source>
         <translation>Önce bir klasör açın</translation>
     </message>
@@ -1126,13 +1126,13 @@ Windows: WSL içinde 'sudo apt install pandoc'</translation>
 </context><context>
     <name>FileWatchMixin</name>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="331" />
-        <location filename="../gui/mixins/file_watch.py" line="292" />
+        <location filename="../gui/mixins/file_watch.py" line="336" />
+        <location filename="../gui/mixins/file_watch.py" line="297" />
         <source>Dosya Silindi</source>
         <translation>Dosya Silindi</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="294" />
+        <location filename="../gui/mixins/file_watch.py" line="299" />
         <source>{fname} dosyası diskten silindi.
 
 Bu dosyada kaydedilmemiş değişiklikleriniz var; sekmeyi kapatırsanız kaybolur.</source>
@@ -1141,29 +1141,29 @@ Bu dosyada kaydedilmemiş değişiklikleriniz var; sekmeyi kapatırsanız kaybol
 Bu dosyada kaydedilmemiş değişiklikleriniz var; sekmeyi kapatırsanız kaybolur.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="299" />
+        <location filename="../gui/mixins/file_watch.py" line="304" />
         <source>Farklı Kaydet...</source>
         <translation>Farklı Kaydet...</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="300" />
+        <location filename="../gui/mixins/file_watch.py" line="305" />
         <source>Sekmede Tut</source>
         <translation>Sekmede Tut</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="301" />
+        <location filename="../gui/mixins/file_watch.py" line="306" />
         <source>Sekmeyi Kapat</source>
         <translation>Sekmeyi Kapat</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="332" />
+        <location filename="../gui/mixins/file_watch.py" line="337" />
         <source>{fname} dosyası diskten silindi.
 İlgili sekme kapatılacak.</source>
         <translation>{fname} dosyası diskten silindi.
 İlgili sekme kapatılacak.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="345" />
+        <location filename="../gui/mixins/file_watch.py" line="350" />
         <source>{fname} dosyası diskte değiştirildi.
 
 Kaydedilmemiş yerel değişiklikleriniz var.
@@ -1174,32 +1174,32 @@ Kaydedilmemiş yerel değişiklikleriniz var.
 Diskteki sürümü yüklerseniz yerel değişiklikleriniz kaybolacak.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="350" />
+        <location filename="../gui/mixins/file_watch.py" line="355" />
         <source>Diskten Yükle</source>
         <translation>Diskten Yükle</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="351" />
+        <location filename="../gui/mixins/file_watch.py" line="356" />
         <source>Kendiminkini Koru</source>
         <translation>Kendiminkini Koru</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="353" />
+        <location filename="../gui/mixins/file_watch.py" line="358" />
         <source>{fname} dosyası diskte başka bir program tarafından değiştirildi.</source>
         <translation>{fname} dosyası diskte başka bir program tarafından değiştirildi.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="356" />
+        <location filename="../gui/mixins/file_watch.py" line="361" />
         <source>Yeniden Yükle</source>
         <translation>Yeniden Yükle</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="357" />
+        <location filename="../gui/mixins/file_watch.py" line="362" />
         <source>Yoksay</source>
         <translation>Yoksay</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/file_watch.py" line="360" />
+        <location filename="../gui/mixins/file_watch.py" line="365" />
         <source>Dosya Değiştirildi</source>
         <translation>Dosya Değiştirildi</translation>
     </message>
@@ -1814,9 +1814,9 @@ Belgede değiştirilmemiş eşleşmeler kalmış olabilir; işlemi tekrarlayarak
         <translation>Tablo Sihirbazı</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="345" />
-        <location filename="../gui/mixins/yazim_ops.py" line="340" />
-        <location filename="../gui/mixins/yazim_ops.py" line="309" />
+        <location filename="../gui/mixins/yazim_ops.py" line="390" />
+        <location filename="../gui/mixins/yazim_ops.py" line="385" />
+        <location filename="../gui/mixins/yazim_ops.py" line="354" />
         <location filename="../gui/main_window.py" line="1047" />
         <location filename="../gui/main_window.py" line="1004" />
         <source>Yazım Denetimi</source>
@@ -2400,7 +2400,7 @@ Belgede değiştirilmemiş eşleşmeler kalmış olabilir; işlemi tekrarlayarak
         <translation>LaTeX Editor</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1667" />
+        <location filename="../gui/main_window.py" line="1673" />
         <location filename="../gui/main_window.py" line="1252" />
         <source>Dosya bulunamadı: {name}</source>
         <translation>Dosya bulunamadı: {name}</translation>
@@ -2427,88 +2427,88 @@ Belgede değiştirilmemiş eşleşmeler kalmış olabilir; işlemi tekrarlayarak
         <translation>Güncellemeler kontrol ediliyor...</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1409" />
+        <location filename="../gui/main_window.py" line="1415" />
         <source>Yeni sürüm</source>
         <translation>Yeni sürüm</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1409" />
+        <location filename="../gui/main_window.py" line="1415" />
         <source>mevcut</source>
         <translation>mevcut</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1410" />
+        <location filename="../gui/main_window.py" line="1416" />
         <source>Kullandığınız sürüm</source>
         <translation>Kullandığınız sürüm</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1417" />
+        <location filename="../gui/main_window.py" line="1423" />
         <source>Sürüm notları</source>
         <translation>Sürüm notları</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1419" />
+        <location filename="../gui/main_window.py" line="1425" />
         <source>Notların tamamı Releases sayfasında.</source>
         <translation>Notların tamamı Releases sayfasında.</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1436" />
+        <location filename="../gui/main_window.py" line="1442" />
         <source>İndirmek için Releases sayfasını aç</source>
         <translation>İndirmek için Releases sayfasını aç</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1442" />
+        <location filename="../gui/main_window.py" line="1448" />
         <source>Güncelleme Mevcut</source>
         <translation>Güncelleme Mevcut</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1443" />
+        <location filename="../gui/main_window.py" line="1449" />
         <source>Şimdi indirip kurmak ister misiniz?</source>
         <translation>Şimdi indirip kurmak ister misiniz?</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1444" />
+        <location filename="../gui/main_window.py" line="1450" />
         <source>Tarayıcıda Aç</source>
         <translation>Tarayıcıda Aç</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1444" />
+        <location filename="../gui/main_window.py" line="1450" />
         <source>Daha Sonra</source>
         <translation>Daha Sonra</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1465" />
-        <location filename="../gui/main_window.py" line="1457" />
+        <location filename="../gui/main_window.py" line="1471" />
+        <location filename="../gui/main_window.py" line="1463" />
         <source>Güncellemeleri Kontrol Et</source>
         <translation>Güncellemeleri Kontrol Et</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1458" />
+        <location filename="../gui/main_window.py" line="1464" />
         <source>En güncel sürümü kullanıyorsunuz</source>
         <translation>En güncel sürümü kullanıyorsunuz</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1466" />
+        <location filename="../gui/main_window.py" line="1472" />
         <source>Güncelleme kontrol edilemedi, bağlantı kurulamadı.</source>
         <translation>Güncelleme kontrol edilemedi, bağlantı kurulamadı.</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1628" />
+        <location filename="../gui/main_window.py" line="1634" />
         <source>Klasör bırakılamaz; açmak için Ctrl+O: {name}</source>
         <translation>Klasör bırakılamaz; açmak için Ctrl+O: {name}</translation>
     </message>
     <message>
-        <location filename="../gui/main_window.py" line="1674" />
+        <location filename="../gui/main_window.py" line="1680" />
         <source>Bu dosya türü açılamıyor: {name}</source>
         <translation>Bu dosya türü açılamıyor: {name}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="291" />
+        <location filename="../gui/mixins/yazim_ops.py" line="324" />
         <source>sözlük yükleniyor...</source>
         <translation>sözlük yükleniyor...</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="310" />
+        <location filename="../gui/mixins/yazim_ops.py" line="355" />
         <source>Sözlük yüklenemedi.
 
 {hata}
@@ -2521,72 +2521,72 @@ Sözlük dizini: {dizin}</source>
 Sözlük dizini: {dizin}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="334" />
+        <location filename="../gui/mixins/yazim_ops.py" line="379" />
         <source>Öneriler aranıyor...</source>
         <translation>Öneriler aranıyor...</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="341" />
+        <location filename="../gui/mixins/yazim_ops.py" line="386" />
         <source>'{k}' için öneri bulunamadı.</source>
         <translation>'{k}' için öneri bulunamadı.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="346" />
+        <location filename="../gui/mixins/yazim_ops.py" line="391" />
         <source>'{k}' yerine:</source>
         <translation>'{k}' yerine:</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="389" />
+        <location filename="../gui/mixins/yazim_ops.py" line="434" />
         <source>Bulgunun geldiği belge açık değil: {name}</source>
         <translation>Bulgunun geldiği belge açık değil: {name}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="406" />
+        <location filename="../gui/mixins/yazim_ops.py" line="451" />
         <source>'{e}' belgede bulunamadı, değiştirilmedi</source>
         <translation>'{e}' belgede bulunamadı, değiştirilmedi</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="412" />
+        <location filename="../gui/mixins/yazim_ops.py" line="457" />
         <source>'{e}' -&gt; '{y}' değiştirildi</source>
         <translation>'{e}' -&gt; '{y}' değiştirildi</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="420" />
+        <location filename="../gui/mixins/yazim_ops.py" line="465" />
         <source>'{k}' sözlüğe eklendi</source>
         <translation>'{k}' sözlüğe eklendi</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="426" />
+        <location filename="../gui/mixins/yazim_ops.py" line="471" />
         <source>'{k}' sözlüğe eklenemedi, kullanıcı sözlüğü yazılamıyor</source>
         <translation>'{k}' sözlüğe eklenemedi, kullanıcı sözlüğü yazılamıyor</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="469" />
+        <location filename="../gui/mixins/yazim_ops.py" line="514" />
         <source>Kişisel Sözlük</source>
         <translation>Kişisel Sözlük</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="475" />
+        <location filename="../gui/mixins/yazim_ops.py" line="520" />
         <source>Eklediğiniz kelimeler ({dil}):</source>
         <translation>Eklediğiniz kelimeler ({dil}):</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="477" />
+        <location filename="../gui/mixins/yazim_ops.py" line="522" />
         <source>Dosya: {yol}</source>
         <translation>Dosya: {yol}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="481" />
+        <location filename="../gui/mixins/yazim_ops.py" line="526" />
         <source>Çıkar</source>
         <translation>Çıkar</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="494" />
+        <location filename="../gui/mixins/yazim_ops.py" line="539" />
         <source>'{k}' sözlükten çıkarılamadı, kullanıcı sözlüğü yazılamıyor</source>
         <translation>'{k}' sözlükten çıkarılamadı, kullanıcı sözlüğü yazılamıyor</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/yazim_ops.py" line="506" />
+        <location filename="../gui/mixins/yazim_ops.py" line="551" />
         <source>{n} kelime sözlükten çıkarıldı</source>
         <translation>{n} kelime sözlükten çıkarıldı</translation>
     </message>
@@ -3681,7 +3681,7 @@ Geri yüklensin mi? (Geri yüklenen içerik sekmede açılır; siz kaydedene kad
 </context><context>
     <name>VersionOpsMixin</name>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="170" />
+        <location filename="../gui/mixins/version_ops.py" line="171" />
         <source>Bu klasör, '{parent}' git deposunun içinde.
 
 Sürümleme burada İÇ İÇE bir depo (.git) oluşturur; üst depo bu klasörü tek bir girdi olarak görür ve içeriği izlenmez.</source>
@@ -3690,19 +3690,19 @@ Sürümleme burada İÇ İÇE bir depo (.git) oluşturur; üst depo bu klasörü
 Sürümleme burada İÇ İÇE bir depo (.git) oluşturur; üst depo bu klasörü tek bir girdi olarak görür ve içeriği izlenmez.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="483" />
-        <location filename="../gui/mixins/version_ops.py" line="438" />
-        <location filename="../gui/mixins/version_ops.py" line="176" />
+        <location filename="../gui/mixins/version_ops.py" line="484" />
+        <location filename="../gui/mixins/version_ops.py" line="439" />
+        <location filename="../gui/mixins/version_ops.py" line="177" />
         <source>Uzak bağlantılar: </source>
         <translation>Uzak bağlantılar: </translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="177" />
+        <location filename="../gui/mixins/version_ops.py" line="178" />
         <source>Bu depo bu editör tarafından oluşturulmamış.</source>
         <translation>Bu depo bu editör tarafından oluşturulmamış.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="178" />
+        <location filename="../gui/mixins/version_ops.py" line="179" />
         <source>Bu klasör zaten bir git deposu.
 
 Sürümleme AYRI bir geçmiş tutmaz: kayıtlar mevcut deponuza, bulunduğunuz dala işlenir. 'Sürüm Geçmişi' sekmesindeki silme işlemleri de bu gerçek depoyu etkiler.
@@ -3715,102 +3715,102 @@ Sürümleme AYRI bir geçmiş tutmaz: kayıtlar mevcut deponuza, bulunduğunuz d
 {nerede}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="186" />
+        <location filename="../gui/mixins/version_ops.py" line="187" />
         <source>Sürümleme: Mevcut Git Deposu</source>
         <translation>Sürümleme: Mevcut Git Deposu</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="189" />
+        <location filename="../gui/mixins/version_ops.py" line="190" />
         <source>Anladım, Devam Et</source>
         <translation>Anladım, Devam Et</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="190" />
+        <location filename="../gui/mixins/version_ops.py" line="191" />
         <source>Vazgeç</source>
         <translation>Vazgeç</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="194" />
+        <location filename="../gui/mixins/version_ops.py" line="195" />
         <source>Sürümleme iptal edildi</source>
         <translation>Sürümleme iptal edildi</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="321" />
-        <location filename="../gui/mixins/version_ops.py" line="273" />
-        <location filename="../gui/mixins/version_ops.py" line="206" />
+        <location filename="../gui/mixins/version_ops.py" line="322" />
+        <location filename="../gui/mixins/version_ops.py" line="274" />
+        <location filename="../gui/mixins/version_ops.py" line="207" />
         <source>Önce bir klasör açın</source>
         <translation>Önce bir klasör açın</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="210" />
+        <location filename="../gui/mixins/version_ops.py" line="211" />
         <source>Sürümleme için 'dulwich' paketi gerekli</source>
         <translation>Sürümleme için 'dulwich' paketi gerekli</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="518" />
-        <location filename="../gui/mixins/version_ops.py" line="369" />
-        <location filename="../gui/mixins/version_ops.py" line="220" />
+        <location filename="../gui/mixins/version_ops.py" line="519" />
+        <location filename="../gui/mixins/version_ops.py" line="370" />
+        <location filename="../gui/mixins/version_ops.py" line="221" />
         <source>Sürüm alınıyor; bitmesini bekleyin</source>
         <translation>Sürüm alınıyor; bitmesini bekleyin</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="240" />
-        <location filename="../gui/mixins/version_ops.py" line="236" />
+        <location filename="../gui/mixins/version_ops.py" line="241" />
+        <location filename="../gui/mixins/version_ops.py" line="237" />
         <source>Başlangıç sürümü</source>
         <translation>Başlangıç sürümü</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="237" />
+        <location filename="../gui/mixins/version_ops.py" line="238" />
         <source>Sürümle</source>
         <translation>Sürümle</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="237" />
+        <location filename="../gui/mixins/version_ops.py" line="238" />
         <source>Sürüm adı:</source>
         <translation>Sürüm adı:</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="240" />
+        <location filename="../gui/mixins/version_ops.py" line="241" />
         <source>Güncelleme</source>
         <translation>Güncelleme</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="244" />
+        <location filename="../gui/mixins/version_ops.py" line="245" />
         <source>Kayıt başarısız, sürümleme iptal</source>
         <translation>Kayıt başarısız, sürümleme iptal</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="251" />
+        <location filename="../gui/mixins/version_ops.py" line="252" />
         <source>Sürüm alınıyor</source>
         <translation>Sürüm alınıyor</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="258" />
+        <location filename="../gui/mixins/version_ops.py" line="259" />
         <source>Sürüm kaydı başarısız</source>
         <translation>Sürüm kaydı başarısız</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="261" />
+        <location filename="../gui/mixins/version_ops.py" line="262" />
         <source>Değişiklik yok, sürüm atlandı</source>
         <translation>Değişiklik yok, sürüm atlandı</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="264" />
+        <location filename="../gui/mixins/version_ops.py" line="265" />
         <source>dosya</source>
         <translation>dosya</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="264" />
+        <location filename="../gui/mixins/version_ops.py" line="265" />
         <source>Sürüm kaydedildi</source>
         <translation>Sürüm kaydedildi</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="315" />
+        <location filename="../gui/mixins/version_ops.py" line="316" />
         <source>Sürüm Geçmişi</source>
         <translation>Sürüm Geçmişi</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="316" />
+        <location filename="../gui/mixins/version_ops.py" line="317" />
         <source>İşlem tamamlanamadı:
 
 {e}</source>
@@ -3819,128 +3819,133 @@ Sürümleme AYRI bir geçmiş tutmaz: kayıtlar mevcut deponuza, bulunduğunuz d
 {e}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="329" />
+        <location filename="../gui/mixins/version_ops.py" line="330" />
         <source>Açık dosya yok</source>
         <translation>Açık dosya yok</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="386" />
+        <location filename="../gui/mixins/version_ops.py" line="387" />
         <source>Fark okunamadı</source>
         <translation>Fark okunamadı</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="389" />
+        <location filename="../gui/mixins/version_ops.py" line="390" />
         <source>Bu sürümle arasında fark yok</source>
         <translation>Bu sürümle arasında fark yok</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="394" />
+        <location filename="../gui/mixins/version_ops.py" line="395" />
         <source>Fark</source>
         <translation>Fark</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="556" />
-        <location filename="../gui/mixins/version_ops.py" line="419" />
+        <location filename="../gui/mixins/version_ops.py" line="585" />
+        <location filename="../gui/mixins/version_ops.py" line="420" />
         <source>Dosya bu sürümde bulunamadı</source>
         <translation>Dosya bu sürümde bulunamadı</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="428" />
+        <location filename="../gui/mixins/version_ops.py" line="429" />
         <source>Bu sürümdeki içerik panoya kopyalandı</source>
         <translation>Bu sürümdeki içerik panoya kopyalandı</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="436" />
+        <location filename="../gui/mixins/version_ops.py" line="437" />
         <source>DİKKAT: Bu, editörün değil sizin git deponuz.</source>
         <translation>DİKKAT: Bu, editörün değil sizin git deponuz.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="444" />
+        <location filename="../gui/mixins/version_ops.py" line="445" />
         <source>Sürümü Sil</source>
         <translation>Sürümü Sil</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="445" />
+        <location filename="../gui/mixins/version_ops.py" line="446" />
         <source>En yeni sürüm geçmişten silinir; dosyalarınız değişmez. Devam?</source>
         <translation>En yeni sürüm geçmişten silinir; dosyalarınız değişmez. Devam?</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="457" />
+        <location filename="../gui/mixins/version_ops.py" line="458" />
         <source>Silinemedi, tek sürüm kaldı ya da sürümleme kapalı</source>
         <translation>Silinemedi, tek sürüm kaldı ya da sürümleme kapalı</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="459" />
+        <location filename="../gui/mixins/version_ops.py" line="460" />
         <source>En yeni sürüm silindi</source>
         <translation>En yeni sürüm silindi</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="478" />
+        <location filename="../gui/mixins/version_ops.py" line="479" />
         <source>Bu klasördeki .git klasörü (yani SİZİN git deponuz) silinecek.</source>
         <translation>Bu klasördeki .git klasörü (yani SİZİN git deponuz) silinecek.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="480" />
+        <location filename="../gui/mixins/version_ops.py" line="481" />
         <source>Tüm dallar, etiketler ve uzak bağlantı ayarları gider; proje dosyalarınız yerinde kalır.</source>
         <translation>Tüm dallar, etiketler ve uzak bağlantı ayarları gider; proje dosyalarınız yerinde kalır.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="485" />
+        <location filename="../gui/mixins/version_ops.py" line="486" />
         <source>TÜM sürüm geçmişi silinecek (dosyalarınız silinmez).</source>
         <translation>TÜM sürüm geçmişi silinecek (dosyalarınız silinmez).</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="486" />
+        <location filename="../gui/mixins/version_ops.py" line="487" />
         <source>Silinecek klasör: {yol}</source>
         <translation>Silinecek klasör: {yol}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="489" />
+        <location filename="../gui/mixins/version_ops.py" line="490" />
         <source>Devam etmek istediğinize emin misiniz?</source>
         <translation>Devam etmek istediğinize emin misiniz?</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="491" />
+        <location filename="../gui/mixins/version_ops.py" line="492" />
         <source>Tüm Geçmişi Sil</source>
         <translation>Tüm Geçmişi Sil</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="498" />
+        <location filename="../gui/mixins/version_ops.py" line="499" />
         <source>Silinecek geçmiş yok</source>
         <translation>Silinecek geçmiş yok</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="501" />
+        <location filename="../gui/mixins/version_ops.py" line="502" />
         <source>Tüm geçmiş silindi, yeni sürümlemede yeniden başlar</source>
         <translation>Tüm geçmiş silindi, yeni sürümlemede yeniden başlar</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="524" />
+        <location filename="../gui/mixins/version_ops.py" line="525" />
         <source>Kayıt başarısız, geri yükleme iptal</source>
         <translation>Kayıt başarısız, geri yükleme iptal</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="530" />
+        <location filename="../gui/mixins/version_ops.py" line="550" />
+        <source>Şimdiki hâl sürüme alınıyor</source>
+        <translation>Şimdiki hâl sürüme alınıyor</translation>
+    </message>
+    <message>
+        <location filename="../gui/mixins/version_ops.py" line="552" />
         <source>Geri yüklemeden önce: {f}</source>
         <translation>Geri yüklemeden önce: {f}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="535" />
+        <location filename="../gui/mixins/version_ops.py" line="562" />
         <source>Şimdiki hâl sürüme alınamadı, geri yükleme iptal</source>
         <translation>Şimdiki hâl sürüme alınamadı, geri yükleme iptal</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="543" />
+        <location filename="../gui/mixins/version_ops.py" line="572" />
         <source>Sürümden Geri Yükle</source>
         <translation>Sürümden Geri Yükle</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="544" />
+        <location filename="../gui/mixins/version_ops.py" line="573" />
         <source>{f} dosyası seçilen sürüme döndürülecek. Şimdiki hâli önce yeni bir sürüm olarak kaydedilir; geri dönmek isterseniz Sürüm Geçmişi'nde bulursunuz.</source>
         <translation>{f} dosyası seçilen sürüme döndürülecek. Şimdiki hâli önce yeni bir sürüm olarak kaydedilir; geri dönmek isterseniz Sürüm Geçmişi'nde bulursunuz.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="577" />
+        <location filename="../gui/mixins/version_ops.py" line="606" />
         <source>Geri yüklendi</source>
         <translation>Geri yüklendi</translation>
     </message>
