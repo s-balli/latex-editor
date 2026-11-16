@@ -715,3 +715,31 @@ def test_HARF_farki_DOSYA_SISTEMINE_gore_karar_veriyor(ana_pencere, tmp_path):
     else:
         assert not isaret, "BAŞKA dosyanın hatası bu sekmeye işaretlendi"
         assert len(sekmeler) == 2 and w._current_editor() is not ed
+
+
+# =====================================================================
+# Çeviri kataloğu yüklenemeyince durum çubuğu uyarısı (2026-11-16)
+# =====================================================================
+
+
+def test_KATALOG_yuklenemeyince_durum_cubugu_SOYLUYOR(ana_pencere, monkeypatch):
+    """Kayıtlı dil "en" iken katalog yoksa arayüz kaynak dilde (Türkçe)
+    açılıyor; dil seçici yine "English" gösteriyordu ve sebebini söyleyen
+    hiçbir şey yoktu. Kalıcı durum taraması, bulgu 4.
+    """
+    import core.i18n as i18n
+
+    monkeypatch.setattr(i18n, "yukleme_hatasi", "en", raising=False)
+    w = ana_pencere()
+    mesaj = w._status.currentMessage()
+    assert "Türkçe" in mesaj, "uyarı durum çubuğunda yok: " + repr(mesaj)
+    assert "en" in mesaj, mesaj
+
+    # Bayrak yoksa uyarı YOK: her açılışta boşuna görülmesin.
+    # (monkeypatch.undo KULLANILMAZ: o, fixture'ın QSettings/kurtarma
+    # hapislerini de geri alır ve ikinci pencere GERÇEK yollara bakar.)
+    monkeypatch.setattr(i18n, "yukleme_hatasi", None, raising=False)
+    w2 = ana_pencere()
+    assert "Türkçe" not in w2._status.currentMessage(), \
+        "katalog yüklendiği hâlde uyarı gösteriliyor: " \
+        + repr(w2._status.currentMessage())

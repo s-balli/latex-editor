@@ -170,6 +170,40 @@ def test_stop_sonrasi_kilit_devralinabilir(qapp, temiz_ad):
         ikinci.stop()
 
 
+# --- bayat kilit uyarısı (2026-11-16 kalıcı durum taraması, bulgu 6) ---
+
+
+def test_BAYAT_kilitte_UYARI_yol_ve_talimat_tasiyor(qapp, temiz_ad, tmp_path):
+    """Çökme sonrası kilit dosyasındaki PID başka bir canlı sürece geçtiyse
+    QLockFile kilidi geçerli sanıyor; "zaten çalışıyor ama yanıt vermiyor"
+    kutusu pencere OLMADIGI hâlde "açık pencereyi kullanın" diyordu.
+    Uyarı kilit dosyasının tam yolunu ve silme talimatını taşımalı.
+    """
+    import main as m
+
+    kilit = os.path.join(str(tmp_path), f"latex-editor-{temiz_ad}.lock")
+    mesaj = m._zaten_calisiyor_uyarisi(kilit)
+    assert kilit in mesaj, "kilit dosyasının tam yolu iletide yok"
+    assert "silip" in mesaj, "silme talimatı yok: " + mesaj
+
+
+def test_kilit_dosyasi_yolu_BIRINCIL_OLMAYANDA_da_okunuyor(qapp, temiz_ad):
+    """`try_become_primary` başarısızken de kilit yolu öğrenilebilmeli:
+    uyarıyı yazan taraf main() ve o, reddedilen örneği elinde tutuyor."""
+    birinci = SingleInstance()
+    assert birinci.try_become_primary() is True
+    try:
+        ikinci = SingleInstance()
+        assert ikinci.try_become_primary() is False
+        assert ikinci.kilit_dosyasi.endswith(
+            f"latex-editor-{temiz_ad}.lock"), ikinci.kilit_dosyasi
+        assert os.path.isfile(ikinci.kilit_dosyasi), \
+            "yol gerçek kilit dosyasını göstermiyor: " + ikinci.kilit_dosyasi
+        assert ikinci.kilit_dosyasi == birinci.kilit_dosyasi
+    finally:
+        birinci.stop()
+
+
 # --- MainWindow tarafı: gelen isteği işleme ---
 
 

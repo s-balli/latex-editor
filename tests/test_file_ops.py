@@ -444,6 +444,41 @@ def test_SON_ACILANLAR_menusu_ipuclarini_GOSTERIYOR(ana_pencere):
     assert ana_pencere()._recent_menu.toolTipsVisible()
 
 
+def test_ACILISTA_recent_menusu_dosya_sistemini_YOKLAMIYOR(ana_pencere, tmp_path,
+                                                           monkeypatch):
+    """Menü KURULUMDA değil AÇILIRKEN dolduruluyor (2026-11-16 kalıcı durum
+    taraması, bulgu 2).
+
+    Kurulumda doldurmak her girdi için `os.path.isfile` soruyordu. Son
+    Açılanlar'da kalan kopmuş bir ağ sürücüsü ya da çıkarılmış USB yolu bu
+    yüzden pencere çizilmeden önce arayüz thread'inde dosya sistemi
+    çağrıları üretiyordu (bloklama süresi burada ölçülmedi; kapı yalnızca
+    AÇILIŞ yolunda hiç yoklama yapılmadığını sınıyor).
+    """
+    gercek_isfile = os.path.isfile
+    zehirli = os.path.join(str(tmp_path), "kopuk-ag-surucusu", "a.tex")
+    dosya = tmp_path / "a.tex"
+    dosya.write_text("x", encoding="utf-8")
+    ayar = ana_pencere.ayar()
+    ayar.setValue("recent_files", [zehirli, str(dosya)])
+    ayar.sync()
+
+    def _isfile(yol):
+        assert yol != zehirli, "açılış yolunda Son Açılanlar yoklandı: " + str(yol)
+        return gercek_isfile(yol)
+
+    monkeypatch.setattr(os.path, "isfile", _isfile)
+    w = ana_pencere()
+    assert not w._recent_menu.actions(), \
+        "menü kurulum sırasında doldurulmuş: yoklama açılışta yapılıyor"
+
+    # Menü AÇILINCA dolduruluyor; yoklama artık yapılabilir.
+    monkeypatch.setattr(os.path, "isfile", gercek_isfile)
+    w._recent_menu.aboutToShow.emit()
+    veriler = [a.data() for a in w._recent_menu.actions() if a.data()]
+    assert veriler == [str(dosya)]
+
+
 def test_KLASOR_ADI_da_ayniysa_tam_klasor_yaziliyor():
     from gui.mixins.file_ops import ayirt_edici_adlar
     a = os.path.join("C:\\", "A", "Tez", "main.tex")

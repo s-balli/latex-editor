@@ -42,9 +42,11 @@ def _reset_backend():
     import core.i18n as mod
     mod._backend = None
     mod._trans_dir = None
+    mod.yukleme_hatasi = None
     yield
     mod._backend = None
     mod._trans_dir = None
+    mod.yukleme_hatasi = None
 
 
 # --- init ---
@@ -91,6 +93,36 @@ class TestInit:
 
         import core.i18n as mod
         assert mod._backend is None
+
+    @patch("core.i18n.os.path.isfile", return_value=False)
+    def test_yukleme_hatasi_birikip_TEMIZLENIYOR(self, mock_exists):
+        """Katalog yüklenemeyince durum çubuğu uyarısı için birikmeli (2026-11-16
+        kalıcı durum taraması, bulgu 4).
+
+        Yüklenememe sessizdi: arayüz kaynak dilde (Türkçe) açılıyor ama dil
+        seçici kayıtlı dili gösteriyordu; kullanıcı neden İngilizce yerine
+        Türkçe gördüğünü hiçbir yerden öğrenemiyordu. Başarılı yükleme bayrağı
+        temizlemeli: uyarı bir önceki açılıştan artık kalmamalı.
+        """
+        mock_app = MagicMock()
+        mock_translator = MagicMock()
+        mock_translator.load.return_value = False
+
+        with patch("PyQt6.QtCore.QTranslator", return_value=mock_translator):
+            with patch("PyQt6.QtCore.QSettings") as MockSettings:
+                MockSettings.return_value.value.return_value = "en"
+                init(app=mock_app)
+
+        import core.i18n as mod
+        assert mod.yukleme_hatasi == "en"
+
+        mock_translator.load.return_value = True
+        with patch("PyQt6.QtCore.QTranslator", return_value=mock_translator):
+            with patch("PyQt6.QtCore.QSettings") as MockSettings:
+                MockSettings.return_value.value.return_value = "en"
+                init(app=mock_app)
+
+        assert mod.yukleme_hatasi is None
 
     @patch("core.i18n.os.path.isfile", return_value=True)
     @patch("core.i18n.os.path.getsize", return_value=1000)

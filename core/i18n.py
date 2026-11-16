@@ -11,6 +11,13 @@ VARSAYILAN_DIL = "en"
 _backend = None
 _trans_dir = None
 
+# Son init() çağrısında UYGULAMA kataloğu yüklenemediyse dil kodu, yüklediyse
+# None. Katalog yüklenemeyince arayüz kaynak dilde (Türkçe) açılıyor ama dil
+# seçici kayıtlı dili gösteriyor; arayüz bu bayrakla kullanıcıya tek satır
+# söylüyor (bkz. gui/main_window._ceviri_yuklenemedi_uyarisi). Qt'nin kendi
+# kataloğunun (qtbase) yüklenememesi kozmetik, bu bayrağa girmiyor.
+yukleme_hatasi = None
+
 
 def init(app=None):
     """Çeviri backend'ini başlat.
@@ -18,7 +25,7 @@ def init(app=None):
     Desktop (app verilirse): Qt QTranslator yükler.
     Web veya app=None: pas geçer (gelecekte gettext eklenebilir).
     """
-    global _backend, _trans_dir
+    global _backend, _trans_dir, yukleme_hatasi
 
     if app is None:
         return
@@ -51,11 +58,21 @@ def init(app=None):
     if translator.load(qm_path):
         app.installTranslator(translator)
         _backend = _QtBackend(translator)
+        yukleme_hatasi = None
         _logger.info("Çeviri yüklendi: %s", locale)
         _qt_cevirmenini_yukle(app, locale, _logger)
     else:
         mevcut = ([f for f in os.listdir(_trans_dir) if f.endswith(".qm")]
                   if os.path.isdir(_trans_dir) else "(dizin yok)")
+        # Durum çubuğu uyarısı bu bayrağa bakıyor (2026-11-16 kalıcı durum
+        # taraması, bulgu 4; tests/test_i18n.py
+        # test_yukleme_hatasi_birikip_TEMIZLENIYOR). "tr" için katalog olmaması
+        # NORMAL (Türkçe kaynak dil): o dilde uyarı anlamsız, bayrak yalnız
+        # KAYNAK DIŞI dilde yüklenemeyince kuruluyor.
+        if locale != "tr":
+            yukleme_hatasi = locale
+        else:
+            yukleme_hatasi = None
         _logger.warning(
             "Çeviri dosyası yüklenemedi: %s, dizindeki .qm dosyaları: %s",
             qm_path, mevcut)

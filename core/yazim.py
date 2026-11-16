@@ -853,10 +853,29 @@ class Denetleyici:
         if not yol or not os.path.exists(yol):
             return
         try:
-            with io.open(yol, encoding="utf-8") as f:
-                self._kullanici = {s.strip() for s in f if s.strip()}
+            with io.open(yol, "rb") as f:
+                ham = f.read()
         except OSError:                          # pragma: no cover
-            pass
+            return
+        try:
+            metin = ham.decode("utf-8")
+        except UnicodeDecodeError:
+            # GEÇERSİZ BAYT dosyayı tümüyle okunmaz yapmıyor (2026-11-16
+            # kalıcı durum taraması, bulgu 3; tests/test_yazim.py
+            # test_BOZUK_UTF8_sozluk_istisna_KACIRMIYOR). Eskiden
+            # `except OSError` UnicodeDecodeError'ı (ValueError) kaçırıyordu:
+            # yükleme thread'i hatayı yakalayıp suçu PAKET sözlük dizinine
+            # atan bir kutu gösteriyor, "Kişisel Sözlük" kutusu ise UI
+            # thread'inde istisnayı sızdırıyordu. Bozuk dosya YALNIZ okunur,
+            # üzerine yazılmaz: kurtarılacak tek kopya o.
+            metin = ham.decode("utf-8", "replace")
+            # Ekleme ve çıkarma kümeyi BÜTÜNÜYLE yeniden yazıyor; bozuk
+            # baytlar U+FFFD olarak yazılınca orijinal (ör. Not Defteri'nde
+            # ANSI kaydedilmiş Türkçe kelimeler) kalıcı gidiyordu. İlk
+            # yazımdan önce `_kullaniciyi_yaz` ham baytları yedekliyor
+            # (2026-11-16, test_BOZUK_sozluge_EKLEME_orijinali_YEDEKLIYOR).
+            self._bozuk_ham = ham
+        self._kullanici = {s.strip() for s in metin.splitlines() if s.strip()}
 
     def kullaniciya_ekle(self, kelime: str) -> bool:
         """Kelimeyi kullanıcı sözlüğüne ekler ve diske yazar.
@@ -912,6 +931,15 @@ class Denetleyici:
         gecici = self.kullanici_sozlugu + ".tmp"
         try:
             os.makedirs(os.path.dirname(self.kullanici_sozlugu), exist_ok=True)
+            bozuk = getattr(self, "_bozuk_ham", None)
+            if bozuk is not None:
+                # Bozuk okunan sözlüğün ORİJİNALİ yeniden yazımdan önce bir
+                # kez yedekleniyor; yedek yazılamazsa yazım da yapılmıyor.
+                yedek = self.kullanici_sozlugu + ".bozuk-yedek"
+                if not os.path.exists(yedek):
+                    with io.open(yedek, "wb") as f:
+                        f.write(bozuk)
+                self._bozuk_ham = None
             with io.open(gecici, "w", encoding="utf-8", newline="\n") as f:
                 f.write("".join(k + "\n" for k in sorted(self._kullanici)))
             os.replace(gecici, self.kullanici_sozlugu)

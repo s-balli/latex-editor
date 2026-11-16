@@ -77,6 +77,16 @@ class SingleInstance(QObject):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._ad = f"latex-editor-{_kullanici()}"
+        # Kilit dosyasının yolu ÖRNEKTE taşınıyor (2026-11-16 kalıcı durum
+        # taraması, bulgu 6; tests/test_single_instance.py
+        # test_kilit_dosyasi_yolu_BIRINCIL_OLMAYANDA_da_okunuyor):
+        # `try_become_primary` başarısızken `self._lock` None yapılıyor, oysa
+        # "zaten çalışıyor ama yanıt vermiyor" uyarısını yazan taraf tam o
+        # anda kilit dosyasının yolunu söylemek istiyor (bayat kilit).
+        self.kilit_dosyasi = os.path.join(
+            QStandardPaths.writableLocation(
+                QStandardPaths.StandardLocation.TempLocation),
+            f"{self._ad}.lock")
         self._lock: QLockFile | None = None
         self._server: QLocalServer | None = None
         self._bekleyen: list[str] = []
@@ -85,9 +95,7 @@ class SingleInstance(QObject):
 
     def try_become_primary(self) -> bool:
         """Kilidi al ve dinlemeye başla. False = başka bir örnek çalışıyor."""
-        lock_dir = QStandardPaths.writableLocation(
-            QStandardPaths.StandardLocation.TempLocation)
-        self._lock = QLockFile(os.path.join(lock_dir, f"{self._ad}.lock"))
+        self._lock = QLockFile(self.kilit_dosyasi)
         # 0 = zamana bağlı bayatlama yok. QLockFile ayrıca PID canlılığına
         # bakar, o yüzden çökme sonrası kilit yine de devralınır.
         self._lock.setStaleLockTime(0)

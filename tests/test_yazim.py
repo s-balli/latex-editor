@@ -602,6 +602,52 @@ def test_kullanici_sozlugu_diskten_okunur(tmp_path):
         [Bulgu("bilinmeyen", 1, 11, 11)]
 
 
+def test_BOZUK_UTF8_sozluk_istisna_KACIRMIYOR(tmp_path):
+    """Geçersiz baytlı kişisel sözlük okumayı düşürmemeli (2026-11-16 kalıcı
+    durum taraması, bulgu 3).
+
+    Uygulama dosyayı hep atomik UTF-8 yazdığı için bozulma dışarıdan gelir
+    (eski editörle ANSI kaydetme, eşitleme çakışması). `except OSError`
+    UnicodeDecodeError'ı (ValueError) yakalamıyordu: yükleme thread'i
+    hatayı yakalayıp suçu PAKET sözlük dizinine atan bir kutu gösteriyor,
+    "Kişisel Sözlük" kutusu ise UI thread'inde istisnayı sızdırıyordu.
+    """
+    yol = tmp_path / "kullanici.txt"
+    icerik = ("evrisimsel\n".encode("utf-8") + b"\xff\xfehatal\xff bayt\n"
+              + "hiperparametre\n".encode("utf-8"))
+    yol.write_bytes(icerik)
+
+    d = _denetleyici([], kullanici_sozlugu=str(yol))
+
+    kelimeler = d.kullanici_kelimeleri()
+    assert "evrisimsel" in kelimeler and "hiperparametre" in kelimeler, \
+        "okunabilir satırlar bozuk satır yüzünden kayboldu"
+    # Okunabilir kelime denetimde de doğru sayılmalı.
+    assert d.dogru_mu("evrisimsel") is True
+    # Okuma, bozuk dosyayı YAZMAMALI: kurtarılacak tek kopya o dosya.
+    assert yol.read_bytes() == icerik
+
+
+def test_BOZUK_sozluge_EKLEME_orijinali_YEDEKLIYOR(tmp_path):
+    """Ekleme kümeyi bütünüyle yeniden yazıyor. Bozuk okunan sözlükte bozuk
+    baytlar U+FFFD olarak yazılınca orijinal kalıcı gidiyordu (Not
+    Defteri'nde ANSI kaydedilmiş Türkçe kelimeler kurtarılamaz olurdu).
+    İlk yazımdan önce ham baytlar `.bozuk-yedek`e bir kez kopyalanmalı,
+    sonraki yazımlar yedeği ezmemeli."""
+    yol = tmp_path / "kullanici.txt"
+    icerik = "evrisimsel\n".encode("utf-8") + "çağrışım\n".encode("cp1254")
+    yol.write_bytes(icerik)
+    yedek = tmp_path / "kullanici.txt.bozuk-yedek"
+
+    d = _denetleyici([], kullanici_sozlugu=str(yol))
+    assert d.kullaniciya_ekle("ablasyon") is True
+    assert yedek.read_bytes() == icerik, "orijinal bozuk sözlük yedeklenmedi"
+    assert "ablasyon" in yol.read_text(encoding="utf-8")
+
+    assert d.kullaniciya_ekle("dropout") is True
+    assert yedek.read_bytes() == icerik, "ikinci yazım yedeği ezdi"
+
+
 def test_kullaniciya_eklemek_ONBELLEGI_temizler():
     """Eklenen kelime hemen doğru sayılmalı, önbellekten eski sonuç gelmemeli."""
     d = _denetleyici([])

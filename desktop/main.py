@@ -270,6 +270,23 @@ def _register_file_association():
             pass
 
 
+def _zaten_calisiyor_uyarisi(kilit_dosyasi: str) -> str:
+    """İkinci örneğin "zaten çalışıyor" kutusunun metni.
+
+    Bayat kilit olasılığı (çökme sonrası PID'in başka bir canlı sürece
+    geçmesi) yüzünden ileti kilit dosyasının tam yolunu ve silme
+    talimatını taşıyor (2026-11-16 kalıcı durum taraması, bulgu 6;
+    tests/test_single_instance.py test_BAYAT_kilitte_UYARI_yol_ve_talimat_
+    tasiyor): pencere HİÇ YOKKEN "açık pencereyi kullanın" demek tek başına
+    kullanıcıyı bir yere götürmüyordu.
+    """
+    return _("Uygulama zaten çalışıyor ama yanıt vermiyor.\n"
+             "Açık pencereyi kullanın ya da uygulamayı kapatıp yeniden "
+             "başlatın.\n"
+             "Uygulama açık değilse şu kilit dosyasını silip yeniden "
+             "deneyin:\n{kilit}").format(kilit=kilit_dosyasi)
+
+
 def _dosya_argumanlari(argv) -> list:
     """Komut satırındaki VAR OLAN dosya yollarını sırasıyla döndür.
 
@@ -340,8 +357,7 @@ def main():
         QMessageBox.warning(
             None,
             "LaTeX Editor",
-            _("Uygulama zaten çalışıyor ama yanıt vermiyor.\n"
-              "Açık pencereyi kullanın ya da uygulamayı kapatıp yeniden başlatın."),
+            _zaten_calisiyor_uyarisi(single.kilit_dosyasi),
         )
         sys.exit(1)
 

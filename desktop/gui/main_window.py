@@ -320,6 +320,7 @@ class MainWindow(
         self._setup_menus()
         self._setup_toolbar()
         self._setup_statusbar()
+        self._ceviri_yuklenemedi_uyarisi()
         self._connect_signals()
         self._restore_state()
         self._apply_theme()
@@ -469,7 +470,14 @@ class MainWindow(
         # +5,00 nesne/çağrı, lambda'sız hâl +0,00. Menü her dosya açılışında
         # yenilendiği için sızıntı oturum boyunca birikiyordu.
         self._recent_menu.triggered.connect(self._on_recent_triggered)
-        self._refresh_recent_menu()
+        # Menü KURULUMDA değil AÇILIRKEN dolduruluyor (2026-11-16 kalıcı durum
+        # taraması, bulgu 2; tests/test_file_ops.py
+        # test_ACILISTA_recent_menusu_dosya_sistemini_YOKLAMIYOR). Kurulumda
+        # doldurmak her girdi için os.path.isfile soruyordu; Son Açılanlar'da
+        # kalan kopmuş bir ağ/USB yolu pencere çizilmeden önce arayüz
+        # thread'ini bloklayabiliyordu. Tıklama davranışı değişmedi: içerik
+        # menü açılırken dolduruluyor, yol hâlâ öğenin verisinde.
+        self._recent_menu.aboutToShow.connect(self._refresh_recent_menu)
 
         file_menu.addSeparator()
 
@@ -725,6 +733,24 @@ class MainWindow(
         self._outline_timer.setInterval(500)
         self._outline_timer.timeout.connect(self._do_update_outline)
         self._outline_editor = None
+
+    def _ceviri_yuklenemedi_uyarisi(self):
+        """Katalog yüklenemedi: arayüz kaynak dilde açıldı, tek satır söyle.
+
+        Yüklenememe yalnız günlükte WARNING idi (2026-11-16 kalıcı durum
+        taraması, bulgu 4; tests/test_i18n.py
+        test_yukleme_hatasi_birikip_TEMIZLENIYOR ve
+        tests/test_ana_pencere_yollari.py
+        test_KATALOG_yuklenemeyince_durum_cubugu_SOYLUYOR): kayıtlı dil
+        "en" iken katalog yoksa arayüz Türkçe açılıyor, dil seçici yine
+        "English" gösteriyor ve kullanıcı sebebini hiçbir yerden
+        öğrenemiyordu. Dil seçicinin davranışı bilinçli olarak değişmedi.
+        """
+        from core.i18n import yukleme_hatasi
+        if yukleme_hatasi:
+            self._status.showMessage(
+                _("Çeviri dosyası yüklenemedi ({dil}); arayüz Türkçe açıldı")
+                .format(dil=yukleme_hatasi), 15000)
 
     def _connect_signals(self):
         self._compiler.compilation_started.connect(self._on_compile_started)
