@@ -463,6 +463,10 @@ class PdfRenderMixin:
     def _update_page_sizes(self):
         self._clear_highlight()
         self._clear_search_highlights()
+        # Seçim de arama vurgusu gibi yeni ölçekte geri çiziliyor (aşağıda).
+        # Siliniyordu ve Ctrl+C sessizce hiçbir şey kopyalamıyordu (ölçüldü
+        # 2026-11-16, test_pdf_secim).
+        secim = self._selection_char_range
         self._clear_selection()
         for i, label in enumerate(self._page_labels):
             if i >= self._page_count:
@@ -484,3 +488,19 @@ class PdfRenderMixin:
         # erken dönüyor. Buraya bir `if _search_results` konmuştu, mutasyonla
         # ölü çıktı (kaldırıldığında hiçbir test düşmüyordu).
         self._draw_search_highlight(self._search_index)
+        if secim:
+            self._secimi_geri_ciz(*secim)
+
+    def _secimi_geri_ciz(self, page_idx, lo, hi):
+        """Saklanan karakter aralığını yeni ölçekte yeniden seç ve çiz."""
+        if not self._pdf or page_idx >= self._page_count:
+            return
+        try:
+            with pdfium_lock:
+                textpage = self._pdf[page_idx].get_textpage()
+                metin = textpage.get_text_range(lo, hi - lo + 1) or ""
+        except Exception:
+            return
+        self._selection_char_range = (page_idx, lo, hi)
+        self._selected_text = metin
+        self._draw_selection_highlights(page_idx, lo, hi, textpage)

@@ -375,6 +375,28 @@ class TestSecimSozlesmesi:
             v.deleteLater()
             qapp.processEvents()
 
+    def test_zoom_SECIMI_koruyor(self, qapp, duz_pdf):
+        """Yakınlaştırma seçimi siliyordu: `_update_page_sizes` arama
+        vurgusunu yeni ölçekte geri çiziyor ama seçimi temizleyip bırakıyordu,
+        Ctrl+C sessizce hiçbir şey kopyalamıyordu (durum makinesi taraması,
+        2026-11-16)."""
+        v = _viewer(qapp, duz_pdf)
+        try:
+            _surukle(qapp, v)
+            assert v._selected_text and v._selection_highlights
+            kutu_once = v._selection_highlights[0].geometry()
+            v.zoom_in()
+            qapp.processEvents()
+            assert v._selected_text == _METIN, "yakınlaştırma seçimi sildi"
+            assert v._selection_highlights, "seçim vurgusu çizilmedi"
+            kutu_sonra = v._selection_highlights[0].geometry()
+            assert kutu_sonra.width() > kutu_once.width(), \
+                "vurgu eski ölçekte kalmış"
+        finally:
+            v.shutdown()
+            v.deleteLater()
+            qapp.processEvents()
+
     def test_kopyalanan_metin_panoya_gidiyor(self, qapp, duz_pdf):
         v = _viewer(qapp, duz_pdf)
         try:
