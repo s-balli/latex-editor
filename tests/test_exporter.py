@@ -1,5 +1,6 @@
 """exporter.py — pandoc dışa aktarma testleri."""
 
+import builtins
 import os
 import re
 import shutil
@@ -45,6 +46,7 @@ from core.exporter import (
     _fix_docx_compat,
     _rewrite_docx_member,
 )
+from core import exporter as exporter_mod
 
 
 class TestFormats:
@@ -1346,6 +1348,132 @@ class TestEskiKodlama:
         assert cikti.count("\ufffd") == 0, "çıktıda değiştirme karakteri var"
         assert "Öztürk" in cikti
         assert "ÇĞİÖŞÜ" in cikti
+
+
+# ---------------------------------------------------------------------------
+# SATIR SONU: exporter'ın KENDİ yazdığı dosyalar
+#
+# CPython'un text-mode yazımı (`newline=` yok) Windows'ta her '\n'yi
+# os.linesep'e ('\r\n') çevirir; Linux'ta hiçbir şey yapmaz, yani bu kusur
+# Linux koşusunda görünmez. Aşağıdaki sarmal, Windows'un çevirisini
+# davranış düzeyinde taklit ediyor: çağrı `newline` VERMEDİĞİ zaman
+# çeviri yapıyor, `newline=""`/`newline="\n"` verdiğinde yapmıyor
+# (belgelenen open() sözleşmesi). Böylece kapı her platformda düşüyor.
+#
+# 2026-11-16'da Windows Python312 ile ölçüldü: CRLF bir belgede
+# `_preprocess_tex` geçici dosyaya '\r\r\n' yazıyor. Editörün kaydı aynı
+# sınıfı 94969a9'da düzeltmişti (bkz. core/fs_ops.lf_ye_indir gerekçesi);
+# exporter'ın yazıcıları o düzeltmenin dışında kaldı.
+# ---------------------------------------------------------------------------
+
+
+class _CeviriYapanDosya:
+    """Text-mode YAZIMDA Windows'un '\n' -> '\r\n' çevirisini yapan sarmal."""
+
+    def __init__(self, f):
+        self._f = f
+
+    def write(self, s):
+        return self._f.write(s.replace("\n", "\r\n"))
+
+    def flush(self):
+        self._f.flush()
+
+    def close(self):
+        self._f.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        self._f.__exit__(*exc)
+
+
+def _windows_text_open(path, mode="r", *args, **kwargs):
+    r"""`open`'ın Windows text-mode davranışıyla saran hâli (yalnız test).
+
+    `newline` verilmeden TEXT YAZMA için açılan dosyada '\n' -> '\r\n'
+    çevirisi yapar; `newline=""`/`newline="\n"` verilince çeviri yok.
+    """
+    f = builtins.open(path, mode, *args, **kwargs)
+    if ("w" in mode and "b" not in mode and "+" not in mode
+            and kwargs.get("newline", None) is None):
+        return _CeviriYapanDosya(f)
+    return f
+
+
+class TestSatirSonu:
+    """Yazıcılar satır sonunu ÇEVRİMEDEN taşımalı; .md çıktısı her yerde LF."""
+
+    def test_onisleme_crlf_kaynagi_cift_satir_sonu_uretmiyor(self, tmp_path,
+                                                             monkeypatch):
+        r"""`\r\r\n` pandoc'un OKUDUĞU ara dosyaya gidiyordu (2026-11-16,
+        Windows Python312 ile ölçüldü). `coz()` satır sonunu koruyarak
+        çözdüğü için içerik '\r\n' taşıyor; yazım her '\n'yi bir kez daha
+        '\r\n' yapıyordu."""
+        kaynak = ("\\documentclass{article}\r\n"
+                  "\\title{Başlık}\r\n"
+                  "\\begin{document}\r\nsatir1\r\nsatir2\r\n"
+                  "\\end{document}\r\n")
+        p = tmp_path / "main.tex"
+        p.write_bytes(kaynak.encode("utf-8"))
+        monkeypatch.setattr(exporter_mod, "open", _windows_text_open,
+                            raising=False)
+        tmp = _preprocess_tex(str(p))
+        assert tmp != str(p), "önişleme tetiklenmedi, test bir şey sınamıyor"
+        try:
+            ham = builtins.open(tmp, "rb").read()
+        finally:
+            os.unlink(tmp)
+        assert b"\r\r\n" not in ham, "her satır sonuna fazladan bir \\r girmiş"
+        assert b"\r\n" in ham, "kaynağın CRLF stili korunmalı"
+
+    def test_md_gorsel_yollari_lf_yaziyor(self, tmp_path, monkeypatch):
+        """`_fix_md_image_paths` md'yi yeniden yazıyor: Windows'ta CRLF
+        çıkıyordu, yerlilerde LF. Çıktı her platformda LF olmalı."""
+        p = tmp_path / "makale.tex"
+        p.write_text("\\begin{figure}\\includegraphics{logo}\\end{figure}\n",
+                     encoding="utf-8")
+        (tmp_path / "logo.png").write_bytes(b"\x89PNG\r\n")
+        md = tmp_path / "cikti.md"
+        md.write_bytes(b"![alt](logo.png)\n")
+        monkeypatch.setattr(exporter_mod, "open", _windows_text_open,
+                            raising=False)
+        _fix_md_image_paths(str(p), str(md))
+        ham = builtins.open(md, "rb").read()
+        assert b"\r\n" not in ham, "md Windows'ta CRLF yazılıyordu"
+
+    def test_md_bibitem_cozumu_lf_yaziyor(self, tmp_path, monkeypatch):
+        """`_resolve_md_bibitem_citations` da md'yi yeniden yazıyor."""
+        p = tmp_path / "makale.tex"
+        p.write_bytes(("\\documentclass{article}\n"
+                       "\\begin{document}\n"
+                       "\\begin{thebibliography}{9}\n"
+                       "\\bibitem{b1} Kaynak\n"
+                       "\\end{thebibliography}\n"
+                       "\\end{document}\n").encode("utf-8"))
+        md = tmp_path / "cikti.md"
+        md.write_bytes(b"bakz [@b1]\n")
+        monkeypatch.setattr(exporter_mod, "open", _windows_text_open,
+                            raising=False)
+        _resolve_md_bibitem_citations(str(md), str(p))
+        ham = builtins.open(md, "rb").read()
+        assert b"\r\n" not in ham, "md Windows'ta CRLF yazılıyordu"
+
+    def test_md_citation_cozumu_lf_yaziyor(self, tmp_path, monkeypatch):
+        """`_resolve_md_citations` aynı yazımı kullanıyor; pandoc'suz kol
+        (`_pandoc_run` boş dönsün) da dosyaya DOKUNUYOR."""
+        p = tmp_path / "makale.tex"
+        p.write_bytes(b"\\begin{document}x\\end{document}\n")
+        (tmp_path / "kaynaklar.bib").write_bytes(b"@article{b1,\n}\n")
+        md = tmp_path / "cikti.md"
+        md.write_bytes(b"bakz [@b1]\n")
+        monkeypatch.setattr(exporter_mod, "open", _windows_text_open,
+                            raising=False)
+        with patch("core.exporter._pandoc_run", return_value=""):
+            _resolve_md_citations(str(md), str(p), ["kaynaklar.bib"])
+        ham = builtins.open(md, "rb").read()
+        assert b"\r\n" not in ham, "md Windows'ta CRLF yazılıyordu"
 
 
 # ---------------------------------------------------------------------------

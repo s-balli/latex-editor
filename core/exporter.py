@@ -356,7 +356,11 @@ def _resolve_md_bibitem_citations(md_path: str, tex_path: str):
     if yeni == content:
         return
     try:
-        with open(md_path, "w", encoding="utf-8") as f:
+        # newline="\n" : md çıktısı her platformda LF olsun. Windows'ta
+        # text-mode öntanımı '\n'yi '\r\n' yapıyordu, yerlilerde yapmıyordu
+        # (2026-11-16, TestSatirSonu). Aynı kural aşağıdaki iki md yazıcısında
+        # da geçerli.
+        with open(md_path, "w", encoding="utf-8", newline="\n") as f:
             f.write(yeni)
     except OSError as e:
         _logger.warning("MD bibitem atıf çözme başarısız: %s", e)
@@ -453,7 +457,9 @@ def _resolve_md_citations(md_path: str, tex_path: str, bibs=()):
                     + refs_plain + "\n")
 
     try:
-        with open(md_path, "w", encoding="utf-8") as f:
+        # newline="\n": md çıktısı her platformda LF (gerekçe yukarıda,
+        # _resolve_md_bibitem_citations'ta).
+        with open(md_path, "w", encoding="utf-8", newline="\n") as f:
             f.write(content)
     except OSError as e:
         _logger.warning("MD citation çözme başarısız: %s", e)
@@ -628,7 +634,14 @@ def _preprocess_tex(tex_path: str) -> str:
     # Mutlak yol: pandoc farklı cwd'de çalışabilir, göreli yol bulunamaz.
     tmp = os.path.abspath(tex_path) + ".export_tmp.tex"
     try:
-        with open(tmp, "w", encoding="utf-8") as f:
+        # newline="" : içerik kendi satır sonunu taşıyor (coz() koruyarak
+        # çözdü). text-mode öntanımı Windows'ta her '\n'yi os.linesep'e
+        # çevirir ve CRLF kaynağa '\r\r\n' yazıyordu; pandoc'un OKUDUĞU
+        # ara dosyada her satır fazladan bir '\r' taşıyordu. 2026-11-16'da
+        # Windows Python312 ile ölçüldü; editörün kaydı aynı sınıfı 94969a9'da
+        # düzeltmişti, bu yazıcı dışında kalmıştı. Kapı:
+        # tests/test_exporter.py TestSatirSonu.
+        with open(tmp, "w", encoding="utf-8", newline="") as f:
             f.write(content)
         return tmp
     except OSError:
@@ -814,7 +827,9 @@ def _fix_md_image_paths(tex_path: str, md_path: str):
         content = _RE_MD_GORSEL_OLCU.sub(r'\1', content)
         content = _RE_MD_GORSEL.sub(_replace, content)
 
-        with open(md_path, "w", encoding="utf-8") as f:
+        # newline="\n": md çıktısı her platformda LF (gerekçe
+        # _resolve_md_bibitem_citations'ta).
+        with open(md_path, "w", encoding="utf-8", newline="\n") as f:
             f.write(content)
     except Exception as e:
         _logger.warning("MD resim yolu düzeltme başarısız: %s", e)
