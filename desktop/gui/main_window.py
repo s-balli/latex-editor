@@ -1739,9 +1739,18 @@ class MainWindow(
         # sonrasında geri veriliyor. İPTAL yolunda geri VERİLMİYOR: kullanıcı
         # vazgeçtiyse sorulan sekmede kalması doğru.
         onceki_sekme = self._editor_tabs.currentIndex()
-        # Kaydedilmemiş sekmeleri kontrol et
-        for i in range(self._editor_tabs.count()):
-            editor = self._editor_tabs.widget(i)
+        # Kaydedilmemiş sekmeleri kontrol et. Sekmeler İNDİSLE değil başta
+        # toplanan nesnelerle yürünüyor: soru `exec()` ile olay döngüsünü
+        # döndürüyor ve dosya izleyici o arada bir sekmeyi kapatabiliyor.
+        # İndisle yürüyen döngüde arkadaki sekmeler sola kayıyor, son kirli
+        # sekme hiç sorulmuyor ve kurtarma kopyası da siliniyordu (ölçüldü
+        # 2026-11-16, test_pencere_durumu).
+        sekmeler = [self._editor_tabs.widget(i)
+                    for i in range(self._editor_tabs.count())]
+        for editor in sekmeler:
+            i = self._editor_tabs.indexOf(editor)
+            if i < 0:
+                continue                   # soru sırasında kapandı
             if isinstance(editor, EditorWidget) and editor.isModified():
                 self._editor_tabs.setCurrentIndex(i)
                 reply = self._save_dialog(editor.display_name)

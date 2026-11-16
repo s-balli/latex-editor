@@ -157,3 +157,41 @@ def test_iptalde_sorulan_sekmede_kaliniyor_ve_durum_yazilmiyor(
     assert w._editor_tabs.currentIndex() == 1, "iptalde sorulan sekmede kalınmalı"
     assert not pencere_kur.ayar().value("active_tab_path", ""), (
         "kapanış iptal edildiği hâlde oturum durumu yazılmış")
+
+
+def test_soru_ekrandayken_kapanan_sekme_SONRAKI_kirli_sekmeyi_atlatmiyor(
+        pencere_kur, qapp, tmp_path, monkeypatch):
+    """Kayıt sorusu `exec()` ile olay döngüsünü döndürüyor; o arada dosya
+    izleyici dışarıdan silinen temiz bir sekmeyi kapatabiliyor. Döngü sekme
+    İNDİSİYLE yürüdüğü için arkadaki sekmeler bir sola kayıyor ve son kirli
+    sekme hiç sorulmuyordu; kapanış "temiz" sayılıp onun kurtarma kopyası da
+    siliniyordu (durum makinesi taraması, 2026-11-16)."""
+    from PyQt6.QtWidgets import QMessageBox
+
+    yollar = _dosyalar(tmp_path, 3)
+    w = pencere_kur()
+    for y in yollar:
+        w._open_file_in_editor(y)
+    qapp.processEvents()
+    silinen = w._editor_tabs.widget(0)            # temiz, dışarıdan silinecek
+    for i in (1, 2):
+        w._editor_tabs.widget(i).append("\n% kirli\n")
+    monkeypatch.setattr(QMessageBox, "information",
+                        lambda *a, **k: QMessageBox.StandardButton.Ok)
+
+    sorulan = []
+
+    def soru(ad):
+        if not sorulan:
+            # birinci soru ekrandayken izleyicinin turu koşuyor
+            os.remove(yollar[0])
+            w._handle_deleted_file(silinen, os.path.normpath(yollar[0]))
+        sorulan.append(ad)
+        return "discard"
+
+    w._save_dialog = soru
+    w.close()
+    qapp.processEvents()
+
+    assert sorulan == ["d1.tex", "d2.tex"], (
+        "kirli sekme sorulmadan kapanıldı: " + repr(sorulan))
