@@ -72,15 +72,33 @@ def pandoc_wsl_icinde() -> bool:
     return PLATFORM == "win32"
 
 
+# pandoc yoklamasının süre bütçesi. 5 sn'ydi ve DAR bir bütçeydi: wsl.exe
+# ilk çağrıda dağıtımı ayağa kaldırıyor; depodaki ölçümlerde soğuk wsl spawn
+# 1-3 sn (core/env_check.py), soğuk BAŞLANGIÇ "saniyeler sürebiliyor"
+# (gui/synctex.py bu yüzden 15 sn'ye çıktı). Zaman aşımı "kurulu değil"
+# sanılıyordu: sonuç süreç boyunca önbellekleniyor
+# (main_window._pandoc_kontrolu_basla) ve Dışa Aktarım menüsü pandoc KURULU iken
+# kilitli kalıyordu (2026-11-16 Windows/WSL sınırı taraması, TestPandocAvailable).
+# Bütçe ortam denetimiyle aynı; zaman aşımında karar "bilinmiyor" sayılıyor.
+_WSL_YOKLAMA_ZAMAN_ASIMI = 20
+
+
 def _wsl_pandoc_available() -> bool:
     try:
         r = subprocess.run(
             ["wsl", "-e", "which", "pandoc"],
             capture_output=True, text=True,
-            encoding="utf-8", errors="replace", timeout=5,
+            encoding="utf-8", errors="replace",
+            timeout=_WSL_YOKLAMA_ZAMAN_ASIMI,
             creationflags=getattr(subprocess, 'CREATE_NO_WINDOW', 0),
         )
         return r.returncode == 0
+    except subprocess.TimeoutExpired:
+        # Soğuk WSL: "kurulu değil" DEĞİL, "bilinmiyor". Dışa aktarma kendi
+        # hatasını zaten gösteriyor; menü kilitlenmesin (bkz. sabitin gerekçesi).
+        _logger.warning("pandoc yoklaması zaman aşımına uğradı "
+                        "(soğuk WSL başlangıcı olabilir)")
+        return True
     except Exception:
         return False
 

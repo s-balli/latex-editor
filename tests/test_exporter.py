@@ -94,6 +94,36 @@ class TestPandocAvailable:
         mock_which.return_value = None
         assert pandoc_available() is True
 
+    @patch("core.exporter.subprocess.run",
+           side_effect=subprocess.TimeoutExpired("wsl", 5))
+    @patch("core.exporter.PLATFORM", "win32")
+    def test_wsl_yoklama_zaman_asimi_YOK_sayilmiyor(self, mock_run):
+        r"""Soğuk WSL'de `which pandoc` zaman aşımına uğrayabilir.
+
+        Yanıt süresiz değil: wsl.exe ilk açılışta dağıtımı ayağa kaldırıyor
+        (synctex.py 15 sn, env_check.py 20 sn bütçe kullanıyor). Zaman aşımı
+        "kurulu değil" sanılırsa sonuç süreç boyunca önbellekleniyor
+        (main_window._pandoc_kontrolu_basla) ve Dışa Aktarım menüsü
+        pandoc KURULU iken kilitli kalıyordu; ileti de kullanıcıyı
+        gereksiz kurulumaya yönlendiriyordu.
+        """
+        assert pandoc_available() is True
+
+    @patch("core.exporter.subprocess.run",
+           side_effect=subprocess.TimeoutExpired("wsl", 5))
+    @patch("core.exporter.PLATFORM", "win32")
+    def test_wsl_yoklama_butcesi_synctex_ve_envcheck_ile_hizali(self,
+                                                                mock_run):
+        """5 sn soğuk WSL için dar bir bütçe; env_check'in 20 sn'ine hizala."""
+        pandoc_available()
+        assert mock_run.call_args.kwargs["timeout"] >= 15
+
+    @patch("core.exporter.subprocess.run", side_effect=FileNotFoundError)
+    @patch("core.exporter.PLATFORM", "win32")
+    def test_wsl_yoksa_yine_yok(self, mock_run):
+        """Zaman aşımı ayrı; wsl.exe'in HİÇ bulunmaması hâlâ "yok" demek."""
+        assert pandoc_available() is False
+
 
 class TestPandocArgs:
     def test_docx_args(self):
