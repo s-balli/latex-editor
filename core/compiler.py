@@ -66,6 +66,7 @@ class LatexCompiler(QObject):
         self.process: QProcess | None = None
         self._output = ""
         self._ansi_tail = b""
+        self._utf16_artik = b""
         self._utf8_dec = codecs.getincrementaldecoder("utf-8")("replace")
         self._start_time = 0.0
         self._pdf_damgasi_once = None
@@ -117,6 +118,7 @@ class LatexCompiler(QObject):
         self._engine = engine
         self._output = ""
         self._ansi_tail = b""
+        self._utf16_artik = b""
         self._utf8_dec = codecs.getincrementaldecoder("utf-8")("replace")
         self._start_time = time.time()
         # PDF'in derleme ÖNCESİ damgası — tazelik bunun DEĞİŞİP değişmediğine
@@ -215,8 +217,20 @@ class LatexCompiler(QObject):
         # içermez, UTF-16LE'ye kodlanmış ASCII ise her karakterde bir tane
         # taşır. İki akış iç içe gelmiyor (wsl.exe hatası bash hiç başlamadan
         # yazılıyor), o yüzden chunk bazında karar vermek yeterli.
-        if b"\x00" in data:
-            text = data.decode("utf-16-le", errors="replace")
+        #
+        # CHUNK SINIRINDA TEK BAYT BÖLÜNMESİ: kod birimi (2 bayt) ikiye
+        # ayrılınca yarım bayt U+FFFD oluyor, izleyen chunk kaymış hizayla
+        # çözülüp mojibake üretiyordu (2026-11-16 Windows/WSL sınırı
+        # taramasında görüldü; ANSI ve UTF-8 kollarının zaten taşıdığı ders).
+        # Yarım bayt sonraki tura taşınıyor; taşırken gelen chunk NUL
+        # taşımasa bile UTF-16 kolunda kalıyor (aynı iletinin devamı).
+        if b"\x00" in data or self._utf16_artik:
+            veri = self._utf16_artik + data
+            if len(veri) % 2:
+                self._utf16_artik, veri = veri[-1:], veri[:-1]
+            else:
+                self._utf16_artik = b""
+            text = veri.decode("utf-16-le", errors="replace")
         else:
             # Artımlı UTF-8 çözücü çok baytlı karakteri chunk sınırında bölünse
             # bile tamamlanını bekler; errors="replace" ancak gerçek bozuklukta devreye girer
@@ -225,9 +239,12 @@ class LatexCompiler(QObject):
         self.output_line.emit(text)
 
     def _flush_output(self):
-        """Süreç kapandı: yarım kalan ANSI/UTF-8 parçalarını son kez boşalt."""
+        """Süreç kapandı: yarım kalan ANSI/UTF-8/UTF-16 parçalarını boşalt."""
         text = self._utf8_dec.decode(_RE_ANSI.sub(b"", self._ansi_tail), final=True)
         self._ansi_tail = b""
+        if self._utf16_artik:
+            text += self._utf16_artik.decode("utf-16-le", errors="replace")
+            self._utf16_artik = b""
         if text:
             self._output += text
             self.output_line.emit(text)

@@ -608,6 +608,28 @@ class TestChunkCarryOver:
         assert c._output == mesaj
         assert "\x00" not in c._output
 
+    def test_utf16_iletisi_tek_baytta_bolununce_bozulmuyor(self):
+        r"""UTF-16 iletisi chunk sınırında TEK baytta bölünebilir.
+
+        readAllStandardOutput rastgele baytta kesiyor (bu sınıfın ANSI/UTF-8
+        kapılarının sebebi aynı). Karar chunk bazında verildiği için yarım
+        kalan kod birimi U+FFFD oluyor, izleyen chunk kaymış hizayla
+        çözülüp mojibake üretiyordu; wsl.exe'in dağıtım yok iletisi
+        okunmuyordu (2026-11-16 Windows/WSL sınırı taramasında görüldü).
+        Yarım bayt sonraki tura taşınırsa bütün kalıyor.
+        """
+        c = LatexCompiler()
+        mesaj = "Sağlanan ada sahip dağıtım yok.\r\n"
+        ham = mesaj.encode("utf-16-le")
+        tek = len(ham) // 2                 # TEK baytta bölünme noktası
+        if tek % 2 == 0:
+            tek += 1                        # yarım kod birimi bırak
+        assert tek % 2 == 1
+        self._feed(c, ham[:tek])
+        self._feed(c, ham[tek:])
+        assert c._output == mesaj
+        assert "�" not in c._output
+
     def test_normal_utf8_ciktisi_utf16_sanilmiyor(self):
         """NUL sezgisi düz LaTeX çıktısını bozmamalı."""
         c = LatexCompiler()
