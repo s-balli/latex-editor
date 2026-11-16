@@ -588,6 +588,8 @@ def _preprocess_tex(tex_path: str) -> str:
       - `\begin{frontmatter}'/`\end{frontmatter}' soyulur
       - `\title{X}' (ve `\title[short]{X}') → `\section*{X}'
       - `\begin{abstract}' → `\section*{Abstract}', `\end{abstract}' silinir
+      - `\begin{thebibliography}{X}' ilk argümanı silinir (pandoc onu çıktıda
+        görünür çöp olarak bırakıyor)
     Değişiklik yoksa orijinal dosyayı döndürür; varsa aynı dizinde geçici dosyaya
     yazar ve onun yolunu döndürür.
     """
@@ -611,6 +613,14 @@ def _preprocess_tex(tex_path: str) -> str:
     content = re.sub(r'\\end\s*\{abstract\}', '', content)
     # \title{X} veya \title[short]{X} -> \section*{X} (gövdeye başlık olarak)
     content = re.sub(r'\\title(?:\[[^\]]*\])?\{', lambda m: '\\section*{', content)
+    # \begin{thebibliography}{00}: ilk argüman numara genişliği ipucudur ve
+    # pandoc onu çıktıda görünür çöp olarak bırakıyor (16.11 ölçümü: pandoc
+    # 3.x markdown'da ilk kaydın başına "00 " yazıyor). pandoc'a gitmeden
+    # sil; yalnız thebibliography'nin İLK argümanına dokun, begin belirteci
+    # olduğu gibi kalsın, argümansız belge değişmesin.
+    content = re.sub(
+        r'(\\begin\s*\{\s*thebibliography\s*\})\s*\{[^{}]*\}',
+        lambda m: m.group(1), content)
 
     if content == original:
         return tex_path

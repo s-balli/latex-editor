@@ -598,6 +598,38 @@ class TestPreprocess:
         out = _preprocess_tex(str(tex))
         assert out == str(tex)  # değişiklik yok -> geçici dosya yok
 
+    @pytest.mark.parametrize("arg", ["{00}", "{9}", "{}"])
+    def test_thebibliography_ilk_argumani_siliniyor(self, tmp_path, arg):
+        r"""pandoc `\begin{thebibliography}{00}` ilk argümanını çıktıya
+        görünür çöp olarak düşürüyor (pandoc 3.x ilk kaydın başına "00 "
+        yazıyordu). Önişleme yalnızca bu İLK argümanı silmeli, gerisi aynı
+        kalmalı."""
+        govde = ("\\section{G}\n"
+                 "\\begin{thebibliography}" + arg + "\n"
+                 "\\bibitem{a} Yazar. Başlık. 2026.\n"
+                 "\\end{thebibliography}\n")
+        tex = tmp_path / "d.tex"
+        tex.write_text(govde, encoding="utf-8")
+        out = _preprocess_tex(str(tex))
+        content = open(out, encoding="utf-8").read()
+        assert "\\begin{thebibliography}" + arg not in content, content
+        # geri kalanına dokunulmamalı
+        assert "\\begin{thebibliography}" in content
+        assert "\\section{G}" in content
+        assert "\\bibitem{a} Yazar. Başlık. 2026." in content
+        assert "\\end{thebibliography}" in content
+
+    def test_thebibliography_argumansiz_belgeye_dokunmuyor(self, tmp_path):
+        """Argüman yoksa önişleme hiçbir şey değiştirmemeli."""
+        govde = ("\\section{G}\n"
+                 "\\begin{thebibliography}\n"
+                 "\\bibitem{a} Yazar. Başlık. 2026.\n"
+                 "\\end{thebibliography}\n")
+        tex = tmp_path / "d.tex"
+        tex.write_text(govde, encoding="utf-8")
+        out = _preprocess_tex(str(tex))
+        assert out == str(tex)  # değişiklik yok -> geçici dosya yok
+
 
 # --- bibliography tespiti ---
 
