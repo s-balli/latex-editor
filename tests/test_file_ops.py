@@ -245,6 +245,30 @@ def test_export_busy_dialog_oncesi_reddedilir(qapp, tmp_path, monkeypatch):
     assert "sürüyor" in stub._status.msg
 
 
+def test_export_DONE_uyarisi_basari_mesajina_giriyor(qapp):
+    """pandoc başarılı ama SON İŞLEM uyarısı varsa durum çubuğu yalnız
+    'Dışa aktarıldı' deyip geçmemeli (2026-11-16 sessiz hata taraması,
+    bulgu 1): eksik kaynakçalı/bozuk çıktı başarı sanılıyor."""
+    stub = _Stub([])
+    stub._export_dest = "/bir/yer/rapor.md"
+
+    stub._on_export_done(True, "kaynakça listesi üretilemedi")
+
+    assert "Dışa aktarıldı" in stub._status.msg
+    assert "rapor.md" in stub._status.msg
+    assert "kaynakça listesi üretilemedi" in stub._status.msg
+
+
+def test_export_DONE_temiz_basarida_uyari_yok(qapp):
+    """Karşı kol: uyarı yoksa mesaj eskisi gibi kalmalı."""
+    stub = _Stub([])
+    stub._export_dest = "/bir/yer/rapor.docx"
+
+    stub._on_export_done(True, "")
+
+    assert stub._status.msg == "Dışa aktarıldı: rapor.docx"
+
+
 # --- _open_file_in_editor: oturum geri yükleme recent'e dokunmasın ---
 
 

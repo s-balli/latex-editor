@@ -282,6 +282,17 @@ class VersionOpsMixin:
         except Exception:
             _logger.error("Geçmiş okunamadı: %s", root, exc_info=True)
             entries = []
+            # BOŞ panel "sürümleriniz yok" okunur; hata hiç söylenmeden
+            # geçmiyordu (2026-11-16 sessiz hata taraması, bulgu 3;
+            # tests/test_version_ops.py
+            # test_GECMIS_okunamayinca_SESSIZ_BOS_PANEL_OLMUYOR). Mevcut
+            # durum mesajı ezilmiyor, sonuna ekleniyor (compile_ops
+            # _maybe_auto_audit deseni).
+            cur = getattr(self._status, "currentMessage", None)
+            base = cur() if callable(cur) else ""
+            mesaj = _("Geçmiş okunamadı")
+            self._status.showMessage(
+                (base + "  ·  " + mesaj) if base else mesaj)
         self._output_panel.show_history(entries)
         if select_tab:
             self._output_panel._tabs.setCurrentIndex(
@@ -495,7 +506,21 @@ class VersionOpsMixin:
             QMessageBox.StandardButton.No)
         if answer != QMessageBox.StandardButton.Yes:
             return
-        if not versioning.drop_all(root):
+        try:
+            silindi = versioning.drop_all(root)
+        except Exception as exc:
+            # Taşıma DÜŞTÜYSE "Silinecek geçmiş yok" yanıltıyordu: kullanıcı
+            # onaylamıştı ve silme başarısızken durum çubuğu işi bitmiş gibi
+            # gösteriyordu (2026-11-16 sessiz hata taraması, bulgu 2;
+            # tests/test_version_ops.py
+            # test_TUM_GECMISI_SIL_basarisizken_YOK_DENMIYOR). False artık
+            # yalnız "depo yok" demek.
+            _logger.error("Geçmiş silinemedi: %s", root, exc_info=True)
+            QMessageBox.critical(
+                self, _("Tüm Geçmişi Sil"),
+                _("Geçmiş silinemedi:\n\n{e}").format(e=exc))
+            return
+        if not silindi:
             self._status.showMessage(_("Silinecek geçmiş yok"))
             return
         self._status.showMessage(

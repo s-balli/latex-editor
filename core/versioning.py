@@ -283,11 +283,14 @@ def drop_all(root: str) -> bool:
     if not os.path.isdir(git_dir):
         return False
     import send2trash
-    try:
-        send2trash.send2trash(git_dir)
-    except Exception:
-        _logger.error("Geçmiş silinemedi: %s", root, exc_info=True)
-        return False
+    # HATA YUTULMUYOR: send2trash düşerse (kilitli .git, izin reddi, çöp
+    # kutusu olmayan ağ sürücüsü) eskiden False dönülüyordu; False "zaten
+    # silinecek yok" demekti ve arayüz kullanıcıya işi bitmiş gibi
+    # gösteriyordu. Artık istisna çıkıyor, çağıran
+    # (version_ops._drop_all_history) sebebi söylüyor. 2026-11-16 sessiz
+    # hata taraması, bulgu 2 (tests/test_versioning.py
+    # test_drop_all_SEND2TRASH_hatasi_YUTULMUYOR).
+    send2trash.send2trash(git_dir)
     gi = os.path.join(root, ".gitignore")
     try:
         # Metin kipi: Windows'ta şablon CRLF'yle yazıldı (bkz. init_repo).

@@ -582,8 +582,21 @@ class FileOpsMixin:
         self._export_busy = False
         dest = getattr(self, "_export_dest", "")
         if ok:
-            self._status.showMessage(_("Dışa aktarıldı") + ": " + os.path.basename(dest))
-            _logger.info("Export başarılı → %s", dest)
+            if err:
+                # ok=True iken err UYARIDIR: pandoc başardı ama son işlem
+                # (atıf çözme, kaynakça listesi, resim yolları, Word
+                # uyumluluk düzeltmesi) düşmüş olabilir; "Dışa aktarıldı"
+                # deyip geçmek eksik çıktıyı başarı sanırdı (2026-11-16
+                # sessiz hata taraması, bulgu 1; tests/test_file_ops.py
+                # test_export_DONE_uyarisi_basari_mesajina_giriyor).
+                # Cümle TEK PARÇA, çevirmen bütün bağlamı görsün.
+                self._status.showMessage(
+                    _("Dışa aktarıldı: {ad} (uyarı: {u})").format(
+                        ad=os.path.basename(dest), u=err))
+                _logger.warning("Export kısmi başarısız → %s (%s)", dest, err)
+            else:
+                self._status.showMessage(_("Dışa aktarıldı") + ": " + os.path.basename(dest))
+                _logger.info("Export başarılı → %s", dest)
         else:
             self._status.showMessage(_("Dışa aktarma başarısız") + ": " + str(err))
             _logger.warning("Export başarısız → %s (%s)", dest, err)

@@ -190,6 +190,11 @@ class EditOpsMixin:
         # .bib'in içine. Yol bulunamazsa boş denetim döner.
         bib_yolu = find_bib_path(content, base_path)
         bib = dosyayi_denetle(bib_yolu)
+        # Okunamayan .bib (izin, kilit) boş denetimle AYNI görünüyordu ve
+        # özet "sorun yok" diyordu (2026-11-16 sessiz hata taraması, bulgu 5;
+        # tests/test_ref_audit.py test_BIB_OKUNAMAYINCA_denetim_sessiz_kalmiyor).
+        # getattr: denetimi ikame eden test iskeletleri bayrağı taşımıyor.
+        bib_okunamadi = bool(getattr(bib, "okunamadi", False))
 
         # Konumlar TOPLU çıkarılır. Eskiden her bulgu için ayrı arama yapılıyor,
         # her arama \input zincirini diskten baştan okuyordu: 30 bölümlü bir
@@ -203,6 +208,11 @@ class EditOpsMixin:
         label_kon = label_locations(content, base_path) if report.unused_labels else {}
 
         warnings = []
+        if bib_okunamadi:
+            warnings.append((
+                _("Kaynakça dosyası okunamadı: {ad}").format(
+                    ad=os.path.basename(bib_yolu)),
+                bib_yolu, 1))
         for k in report.undefined_refs:
             warnings.append(EditOpsMixin._audit_item(_("Tanımsız \\ref"), k, ref_kon.get(k)))
         for k in report.undefined_cites:
@@ -236,6 +246,7 @@ class EditOpsMixin:
             "l": len(report.unused_labels),
             "m": len(bib.mukerrer),
             "e": len(bib.eksik),
+            "o": 1 if bib_okunamadi else 0,
         }
         return warnings, suggestions, counts
 
@@ -258,6 +269,10 @@ class EditOpsMixin:
             parts.append(_("{n} tanımsız cite").format(n=c["c"]))
         if c.get("m"):
             parts.append(_("{n} mükerrer .bib anahtarı").format(n=c["m"]))
+        if c.get("o"):
+            # .bib okunamadı: bulgular eksik toplandı, "sorun yok" denemez
+            # (2026-11-16 sessiz hata taraması, bulgu 5).
+            parts.append(_("{n} kaynakça okunamadı").format(n=c["o"]))
         if c["b"]:
             parts.append(_("{n} kullanılmayan .bib").format(n=c["b"]))
         if c.get("e"):

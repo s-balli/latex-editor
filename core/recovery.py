@@ -104,11 +104,27 @@ def oku(dizin: str) -> list[Snapshot]:
     Bozuk/eksik/yabancı sürümlü dosyalar atlanır — kurtarma akışı hiçbir
     koşulda istisna fırlatmamalı, yoksa açılışı komple engeller.
     """
+    return oku_istatistikli(dizin)[0]
+
+
+def oku_istatistikli(dizin: str) -> tuple[list[Snapshot], int]:
+    """oku + ATILAN (bozuk/okunamayan) kopya sayısı.
+
+    Elenme davranışı bilinçli (bozuk veriyi yanlış yorumlamak yerine atmak
+    yeğdir) ama sayıyı alan yoktu: çökme öncesi iş bozuk dosyadaysa
+    kurtarma listesinde hiç görünmüyor, kullanıcıya hiçbir şey
+    söylenmiyor ve temiz kapanış (`hepsini_sil`) dosyayı kalıcı siliyordu.
+    Sayıyı GUI söylüyor (recovery_ops._recovery_prompt durum çubuğu).
+    2026-11-16 sessiz hata taraması, bulgu 4
+    (tests/test_recovery.py test_oku_istatistikli_atilanlari_sayiyor,
+    test_BOZUK_KOPYA_kullaniciya_SOYLENIYOR).
+    """
     out: list[Snapshot] = []
+    atilan = 0
     try:
         adlar = sorted(os.listdir(dizin))
     except OSError:
-        return out
+        return out, atilan
     for ad in adlar:
         if not ad.endswith(_UZANTI):
             continue
@@ -119,6 +135,7 @@ def oku(dizin: str) -> list[Snapshot]:
             # o zaman `g.get` AttributeError atiyordu ve bu, asagidaki except
             # demetinde yok: tek bozuk dosya acilisi komple engelliyordu.
             if not isinstance(g, dict) or g.get("version") != SURUM:
+                atilan += 1
                 continue
             file_path = g["file_path"]
             content = g["content"]
@@ -134,6 +151,7 @@ def oku(dizin: str) -> list[Snapshot]:
             # nesne değil" hâlini kapatmıştı, değerler açıkta kalmıştı.
             if not all(isinstance(x, str)
                        for x in (file_path, content, encoding, newline)):
+                atilan += 1
                 continue
             codecs.lookup(encoding)   # tanınmayan kodlama -> LookupError
             out.append(Snapshot(
@@ -147,9 +165,10 @@ def oku(dizin: str) -> list[Snapshot]:
         except (OSError, ValueError, LookupError, TypeError):
             # LookupError hem eksik alanı (KeyError) hem tanınmayan kodlamayı
             # kapsıyor; KeyError onun alt sınıfı.
+            atilan += 1
             continue
     out.sort(key=lambda s: s.saved_at, reverse=True)
-    return out
+    return out, atilan
 
 
 def hepsini_sil(dizin: str) -> int:

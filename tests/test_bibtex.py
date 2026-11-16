@@ -195,6 +195,18 @@ class TestDosyaOkuma:
         d = dosyayi_denetle(str(tmp_path / "yok.bib"))
         assert d.mukerrer == [] and d.eksik == []
 
+    def test_OKUNAMAYAN_yol_isaretleniyor(self, tmp_path):
+        """Yolu VAR ama okunamayan .bib (izin, kilit) boş denetimle
+        karışmamalı: `okunamadi` bayrağı taşınıyor, çağıran (denetim
+        özeti) kullanıcıya söylüyor (2026-11-16 sessiz hata taraması,
+        bulgu 5). Dizin olan bir .bib yolu her platformda okuma hatası
+        verir (Linux: IsADirectoryError, Windows: PermissionError)."""
+        p = tmp_path / "d.bib"
+        p.mkdir()
+        d = dosyayi_denetle(str(p))
+        assert d.okunamadi is True
+        assert d.mukerrer == [] and d.eksik == []
+
     def test_bos_yol_bos_denetim(self):
         d = dosyayi_denetle("")
         assert d.mukerrer == [] and d.eksik == []

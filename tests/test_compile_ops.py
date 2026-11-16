@@ -528,3 +528,42 @@ def test_ZAMAN_ASIMI_son_gecerli_PDFi_silmiyor(ana_pencere, monkeypatch):
     assert temizlendi == [], "zaman aşımı son geçerli PDF'i sildi"
     assert p._current_pdf == "onceki_basarili.pdf"
     assert sonuclar[0].errors, "zaman aşımı yine hata olarak bildirilmeli"
+
+
+# =====================================================================
+# .synctex.gz derlemeden sonra uygulamanın kendi dizinine taşınıyor;
+# taşıma düşerse uyarı yalnız günlükte kalıyordu ve kullanıcı sonraki
+# Ctrl+tık'ta "yeniden derleyin" diye yanlış yönlendiriliyordu
+# (2026-11-16 sessiz hata taraması, bulgu 6).
+# =====================================================================
+
+
+class _PdfViewerStub:
+    """PDF viewer yerine: clear/load_pdf yeterli."""
+
+    def clear(self):
+        pass
+
+    def load_pdf(self, path):
+        return True
+
+
+def test_SYNCTEX_TASINAMAYINCA_uyari_mesaja_giriyor(qapp, tmp_path):
+    tex = _tex(tmp_path)
+    pdf = tmp_path / "ana.pdf"
+    pdf.write_bytes(b"%PDF-1.4\n")
+    (tmp_path / "ana.synctex.gz").write_bytes(b"x")
+
+    stub = _Stub([], root=str(tmp_path))
+    stub._pdf_viewer = _PdfViewerStub()
+    # Dosyanın altına dizin: makedirs NotADirectoryError (OSError) atıyor.
+    engel = tmp_path / "engel.txt"
+    engel.write_text("d", encoding="utf-8")
+    stub._synctex_dir = str(engel / "synctex")
+    stub._compile_target = tex
+
+    from core.log_parser import CompileResult
+    stub._on_compile_finished(CompileResult(success=True, pdf_path=str(pdf)))
+
+    assert "Başarılı" in stub._status.msg, "derleme sonucu mesajdan gitti"
+    assert "SyncTeX" in stub._status.msg, "taşıma hatası mesaja girmedi"

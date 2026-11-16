@@ -837,9 +837,15 @@ class BibDenetim:
 
     mukerrer: (anahtar, tanımlandığı satırlar): birden çok tanım
     eksik:    (anahtar, satır, eksik alan adları)
+    okunamadi: yol VAR ama dosya okunamadı (izin, kilit). Boş denetimle
+    karışmasın: çağıran (edit_ops denetim özeti) kullanıcıya söylüyor,
+    yoksa "Referans denetimi: sorun yok" yanlış çıkıyor. 2026-11-16 sessiz
+    hata taraması, bulgu 5 (tests/test_bibtex.py
+    test_OKUNAMAYAN_yol_isaretleniyor).
     """
     mukerrer: list = field(default_factory=list)
     eksik: list = field(default_factory=list)
+    okunamadi: bool = False
 
 
 def denetle(text: str) -> BibDenetim:
@@ -871,7 +877,7 @@ def dosyayi_denetle(yol: str) -> BibDenetim:
     try:
         mtime = os.path.getmtime(yol)
     except OSError:
-        return BibDenetim()
+        return BibDenetim(okunamadi=True)
     onbellek = _cache.get(yol)
     if onbellek and onbellek[0] == mtime:
         return onbellek[1]
@@ -879,7 +885,7 @@ def dosyayi_denetle(yol: str) -> BibDenetim:
         with open(yol, "rb") as f:
             ham = f.read()
     except OSError:
-        return BibDenetim()
+        return BibDenetim(okunamadi=True)
     from core.fs_ops import coz
     sonuc = denetle(coz(ham))
     if len(_cache) >= _CACHE_SINIR:

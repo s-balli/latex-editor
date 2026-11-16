@@ -60,6 +60,20 @@ def test_bozuk_dosya_atlanir(tmp_path):
     assert [s.snap_id for s in snaplar] == ["saglam"]
 
 
+def test_oku_istatistikli_atilanlari_sayiyor(tmp_path):
+    """Atlanan (bozuk) kopya SAYILMALI: elenme davranışı doğru ama sayıyı
+    alan yoktu, kullanıcı 'kopya okunamadı' bilgisini hiç görmüyordu
+    (2026-11-16 sessiz hata taraması, bulgu 4)."""
+    d = str(tmp_path)
+    recovery.yaz(d, "saglam", file_path="/x/a.tex", content="iyi")
+    (tmp_path / "bozuk.snapshot.json").write_text("{ yarim", encoding="utf-8")
+
+    snaplar, atilan = recovery.oku_istatistikli(d)
+
+    assert [s.snap_id for s in snaplar] == ["saglam"]
+    assert atilan == 1
+
+
 def test_yabanci_surum_atlanir(tmp_path):
     """Tanınmayan biçimi yanlış yorumlayıp içeriği bozmaktansa atla."""
     d = str(tmp_path)
@@ -440,6 +454,29 @@ def test_zaten_acik_sekmeye_geri_yukleniyor(qapp, tmp_path, monkeypatch):
     m._recovery_tick()
     assert [(s.snap_id, s.content) for s in recovery.oku(str(kayit))] == \
         [("eski-oturum", "sonradan yazılan\n")]
+
+
+@pytestmark_gui
+def test_BOZUK_KOPYA_kullaniciya_SOYLENIYOR(qapp, tmp_path, monkeypatch):
+    """Bozuk kopya sessizce eleniyordu: çökme öncesi iş o dosyadaysa
+    kurtarma listesinde HİÇ görünmüyor, kimse bir şey söylemiyor ve temiz
+    kapanış dosyayı kalıcı siliyordu (2026-11-16 sessiz hata taraması,
+    bulgu 4)."""
+    import gui.mixins.recovery_ops as ro
+    monkeypatch.setattr(ro, "QMessageBox", _oto_box("at"))
+
+    kayit = tmp_path / "kayit"
+    kayit.mkdir()
+    recovery.yaz(str(kayit), "saglam", file_path="", content="yeni dosya\n")
+    (kayit / "bozuk.snapshot.json").write_text("{ yarim", encoding="utf-8")
+
+    m = _StubMain(kayit)
+    mesajlar = []
+    m._status.showMessage = lambda msg, timeout=0: mesajlar.append(msg)
+    m._recovery_prompt()
+
+    assert any("okunamadı" in x for x in mesajlar), \
+        "atılan kurtarma kopyası kullanıcıya söylenmedi"
 
 
 @pytestmark_gui

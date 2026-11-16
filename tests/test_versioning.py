@@ -142,6 +142,31 @@ def test_drop_all_history(tmp_path):
     assert V.drop_all(str(tmp_path)) is False  # zaten yok
 
 
+def test_drop_all_SEND2TRASH_hatasi_YUTULMUYOR(tmp_path, monkeypatch):
+    """Çöpe taşıma düşerse (kilitli .git, izin reddi) False DÖNMEMELİ.
+
+    False arayüzde "Silinecek geçmiş yok" oluyor: kullanıcı silme işini
+    bitmiş sanıyor, oysa geçmiş yerinde duruyor. Başarısızlık istisna
+    olarak çıkmalı; False yalnız "zaten yok" demek.
+    (2026-11-16 sessiz hata taraması, bulgu 2.)
+    """
+    import send2trash
+
+    _mk(tmp_path)
+    V.init_repo(str(tmp_path))
+    V.snapshot(str(tmp_path), "1")
+    assert (tmp_path / ".git").is_dir()
+
+    def _patla(yol):
+        raise OSError(".git kilitli")
+
+    monkeypatch.setattr(send2trash, "send2trash", _patla)
+
+    with pytest.raises(OSError):
+        V.drop_all(str(tmp_path))
+    assert (tmp_path / ".git").is_dir(), "hata upon .git gitti"
+
+
 def test_drop_all_UYGULAMANIN_gitignore_u_da_gidiyor(tmp_path,
                                                      _sahte_cop_kutusu):
     """Geçmiş silinince `init_repo`nun yazdığı .gitignore proje klasöründe

@@ -7,6 +7,8 @@ import shutil
 import subprocess
 import sys
 
+from PyQt6.QtCore import QCoreApplication
+
 from core.log import get_logger
 from core.paths import clean_child_env, windows_to_wsl
 from core.latex_refs import bildirimleri_ara, find_bib_paths
@@ -15,6 +17,11 @@ from core.latex_refs import bildirimleri_ara, find_bib_paths
 # Modül düzeyinde alınıyor: üç ayrı yerde gerekiyor ve zincir yalnız
 # stdlib'e dayanıyor, döngü ya da açılış maliyeti yok.
 from core.project_search import coz
+
+# Son işlem yardımcılarının döndürdüğü uyarı metinleri durum çubuğuna
+# gidiyor (2026-11-16 sessiz hata taraması, bulgu 1); core.compiler'daki
+# desenle aynı. Çevrilmemişse kaynak metin döner.
+_ = lambda s: QCoreApplication.translate("Exporter", s)
 
 _logger = get_logger("exporter")
 
@@ -106,7 +113,10 @@ def _wsl_pandoc_available() -> bool:
 def export(tex_path: str, dest_path: str) -> tuple[bool, str]:
     """pandoc ile .tex → hedef format.
 
-    Dönüş: (başarılı_mı, hata_mesajı)
+    Dönüş: (başarılı_mı, hata/uyarı mesajı). ok=True iken err boş DEĞİLSE
+    bu bir UYARIDIR: pandoc kendi işini yaptı ama son işlem (atıf çözme,
+    kaynakça listesi, resim yolları, Word uyumluluk düzeltmesi) düşmüş
+    olabilir; çağıran (file_ops._on_export_done) mesaja yansıtmak zorunda.
     """
     if not os.path.exists(tex_path):
         return False, "Kaynak dosya bulunamadı"
@@ -133,22 +143,33 @@ def export(tex_path: str, dest_path: str) -> tuple[bool, str]:
     # bölümü hiç eklenmiyor.
     hedef_ext = os.path.splitext(dest_path)[1].lower()
     ok, err = False, ""
+    # Son işlem yardımcılarının uyarıları: pandoc BAŞARDI ama çıktı eksik
+    # kalabilir (2026-11-16 sessiz hata taraması, bulgu 1). ok=False ile
+    # karışmasın diye yalnız ok iken err'ye giriyorlar.
+    uyarilar: list[str] = []
     try:
         if PLATFORM == "win32":
             ok, err = _export_wsl(tmp_tex, dest_path, bibs, gorsel_dizinleri)
         else:
             ok, err = _export_native(tmp_tex, dest_path, bibs, gorsel_dizinleri)
         if ok and hedef_ext == ".md":
-            _fix_md_image_paths(tex_path, dest_path)
+            if not _fix_md_image_paths(tex_path, dest_path):
+                uyarilar.append(_("resim yolları düzeltilemedi"))
             if bibs:
                 # tmp_tex citeproc referans üretimi için lazım; silinmeden önce çağır.
-                _resolve_md_citations(dest_path, tmp_tex, bibs)
+                # Dönen DEĞER DİZE değilse (test ikamesi gibi) uyarı sayılmıyor:
+                # sözleşme "boş dize = sorun yok" demek.
+                u = _resolve_md_citations(dest_path, tmp_tex, bibs)
+                if isinstance(u, str) and u:
+                    uyarilar.append(u)
             else:
                 # `.bib` yoksa kaynakça elle yazılmış olabilir; atıflar
                 # `\bibitem` sırasına göre numaralanır (bkz. fonksiyon).
-                _resolve_md_bibitem_citations(dest_path, tex_path)
+                if not _resolve_md_bibitem_citations(dest_path, tex_path):
+                    uyarilar.append(_("atıflar numaralandırılamadı"))
         elif ok and hedef_ext == ".docx":
-            _fix_docx_compat(dest_path)
+            if not _fix_docx_compat(dest_path):
+                uyarilar.append(_("Word uyumluluk düzeltmesi uygulanamadı"))
     except Exception as e:
         # export() asla istisna fırlatmamalı: çağıran arka plan thread'i
         # (file_ops._ExportRunner) sonucu sinyalle bekliyor; istisna sinyali
@@ -163,7 +184,11 @@ def export(tex_path: str, dest_path: str) -> tuple[bool, str]:
             except OSError:
                 pass
 
-    return ok, _hata_mesaji_duzelt(err, tex_path, tmp_tex)
+    if ok and uyarilar:
+        _logger.warning("Dışa aktarma kısmi başarısız: %s (%s)",
+                        dest_path, "; ".join(uyarilar))
+    return ok, _hata_mesaji_duzelt(
+        err if not ok else "; ".join(uyarilar), tex_path, tmp_tex)
 
 
 def _hata_mesaji_duzelt(mesaj: str, tex_path: str, tmp_tex: str) -> str:
@@ -327,7 +352,7 @@ def _atif_anahtarlari(inside: str) -> list[str] | None:
     return keys
 
 
-def _resolve_md_bibitem_citations(md_path: str, tex_path: str):
+def _resolve_md_bibitem_citations(md_path: str, tex_path: str) -> bool:
     r"""`.bib` YOKKEN `[@anahtar]` atıflarını `[N]` yap.
 
     Kaynakçasını `\begin{thebibliography}` ile ELLE yazan belgelerde
@@ -341,17 +366,22 @@ def _resolve_md_bibitem_citations(md_path: str, tex_path: str):
 
     Numara `\bibitem` SIRASI: LaTeX'in sayısal kaynakça biçimiyle aynı ve
     pandoc kaynakça bloğunu da aynı sırada yazıyor.
+
+    Dönüş False = işlem uygulanamadı (okuma/yazma hatası); çağıran
+    (export) uyarıya çeviriyor (2026-11-16 sessiz hata taraması, bulgu 1;
+    test_md_son_islemler_duserse_UYARI_donuyor).
     """
     from core.latex_refs import parse_bibitems
 
     try:
         with open(tex_path, "rb") as f:
             icerik = coz(f.read())
-    except OSError:
-        return
+    except OSError as e:
+        _logger.warning("MD bibitem atıf çözme başarısız: %s", e)
+        return False
     girdiler = parse_bibitems(icerik, tex_path)
     if not girdiler:
-        return
+        return True
     numara = {g[0]: i for i, g in enumerate(girdiler, 1)}
 
     def repl(m):
@@ -368,11 +398,12 @@ def _resolve_md_bibitem_citations(md_path: str, tex_path: str):
     try:
         with open(md_path, "r", encoding="utf-8") as f:
             content = f.read()
-    except OSError:
-        return
+    except OSError as e:
+        _logger.warning("MD bibitem atıf çözme başarısız: %s", e)
+        return False
     yeni = _RE_MD_ATIF_GRUBU.sub(repl, content)
     if yeni == content:
-        return
+        return True
     try:
         # newline="\n" : md çıktısı her platformda LF olsun. Windows'ta
         # text-mode öntanımı '\n'yi '\r\n' yapıyordu, yerlilerde yapmıyordu
@@ -382,9 +413,11 @@ def _resolve_md_bibitem_citations(md_path: str, tex_path: str):
             f.write(yeni)
     except OSError as e:
         _logger.warning("MD bibitem atıf çözme başarısız: %s", e)
+        return False
+    return True
 
 
-def _resolve_md_citations(md_path: str, tex_path: str, bibs=()):
+def _resolve_md_citations(md_path: str, tex_path: str, bibs=()) -> str:
     r"""Markdown'daki [@key] citation'larını çöz ve referans listesi ekle.
 
     pandoc'un markdown writer'ı citeproc'u atladığı için (markdown doğal citation
@@ -394,9 +427,16 @@ def _resolve_md_citations(md_path: str, tex_path: str, bibs=()):
     2) Referans listesi: pandoc citeproc HTML'indeki <div id="refs"> bloğu -> plain
        text. Bu, HTML/DOCX/TXT çıktısıyla aynı TAM referansları (tüm yazarlar, dergi,
        DOI) üretir — elle kurulan basit format yerine.
+
+    Dönüş: uyarı metni; boş değilse atıflar ya da referans listesi EKSİK
+    kalmış olabilir (pandoc yardımcı çağrısı düştü, dosya okunamadı).
+    Uyarı çıktıya GİRMEZ, çağıran (export) durum çubuğuna taşır
+    (2026-11-16 sessiz hata taraması, bulgu 1;
+    test_md_citations_PANDOC_duserse_UYARI_donusu).
     """
     import json
 
+    uyarilar: list[str] = []
     bibs = _bib_listesi(bibs)
     # --- 1) inline çözüm için csljson ---
     csljson = _pandoc_csljson(bibs)
@@ -427,8 +467,9 @@ def _resolve_md_citations(md_path: str, tex_path: str, bibs=()):
     try:
         with open(md_path, "r", encoding="utf-8") as f:
             content = f.read()
-    except OSError:
-        return
+    except OSError as e:
+        _logger.warning("MD citation çözme başarısız: %s", e)
+        return _("atıflar çözülemedi")
 
     def repl(m):
         keys = _atif_anahtarlari(m.group(1))
@@ -454,6 +495,11 @@ def _resolve_md_citations(md_path: str, tex_path: str, bibs=()):
     # şekil başlığında ham `[@PFGPlots]` görünüyordu.
     #
     # Daralttığı için önek/sonek kolunu BOZMUYOR: o gruplarda `[` yok.
+    atif_var = bool(_RE_MD_ATIF_GRUBU.search(content))
+    # csljson ÇAĞRISI düştüyse (boş döndüyse) atıflar ham kalıyor.
+    # Belge hiç atıf taşımayan csljson başarısını uyarısız geçiyor.
+    if bibs and atif_var and not csljson:
+        uyarilar.append(_("atıflar çözülemedi"))
     content = _RE_MD_ATIF_GRUBU.sub(repl, content)
 
     # --- 2) referans listesi: citeproc HTML -> refs div -> plain ---
@@ -470,6 +516,12 @@ def _resolve_md_citations(md_path: str, tex_path: str, bibs=()):
         if refs_div:
             refs_plain = _pandoc_run(["-f", "html", "-t", "plain"], input_text=refs_div).strip()
 
+    # Atıf var ama referans LİSTESİ üretilemedi (pandoc çağrısı düştü ya
+    # da refs bloğu yok): "## Kaynakça" bölümü hiç eklenmiyor ve export
+    # yine başarı dönüyordu (2026-11-16 sessiz hata taraması, bulgu 1).
+    if bibs and atif_var and not refs_plain:
+        uyarilar.append(_("kaynakça listesi üretilemedi"))
+
     if refs_plain:
         content += ("\n\n## " + _refs_basligi(tex_path) + "\n\n"
                     + refs_plain + "\n")
@@ -481,6 +533,8 @@ def _resolve_md_citations(md_path: str, tex_path: str, bibs=()):
             f.write(content)
     except OSError as e:
         _logger.warning("MD citation çözme başarısız: %s", e)
+        return "; ".join(uyarilar + [_("sonuç yazılamadı")])
+    return "; ".join(uyarilar)
 
 
 def _rewrite_docx_member(docx_path: str, member: str, new_bytes: bytes):
@@ -528,7 +582,7 @@ def _tablo_stilleri(styles_xml: str) -> set:
     return tablo
 
 
-def _fix_docx_compat(docx_path: str):
+def _fix_docx_compat(docx_path: str) -> bool:
     r"""Word'ün açamadığı docx sorunlarını düzelt:
 
     1) Boş-anchor hyperlink'leri (eksik figure `\ref'leri) sade metne çevirir.
@@ -549,19 +603,24 @@ def _fix_docx_compat(docx_path: str):
     edebilir, paragraf stili adına işaret eden bir referansı Word yine
     reddederdi. Gerçek veride davranış DEĞİŞMİYOR (49 çıktının 34'ünde tek
     kullanılan stil `Table`, o da tablo türünde).
+
+    Dönüş False = düzeltme uygulanamadı (zip okunamadı ya da yeniden
+    yazılamadı); belge Word'de AÇILMAYABİLİR ve çağıran (export) bunu
+    uyarıya çeviriyor (2026-11-16 sessiz hata taraması, bulgu 1;
+    test_docx_duzeltmesi_duserse_UYARI_donuyor).
     """
     import zipfile
     try:
         with zipfile.ZipFile(docx_path) as z:
             names = z.namelist()
             if 'word/document.xml' not in names:
-                return
+                return True
             doc = z.read('word/document.xml').decode('utf-8')
             styles = z.read('word/styles.xml').decode('utf-8') if 'word/styles.xml' in names else ''
     except Exception:
         _logger.warning("docx uyumluluk düzeltmesi atlandı (zip okunamadı): %s",
                         docx_path, exc_info=True)
-        return
+        return False
 
     table_styles = _tablo_stilleri(styles)
     changed = False
@@ -601,6 +660,8 @@ def _fix_docx_compat(docx_path: str):
             _rewrite_docx_member(docx_path, 'word/document.xml', doc.encode('utf-8'))
         except Exception as e:
             _logger.warning("docx uyumluluk düzeltme başarısız: %s", e)
+            return False
+    return True
 
 
 def _preprocess_tex(tex_path: str) -> str:
@@ -786,10 +847,15 @@ def _md_hedef(yol: str) -> str:
     return "<%s>" % yol if " " in yol else yol
 
 
-def _fix_md_image_paths(tex_path: str, md_path: str):
+def _fix_md_image_paths(tex_path: str, md_path: str) -> bool:
     r"""Markdown'daki göreceli resim yollarını .tex dizinine göre mutlak yap.
 
     \graphicspath{{media/Bolum1/}} gibi LaTeX yol tanımlarını da hesaba katar.
+
+    Dönüş False = düzeltme uygulanamadı (hedef .md'ye okuma/yazma
+    düşüşü); görsel bağları göreli/kırık kalabilir, çağıran (export)
+    uyarıya çeviriyor (2026-11-16 sessiz hata taraması, bulgu 1;
+    test_md_son_islemler_duserse_UYARI_donuyor).
     """
     tex_dir = os.path.dirname(os.path.abspath(tex_path))
     graphics_paths = _extract_graphics_paths(tex_path)
@@ -851,6 +917,8 @@ def _fix_md_image_paths(tex_path: str, md_path: str):
             f.write(content)
     except Exception as e:
         _logger.warning("MD resim yolu düzeltme başarısız: %s", e)
+        return False
+    return True
 
 
 # `\graphicspath{{a/}{b/}}`. Gövde YALNIZ süslü gruplardan (ve boşluktan)

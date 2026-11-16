@@ -264,6 +264,27 @@ def test_kullanilmayan_label_konumu_dogru_kaliyor(tmp_path):
     assert "b1.tex:2" in hedef
 
 
+def test_BIB_OKUNAMAYINCA_denetim_sessiz_kalmiyor(tmp_path, monkeypatch):
+    """.bib okunamadığında (izin, kilit) mükerrer/eksik bulguları sessizce
+    kayboluyor ve özet "sorun yok" diyordu (2026-11-16 sessiz hata taraması,
+    bulgu 5). find_bib_path yamalanıyor: gerçek arama VAR OLAN dosyayı
+    arıyor, hatayı yalnız okuma aşamasında üretmek için."""
+    from core import latex_refs
+
+    kilitli = tmp_path / "kilitli.bib"
+    kilitli.mkdir()                      # okunamayan "dosya" yolu
+    monkeypatch.setattr(latex_refs, "find_bib_path",
+                        lambda *a: str(kilitli))
+
+    uyarilar, _oneriler, sayilar = EditOpsMixin._collect_audit_items(
+        "\\cite{k}\n", str(tmp_path / "m.tex"))
+
+    assert any("okunamadı" in u[0] for u in uyarilar), \
+        "kaynakça okunamadı uyarısı yok"
+    assert sayilar["o"] == 1
+    assert "kaynakça okunamadı" in EditOpsMixin._audit_summary(sayilar)
+
+
 # --- .bib iç tutarlılığı: mükerrer anahtar + eksik zorunlu alan ---
 #
 # Bu iki denetim .tex ile .bib arasındaki bağa değil, .bib'in KENDİ içine

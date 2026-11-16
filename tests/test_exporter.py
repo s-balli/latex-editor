@@ -290,6 +290,75 @@ class TestExport:
                 export("/home/user/doc.tex", "/home/user/doc.docx")
         mock_fix.assert_not_called()
 
+    # --- pandoc BAŞARDI ama son işlemler düşti: uyarı dönüyor mu ---
+    #
+    # 2026-11-16 sessiz hata taraması, bulgu 1: yardımcı pandoc çağrıları
+    # düştüğünde çıktı eksik kalıyor (atıflar çözülmemiş, kaynakça listesi
+    # yok, Word uyumluluk düzeltmesi uygulanmamış) ama export ok=True +
+    # boş err dönüyordu ve durum çubuğu "Dışa aktarıldı" diyordu.
+    # Yardımcılar YAMALANIYOR; gerçek pandoc çağrılmıyor.
+
+    @patch("core.exporter._resolve_md_bibitem_citations", return_value=False)
+    @patch("core.exporter._fix_md_image_paths", return_value=False)
+    @patch("core.exporter._find_bibliography", return_value=[])
+    @patch("core.exporter._export_native", return_value=(True, ""))
+    @patch("core.exporter.PLATFORM", "linux")
+    def test_md_son_islemler_duserse_UYARI_donuyor(
+            self, m_native, m_bib, m_fix, m_bibitem, tmp_path):
+        tex = tmp_path / "doc.tex"
+        tex.write_text("merhaba\n", encoding="utf-8")
+        ok, err = export(str(tex), str(tmp_path / "doc.md"))
+        assert ok is True
+        assert "resim yolları" in err, "resim yolu düzeltmesi düşmüş ama sessiz"
+        assert "atıflar" in err, "atıf numaralandırması düşmüş ama sessiz"
+
+    @patch("core.exporter._fix_docx_compat", return_value=False)
+    @patch("core.exporter._export_native", return_value=(True, ""))
+    @patch("core.exporter.PLATFORM", "linux")
+    def test_docx_duzeltmesi_duserse_UYARI_donuyor(
+            self, m_native, m_fix, tmp_path):
+        tex = tmp_path / "doc.tex"
+        tex.write_text("merhaba\n", encoding="utf-8")
+        ok, err = export(str(tex), str(tmp_path / "doc.docx"))
+        assert ok is True
+        assert "Word uyumluluk" in err, "düzeltme düşmüş ama sessiz"
+
+    def test_bos_islem_uyarisiz(self, tmp_path):
+        """Karşı kol: yardımcılar başarılıysa err boş kalmalı."""
+        with patch("core.exporter._resolve_md_bibitem_citations",
+                   return_value=True), \
+             patch("core.exporter._fix_md_image_paths",
+                   return_value=True), \
+             patch("core.exporter._find_bibliography", return_value=[]), \
+             patch("core.exporter._export_native", return_value=(True, "")), \
+             patch("core.exporter.PLATFORM", "linux"):
+            tex = tmp_path / "doc.tex"
+            tex.write_text("merhaba\n", encoding="utf-8")
+            ok, err = export(str(tex), str(tmp_path / "doc.md"))
+        assert ok is True
+        assert err == ""
+
+    def test_md_citations_PANDOC_duserse_UYARI_donusu(self, tmp_path,
+                                                       monkeypatch):
+        """csljson ve referans listesi çağrıları düştüğünde
+        _resolve_md_citations boş olmayan uyarı metni dönmeli."""
+        md = tmp_path / "doc.md"
+        md.write_text("Metin [@k] ve yine [@k]\n", encoding="utf-8")
+        tex = tmp_path / "doc.tex"
+        tex.write_text("metin\n", encoding="utf-8")
+        bib = tmp_path / "r.bib"
+        bib.write_text("@article{k, title={T}}\n", encoding="utf-8")
+
+        monkeypatch.setattr(exporter_mod, "_pandoc_csljson", lambda bibs: "")
+        monkeypatch.setattr(exporter_mod, "_pandoc_run",
+                            lambda *a, **k: "")
+
+        u = _resolve_md_citations(str(md), str(tex), [str(bib)])
+        assert u, "pandoc düştü ama uyarı yok"
+        assert "atıflar" in u and "kaynakça" in u
+        # içerik olduğu gibi korunuyor; uyarı metni dosyaya GİRMİYOR
+        assert "[@k]" in md.read_text(encoding="utf-8")
+
 
 class TestExportNative:
     @patch("core.exporter.subprocess.run")

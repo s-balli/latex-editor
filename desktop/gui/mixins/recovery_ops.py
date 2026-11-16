@@ -56,7 +56,18 @@ class RecoveryOpsMixin:
         bir belgeyi "değişmiş" bulursa neye güveneceğini bilemez. Sorulur ve
         varsayılan kurtarmadır.
         """
-        snaplar = recovery.oku(self._recovery_dir)
+        snaplar, atilan = recovery.oku_istatistikli(self._recovery_dir)
+        if atilan:
+            # Bozuk kopya elenmesi doğru ama sessizdi: çökme öncesi iş o
+            # dosyadaysa kurtarma listesinde hiç görünmüyor ve temiz kapanış
+            # onu kalıcı siliyordu. Söylemezsek kayıp hiç bilinmiyor
+            # (2026-11-16 sessiz hata taraması, bulgu 4; tests/test_recovery.py
+            # test_BOZUK_KOPYA_kullaniciya_SOYLENIYOR).
+            _logger.warning("%d kurtarma kopyası okunamadı: %s",
+                            atilan, self._recovery_dir)
+            self._status.showMessage(
+                _("{n} kurtarma kopyası okunamadı; kurtarma listesinde yok").format(
+                    n=atilan), 15000)
         if not snaplar:
             return
         # Diskte zaten aynı içerik varsa kayıp yok — sormadan at. (Kullanıcı

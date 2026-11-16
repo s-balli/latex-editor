@@ -595,6 +595,43 @@ def test_TUM_GECMISI_SIL_patlarsa_slottan_istisna_KACMIYOR(qapp, tmp_path,
     assert "kilitli" in str(stub.uyarilar), "sebep mesaja girmedi"
 
 
+def test_TUM_GECMISI_SIL_basarisizken_YOK_DENMIYOR(qapp, tmp_path,
+                                                    monkeypatch):
+    """Taşıma DÜŞTÜYSE "Silinecek geçmiş yok" yanıltıyor: kullanıcı onayladı,
+    hata mesajı da yok; geçmiş silindi sanılıyor (2026-11-16 sessiz hata
+    taraması, bulgu 2). Başarısızlık "Geçmiş silinemedi" olarak söylenmeli."""
+    stub = _SinirStub(str(tmp_path))
+    vo = _sinir_kur(monkeypatch, stub)
+    monkeypatch.setattr(vo, "versioning", SimpleNamespace(
+        repo_status=lambda root: SimpleNamespace(foreign=False, remotes=[]),
+        drop_all=lambda root: (_ for _ in ()).throw(OSError(".git kilitli"))))
+
+    stub._drop_all_history(str(tmp_path))
+
+    assert any("silinemedi" in str(u).lower() for u in stub.uyarilar), \
+        "başarısızlık 'Geçmiş silinemedi' olarak söylenmiyor"
+    assert "kilitli" in str(stub.uyarilar), "sebep mesaja girmedi"
+    assert not any("Silinecek geçmiş yok" in m for m in stub.mesajlar), \
+        "başarısızlık 'yok' sanılıyor"
+
+
+def test_GECMIS_okunamayinca_SESSIZ_BOS_PANEL_OLMUYOR(qapp, tmp_path,
+                                                       monkeypatch):
+    """history() bozuk/erişilemez depoda exception atıyor; panel BOŞ
+    kalıyordu ve kullanıcı sürümlerinin hiç tutulmadığını sanıyordu
+    (2026-11-16 sessiz hata taraması, bulgu 3)."""
+    stub = _Stub([], str(tmp_path))
+    import gui.mixins.version_ops as vo
+    monkeypatch.setattr(vo, "versioning", SimpleNamespace(
+        history=lambda root: (_ for _ in ()).throw(
+            RuntimeError("bozuk depo"))))
+
+    stub._refresh_history()
+
+    assert "okunamadı" in stub._status.msg, \
+        "okuma hatası kullanıcıya söylenmedi"
+
+
 def test_SAGLAM_geri_yukleme_hala_calisiyor(qapp, tmp_path, monkeypatch):
     """Asiri duzeltme kapisi: koruma dogru yolu engellememeli."""
     tex = tmp_path / "ana.tex"

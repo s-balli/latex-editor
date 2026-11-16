@@ -540,6 +540,7 @@ class CompileOpsMixin:
         failed = not result.success
         status_msg = ""  # boşsa sonradan genel mesaj atanır
         pdf_shown = False
+        gz_uyarisi = ""
 
         # PDF'i success'ten bağımsız yükle (varsa) — hatada da kısmi önizleme göster.
         # result.pdf_path yalnızca bu derlemenin ürettiği taze PDF için set edilir
@@ -558,7 +559,18 @@ class CompileOpsMixin:
                             os.makedirs(self._synctex_dir, exist_ok=True)
                             shutil.move(gz_src, os.path.join(self._synctex_dir, os.path.basename(gz_src)))
                         except OSError as e:
+                            # Hata yalnız GÜNLÜKTE kalıyordu; kullanıcı sonraki
+                            # Ctrl+tık'ta ".synctex.gz bulunamadı, yeniden
+                            # derleyin" diye yanlış yönlendiriliyordu. Başarı
+                            # mesajının peşine ekleniyor; showMessage bunun
+                            # altında çağrıldığı için ayrı mesaj ezilirdi
+                            # (2026-11-16 sessiz hata taraması, bulgu 6;
+                            # tests/test_compile_ops.py
+                            # test_SYNCTEX_TASINAMAYINCA_uyari_mesaja_giriyor).
                             _logger.warning("synctex.gz taşınamadı: %s", e)
+                            gz_uyarisi = _(
+                                "SyncTeX verisi taşınamadı; ileri/ters arama "
+                                "çalışmayabilir")
             elif result.success:
                 # başarı bekleniyordu ama PDF boş çıktı
                 failed = True
@@ -580,6 +592,8 @@ class CompileOpsMixin:
                 status_msg = _("Başarılı") + f" ({result.duration:.1f}s)"
                 if warn_count:
                     status_msg += f" | {warn_count} " + _("uyarı")
+        if gz_uyarisi:
+            status_msg += "  ·  " + gz_uyarisi
         self._status.showMessage(status_msg)
 
         # Derleme sonrası otomatik ileri-arama (TeXstudio alışkanlığı): imlecin
