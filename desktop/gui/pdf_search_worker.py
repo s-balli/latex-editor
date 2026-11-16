@@ -162,6 +162,18 @@ class PdfSearchWorker(QThread):
                 self._swap_document(wanted)
 
             if self._doc is None or job is None:
+                # İş VARDI ama belge AÇILAMIYORDU (açılış hakkı tükendi):
+                # eskiden iş sessizce düşüyordu, `found` hiç yayılmıyor ve UI
+                # tarafında sayaç "Aranıyor..."da süresiz kalıyordu; hakkı
+                # tükenen nesilde sonraki her arama da düşüyordu. Boş sonuç
+                # yaymak "bulunamadı" der; damga uyumsuzsa _on_search_done
+                # zaten atıyor (2026-11-17, ikinci tur durum makinesi taraması
+                # bulgu 4; tests/test_pdf_search_worker.py
+                # test_hak_tukenince_is_SESSIZCE_dusmuyor). Deneme SINIRI
+                # bilinçli (bkz. test_yeniden_deneme_SINIRLI_kaliyor) ve bu
+                # kol onu değiştirmiyor: açılış yeniden DENENMİYOR.
+                if job is not None and self._doc is None:
+                    self.found.emit(job[0], [])
                 continue
 
             results = self._search_all(job[1])

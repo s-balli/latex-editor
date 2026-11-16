@@ -227,3 +227,89 @@ def test_ayar_kutusu_otomatik_kaydetmeyi_TAZELIYOR(qapp):
         MainWindow._open_settings_dialog(stub)
 
     assert getattr(stub, "autosave_tazelendi", 0) == 1
+
+
+# --- exec dönüşü sonrası diyalog siliniyor (2026-11-17, ikinci tur durum
+# --- makinesi taraması bulgu 5): parent'lı yerel diyalog birikiyordu
+
+
+def test_ayar_diyalogu_kapaninca_SILINIYOR_ve_degerler_once_okunuyor(
+        qapp, monkeypatch):
+    """`dlg = EditorSettingsDialog(..., self)` yerel değişkenle açılıyordu:
+    Python referansı düşse de C++ nesnesi ebeveynin çocuğu olarak yaşıyor,
+    her ayar açılışı bir diyalog biriktiriyordu (aynı sınıf 2f10a63'te
+    Ctrl+P/yardım/Ortam Denetimi için ölçülmüştü). `values()` exec dönüşünde
+    okunduğu için WA_DeleteOnClose riskli; deleteLater değerlerden SONRA."""
+    from PyQt6.QtCore import QCoreApplication, QEvent
+    from PyQt6.QtWidgets import QTabWidget, QWidget
+    from tests.stub_main import FakeSettings, StatusRecorder
+
+    class _Pencere(QWidget):
+        _EDITOR_SETTING_DEFAULTS = MainWindow._EDITOR_SETTING_DEFAULTS
+        _ayar_sayi = staticmethod(MainWindow._ayar_sayi)
+        _read_editor_settings = MainWindow._read_editor_settings
+        _apply_editor_settings = MainWindow._apply_editor_settings
+
+        def _autosave_uygula(self):
+            pass
+
+    w = _Pencere()
+    w._settings = FakeSettings()
+    w._status = StatusRecorder()
+    w._editor_tabs = QTabWidget()
+    w._editor_tabs.addTab(EditorWidget(), "t")
+
+    def _exec(self):
+        self._tab.setValue(6)             # kullanıcı alanları değiştirdi
+        self._font.setValue(14)
+        return QDialog.DialogCode.Accepted
+    monkeypatch.setattr(EditorSettingsDialog, "exec", _exec)
+
+    MainWindow._open_settings_dialog(w)
+
+    # Değerler SİLME gerçekleşmeden okunmuş olmalı
+    assert w._settings.d["editor/tab_width"] == 6
+    assert w._settings.d["editor/font_size"] == 14
+    assert "kaydedildi" in w._status.msg
+
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    qapp.processEvents()
+    kalan = w.findChildren(EditorSettingsDialog)
+    assert kalan == [], "ayar diyaloğu ebeveynin çocuğu olarak birikiyor"
+    w.deleteLater()
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+
+
+def test_ayar_diyalogu_IPTALDE_de_SILINIYOR(qapp, monkeypatch):
+    """Silme yalnız Tamam yolundaydı; İptal (en sık yol) erken dönüyor ve
+    diyalog yine ebeveynde birikiyordu (2026-11-17, Claude denetimi)."""
+    from PyQt6.QtCore import QCoreApplication, QEvent
+    from PyQt6.QtWidgets import QTabWidget, QWidget
+    from tests.stub_main import FakeSettings, StatusRecorder
+
+    class _Pencere(QWidget):
+        _EDITOR_SETTING_DEFAULTS = MainWindow._EDITOR_SETTING_DEFAULTS
+        _ayar_sayi = staticmethod(MainWindow._ayar_sayi)
+        _read_editor_settings = MainWindow._read_editor_settings
+        _apply_editor_settings = MainWindow._apply_editor_settings
+
+        def _autosave_uygula(self):
+            pass
+
+    w = _Pencere()
+    w._settings = FakeSettings()
+    w._status = StatusRecorder()
+    w._editor_tabs = QTabWidget()
+    w._editor_tabs.addTab(EditorWidget(), "t")
+    monkeypatch.setattr(EditorSettingsDialog, "exec",
+                        lambda self: QDialog.DialogCode.Rejected)
+
+    MainWindow._open_settings_dialog(w)
+
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    qapp.processEvents()
+    assert w.findChildren(EditorSettingsDialog) == [], \
+        "iptal edilen ayar diyaloğu ebeveynin çocuğu olarak birikiyor"
+    assert "editor/tab_width" not in w._settings.d, "iptal ayar yazdı"
+    w.deleteLater()
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)

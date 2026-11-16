@@ -336,12 +336,13 @@ def test_quiet_forward_keeps_status_message(qapp, tmp_path):
     stub = _Stub([], str(tmp_path))
     stub._status.msg = "Başarılı (1.2s)"
     fake = SimpleNamespace(page=5, x=100.0, y=200.0, left=0.0, width=10.0, height=8.0)
-    stub._apply_forward(fake, ("/tmp/x.tex", 12, True))
+    # 4. bağlam ögesi PDF nesli; stub görüntüleyicide yok (None = damga yok)
+    stub._apply_forward(fake, ("/tmp/x.tex", 12, True, None))
     assert stub._pdf_viewer.scrolled is not None
     assert stub._status.msg == "Başarılı (1.2s)"
 
     # quiet değilse mesaj gösterilir (Ctrl+tık davranışı korunur)
-    stub._apply_forward(fake, ("/tmp/x.tex", 12, False))
+    stub._apply_forward(fake, ("/tmp/x.tex", 12, False, None))
     assert "SyncTeX" in stub._status.msg
 
 
@@ -405,14 +406,15 @@ def test_gz_VARKEN_iki_yon_de_CALISIYOR(qapp, tmp_path):
     stub._on_forward_search(str(tmp_path / "x.tex"), 5, 1)
     stub._on_reverse_search(2, 10.0, 20.0, pdf)
     assert [c[0] for c in stub._synctex_worker.calls] == ["forward", "reverse"]
-    # Ters isin context'i sayfa numarasi (sonucun dogru etikete uygulanmasi)
-    assert stub._synctex_worker.calls[1][3] == 2
+    # Ters isin context'i (sayfa, PDF nesli) demeti: sonucun dogru etikete
+    # uygulanmasi sayfada, bayatlik damgasi nesinde (stub'da None)
+    assert stub._synctex_worker.calls[1][3][0] == 2
 
 
 def test_gercek_ESLESMESIZLIK_mesaji_yerinde_duruyor(qapp, tmp_path):
     """`.gz` varken eslesme yoksa dogru mesaj yine 'Eslesme bulunamadi'."""
     stub, pdf = _pdf_ve_gz(tmp_path, "e", gz=True)
-    stub._apply_reverse(None, 3)
+    stub._apply_reverse(None, (3, None))
     assert "Eşleşme bulunamadı" in stub._status.msg, stub._status.msg
 
 
@@ -433,3 +435,63 @@ def test_PDF_yoksa_ters_arama_sessizce_atlaniyor(qapp, tmp_path, yol):
                             str(tmp_path / yol) if yol else "")
     assert stub._synctex_worker.calls == []
     assert stub._status.msg == "degismedi"
+
+
+# =====================================================================
+# SyncTeX sonucu BELGE NESLİYLE damgalanıyor (2026-11-17, ikinci tur
+# durum makinesi taraması bulgu 3)
+#
+# Sorgu soğuk WSL'de saniyeler sürebilir (zaman aşımı 15 sn). Sorgu
+# sürerken derleme bitip PDF yeniden yüklendiğinde (ya da klasör
+# değiştiğinde) gelen sonuç YENİ belgeye ait DEĞİL: `_apply_forward`
+# koşulsuz kaydırıyordu, `_apply_reverse` eski yerleşimin satırına
+# atlıyordu. PDF aramadaki `_search_id` ve projede aramadaki `_psearch_id`
+# deseni burada yoktu: bağlama gönderi anındaki görüntüleyici nesli
+# (`_render_gen`) gömülüyor, sonuç geldiğinde geçerli nesille
+# uyuşmuyorsa SESSİCE atılıyor.
+# =====================================================================
+
+
+def _ileri_sonuc():
+    return SimpleNamespace(page=2, x=10.0, y=20.0, left=0.0,
+                           width=10.0, height=8.0)
+
+
+def test_BAYAT_neslin_sonucu_uygulanmiyor(qapp, tmp_path):
+    """Sorgu gönderildikten sonra nesil değiştiyse (derleme bitti,
+    load_pdf yeniden yükledi) kaydırma, vurgu ve dosya atlama olmamalı."""
+    stub, pdf = _pdf_ve_gz(tmp_path, "nsl1", gz=True)
+    stub._pdf_viewer._render_gen = 6        # sorgu dönünce geçerli nesil
+    stub._apply_forward(_ileri_sonuc(), ("/tmp/x.tex", 3, True, 5))
+    assert stub._pdf_viewer.scrolled is None, \
+        "bayat neslin ileri sonucu YENİ belgeyi kaydırdı"
+
+    stub.goto_calls = []
+    stub._apply_reverse(SimpleNamespace(file_path="/tmp/x.tex", line=7),
+                        (2, 5))
+    assert stub.goto_calls == [], \
+        "bayat neslin ters sonucu eski yerleşimin satırına atlattı"
+
+
+def test_GECERLI_neslin_sonucu_uygulaniyor(qapp, tmp_path):
+    """Aşırı düzeltme kapısı: nesil aynıysa sonuç aynen uygulanmalı."""
+    stub, pdf = _pdf_ve_gz(tmp_path, "nsl2", gz=True)
+    stub._pdf_viewer._render_gen = 5
+    stub._apply_forward(_ileri_sonuc(), ("/tmp/x.tex", 3, True, 5))
+    assert stub._pdf_viewer.scrolled is not None
+
+    stub._apply_reverse(SimpleNamespace(file_path="/tmp/x.tex", line=7),
+                        (2, 5))
+    assert stub.goto_calls == [("/tmp/x.tex", 7)]
+
+
+def test_istek_baglamina_NESIL_gomuluyor(qapp, tmp_path):
+    """Damga gönderi anında okunuyor: sorgu hangi nesle aitse onu taşımalı."""
+    stub, pdf = _pdf_ve_gz(tmp_path, "nsl3", gz=True)
+    stub._pdf_viewer._render_gen = 9
+    stub._on_forward_search(str(tmp_path / "x.tex"), 5, 1)
+    stub._on_reverse_search(1, 1.0, 1.0, pdf)
+    ileri_ctx = stub._synctex_worker.calls[0][3]
+    ters_ctx = stub._synctex_worker.calls[1][3]
+    assert ileri_ctx[-1] == 9, ileri_ctx
+    assert ters_ctx[-1] == 9, ters_ctx

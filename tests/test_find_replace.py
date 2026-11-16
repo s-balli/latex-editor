@@ -232,6 +232,54 @@ class TestDegistirNext:
         assert ed.text() == "X iki X\n"
 
 
+# --- Salt okunur belge: sessiz no-op BAŞARI YALANI (2026-11-17) ---
+#
+# Salt okunur pencere (version_ops._geri_yukleme_oncesi_surum, QEventLoop
+# ile beklenen anlık görüntü) arayüzü kilitlemiyor; menüler çalışıyor.
+# QScintilla read-only iken replaceSelectedText/replace sessiz no-op:
+# döngü ilerliyor, sayaç artıyor, etiket "N değişiklik" diyordu ve
+# belgeye dokunulmamıştı. Kullanıcı değişikliğin yapıldığına inanıyordu.
+
+class TestSaltOkunur:
+    def test_tumunu_degistir_dokunmuyor_ve_yalan_saymiyor(self, qapp,
+                                                           monkeypatch):
+        bar, ed = _bar("bir iki bir uc bir\n", "bir", "DORT")
+        ed.setReadOnly(True)
+        # DÜZELTMESİZ kodda döngü sınır dolana dek dönüp QMessageBox
+        # açıyordu; offscreen'de modal sonsuz bekletir (yama şart), üstelik
+        # 10000 iterasyon Scintilla'yı yükleyip sökümdeki idle-timer
+        # yarışını tetikliyor. Sınır da küçük tutuluyor.
+        monkeypatch.setattr(QMessageBox, "warning",
+                            lambda *a, **k: None)
+        monkeypatch.setattr(FindReplaceBar, "_REPLACE_LIMIT", 5)
+        bar._replace_all()
+        assert ed.text() == "bir iki bir uc bir\n", "salt okunur belge değişti"
+        assert "salt okunur" in bar._lbl_count.text(), (
+            "kullanıcıya belgenin salt okunur olduğu söylenmiyor: %r"
+            % bar._lbl_count.text())
+        assert "değişiklik" not in bar._lbl_count.text(), (
+            "hiçbir şey yazılmadığı hâlde değişiklik sayısı yazılıyor")
+
+    def test_degistir_dokunmuyor_ve_soyluyor(self, qapp):
+        bar, ed = _bar("bir iki\n", "bir", "X")
+        ed.setReadOnly(True)
+        bar._replace_next()
+        assert ed.text() == "bir iki\n"
+        assert "salt okunur" in bar._lbl_count.text()
+
+    def test_kilit_kalkinca_degistirme_GERI_geliyor(self, qapp, monkeypatch):
+        """Kapı kalıcı engel olmamalı: salt okunurluk kalkınca normal akış."""
+        bar, ed = _bar("bir iki\n", "bir", "X")
+        ed.setReadOnly(True)
+        monkeypatch.setattr(QMessageBox, "warning",
+                            lambda *a, **k: None)
+        monkeypatch.setattr(FindReplaceBar, "_REPLACE_LIMIT", 5)
+        bar._replace_all()
+        ed.setReadOnly(False)
+        bar._replace_all()
+        assert ed.text() == "X iki\n"
+
+
 # --- ARAMA SEÇENEKLERİ (harf duyarlılığı / tam kelime / düzenli ifade) ---
 #
 # Bu üç bayrak `findFirst(text, False, False, False, ...)` diye SABİT

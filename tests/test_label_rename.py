@@ -836,3 +836,60 @@ def test_KOK_ZINCIRINDE_gorunmeyen_dosyada_F2_dosyanin_KENDISINI_degistiriyor(
         MainWindow._on_rename_label(stub, "fig:a")
 
     assert "\\label{fig:b}" in ed.text()
+
+
+# --- Salt okunur hedef: F2 YARIM UYGULAMA bırakmıyor (2026-11-17) ---
+#
+# Sürümden geri yükleme öncesi anlık görüntü penceresi
+# (version_ops._geri_yukleme_oncesi_surum) editörü salt okunur yapıp
+# QEventLoop ile bekliyor; menüler çalışıyor. QScintilla read-only
+# arabelleğe sessizce yazmıyordu: açık .tex değişmiyor, DİSKTEKİ dosyalar
+# değişiyordu ve kullanıcı "N dosya değiştirildi" başarı mesajı görüyordu;
+# referanslar tutarsız kalıyordu (ikinci tur durum makinesi taraması,
+# bulgu 1).
+
+def test_rename_salt_okunur_hedef_HEPSINI_engelliyor(qapp, tmp_path):
+    ch = tmp_path / "ch.tex"
+    ch.write_text("metin \\ref{fig:a}\n", encoding="utf-8")
+    main = tmp_path / "m.tex"
+    main.write_text("\\label{fig:a}\n\\input{ch}\n", encoding="utf-8")
+    ed = EditorWidget()
+    ed._file_path = str(main)
+    ed.setText(main.read_text(encoding="utf-8"))
+    ed.setReadOnly(True)
+
+    stub = _StubMain(editors=[ed])
+    with patch("gui.mixins.edit_ops.QInputDialog.getText",
+               return_value=("fig:yeni", True)):
+        MainWindow._on_rename_label(stub, "fig:a")
+
+    assert ed.text() == main.read_text(encoding="utf-8"), \
+        "salt okunur arabellek değişti"
+    assert ch.read_text(encoding="utf-8") == "metin \\ref{fig:a}\n", \
+        "yarım uygulama: açık sekme salt okunur ama diskteki dosya değişti"
+    assert "salt okunur" in stub._status.msg, stub._status.msg
+    assert "değiştirildi" not in stub._status.msg, \
+        "hiçbir şey yapılmadığı hâlde başarı mesajı yazılıyor"
+
+
+def test_rename_salt_okunur_diger_SEKMENIN_de_engelliyor(qapp, tmp_path):
+    """Engel YALNIZ tetikleyen sekme için değil: zincirdeki HERHANGİ BİR
+    açık sekme salt okunursa hiçbir hedefe yazılmamalı."""
+    ch = tmp_path / "ch.tex"
+    ch.write_text("\\ref{fig:a}\n", encoding="utf-8")
+    main = tmp_path / "m.tex"
+    main.write_text("\\label{fig:a}\n\\input{ch}\n\\ref{fig:a}\n",
+                    encoding="utf-8")
+    ed_main = EditorWidget(); ed_main._file_path = str(main)
+    ed_main.setText(main.read_text(encoding="utf-8"))
+    ed_ch = EditorWidget(); ed_ch._file_path = str(ch)
+    ed_ch.setText(ch.read_text(encoding="utf-8"))
+    ed_ch.setReadOnly(True)                    # kilitli olan ÇOCUK sekmesi
+
+    stub = _StubMain(editors=[ed_main, ed_ch])
+    with patch("gui.mixins.edit_ops.QInputDialog.getText",
+               return_value=("fig:yeni", True)):
+        MainWindow._on_rename_label(stub, "fig:a")
+
+    assert ed_main.text() == main.read_text(encoding="utf-8")
+    assert "salt okunur" in stub._status.msg

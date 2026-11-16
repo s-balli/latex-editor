@@ -287,16 +287,22 @@ class ImageOpsMixin:
         bb.rejected.connect(dlg.reject)
         form.addRow(bb)
 
-        if dlg.exec() != QDialog.DialogCode.Accepted:
-            return
-        if kaydet is not None and not kaydet():
-            self._status.showMessage(_("Panodaki resim kaydedilemedi"))
-            return
-
+        kabul = dlg.exec() == QDialog.DialogCode.Accepted
         template = cb_template.currentData()
         width = le_width.text().strip() or "0.8\\textwidth"
         caption = le_caption.text().strip() or caption_var
         label = le_label.text().strip() or label_var
+        # Dört değer de OKUNDU: diyalog parent'lı kurulduğu için kapanınca
+        # sil, yoksa her görsel ekleme ebeveynin çocuğu olarak birikiyor
+        # (2026-11-17, ikinci tur durum makinesi taraması bulgu 5). İptal ve
+        # kaydetme hatası yolları da buradan geçiyor ki onlar da birikmesin.
+        # WA_DeleteOnClose değil: değerler exec dönüşünde okunuyor.
+        dlg.deleteLater()
+        if not kabul:
+            return
+        if kaydet is not None and not kaydet():
+            self._status.showMessage(_("Panodaki resim kaydedilemedi"))
+            return
 
         snippet = self._build_figure_snippet(template, rel_path, width, caption, label)
 

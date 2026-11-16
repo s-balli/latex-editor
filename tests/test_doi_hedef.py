@@ -75,6 +75,10 @@ def doi_akisi(qapp, tmp_path, monkeypatch):
         def girdi(self):
             return self._m
 
+        def deleteLater(self):
+            pass    # gerçek diyalog 2026-11-17'de kapanınca siliniyor
+
+
     monkeypatch.setattr(doi_fetch, "DoiOnayDialog", _SahteDialog)
 
     acilanlar = []
@@ -219,9 +223,13 @@ class _SiraStub(EditOpsMixin):
         self._status = SimpleNamespace(
             showMessage=lambda m, t=0: self.mesajlar.append(m))
         self.isci_baslatildi = []
+
+        def _baslat(*a):
+            self.isci_baslatildi.append(a)
+            return True            # DoiRunner.start sözleşmesi: iş başladı mı
         self._doi_runner = SimpleNamespace(
             done=SimpleNamespace(connect=lambda f: None),
-            start=lambda *a: self.isci_baslatildi.append(a))
+            start=_baslat)
         # Kaynakca sekmesi bos: `_on_doi_fetched` sonunda tazeleme istiyor
         self._output_panel = SimpleNamespace(
             _bib_table=SimpleNamespace(rowCount=lambda: 0))
@@ -386,6 +394,9 @@ class _OnayDialog:
     def girdi(self):
         return _OnayDialog.metin
 
+    def deleteLater(self):
+        pass    # gerçek diyalog 2026-11-17'de kapanınca siliniyor
+
 
 def _onay_akisi(tmp_path, monkeypatch, kabul):
     """DOI akisini onay kutusuna kadar yurut; (stub, bib) doner."""
@@ -479,3 +490,36 @@ def test_BOLUMDE_kaynakca_KOK_belgeden_okunuyor(ana_pencere, tmp_path,
     assert kutular == []
     p._show_bibliography()
     assert p._output_panel._bib_table.rowCount() == 1
+
+
+# =====================================================================
+# Reddedilen ikinci DOI isteği HEDEF YOLU eziyordu (2026-11-17, ikinci tur
+# durum makinesi taraması bulgu 2)
+#
+# DoiRunner.start meşgulken sessizce False dönüyor (bilinçli: kuyruğa
+# almak tam da önlenen mükerrer girdiyi üretirdi). Ama `_add_by_doi`
+# `self._doi_bib_yolu`'nu start'tan ÖNCE atıyordu: A belgesinde getirme
+# sürerken B belgesinde ikinci deneme yapılırsa hedef alanı B'ye dönüyor,
+# A'nın `done` yanıtı geldiğinde onay kutusu B'nin .bib'ini gösteriyor ve
+# kayıt YANLIŞ dosyaya yazılıyordu.
+# =====================================================================
+
+
+def test_reddedilen_istek_HEDEF_YOLUNU_ezmiyor(qapp, tmp_path, monkeypatch):
+    ed, _bib = _doi_projesi(tmp_path)
+    try:
+        _dialoglari_kur(monkeypatch, bib_evet=True, doi=("10.1000/xyz", True))
+        stub = _SiraStub(ed)
+        # Süren A isteğinin kararlaştırdığı hedef; ikinci (reddedilecek)
+        # istek başka bir projenin .bib'ini çözüyor olsun
+        stub._doi_bib_yolu = "/eski/proje/refs.bib"
+        stub._doi_runner.start = lambda *a: False     # meşgul: istek reddedildi
+
+        stub._add_by_doi()
+
+        assert stub._doi_bib_yolu == "/eski/proje/refs.bib", (
+            "reddedilen istek hedef yolu ezdi; süren isteğin yanıtı yanlış "
+            ".bib'e yazılır: %r" % stub._doi_bib_yolu)
+    finally:
+        ed.deleteLater()
+        qapp.processEvents()

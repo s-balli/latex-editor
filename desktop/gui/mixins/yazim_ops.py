@@ -545,6 +545,11 @@ class YazimOpsMixin:
         cikar.clicked.connect(_cikar)
         kutu.addWidget(dugmeler)
         dlg.exec()
+        # Çıkarılan kelimeler exec ÖNCESİ düz listeye toplanıyor; exec sonrası
+        # widget'tan okunan değer yok. Parent'lı diyalog kapanınca silinmeli,
+        # yoksa her sözlük açılışı ebeveynin çocuğu olarak birikiyor
+        # (2026-11-17, ikinci tur durum makinesi taraması bulgu 5).
+        dlg.deleteLater()
         if not cikarilan:
             return
         self._status.showMessage(

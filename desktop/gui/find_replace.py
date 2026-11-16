@@ -1016,6 +1016,15 @@ class FindReplaceBar(QWidget):
         replace_text = self._replace_input.text()
         if not find_text:
             return
+        # SALT OKUNUR BELGE: QScintilla read-only iken replace/replaceSelectedText
+        # sessiz no-op; eskiden işlem "başarıyla" bitiyor, kullanıcı değişikliğin
+        # yapıldığını sanıyordu. Salt okunurluk geçici: sürümden geri yükleme
+        # öncesi anlık görüntü penceresi arayüzü açık tutuyor (2026-11-17,
+        # ikinci tur durum makinesi taraması bulgu 1;
+        # tests/test_find_replace.py TestSaltOkunur).
+        if self._editor.isReadOnly():
+            self._lbl_count.setText(_("Belge salt okunur"))
+            return
 
         self._editor.setFocus()
         self._editor.beginUndoAction()
@@ -1049,6 +1058,12 @@ class FindReplaceBar(QWidget):
         find_text = self._find_input.text()
         replace_text = self._replace_input.text()
         if not find_text:
+            return
+        # SALT OKUNUR BELGE: `_replace_next`tekiyle aynı kapı. Eskiden döngü
+        # bütün eşleşmeleri "değiştiriyordu" (no-op), sayaç artıyor ve etiket
+        # "N değişiklik" yazıyordu; belgeye dokunulmamıştı.
+        if self._editor.isReadOnly():
+            self._lbl_count.setText(_("Belge salt okunur"))
             return
 
         # Güvenlik kapısı deseni reddettiyse SÖYLE. Eskiden döngü hiç

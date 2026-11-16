@@ -143,3 +143,51 @@ def test_onay_diyalogu_metni_kirpip_veriyor(qapp):
     dlg = df.DoiOnayDialog("  @article{k,\n title={X},\n}  \n", "refs.bib")
     assert dlg.girdi() == "@article{k,\n title={X},\n}"
     dlg.deleteLater()
+
+
+def test_onay_diyalogu_kapaninca_SILINIYOR_ve_girdi_once_okunuyor(
+        qapp, tmp_path, monkeypatch):
+    """`_on_doi_fetched` diyaloğu yerel değişkenle açıyordu: Python
+    referansı düşse de C++ nesnesi ebeveynin çocuğu olarak yaşıyor, her
+    DOI ekleme bir diyalog biriktiriyordu (2026-11-17, ikinci tur durum
+    makinesi taraması bulgu 5). `girdi()` yazımda kullanıldığı için
+    deleteLater GİRDİ OKUNDUKTAN sonra çağrılmalı."""
+    from types import SimpleNamespace
+    from PyQt6.QtCore import QCoreApplication, QEvent
+    from PyQt6.QtWidgets import QDialog, QWidget
+    from gui.mixins.edit_ops import EditOpsMixin
+
+    class _Pencere(QWidget, EditOpsMixin):
+        def __init__(self):
+            QWidget.__init__(self)
+            self.mesaj = ""
+            self._status = SimpleNamespace(
+                showMessage=lambda m, t=0: setattr(self, "mesaj", m))
+            self._output_panel = SimpleNamespace(
+                _bib_table=SimpleNamespace(rowCount=lambda: 0))
+
+        def _editor_by_path(self, yol):
+            return None                    # .bib sekmede değil: diske yaz
+
+    duzenlenen = "@article{a,\n title={Duzenli Metin},\n}\n"
+    bib = tmp_path / "refs.bib"
+    p = _Pencere()
+    p._doi_bib_yolu = str(bib)
+
+    def _exec(self):
+        self._metin.setPlainText(duzenlenen)   # kullanıcı kaydı düzenledi
+        return QDialog.DialogCode.Accepted
+    monkeypatch.setattr(df.DoiOnayDialog, "exec", _exec)
+
+    p._on_doi_fetched(True, "@article{a, title={X}}\n", "a", "")
+
+    # Girdi diyalog SİLİNMEDEN okunmuş olmalı: dosyaya düzenlenen hâl gitti
+    assert "Duzenli Metin" in bib.read_text(encoding="utf-8"), \
+        "dosyaya diyalogun ilk metni yazıldı; düzenlenen girdi okunmadı"
+
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    qapp.processEvents()
+    assert p.findChildren(df.DoiOnayDialog) == [], \
+        "onay diyaloğu ebeveynin çocuğu olarak birikiyor"
+    p.deleteLater()
+    QCoreApplication.sendPostedEvents(None, QEvent.Type.DeferredDelete)

@@ -48,6 +48,27 @@ class SyncTexMixin:
         elif kind == "reverse":
             self._apply_reverse(result, context)
 
+    def _pdf_nesli(self):
+        """Görüntüleyicinin geçerli PDF nesli; bayat sonuç damgası.
+
+        SyncTeX sorgusu soğuk WSL'de saniyeler sürebilir ve sorgu sürerken
+        derleme bitip PDF yeniden yüklenebilir (ya da klasör değişebilir):
+        dönen sonuç ARTIK ekranda olmayan belgeye aittir. PDF aramadaki
+        `_search_id` ve projede aramadaki `_psearch_id` deseni burada da
+        gerekiyor: bağlama gönderi anındaki `_render_gen` gömülüyor, sonuç
+        geldiğinde geçerli nesille uyuşmuyorsa SESSİCE atılıyor (2026-11-17,
+        ikinci tur durum makinesi taraması bulgu 3).
+
+        None: görüntüleyici nesli bilinmiyor (iskelet stub'lar); damga
+        denetimi atlanır, davranış eskisi gibi.
+        """
+        return getattr(self._pdf_viewer, "_render_gen", None)
+
+    def _nesil_gecerli(self, damga) -> bool:
+        """Sonucun damgası hâlâ geçerli mi (görüntüleyici yoksa her zaman)."""
+        gecerli = self._pdf_nesli()
+        return gecerli is None or damga == gecerli
+
     def _on_forward_search(self, tex_path: str, line: int, col: int, quiet: bool = False):
         """İleri arama isteği. quiet=True: derleme sonrası otomatik atlamada
         durum çubuğu mesajları ezilmez, yalnızca kaydırma yapılır."""
@@ -66,7 +87,7 @@ class SyncTexMixin:
 
         self._synctex_worker.submit(
             "forward", (tex_path, line, col, self._current_pdf), self._synctex_dir,
-            context=(tex_path, line, quiet),
+            context=(tex_path, line, quiet, self._pdf_nesli()),
         )
 
     def _synctex_araci_yok(self) -> None:
@@ -88,7 +109,13 @@ class SyncTexMixin:
               "denetleyin (Ortam Denetimi)"))
 
     def _apply_forward(self, result, context):
-        tex_path, line, quiet = context
+        tex_path, line, quiet, damga = context
+        if not self._nesil_gecerli(damga):
+            # Sorgu gönderildikten sonra belge değişti: sonuç eski belgeye
+            # ait, kaydırma/vurgu YENİ belgede yanlış yere giderdi.
+            _logger.info("SyncTeX forward sonucu bayat nesilde atıldı: %s:%d",
+                         os.path.basename(tex_path), line)
+            return
         if result is ARAC_YOK:
             self._synctex_araci_yok()
             return
@@ -170,11 +197,17 @@ class SyncTexMixin:
             return
         self._synctex_worker.submit(
             "reverse", (page, x, y, pdf_path), self._synctex_dir,
-            context=page,
+            context=(page, self._pdf_nesli()),
         )
 
     def _apply_reverse(self, result, context):
-        page = context
+        page, damga = context
+        if not self._nesil_gecerli(damga):
+            # İleri aramadakiyle aynı kapı: eski belgenin yerleşimi yeni
+            # belgede yanlış satıra atlattı.
+            _logger.info("SyncTeX reverse sonucu bayat nesilde atıldı: sayfa %d",
+                         page)
+            return
         if result is ARAC_YOK:
             self._synctex_araci_yok()
             return

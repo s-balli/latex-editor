@@ -388,8 +388,13 @@ class TableWizardDialog(QDialog):
         btns.rejected.connect(dlg.reject)
         v.addWidget(btns)
         if dlg.exec() != QDialog.DialogCode.Accepted:
+            dlg.deleteLater()       # İptal de birikmesin (aşağıdaki not)
             return
         code = edit.toPlainText()
+        # Kod OKUNDU: diyalog parent'lı kurulduğu için kapanınca sil, yoksa
+        # her "Koddan Yükle" ebeveynin çocuğu olarak birikiyor (2026-11-17,
+        # ikinci tur durum makinesi taraması bulgu 5).
+        dlg.deleteLater()
         block = parse_first_tabular(code)
         if block is None:
             QMessageBox.warning(

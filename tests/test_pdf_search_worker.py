@@ -790,3 +790,45 @@ class TestSatirSonu:
             if bulunan < beklenen:
                 kacan[q] = (beklenen, bulunan)
         assert not kacan, "PDF'te bulunamayan geçişler (beklenen, bulunan): %s" % kacan
+
+
+# =====================================================================
+# Açılış hakkı tükenince bekleyen iş SESSİCE düşüyordu (2026-11-17, ikinci
+# tur durum makinesi taraması bulgu 4)
+#
+# `_run_loop` işi kuyruktan alıyor ama belge AÇILAMIYORSA (açılış hakkı
+# tükendi) `continue` ile geçiyordu: `found` hiç yayılmıyor, UI tarafında
+# sayaç "Aranıyor..."da süresiz kalıyor ve hakkı tükenen NESİLDE sonraki
+# her arama da düşüyordu (sayaç yalnız nesil değişince sıfırlanıyor).
+# İş düşürüldüğünde BOŞ SONUÇ yaymak "bulunamadı" demek; damga
+# uyumsuzsa `_on_search_done` zaten atıyor. Deneme SINIRI bilinçli ve
+# aşağıdaki `test_yeniden_deneme_SINIRLI_kaliyor` aynen geçmeli.
+# =====================================================================
+
+
+def test_hak_tukenince_is_SESSIZCE_dusmuyor(qapp, tmp_path, monkeypatch):
+    """Belgeyi hiç açamayan işçiye iş verildiğinde boş sonuç gelmeli."""
+    yol = _pdf_with_text(["merhaba testalfa"], str(tmp_path / "s.pdf"))
+    sahte, _gercek = _acilisi_kacir(yol, kez=10 ** 6)
+    monkeypatch.setattr("builtins.open", sahte)
+
+    gelen = []
+    w = PdfSearchWorker()
+    w.found.connect(lambda *a: gelen.append(a))
+    w.start()
+    try:
+        w.open_document(yol, 1)
+        # Kapı boş koşmasın: açılış GERÇEKTEN kaçmış ve doc None olmalı
+        assert _spin(qapp, lambda: w._doc_key == (yol, 1) and w._doc is None)
+        # Hak 3: ilk iş değişim+deneme ile 2 harcar, üçüncüde düşürür.
+        for i in (1, 2, 3, 4):
+            w.search(i, "testalfa")
+            if _spin(qapp, lambda i=i: any(g[0] == i for g in gelen),
+                     timeout=2.0):
+                break
+        assert gelen, ("iş sessizce düşürüldü: found hiç yayılmadı, "
+                       "UI sayaç 'Aranıyor...'da asılı kalırdı")
+        assert gelen[-1][1] == [], "tükenmiş açılışta boş sonuç bekleniyor"
+    finally:
+        w.stop()
+        w.wait(6000)

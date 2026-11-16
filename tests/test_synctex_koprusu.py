@@ -189,8 +189,11 @@ class _SahteAna(SyncTexMixin):
         pass
 
 
-_UYGULAMALAR = [("_apply_forward", ("/a.tex", 1, False)),
-                ("_apply_reverse", 3)]
+# Bağlamlar 2026-11-17'de PDF nesli damgası aldı: ileri bağlam
+# (tex, satır, quiet, nesil), ters bağlam (sayfa, nesil). _SahteAna'nın
+# görüntüleyicisinde _render_gen yok: damga None, denetim atlanır.
+_UYGULAMALAR = [("_apply_forward", ("/a.tex", 1, False, None)),
+                ("_apply_reverse", (3, None))]
 
 
 @pytest.mark.parametrize("uygula,baglam", _UYGULAMALAR)

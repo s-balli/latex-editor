@@ -1017,8 +1017,17 @@ class MainWindow(
         from gui.settings_dialog import EditorSettingsDialog
         dlg = EditorSettingsDialog(self._read_editor_settings(), self)
         if dlg.exec() != QDialog.DialogCode.Accepted:
+            dlg.deleteLater()       # İptal de birikmesin (aşağıdaki not)
             return
         vals = dlg.values()
+        # Değerler OKUNDU: diyalog parent'lı kurulduğu için kapanınca sil,
+        # yoksa her ayar açılışı ebeveynin çocuğu olarak birikiyor
+        # (2026-11-17, ikinci tur durum makinesi taraması bulgu 5;
+        # tests/test_settings_dialog.py
+        # test_ayar_diyalogu_kapaninca_SILINIYOR_ve_degerler_once_okunuyor).
+        # WA_DeleteOnClose değil: values() exec dönüşünde okunuyor, ertelenmiş
+        # silme exec dönmeden işlenebilir (bkz. gui/quick_open.py pick).
+        dlg.deleteLater()
         self._settings.setValue("editor/tab_width", vals["tab_width"])
         self._settings.setValue("editor/font_size", vals["font_size"])
         self._settings.setValue("editor/wrap", vals["wrap"])

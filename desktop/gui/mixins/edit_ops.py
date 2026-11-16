@@ -470,7 +470,6 @@ class EditOpsMixin:
             from gui.doi_fetch import DoiRunner
             self._doi_runner = DoiRunner(self)
             self._doi_runner.done.connect(self._on_doi_fetched)
-        self._doi_bib_yolu = yol
         self._status.showMessage(_("DOI getiriliyor..."))
         # `\bibitem` anahtarları da KULLANILMIŞ sayılır: DOI'den gelen kayıt
         # elle yazılmış bir kaynakçadaki anahtarla çakışırsa belgede aynı
@@ -486,7 +485,16 @@ class EditOpsMixin:
         with acik_metinlerle(self._acik_metinler()):
             kullanilan = (set(collect_citable_keys(icerik, taban))
                           | set(collect_citable_keys(editor.text(), editor.file_path)))
-        self._doi_runner.start(doi, sorted(kullanilan))
+        if not self._doi_runner.start(doi, sorted(kullanilan)):
+            # REDDEDİLDİ (meşgul): durum çubuğundaki "DOI getiriliyor..."
+            # mesajı zaten SÜREN iş için doğru. Erken dön: hedef yolu
+            # atamaya kalksaydık süren isteğin `done` yanıtı `_on_doi_fetched`
+            # tarafında bu alandan okunup YANLIŞ .bib'e yazılırdı (2026-11-17,
+            # ikinci tur durum makinesi taraması bulgu 2;
+            # tests/test_doi_hedef.py
+            # test_reddedilen_istek_HEDEF_YOLUNU_ezmiyor).
+            return
+        self._doi_bib_yolu = yol
 
     def _on_doi_fetched(self, ok: bool, metin: str, anahtar: str, hata: str):
         if not ok:
@@ -505,8 +513,17 @@ class EditOpsMixin:
         yol = getattr(self, "_doi_bib_yolu", "")
         dlg = DoiOnayDialog(metin, os.path.basename(yol), self)
         if dlg.exec() != QDialog.DialogCode.Accepted:
+            dlg.deleteLater()       # İptal de birikmesin (aşağıdaki not)
             self._status.showMessage("")
             return
+        # Girdi OKUNDU: diyalog parent'lı kurulduğu için kapanınca sil, yoksa
+        # her DOI ekleme ebeveynin çocuğu olarak birikiyor (2026-11-17, ikinci
+        # tur durum makinesi taraması bulgu 5; tests/test_doi_fetch.py
+        # test_onay_diyalogu_kapaninca_SILINIYOR_ve_girdi_once_okunuyor).
+        # WA_DeleteOnClose değil: girdi() yazımda kullanılıyor, ertelenmiş
+        # silme exec dönmeden işlenebilir (bkz. gui/quick_open.py pick).
+        girdi = dlg.girdi()
+        dlg.deleteLater()
 
         # HEDEF .bib BİR SEKMEDE AÇIKSA ARABELLEĞE yazılıyor, diske değil.
         # Eskiden koşulsuz diske yazılıyordu ve arabellek bundan habersiz
@@ -532,7 +549,7 @@ class EditOpsMixin:
             son = hedef.lines() - 1
             hedef.beginUndoAction()
             try:
-                hedef.insertAt(ekleme_metni(hedef.text(), dlg.girdi()),
+                hedef.insertAt(ekleme_metni(hedef.text(), girdi),
                                son, len(hedef.text(son)))
             finally:
                 hedef.endUndoAction()
@@ -541,7 +558,7 @@ class EditOpsMixin:
                     a=anahtar, d=os.path.basename(yol)))
         else:
             try:
-                bibe_ekle(yol, dlg.girdi())
+                bibe_ekle(yol, girdi)
             except OSError as e:
                 _logger.error("Kaynakçaya yazılamadı: %s", yol, exc_info=True)
                 QMessageBox.warning(self, _("DOI ile Kaynak Ekle"),
@@ -686,13 +703,30 @@ class EditOpsMixin:
         tek adım); disktekinden atomik yeniden yazılır (kodlama round-trip
         güvenli).
 
-        ``(değişen_sayısı, dokunulamayan_yollar)`` döndürür. Okunamayan/
+        ``(değişen_sayısı, dokunulamayan_yollar)`` döndürür; hedeflerden
+        biri salt okunur açıksa ``(None, [])`` döner. Okunamayan/
         yazılamayan dosya sessizce atlanırsa yeniden adlandırma YARIM kalıyor
         (\\ref'ler '??', \\cite'lar '[?]' basıyor) ama kullanıcı başarı mesajı
         görüyordu — salt okunur .bib ya da ağ sürücüsü bunun için yeterli.
         Çağıran, liste doluysa kullanıcıyı uyarmak zorunda.
         """
         from gui.editor import EditorWidget, _decode_bytes
+        # SALT OKUNUR HEDEF: denetim yazma döngüsünden ÖNCE ve BÜTÜN hedefler
+        # için. Sürümden geri yükleme öncesi anlık görüntü penceresi
+        # (`version_ops._geri_yukleme_oncesi_surum`) editörü salt okunur
+        # yapıp arayüzü açık tutuyor; QScintilla read-only arabelleğe sessizce
+        # yazmıyordu: açık sekme değişmezken diskteki dosyalar değişiyor,
+        # kullanıcı "N dosya değiştirildi" görüyordu ve referanslar tutarsız
+        # kalıyordu (2026-11-17, ikinci tur durum makinesi taraması bulgu 1;
+        # tests/test_label_rename.py test_rename_salt_okunur_*).
+        # Dönüş (None, []): ileti burada verildi, çağıran raporlamaz.
+        for path in paths:
+            hedef = self._editor_by_path(path)
+            if hedef is not None and hedef.isReadOnly():
+                self._status.showMessage(
+                    _("'{d}' şu an salt okunur, yeniden adlandırma yapılmadı")
+                    .format(d=os.path.basename(path)))
+                return None, []
         changed = 0
         failed: list[str] = []
         for path in paths:
@@ -838,6 +872,8 @@ class EditOpsMixin:
 
         changed, failed = self._apply_renamings(
             paths, lambda t: label_rename_spans(t, key), new_key)
+        if changed is None:
+            return          # salt okunur hedef: ileti _apply_renamings'te verildi
 
         self._report_rename(
             changed, failed, key, new_key,
@@ -922,6 +958,8 @@ class EditOpsMixin:
             paths,
             lambda t: cite_rename_spans(t, key) + bib_key_rename_spans(t, key),
             new_key)
+        if changed is None:
+            return          # salt okunur hedef: ileti _apply_renamings'te verildi
 
         self._report_rename(
             changed, failed, key, new_key,
@@ -959,6 +997,8 @@ class EditOpsMixin:
             paths,
             lambda t: cite_rename_spans(t, key) + bibitem_rename_spans(t, key),
             new_key)
+        if changed is None:
+            return          # salt okunur hedef: ileti _apply_renamings'te verildi
 
         self._report_rename(
             changed, failed, key, new_key,

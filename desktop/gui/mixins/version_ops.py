@@ -414,6 +414,11 @@ class VersionOpsMixin:
         btns.accepted.connect(dlg.accept)
         v.addWidget(btns)
         dlg.exec()
+        # Fark görünümü yalnız gösteriyor, exec sonrası okunan değer YOK:
+        # parent'lı diyalog kapanınca silinmeli, yoksa her fark bakışı
+        # ebeveynin çocuğu olarak birikiyor (2026-11-17, ikinci tur durum
+        # makinesi taraması bulgu 5).
+        dlg.deleteLater()
 
     def _copy_version_content(self, root: str, sha: str, rel: str, editor):
         """Sürümdeki dosya içeriğini panoya kopyala (dosyaya dokunmadan).
