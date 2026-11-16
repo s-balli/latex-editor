@@ -164,6 +164,34 @@ def _sahte_cop_kutusu(monkeypatch, tmp_path_factory):
     yield atilan
 
 
+@pytest.fixture(autouse=True)
+def _synctex_supurmesi_gercek_tempe_dokunmasin(monkeypatch):
+    """Testlerde kurulan MainWindow gerçek %TEMP%'i süpürmesin.
+
+    MainWindow açılışta `latex_editor_*` çökme artıklarını siliyor
+    (2026-11-16). Takım pencereyi yüzlerce kez kuruyor; bir gündür boşta açık
+    duran GERÇEK uygulamanın SyncTeX klasörü de o desene uyuyor. Süpürme
+    burada etkisiz; özgün işlev `.ozgun`da (test_pencere_durumu onu
+    sahte geçici dizinle sınıyor).
+    """
+    try:
+        import gui.main_window as mw
+    except ImportError:           # Qt'siz ortam (saf core testleri)
+        yield
+        return
+    ozgun = getattr(mw, "_eski_synctex_klasorlerini_supur", None)
+    if ozgun is None:             # süpürmesiz eski kod (R0 koşusu)
+        yield
+        return
+
+    def _etkisiz(yeni_klasor, **k):
+        return 0
+
+    _etkisiz.ozgun = ozgun
+    monkeypatch.setattr(mw, "_eski_synctex_klasorlerini_supur", _etkisiz)
+    yield
+
+
 @pytest.fixture
 def ana_pencere(monkeypatch, tmp_path):
     """GERÇEK MainWindow üreten fabrika (tek kaynak).

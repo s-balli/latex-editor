@@ -248,3 +248,49 @@ def test_guncelleme_bildirimi_BUYUK_ekranda_kaydirmasiz(yardim_ac):
                     BUYUK)
     assert _kaydirma_payi(dlg) == 0, (
         "soru satırı boya katılmamış, sığan notlar kaydırmaya düşüyor")
+
+
+# --- Yardım penceresi kapanınca siliniyor (bellek) ---
+#
+# `yardim_penceresi` her çağrıda (kısayollar, özellikler, güncelleme
+# bildirimi) yeni QDialog kuruyor ve parent'lı diyalog kapanınca yaşamaya
+# devam ediyordu: ana pencerenin çocukları arasında birikiyordu (2026-11-16
+# kaynak sızıntıları taraması; Ctrl+P diyalogundaki aynı ders, ölçüm komutla:
+# 20 kapalı diyalog +160 widget). exec dönüşü doğrudan karşılaştırmaya
+# giriyor, sonrasında diyaloga erişim yok.
+
+
+def test_yardim_penceresi_kapaninca_siliniyor(monkeypatch):
+    import types
+    from PyQt6.QtCore import QEvent, Qt
+    from PyQt6.QtWidgets import QApplication, QDialog, QWidget
+    from gui import main_window as mw
+    from gui.theme import THEMES
+
+    app = QApplication.instance() or QApplication([])  # noqa: F841
+    acilan = []
+
+    def goster(dlg):
+        dlg.setAttribute(Qt.WidgetAttribute.WA_DontShowOnScreen, True)
+        dlg.show()
+        QApplication.processEvents()
+        acilan.append(dlg)
+        return QDialog.DialogCode.Rejected.value
+
+    monkeypatch.setattr(QDialog, "exec", goster)
+
+    ebeveyn = QWidget()
+    ebeveyn._theme_mgr = types.SimpleNamespace(theme=THEMES["dark"])
+    ebeveyn._status = types.SimpleNamespace(showMessage=lambda *a: None)
+    assert mw.yardim_penceresi(ebeveyn, THEMES["dark"], "Başlık",
+                               "içerik", 400) is False
+    assert acilan and isinstance(acilan[0], QDialog), "pencere açılmadı"
+
+    acilan[0].close()
+    app.processEvents()
+    QApplication.instance().sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    app.processEvents()
+    kalan = ebeveyn.findChildren(QDialog)
+    assert not kalan, ("kapanan yardım penceresi ebeveynin çocuğu olarak "
+                       "kaldı: %r" % kalan)
+    ebeveyn.deleteLater()

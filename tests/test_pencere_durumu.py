@@ -20,6 +20,7 @@ hapsedilemezse SERT DÜŞÜYOR (sessizce gerçek ayara yazmaktansa test patlası
 """
 
 import os
+import time
 
 import pytest
 
@@ -231,3 +232,72 @@ def test_kapanis_IPTAL_edilirse_derleme_SURUYOR(pencere_kur, qapp, monkeypatch,
     qapp.processEvents()
 
     assert durduruldu == [], "iptal edilen kapanış derlemeyi durdurdu"
+
+
+# --- Çökmeden kalan latex_editor_* geçici klasörleri açılışta süpürülüyor ---
+#
+# SyncTeX klasörü (mkdtemp) yalnız closeEvent'te siliniyor; uygulama
+# çökünce/öldürülünce %TEMP%'te kalıyordu ve süpüren yoktu (2026-11-16
+# kaynak sızıntıları taraması, bulgu 4). derle.sh'in `eski_gecicileri_supur`
+# deseni (`latex-editor.*`, sahibi ölmüş) Windows %TEMP%'ine ve alt tireli
+# `latex_editor_*` adına hiçbir yoldan bakmıyordu; her çökmüş açılış bir
+# klasör daha bırakıyordu.
+
+
+def test_eski_klasorler_supuruluyor_yeniler_ve_kendisi_duruyor(
+        qapp, tmp_path, monkeypatch):
+    import tempfile
+    import gui.main_window as mw
+
+    # Kendi klasörümüz: YAŞLI olsa bile dokunulmaz.
+    kendi = tmp_path / "latex_editor_kendi"
+    kendi.mkdir()
+    (kendi / "ana.synctex.gz").write_bytes(b"eski ama canli oturumunki")
+
+    # Çökmeden kalma YAŞLI klasör: içindeki en yeni girdi de 1 günden eski.
+    eski = tmp_path / "latex_editor_cokmus"
+    eski.mkdir()
+    (eski / "ana.synctex.gz").write_bytes(b"artik")
+    yasli = time.time() - 2 * 86400
+    os.utime(eski / "ana.synctex.gz", (yasli, yasli))
+    os.utime(eski, (yasli, yasli))
+
+    # DÜNKÜN kalma (yeni sayılır): silinmemeli.
+    yeni = tmp_path / "latex_editor_dunku"
+    yeni.mkdir()
+    (yeni / "ana.synctex.gz").write_bytes(b"dunku")
+    dun = time.time() - 0.5 * 86400
+    os.utime(yeni / "ana.synctex.gz", (dun, dun))
+    os.utime(yeni, (dun, dun))
+
+    # Önek tutmayan klasör: hiç ilgisi yok.
+    yabanci = tmp_path / "baska_klasor"
+    yabanci.mkdir()
+    (yabanci / "x").write_bytes(b"")
+
+    monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+    # conftest süpürmeyi takım boyunca etkisizleştiriyor; özgünü sına.
+    supur = mw._eski_synctex_klasorlerini_supur
+    silinen = getattr(supur, "ozgun", supur)(str(kendi))
+
+    assert silinen == 1, "yalnız yaşlı çökme artığı silinmeliydi"
+    assert not eski.exists(), "çökme artığı duruyor"
+    assert kendi.exists(), "kendi klasörü silindi"
+    assert yeni.exists(), "1 günden yeni klasör silindi"
+    assert yabanci.exists(), "önek tutmayan klasör silindi"
+
+
+def test_acilista_supurme_cagriliyor(pencere_kur, qapp, monkeypatch):
+    """MainWindow.__init__ kendi klasörünü kurar kurmaz süpürmeli.
+
+    İşlev çağrılmazsa çökme artıkları yalnız bir SONRAKİ temiz kapanışta
+    değil, hiç silinmez: süpürmenin tek girişi açılış.
+    """
+    import gui.main_window as mw
+
+    cagrilar = []
+    monkeypatch.setattr(mw, "_eski_synctex_klasorlerini_supur",
+                        lambda yeni, **k: cagrilar.append(yeni))
+    w = pencere_kur()
+    assert cagrilar == [w._synctex_dir], (
+        "süpürme açılışta kendi synctex klasörüyle çağrılmadı: %r" % cagrilar)

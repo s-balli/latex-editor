@@ -8,7 +8,7 @@ pandoc kontrolüyle aynı desen). Dialog hemen açılır, sonuçlar gelince dola
 import threading
 from html import escape
 
-from PyQt6.QtCore import QCoreApplication, QObject, QTimer, pyqtSignal
+from PyQt6.QtCore import QCoreApplication, QObject, Qt, QTimer, pyqtSignal
 from PyQt6.QtWidgets import (
     QApplication, QDialog, QHBoxLayout, QLabel, QPushButton,
     QProgressBar, QTextBrowser, QVBoxLayout,
@@ -77,6 +77,16 @@ class EnvDoctorDialog(QDialog):
         super().__init__(parent)
         self._theme = theme or {}
         self._results: list[CheckResult] | None = None
+
+        # Kapanınca silin: her açılış yeni diyalog kuruyor ve parent'lı
+        # diyalog kapanınca yaşamaya devam ediyordu; ebeveynin çocukları
+        # arasında birikiyordu (2026-11-16 kaynak sızıntıları taraması;
+        # Ctrl+P diyalogundaki aynı ders). Denetim thread'i diyalog
+        # kapandıktan SONRA da koşabiliyor (soğuk WSL saniyeler sürer):
+        # sinyal köprüsü silinince emit RuntimeError atıyor ve `_bg` onu
+        # yakalıyor. tests/test_env_check.py
+        # test_diyalog_kapaninca_siliniyor_ve_gec_sinyal_cokmuyor
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
 
         self.setWindowTitle(_("Ortam Denetimi"))
         self.resize(680, 440)

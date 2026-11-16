@@ -349,3 +349,107 @@ class TestCiftSayfaSatirSatir:
         _zamanlayici_kossun()
         assert gorucu._current_page == 2, gorucu._lbl_page.text()
         assert dikey.value() < once, "görüntü kımıldamadı"
+
+
+# --- Uzak sayfaların kareleri boşalıyor (bellek) ---
+#
+# Karelerin saklayıcısı QLabel'lar ve ziyaret edilen her sayfanın karesi
+# yakınlaştırma ya da belge değişene dek orada kalıyordu; boşalan hiçbir yol
+# yoktu. 2026-11-16 kaynak sızıntıları taramasında ölçüldü (komut, offscreen
+# PdfViewer): 30 sayfalık A4, %150 yakınlaştırma, DPR 1 ekranda 30/30 etiket
+# dolu ve toplam 294,5 MB (sayfa başına 9,8 MB); görünümden UZAK sayfanın
+# karesi de duruyordu. Uzun bir belgeyi okuyan kullanıcı belleği sayfa sayfa
+# büyütüyordu.
+
+
+def _dolu(lb):
+    pm = lb.pixmap()
+    return pm is not None and not pm.isNull()
+
+
+@gui
+class TestUzakKarelerBosaliyor:
+
+    @pytest.fixture
+    def oniki(self, qapp, tmp_path):
+        """12 sayfalık küçük belge; kare payının (±3) dışına taşacak kadar."""
+        yol = str(tmp_path / "oniki_sayfa.pdf")
+        with pdfium_lock:
+            d = pypdfium2.PdfDocument.new()
+            for _ in range(12):
+                d.new_page(200, 300)
+            d.save(yol)
+            d.close()
+        v = PdfViewer(theme=THEMES["dark"])
+        v.resize(400, 500)
+        v.show()
+        assert v.load_pdf(yol), "belge açılmadı"
+        assert _bekle(lambda: len(v._page_labels) == 12
+                      and v._scroll.verticalScrollBar().maximum() > 0), \
+            "belge yerleşmedi"
+        yield v
+        v.shutdown()
+        v.close()
+        QApplication.instance().sendPostedEvents(None, QEvent.Type.DeferredDelete)
+
+    def _hepsini_gez(self, v):
+        """Kullanıcı belgeyi baştan sona gezdi: her sayfanın karesi dolu.
+
+        Doldururken pay geçici olarak bütün belgeyi kapsıyor: yoksa beklerken
+        çalışan `_render_visible` uzak kareleri boşaltıyor ve "hepsi dolu"
+        ön koşulu düzeltmeyle yarışıp kararsız düşüyordu (2026-11-16).
+        """
+        v._KARE_PAYI = 10_000
+        try:
+            for i in range(v._page_count):
+                v._request_render(i)
+            assert _bekle(lambda: all(_dolu(lb) for lb in v._page_labels)), \
+                "ön koşul: kareler dolmadı"
+        finally:
+            del v._KARE_PAYI          # sınıfın payı (±3) geri gelsin
+
+    def test_sona_kaydirinca_ilk_sayfalarin_karesi_bosaliyor(self, oniki):
+        v = oniki
+        self._hepsini_gez(v)
+
+        v._scroll_to_page(11)
+        _zamanlayici_kossun()
+        v._render_visible()
+        _dongu(20)
+
+        assert not _dolu(v._page_labels[0]), \
+            "görünümden uzak sayfanın karesi bellekte kaldı"
+        assert not _dolu(v._page_labels[4]), \
+            "payın (±3 sayfa) dışındaki sayfanın karesi kaldı"
+        # Görünür sayfa DOLU kalmalı: boşaltma yalnız uzak sayfalara bakar.
+        assert _bekle(lambda: _dolu(v._page_labels[11])), \
+            "görünür sayfanın karesi yok"
+
+    def test_geri_kaydirinca_ilk_sayfa_YENIDEN_isteniyor(self, oniki):
+        v = oniki
+        self._hepsini_gez(v)
+        v._scroll_to_page(11)
+        _zamanlayici_kossun()
+        v._render_visible()
+        _dongu(20)
+        assert not _dolu(v._page_labels[0]), "ön koşul: ilk kare boşalmalı"
+
+        v._scroll_to_page(0)
+        _zamanlayici_kossun()
+        assert _bekle(lambda: _dolu(v._page_labels[0])), \
+            "geri dönülen sayfanın karesi yeniden istenmedi"
+
+    def test_bosaltilan_etiketin_YERLESIMI_degismiyor(self, oniki):
+        """Boyut sabit kalmalı: kaydırma konumu boşaltmayla kaymasın."""
+        v = oniki
+        self._hepsini_gez(v)
+        once = (v._page_labels[0].width(), v._page_labels[0].height(),
+                v._scroll.verticalScrollBar().maximum())
+        v._scroll_to_page(11)
+        _zamanlayici_kossun()
+        v._render_visible()
+        _dongu(20)
+        assert not _dolu(v._page_labels[0]), "ön koşul: ilk kare boşalmalı"
+        assert (v._page_labels[0].width(), v._page_labels[0].height(),
+                v._scroll.verticalScrollBar().maximum()) == once, \
+            "boşaltma yerleşimi/etiket boyunu değiştirdi"

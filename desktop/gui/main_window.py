@@ -144,6 +144,57 @@ def _pandoc_ipucu() -> str:
         komut=FileOpsMixin._pandoc_kurulum_metni())
 
 
+def _en_yeni_zaman(yol: str) -> float:
+    """Klasörün ve doğrudan içindeki girdilerin en yeni değiştirme zamanı."""
+    en_yeni = os.path.getmtime(yol)
+    with os.scandir(yol) as girdiler:
+        for g in girdiler:
+            try:
+                en_yeni = max(en_yeni, g.stat().st_mtime)
+            except OSError:
+                continue
+    return en_yeni
+
+
+def _eski_synctex_klasorlerini_supur(yeni_klasor: str, *,
+                                     esik_sn: float = 86400.0) -> int:
+    """Çökmeden kalan `latex_editor_*` geçici klasörlerini sil; sayıyı döndür.
+
+    SyncTeX klasörü (mkdtemp) yalnız closeEvent'te siliniyor; uygulama
+    çökünce/öldürülünce %TEMP%'te kalıyordu ve süpüren yoktu (2026-11-16
+    kaynak sızıntıları taraması, bulgu 4). derle.sh'in
+    `eski_gecicileri_supur` deseni (`latex-editor.*` + sahibi ölmüş) buraya
+    taşınmıyor: o desen WSL'in kendi /tmp'sinde koşuyor ve alt tireli
+    `latex_editor_*` adıyla zaten eşleşmiyor. Yaş ölçütü İÇİNDEKİ en yeni
+    girdinin mtime'ı (klasörün kendisi dahil): oturum boyunca derlemeler
+    .gz yazdıkça klasör "güncel" sayılır, boş artık klasör mtime'ıyla
+    yaşlanır. Kendi klasörümüz her durumda dokunulmaz; her hata sessiz
+    geçilir (başka kullanıcının 0700 klasörü, kilitli dosya): açılış asla
+    durmamalı. tests/test_pencere_durumu.py
+    (test_eski_klasorler_supuruluyor..., test_acilista_supurme_cagriliyor).
+    """
+    say = 0
+    simdi = time.time()
+    try:
+        taban = tempfile.gettempdir()
+        for ad in os.listdir(taban):
+            if not ad.startswith("latex_editor_"):
+                continue
+            yol = os.path.join(taban, ad)
+            if os.path.abspath(yol) == os.path.abspath(yeni_klasor):
+                continue
+            try:
+                if simdi - _en_yeni_zaman(yol) < esik_sn:
+                    continue
+                shutil.rmtree(yol, ignore_errors=True)
+                say += 1
+            except OSError:
+                continue
+    except OSError:
+        pass
+    return say
+
+
 def proje_klasoru(yol: str) -> str:
     r"""Dışarıdan açılan dosyanın ağaç kökü: derlendiği KÖK belgenin klasörü,
     kök dosyanın üst klasörlerinden birindeyse; değilse dosyanın klasörü.
@@ -221,6 +272,13 @@ def yardim_penceresi(ebeveyn, tema: dict, baslik: str, html: str,
     from PyQt6.QtWidgets import (QDialog, QDialogButtonBox, QLabel,
                                  QTextBrowser, QVBoxLayout)
     dlg = QDialog(ebeveyn)
+    # Kapanınca silin: kısayollar/özellikler/güncelleme her açılışta yeni
+    # pencere kuruyor ve parent'a bağlı kalan eskiler ebeveynin çocukları
+    # arasında birikiyordu (2026-11-16 kaynak sızıntıları taraması; Ctrl+P
+    # diyalogundaki aynı ders). exec dönüşü doğrudan karşılaştırmaya
+    # giriyor, sonrasında diyaloga erişim yok.
+    # tests/test_pencere_boyutu.py test_yardim_penceresi_kapaninca_siliniyor
+    dlg.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
     dlg.setWindowTitle(baslik)
     layout = QVBoxLayout(dlg)
     layout.setContentsMargins(12, 12, 12, 12)
@@ -303,6 +361,8 @@ class MainWindow(
         self._compile_target = ""       # derlenen ana dosya yolu (path resolve base)
         self._compile_engine = ""       # o derlemeye giden motor (ipucu bunu söylüyor)
         self._synctex_dir = tempfile.mkdtemp(prefix="latex_editor_")
+        # Çökmeden kalan eski latex_editor_* klasörlerini süpür (bkz. işlev).
+        _eski_synctex_klasorlerini_supur(self._synctex_dir)
         self._settings = QSettings("LatexEditor", "LatexEditor")
         # Otomatik derleme tercihi kalıcı (varsayılan: açık). QSettings bool'u
         # bazı arka uçlarda dizge olarak döndürüyor — _auto_audit_enabled ile

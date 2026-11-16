@@ -113,6 +113,13 @@ class QuickOpenDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle(_("Hızlı Dosya Aç"))
         self.setModal(True)
+        # Kapanınca silin: her Ctrl+P yeni diyalog kuruyor ve parent'lı
+        # diyalog kapanınca YAŞAMAYA devam ediyordu; ebeveynin çocukları
+        # arasında birikiyordu (2026-11-16 kaynak sızıntıları taraması;
+        # ölçüm komutla, offscreen: 20 kapalı diyalog +160 widget).
+        # Seçim bu yüzden KABUL ANINDA okunuyor, exec dönüşünde değil:
+        # ertelenmiş silme PyQt'de exec() dönmeden işlenebiliyor (bkz. pick).
+        self.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose, True)
         self.resize(560, 380)
         self._root = root
         self._files = collect_project_files(root)
@@ -166,8 +173,21 @@ class QuickOpenDialog(QDialog):
 
     @staticmethod
     def pick(root: str, parent=None) -> str:
-        """Dialogu aç; seçilen mutlak yolu (iptal edilirse boş) döndür."""
+        """Dialogu aç; seçilen mutlak yolu (iptal edilirse boş) döndür.
+
+        Yol KABUL ANINDA okunuyor, exec dönüşünde DEĞİL: diyalog
+        WA_DeleteOnClose ile kapanınca siliniyor ve ertelenmiş silme
+        PyQt'de exec() dönmeden işlenebiliyor; dönüşte okuma RuntimeError
+        veriyordu (2026-11-16, tests/test_quick_open.py
+        test_pick_exec_sonrasi_okuma_guvenli). `accepted` sinyali silme
+        ertelenmeden önce çıkar.
+        """
+        secim = {"yol": ""}
         dlg = QuickOpenDialog(root, parent)
-        if dlg.exec() == QDialog.DialogCode.Accepted:
-            return dlg.selected_path()
-        return ""
+
+        def _yolu_al():
+            secim["yol"] = dlg.selected_path()
+
+        dlg.accepted.connect(_yolu_al)
+        dlg.exec()
+        return secim["yol"]

@@ -488,3 +488,67 @@ class TestKurulumKomutuPlatforma_Gore:
     def test_HER_ARAC_ICIN_macOS_karsiligi_var(self):
         """Eksik anahtar KeyError verirdi; iki tablo ayni araclari tasimali."""
         assert set(env_check.APT_HINTS) == set(env_check._MAC_HINTS)
+
+
+# --- Diyalog kapanınca siliniyor + geç gelen sinyal çökme yaratmıyor ---
+#
+# Ortam Denetimi her açılışta yeni diyalog kuruyor ve parent'lı QDialog
+# kapanınca yaşamaya devam ediyordu (WA_DeleteOnClose yoktu): ana pencerenin
+# çocukları arasında birikiyordu (2026-11-16 kaynak sızıntıları taraması;
+# Ctrl+P diyalogundaki aynı ders). Denetim thread'i diyalog kapandıktan
+# SONRA da koşabiliyor (soğuk WSL saniyeler sürer): silinmiş sinyal köprüsüne
+# emit süreci çökertmemeli.
+
+
+def _env_threadleri():
+    import threading
+    return [t for t in threading.enumerate() if t.name == "env-check"]
+
+
+def test_diyalog_kapaninca_siliniyor_ve_gec_sinyal_cokmuyor(qapp, monkeypatch):
+    from PyQt6.QtCore import QEvent
+    from PyQt6.QtWidgets import QApplication, QDialog, QWidget
+    from gui.env_doctor import EnvDoctorDialog
+    from gui.theme import THEMES
+
+    # Bu testin kendi thread'inden önce başka testin thread'i bitsin;
+    # "geç sinyal" kararımız karışmasın.
+    son = time.monotonic() + 5
+    while _env_threadleri() and time.monotonic() < son:
+        qapp.processEvents()
+        time.sleep(0.05)
+    assert not _env_threadleri(), "önceki testin env-check thread'i sürüyor"
+
+    bitis = {"cagrildi": False}
+
+    def _yavas():
+        time.sleep(0.4)                  # diyalog bu süre içinde kapanacak
+        bitis["cagrildi"] = True
+        return [env_check.CheckResult("LaTeX Editor", "info", "v1.0.11")]
+
+    monkeypatch.setattr(env_check, "run_checks", _yavas)
+
+    ebeveyn = QWidget()
+    dlg = EnvDoctorDialog(ebeveyn, theme=THEMES["dark"])
+    dlg.show()
+    dlg.close()
+    QApplication.instance().sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    qapp.processEvents()
+
+    # Thread diyaloğun ÖLÜMÜNDEN SONRA bitiyor: sonucu bırakacağı yere
+    # ulaşmalı ya da sessizce yakalanmalı; süreç ayakta kalmalı.
+    son = time.monotonic() + 5
+    while not bitis["cagrildi"] and time.monotonic() < son:
+        qapp.processEvents()
+        time.sleep(0.05)
+    assert bitis["cagrildi"], "denetim thread'i zamanında bitmedi"
+    # Sinyal kuyruğa düştüyse işlensin; sonra çocuk sayısına bakılacak.
+    son = time.monotonic() + 1
+    while time.monotonic() < son:
+        qapp.processEvents()
+        time.sleep(0.05)
+
+    kalan = ebeveyn.findChildren(QDialog)
+    assert not kalan, ("kapanan diyalog ebeveynin çocuğu olarak kaldı: %r"
+                       % kalan)
+    ebeveyn.deleteLater()

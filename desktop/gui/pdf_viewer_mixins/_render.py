@@ -388,6 +388,11 @@ class PdfRenderMixin:
                 lo = mid + 1
         return max(0, lo - 1)
 
+    # Uzak sayfaların kareleri görünüme bu kadar sayfa payıyla tutulur.
+    # Pay kaydırmada titremeyi önler: iki yönlü kısa kaydırmalarda kare
+    # hâlâ bellendir, yeniden istenmez.
+    _KARE_PAYI = 3
+
     def _render_visible(self, sayfayi_guncelle: bool = False):
         """Görünür sayfaları çizdir; istenirse geçerli sayfayı da güncelle.
 
@@ -412,6 +417,7 @@ class PdfRenderMixin:
         scroll_y = self._scroll.verticalScrollBar().value()
 
         bas = self._ilk_gorunur_aday(scroll_y)
+        son_gorunur = bas
         bulundu = False
         for i in range(bas, len(self._page_labels)):
             label = self._page_labels[i]
@@ -442,8 +448,44 @@ class PdfRenderMixin:
             if label_top > viewport_height + 200:
                 break
 
-            if visible and (label.pixmap() is None or label.pixmap().isNull()):
-                self._request_render(i)
+            if visible:
+                son_gorunur = i
+                if label.pixmap() is None or label.pixmap().isNull():
+                    self._request_render(i)
+        self._uzak_kareleri_bosalt(bas, son_gorunur)
+
+    def _uzak_kareleri_bosalt(self, ilk_gorunur: int, son_gorunur: int):
+        """Görünür pencerenin ±_KARE_PAYI dışındaki sayfaların karesini bırak.
+
+        Karelerin saklayıcısı QLabel'lar ve ziyaret edilen her sayfanın karesi
+        yakınlaştırma ya da belge değişene dek orada kalıyordu; boşalan hiçbir
+        yol yoktu. 2026-11-16 kaynak sızıntıları taramasında ölçüldü (komut,
+        offscreen PdfViewer): 30 sayfalık A4, %150 yakınlaştırma, DPR 1 ekranda
+        30/30 etiket dolu, toplam 294,5 MB (sayfa başına 9,8 MB); görünümden
+        UZAK sayfanın karesi de duruyordu. Uzun belgeyi okuyan kullanıcı
+        belleği sayfa sayfa büyütüyordu.
+
+        Etiketin BOYUTU sabit kalıyor, yer tutucu stili geri konuyor
+        (`_update_page_sizes` ile aynı): kaydırma konumu ve boş sayfanın
+        görünümü değişmiyor. Arama/ seçim/ SyncTeX vurguları sayfa etiketinin
+        ÇOCUĞU oldukları için kare boşalınca yerlerinde duruyorlar; tekrar
+        görünür olunca `_render_visible` kareyi yeniden istiyor.
+        Dolu kare artık yalnız görünürün civarında olduğu için boşaltma
+        ender düşüyor; taramanın kendisi ucuz bir pixmap denetimi.
+        tests/test_pdf_sayfa_gecisi.py (TestUzakKarelerBosaliyor).
+        """
+        for i in range(len(self._page_labels)):
+            if (ilk_gorunur - self._KARE_PAYI <= i
+                    <= son_gorunur + self._KARE_PAYI):
+                continue
+            lb = self._page_labels[i]
+            pm = lb.pixmap()
+            if pm is None or pm.isNull():
+                continue
+            lb.setPixmap(QPixmap())
+            lb.setStyleSheet(
+                f"background: {self._theme['bg_pdf_placeholder']};"
+                f" border: 1px solid {self._theme['border_input']};")
 
     def _on_scroll(self):
         # Geçerli sayfayı kaydırmadan çıkaran TEK yer burası: kullanıcı

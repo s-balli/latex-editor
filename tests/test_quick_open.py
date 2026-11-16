@@ -334,3 +334,72 @@ class TestSiralamaKarsiDurumlar:
 
     def test_hicbir_yerde_eslesmezse_None(self):
         assert fuzzy_score("zzz", "bolumler/bolum.tex") is None
+
+
+# --- Kapanınca silinme (bellek) ---
+#
+# Diyalog her Ctrl+P'de yeniden kuruluyor ve parent'lı QDialog kapanınca
+# YAŞAMAYA devam ediyordu (WA_DeleteOnClose yoktu): ana pencerenin çocukları
+# arasında birikiyordu. 2026-11-16 kaynak sızıntıları taramasında ölçüldü
+# (komut, offscreen): 20 kapalı Ctrl+P diyalogu ana pencerede +160 widget ve
+# 500 dosyalık projede 10.000 yol kopyası bıraktı.
+
+
+def test_diyalog_kapaninca_siliniyor(qapp, tmp_path):
+    from PyQt6.QtCore import QEvent
+    from PyQt6.QtWidgets import QDialog, QWidget
+
+    (tmp_path / "main.tex").write_text("x", encoding="utf-8")
+    ebeveyn = QWidget()
+    dlg = QuickOpenDialog(str(tmp_path), ebeveyn)
+    dlg.show()
+    dlg.close()
+    qapp.processEvents()
+    QApplication.instance().sendPostedEvents(None, QEvent.Type.DeferredDelete)
+    qapp.processEvents()
+    kalan = ebeveyn.findChildren(QDialog)
+    assert not kalan, ("kapanan diyalog ebeveynin çocuğu olarak kaldı: %r"
+                       % kalan)
+    ebeveyn.deleteLater()
+
+
+def test_pick_exec_sonrasi_okuma_guvenli(qapp, tmp_path):
+    """`pick` exec() dönüşünün HEMEN ardından `selected_path` okuyor.
+
+    WA_DeleteOnClose silmesi ERTELENMİŞ (deleteLater) olduğundan okuma
+    silmeden önce gerçekleşmeli. Gerçek exec + gerçek kabul ile sınıyoruz:
+    kabul zamanlayıcıyla geliyor, kapı pick'in döndürdüğü yolun doğru
+    olmasını istiyor.
+    """
+    from PyQt6.QtCore import QTimer
+
+    (tmp_path / "main.tex").write_text("x", encoding="utf-8")
+    (tmp_path / "baska.tex").write_text("x", encoding="utf-8")
+
+    def kabul_et(n=0):
+        # Açık MODAL pencere aranıyor, üst düzey pencereler arasında değil:
+        # önceki testlerin ebeveynsiz bıraktığı (gizli, silinmemiş) Ctrl+P
+        # diyalogları da üst düzeyde duruyor ve kabul onlara gidince exec
+        # hiç dönmüyordu; tam takım burada süresiz asılı kaldı (2026-11-16,
+        # faulthandler dökümü quick_open.pick exec satırı).
+        dlg = QApplication.activeModalWidget()
+        if isinstance(dlg, QuickOpenDialog):
+            # Alfabetik ilk satır "baska.tex"; sınamak istediğimiz okuma
+            # adayı NET seçilsin diye main.tex satırı seçiliyor.
+            liste = dlg._list
+            for satir in range(liste.count()):
+                if liste.item(satir).text() == "main.tex":
+                    liste.setCurrentRow(satir)
+                    break
+            dlg.accept()
+        elif n < 250:                     # pencere açılana dek dene
+            QTimer.singleShot(20, lambda: kabul_et(n + 1))
+        else:
+            # Takım asılı kalmasın: açık kalan Ctrl+P'yi reddet, kapı düşsün.
+            for w in QApplication.topLevelWidgets():
+                if isinstance(w, QuickOpenDialog) and w.isVisible():
+                    w.reject()
+
+    QTimer.singleShot(20, kabul_et)
+    yol = QuickOpenDialog.pick(str(tmp_path), None)
+    assert yol.endswith("main.tex"), yol
