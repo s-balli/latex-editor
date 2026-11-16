@@ -4,7 +4,7 @@ import hashlib
 import os
 
 from PyQt6.QtCore import QFileSystemWatcher, QTimer, QCoreApplication
-from PyQt6.QtWidgets import QMessageBox
+from PyQt6.QtWidgets import QApplication, QMessageBox
 
 from gui.editor import EditorWidget
 from core.log import get_logger
@@ -207,7 +207,12 @@ class FileWatchMixin:
 
     def _file_watch_process_queue(self):
         """Debounce süresi dolunca bekleyen tüm değişiklikleri işle."""
-        if self._reload_prompt_active:
+        # Açık HERHANGİ bir modal (otomatik kaydetmeyle aynı ölçüt): kilit
+        # yalnız izleyicinin kendi sorularını kapsıyordu; kapanıştaki kayıt
+        # sorusu ya da kodlama uyarısı açıkken ikinci bir modal açılıyordu
+        # (ölçüldü 2026-11-16, test_file_watch_delete).
+        if (self._reload_prompt_active
+                or QApplication.activeModalWidget() is not None):
             # Dialog açık: promptlar üst üste birikmesin; kuyruk duruyor,
             # dialog kapanınca sonraki tur (aşağıdaki restart ile) devralır
             self._debounce_timer.start()

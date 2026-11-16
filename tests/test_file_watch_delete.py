@@ -302,6 +302,41 @@ def test_ERTELENEN_bildirimler_KAYBOLMUYOR(yiginlama_olcumu, qapp, kirli):
         qapp.processEvents()
 
 
+def test_BASKA_bir_modal_acikken_kuyruk_SORU_acmiyor(qapp, tmp_path,
+                                                     monkeypatch):
+    """Kilit (`_reload_prompt_active`) yalnız izleyicinin kendi sorularını
+    kapsıyordu. Kapanıştaki kayıt sorusu, minted kabuk sorusu ya da kodlama
+    uyarısı açıkken gelen değişiklik üstüne ikinci bir modal açıyordu;
+    otomatik kaydetme aynı sorunu "açık HERHANGİ bir modal" ölçütüyle
+    çözmüştü (durum makinesi taraması, 2026-11-16). İş düşmemeli: modal
+    kapanınca kuyruk işleniyor."""
+    yollar, editorler = _uc_dosya(tmp_path)
+    stub = _WatchStub(editorler)
+    try:
+        for y in yollar:
+            stub._file_watch_add(y)
+        islenen = []
+        monkeypatch.setattr(stub, "_process_single", islenen.append)
+        stub._file_watch_on_change(yollar[0])
+
+        modal = QWidget()
+        monkeypatch.setattr(QApplication, "activeModalWidget",
+                            staticmethod(lambda: modal))
+        stub._file_watch_process_queue()
+        assert islenen == [], "başka bir modal açıkken soru açıldı"
+
+        monkeypatch.setattr(QApplication, "activeModalWidget",
+                            staticmethod(lambda: None))
+        stub._file_watch_process_queue()
+        assert [os.path.normpath(p) for p in islenen] == \
+            [os.path.normpath(yollar[0])], "ertelenen değişiklik kayboldu"
+    finally:
+        for ed in editorler:
+            ed.deleteLater()
+        stub.deleteLater()
+        qapp.processEvents()
+
+
 def test_MODAL_kurali_TEK_KAYNAKTA():
     """Üç modal noktası da aynı yardımcıdan geçmeli.
 
