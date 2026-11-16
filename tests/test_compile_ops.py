@@ -498,3 +498,33 @@ def test_PAKETIN_ya_da_SINIFIN_hatasi_kullanicinin_YUKLEDIGI_satira_gidiyor(
     yerel.errors = [LatexError(line_number=2, file_path=str(stil),
                                message="Undefined control sequence.")]
     assert yer(yerel) == (yol(stil), 2)
+
+
+def test_ZAMAN_ASIMI_son_gecerli_PDFi_silmiyor(ana_pencere, monkeypatch):
+    """120 sn'lik zaman aşımı Esc ile iptal gibi davranmalı: ekrandaki PDF son
+    BAŞARILI derlemenin çıktısı ve hâlâ geçerli. Sonuç başarısız derleme gibi
+    işleniyordu; PDF paneli boşalıyor, `_current_pdf` silindiği için SyncTeX
+    de "Önce derleyin" diyordu (durum makinesi taraması, 2026-11-16)."""
+    from unittest.mock import MagicMock
+    from PyQt6.QtCore import QProcess
+    from core.compiler import LatexCompiler
+
+    c = LatexCompiler()
+    c.process = MagicMock()
+    c.process.state.return_value = QProcess.ProcessState.Running
+    c.process.processId.return_value = 0
+    sonuclar = []
+    c.compilation_finished.connect(sonuclar.append)
+    c._on_timeout()
+    assert len(sonuclar) == 1
+
+    p = ana_pencere()
+    p._current_pdf = "onceki_basarili.pdf"
+    temizlendi = []
+    monkeypatch.setattr(p._pdf_viewer, "clear", lambda: temizlendi.append(1))
+
+    p._on_compile_finished(sonuclar[0])
+
+    assert temizlendi == [], "zaman aşımı son geçerli PDF'i sildi"
+    assert p._current_pdf == "onceki_basarili.pdf"
+    assert sonuclar[0].errors, "zaman aşımı yine hata olarak bildirilmeli"

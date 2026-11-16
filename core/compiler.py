@@ -437,7 +437,7 @@ class LatexCompiler(QObject):
         sure = max(1, self._timeout_ms // 1000)
         msg = f"Derleme zaman aşımına uğradı ({sure}s), iptal edildi."
         self.output_line.emit(f"[hata] {msg}\n")
-        result = CompileResult(success=False)
+        result = CompileResult(success=False, zaman_asimi=True)
         result.errors = [LatexError(message=msg)]
         result.duration = time.time() - self._start_time
         self.compilation_finished.emit(result)

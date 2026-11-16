@@ -566,7 +566,10 @@ class CompileOpsMixin:
 
         # Başarısız derlemede taze PDF yüklenemediyse eski (koddan farklı) PDF'i
         # ekranda bırakma — tutarsız önizleme yanıltıcı olur. Temizle.
-        if failed and not pdf_shown:
+        # Zaman aşımı hariç: o bir iptal, ekrandaki PDF son BAŞARILI derlemenin
+        # çıktısı ve hâlâ geçerli (bkz. LatexCompiler.stop). Siliniyordu, SyncTeX
+        # de "Önce derleyin" diyordu (ölçüldü 2026-11-16, test_compile_ops).
+        if failed and not pdf_shown and not getattr(result, "zaman_asimi", False):
             self._pdf_viewer.clear()
             self._current_pdf = ""
 

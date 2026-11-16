@@ -46,6 +46,9 @@ class CompileResult:
     # (derle.sh yüklenen dosyaların adını iletmiyor); GUI derleme bitince
     # kaynaktan dolduruyor ve ipucu kararına veriyor (error_hints.get_hint).
     turkce_babel: bool = False
+    # Süreç zaman aşımıyla öldürüldü. Başarısız derleme DEĞİL, iptal: GUI
+    # ekrandaki son geçerli PDF'e dokunmuyor (Esc ile durdurmayla aynı söz).
+    zaman_asimi: bool = False
 
 
 # Hata satırı: "! Undefined control sequence." vb.
