@@ -1766,6 +1766,12 @@ class MainWindow(
                 # Discard → devam et
         if 0 <= onceki_sekme < self._editor_tabs.count():
             self._editor_tabs.setCurrentIndex(onceki_sekme)
+        # Süren derlemeyi durdur. Linux ve macOS'ta motor derle.sh'in alt
+        # kabuğunun çocuğu; ağacı yalnız stop() öldürüyor, zaman aşımı da
+        # uygulamayla ölüyor: pdflatex sahipsiz kalıyordu (2026-11-16,
+        # test_pencere_durumu). Kayıt sorularından SONRA: iptalde sürmeli.
+        if self._compiler.is_busy():
+            self._compiler.stop()
         self._cleanup_synctex_worker()
         self._cleanup_project_search()
         self._cleanup_yazim()

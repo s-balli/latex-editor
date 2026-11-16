@@ -195,3 +195,39 @@ def test_soru_ekrandayken_kapanan_sekme_SONRAKI_kirli_sekmeyi_atlatmiyor(
 
     assert sorulan == ["d1.tex", "d2.tex"], (
         "kirli sekme sorulmadan kapanıldı: " + repr(sorulan))
+
+
+def test_kapanis_SUREN_derlemeyi_durduruyor(pencere_kur, qapp, monkeypatch):
+    """closeEvent güncelleme iş parçacığını ve arka plan yazıcılarını
+    bekliyordu ama derlemeye dokunmuyordu. Linux ve macOS'ta motor derle.sh'in
+    alt kabuğunun çocuğu; süreç ağacını yalnız `stop()` öldürüyor
+    (`_sureci_oldur`), zaman aşımı zamanlayıcısı da uygulamayla ölüyor:
+    pdflatex sahipsiz kalıyordu (durum makinesi taraması, 2026-11-16)."""
+    w = pencere_kur()
+    durduruldu = []
+    monkeypatch.setattr(w._compiler, "is_busy", lambda: True)
+    monkeypatch.setattr(w._compiler, "stop", lambda: durduruldu.append(1))
+
+    w.close()
+    qapp.processEvents()
+
+    assert durduruldu == [1], "kapanışta süren derleme durdurulmadı"
+
+
+def test_kapanis_IPTAL_edilirse_derleme_SURUYOR(pencere_kur, qapp, monkeypatch,
+                                               tmp_path):
+    """Aşırı düzeltme kapısı: kullanıcı kayıt sorusunda vazgeçerse pencere
+    açık kalıyor, derleme de sürmeli."""
+    yol = _dosyalar(tmp_path, 1)[0]
+    w = pencere_kur("cancel")
+    w._open_file_in_editor(yol)
+    qapp.processEvents()
+    w._editor_tabs.widget(0).append("\n% kirli\n")
+    durduruldu = []
+    monkeypatch.setattr(w._compiler, "is_busy", lambda: True)
+    monkeypatch.setattr(w._compiler, "stop", lambda: durduruldu.append(1))
+
+    w.close()
+    qapp.processEvents()
+
+    assert durduruldu == [], "iptal edilen kapanış derlemeyi durdurdu"
