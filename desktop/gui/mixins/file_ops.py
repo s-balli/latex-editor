@@ -388,8 +388,14 @@ class FileOpsMixin:
             self._update_tab_title(ed)
             # add() hash'i diskten yeniden okuyor; içerik değişmediği için
             # sahte "dosya diskte değişti" sorusu çıkmıyor.
+            # remove() "Kendiminkini Koru" işaretini de düşürüyor; taşınmazsa
+            # otomatik kaydetme reddedilen dış değişikliği yeni adlı dosyada
+            # eziyordu (ölçüldü 2026-11-16, test_autosave).
+            ayristi = eski_n in getattr(self, "_disk_ayristi", ())
             self._file_watch_remove(eski)
             self._file_watch_add(yeni)
+            if ayristi:
+                self._disk_ayristi.add(os.path.normpath(yeni))
             break
 
         # Son açılanlarda eski yol ölü bir bağlantı olarak kalmasın.

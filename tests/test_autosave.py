@@ -342,6 +342,33 @@ def test_KORU_dedikten_sonra_otomatik_kayit_DISKI_EZMIYOR(
     assert ed.isModified() is True          # iş arabellekte duruyor
 
 
+def test_KORU_karari_dosya_agacindan_YENIDEN_ADLANDIRMADA_kaliyor(
+        ana_pencere, tmp_path, monkeypatch):
+    """Yeniden adlandırma sekmeyi yeni yola taşıyor, izlemeyi eski yoldan
+    kaldırıp yenisine kuruyor. Kaldırma "Koru" işaretini de düşürüyordu ve
+    işaret yeni yola taşınmıyordu: otomatik kaydetme reddedilen dış
+    değişikliği yeni adlı dosyada eziyordu (durum makinesi taraması,
+    2026-11-16)."""
+    yol = _proje(tmp_path, "ortak.tex")
+    p = ana_pencere()
+    p._dis_yolu_ac(str(yol), "kapi")
+    ed = p._current_editor()
+    ed.setText("BENIM degisiklikim\n")
+    yeni_hash = _dis_degisiklik(p, yol, ed)
+    monkeypatch.setattr(QMessageBox, "exec", lambda self: None)  # "Koru"
+    p._prompt_reload(ed, str(yol), yeni_hash)
+
+    yeni = tmp_path / "ortak_yeni.tex"
+    os.rename(yol, yeni)                    # dosya ağacının yaptığı
+    p._on_file_renamed(str(yol), str(yeni))
+    assert os.path.normpath(ed.file_path) == os.path.normpath(str(yeni))
+
+    p._autosave_tick()
+
+    assert yeni.read_text(encoding="utf-8") == "DISARIDAN gelen\n"
+    assert ed.isModified() is True
+
+
 def test_ACIK_KAYIT_ayrisma_isaretini_DUSURUYOR(ana_pencere, tmp_path,
                                                 monkeypatch):
     """Ctrl+S kullanıcının AÇIK kararı: ondan sonra otomatik kaydetme yine
