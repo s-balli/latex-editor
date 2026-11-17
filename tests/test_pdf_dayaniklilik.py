@@ -207,11 +207,19 @@ def test_bozuk_sayfada_FARE_HAREKETI_oldurmuyor(viewer):
 
     # Koruma işi yapmayı BIRAKARAK kazanılmasın: sağlam sayfada yol hâlâ
     # pdfium'a girmeli.
+    # Kilit BU thread'de tutuluyor: `_update_link_cursor` kilidi beklemeden
+    # alıyor ve meşgulse bilerek atlıyor. Yükleme sonrası çizim işçisi
+    # kilitteyken çağrı atlanıyor, test "pdfium'a hiç girilmedi" diye
+    # düşüyordu (2026-11-17 CI, Python 3.12, tek seferlik). RLock olduğu
+    # için aynı thread'de yeniden alınabiliyor; işçinin zamanlaması sonucu
+    # artık etkilemiyor.
+    from gui.pdfium_lock import pdfium_lock
     cagri = []
     asil = _ev.get_link_at_point
     _ev.get_link_at_point = lambda raw, x, y: cagri.append((x, y)) or None
     try:
-        viewer._update_link_cursor(nokta, etiket)
+        with pdfium_lock:
+            viewer._update_link_cursor(nokta, etiket)
     finally:
         _ev.get_link_at_point = asil
     assert cagri, "sağlam sayfada pdfium'a hiç girilmedi: yol büsbütün kesilmiş"
