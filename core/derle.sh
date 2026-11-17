@@ -663,6 +663,56 @@ eski_gecicileri_supur() {
 
 eski_gecicileri_supur
 
+# Bekci: uygulama olunce derleme sahipsiz kalmasin.
+#
+# Uygulama derlemeyi QProcess ile baslatiyor; Durdur ve zaman asimi
+# yollarinda agaci uygulamanin KENDISI olduruyor (compiler._sureci_oldur).
+# Eksik kalan tek yol uygulamanin cokmesi ya da oldurulmesi: zaman asimi
+# zamanlayicisi da onunla oluyor ve bu betikte sure siniri yok. OLCULDU
+# (2026-11-17, WSLg, sonsuz donguye giren belge, uygulama kill -9 ile
+# olduruldu): pdflatex sahipsiz kaldi, %100 CPU ile 74+ sn kostu ve
+# kendiliginden durmadi.
+#
+# Uygulama istediginde (LATEX_EDITOR_PID ortam degiskeni; bkz.
+# compiler._start_native, Windows/wsl.exe yolu bilerek vermiyor) arka
+# planda bir bekci dogar: 2 sn'de bir hem uygulamayi hem bu betigi
+# `kill -0` ile yoklar. Uygulama olmus ve betik hala yasiyorsa betik KENDI
+# surec grubunu oldurur; grup betigin `$(...)` alt kabugunu ve motoru da
+# tasiyor (betik CreateNewSession ile kendi oturumunun lideri). Grubu
+# yalniz lider oldugumuzda hedefliyoruz ($$ == pgid): degilsek baska bir
+# grubu (ornegin bir kabugun grubunu) hedeflemis oluruz.
+#
+# NORMAL BITISTE bekci arkada kalmasin: dongu betigin KENDISINI de
+# izliyor, betik olunce `kill -0 $$` bosar ve bekci en gec bir denetim
+# araligi icinde cikar. EXIT trap kullanilmiyor: sinyal isleyisini
+# degistirmemeye ozen gosteriyoruz (bu betige `trap ... HUP` EKLENMEMELI,
+# Windows'ta agacin olusunu bozuyor; bkz. compiler._sureci_oldur). Bekcinin
+# cikti borulari /dev/null'da: QProcess'in borusunu acik tutmasin.
+#
+# Degisken yoksa (kullanici betigi terminalden calistiriyor) hicbir sey
+# dogmaz, davranis birebir eskisi gibi. Watch kipinde de dogar: orada da
+# betik uygulamanin olmesiyle ayni sekilde sahipsiz kalir (saatlerce
+# yasayan izleme dongusu ve o an kosan motor), uygulanan kural ayni.
+bekci_baslat() {
+    case "${LATEX_EDITOR_PID:-}" in
+        ''|*[!0-9]*) return 0 ;;
+    esac
+    (
+        while kill -0 "$LATEX_EDITOR_PID" 2>/dev/null \
+              && kill -0 "$$" 2>/dev/null; do
+            sleep 2
+        done
+        # Betik bitti: normal bitis, bekci de cikar.
+        kill -0 "$$" 2>/dev/null || exit 0
+        # Uygulama oldu: grubu yalniz lideriysek oldur.
+        GRUP=$(ps -o pgid= -p "$$" 2>/dev/null | tr -d '[:space:]')
+        [ "$GRUP" = "$$" ] && kill -9 -"$GRUP" 2>/dev/null
+        exit 0
+    ) >/dev/null 2>&1 &
+}
+
+bekci_baslat
+
 # minted paketi kullanılıyor mu kontrol et
 minted_kontrol() {
     local KLASOR="$1"

@@ -165,6 +165,46 @@ class TestLatexCompiler:
         assert PLATFORM == sys.platform
 
 
+class TestBekciPidOrtami:
+    r"""Yerli yol QProcess ortamına bekçi PID'ini koyar (LATEX_EDITOR_PID).
+
+    derle.sh'teki bekçi (bkz. tests/test_derle_bekci.py) bu değişkenden
+    uygulamanın PID'ini öğrenip uygulama ölünce derleme grubunu kendisi
+    öldürüyor: uygulamanın çökmesi/öldürülmesi, zaman aşımı zamanlayıcısının
+    da ölmesi demek. Windows (wsl.exe) yolu bilerek KOYMUYOR: orada wsl.exe
+    ölünce WSL içindeki ağaç da düşüyor (ölçüldü, bkz. `_sureci_oldur`).
+    """
+
+    def test_native_yol_pid_ortamini_koyuyor(self, tmp_path):
+        tex = tmp_path / "a.tex"
+        tex.write_text("x", encoding="utf-8")
+        c = LatexCompiler()
+        with patch("core.compiler.PLATFORM", "linux"), \
+             patch("core.compiler.QProcess") as mock_qproc, \
+             patch("core.compiler.QProcessEnvironment") as mock_qenv:
+            mock_proc = MagicMock()
+            mock_qproc.return_value = mock_proc
+            mock_ortam = MagicMock()
+            mock_qenv.systemEnvironment.return_value = mock_ortam
+            assert c.compile(str(tex)) is True
+            mock_ortam.insert.assert_called_once_with(
+                "LATEX_EDITOR_PID", str(os.getpid()))
+            mock_proc.setProcessEnvironment.assert_called_once_with(mock_ortam)
+        c._timeout_timer.stop()
+
+    def test_windows_yol_pid_ortami_koymuyor(self, tmp_path):
+        tex = tmp_path / "a.tex"
+        tex.write_text("x", encoding="utf-8")
+        c = LatexCompiler()
+        with patch("core.compiler.PLATFORM", "win32"), \
+             patch("core.compiler.QProcess") as mock_qproc:
+            mock_proc = MagicMock()
+            mock_qproc.return_value = mock_proc
+            assert c.compile(str(tex)) is True
+            mock_proc.setProcessEnvironment.assert_not_called()
+        c._timeout_timer.stop()
+
+
 class TestDerlemeZamanAsimi:
     """Watchdog: derleme belirli sürede bitmezse iptal edilir."""
 

@@ -8,7 +8,14 @@ import sys
 import time
 from pathlib import Path
 
-from PyQt6.QtCore import QCoreApplication, QObject, QProcess, QTimer, pyqtSignal
+from PyQt6.QtCore import (
+    QCoreApplication,
+    QObject,
+    QProcess,
+    QProcessEnvironment,
+    QTimer,
+    pyqtSignal,
+)
 
 from core.log_parser import CompileResult, LatexError, LatexSuggestion, parse_output
 from core.paths import windows_to_wsl, wsl_to_windows
@@ -193,6 +200,14 @@ class LatexCompiler(QObject):
         # zaman aşımı bütün ağacı öldürebilsin (bkz. `_sureci_oldur`).
         self.process.setUnixProcessParameters(
             QProcess.UnixProcessFlag.CreateNewSession)
+        # Bekçi kimliği: uygulama ölürse (çökme/kill -9) derle.sh kendi
+        # süreç grubunu kendisi öldürsün diye PID'imizi bildiriyoruz (bkz.
+        # derle.sh bekci_baslat). Zaman aşımı zamanlayıcısı uygulamayla
+        # birlikte ölüyor; sahipsiz kalan motor %100 CPU ile koşmaya devam
+        # ediyor (ölçüldü 2026-11-17, WSLg, sonsuz döngüye giren belge).
+        ortam = QProcessEnvironment.systemEnvironment()
+        ortam.insert("LATEX_EDITOR_PID", str(os.getpid()))
+        self.process.setProcessEnvironment(ortam)
         self.process.start("bash", args)
 
     def _on_output(self):
