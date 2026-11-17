@@ -17,8 +17,12 @@ from PyQt6.QtCore import (
     pyqtSignal,
 )
 
+from core import win_job
+from core.log import get_logger
 from core.log_parser import CompileResult, LatexError, LatexSuggestion, parse_output
 from core.paths import windows_to_wsl, wsl_to_windows
+
+_logger = get_logger("compiler")
 
 PLATFORM = sys.platform  # win32, linux, darwin
 
@@ -180,7 +184,35 @@ class LatexCompiler(QObject):
             args.append("--shell-escape")
         elif self._shell_escape is False:
             args.append("--no-shell-escape")
+        # Uygulama ölürse derleme sahipsiz kalıyor: derleme sürerken
+        # uygulama öldürüldüğünde wsl.exe ve WSL içindeki pdflatex %100
+        # CPU ile koşmaya devam ediyordu (2026-11-17'de gerçek exe'de
+        # ölçüldü: 40+ sn, kendiliğinden durmadı; wsl.exe elle öldürülünce
+        # ağaç ~4 sn'de düştü). wsl.exe'yi KILL_ON_JOB_CLOSE bayraklı bir
+        # job'a bağlıyoruz (core/win_job.py): uygulama ölünce çekirdek son
+        # job tutamacını kapatır, wsl.exe düşer, o da WSL içindeki ağacı
+        # düşürür. Atama `started` sinyalinde: start() dönüşünde
+        # processId() henüz güvenilir olmayabilir. Yerli yolun bekçisi
+        # (LATEX_EDITOR_PID) buraya taşınmaz; derle.sh'e HUP trap'i
+        # eklenmez (bkz. `_sureci_oldur`). Test: tests/test_win_job.py
+        # (TestUygulamaOlunce, TestStartWindowsBaglanti).
+        self.process.started.connect(self._wsl_joba_ata)
         self.process.start("wsl", args)
+
+    def _wsl_joba_ata(self):
+        """started sinyali: wsl.exe başladı, uygulama ölünce onu da kapatan job'a ata.
+
+        Atama derleme akışının parçası değil, sigortadır: herhangi bir
+        hatada (eski Windows, süreç çoktan bitmiş, iç içe job'a izin yok)
+        derleme OLDUĞU GİBİ sürer, sebep günlüğe yazılır (test:
+        tests/test_win_job.py TestAtamaHatasiYolu).
+        """
+        try:
+            pid = self.process.processId() if self.process else 0
+            if pid > 0:
+                win_job.sureci_joba_ata(pid)
+        except Exception as e:
+            _logger.warning("wsl.exe job'a atanamadı, derleme sürüyor: %s", e)
 
     def _start_native(self, tex_path: str, engine: str):
         """Linux/macOS: doğrudan bash ile derle."""
