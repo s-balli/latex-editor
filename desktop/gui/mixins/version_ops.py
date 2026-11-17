@@ -598,6 +598,16 @@ class VersionOpsMixin:
     def _restore_version(self, root: str, sha: str, rel: str, editor):
         from gui.editor import EditorWidget
 
+        # MEŞGUL DENETİMİ QUESTION'DAN ÖNCE: `_snapshot`taki ilke ("reddedilecek
+        # bir istek için kullanıcıya onay sorup sürüm adı yazdırmak boşuna")
+        # burada da geçerli. Eskiden kullanıcı Evet diyor, dosya okunuyor ve
+        # reddedilme ancak `_geri_yukleme_oncesi_surum`de geliyordu
+        # (2026-11-17, üçüncü tur durum makinesi taraması bulgu 3;
+        # tests/test_version_ops.py test_GERI_YUKLEME_mesgulken_ONAY_SORULMUYOR).
+        if getattr(self, "_snapshot_busy", False):
+            self._status.showMessage(_("Sürüm alınıyor; bitmesini bekleyin"))
+            return
+
         answer = QMessageBox.question(
             self, _("Sürümden Geri Yükle"),
             _("{f} dosyası seçilen sürüme döndürülecek. Şimdiki hâli önce "

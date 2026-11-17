@@ -434,6 +434,17 @@ class YazimOpsMixin:
                 _("Bulgunun geldiği belge açık değil: {name}").format(
                     name=os.path.basename(dosya) or dosya), 4000)
             return
+        # SALT OKUNUR BELGE: QScintilla read-only arabelleğe sessizce yazmıyor;
+        # eskiden "'{e}' -> '{y}' değiştirildi" denip belge değişmiyordu.
+        # Salt okunurluk geçici: sürümden geri yükleme öncesi anlık görüntü
+        # penceresi arayüzü açık tutuyor. Bul/Değiştir ve F2 aynı sınıftan
+        # 4dc093c ile korundu, bu yol açık kalmıştı (2026-11-17, üçüncü tur
+        # durum makinesi taraması bulgu 2; tests/test_yazim_gui.py
+        # test_oneri_SALT_OKUNURken_belgeye_yazilmiyor). `getattr`: test
+        # iskeletleri isReadOnly'süz editör de geçebiliyor.
+        if getattr(ed, "isReadOnly", lambda: False)():
+            self._status.showMessage(_("Belge salt okunur"), 4000)
+            return
         if dosya:
             # Değişiklik GÖRÜNÜR olsun: sol tık da hedef sekmeye geçiyor.
             self._editor_tabs.setCurrentWidget(ed)

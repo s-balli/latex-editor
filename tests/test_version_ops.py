@@ -817,6 +817,36 @@ def test_MESGUL_DEGILKEN_gecmis_silme_calisiyor(qapp, tmp_path, monkeypatch):
         qapp.processEvents()
 
 
+def test_GERI_YUKLEME_mesgulken_ONAY_SORULMUYOR(qapp, tmp_path, monkeypatch):
+    r"""Anlık görüntü sürerken reddedilecek geri yükleme için kullanıcıya
+    onay sorulup dosya okutulmamalı; `_snapshot` aynı ilkeyi benimsemişti
+    ("meşgul denetimi diyaloglardan önce"). Reddedilme question'dan SONRA
+    geliyordu: kullanıcı Evet diyor, sonra "Sürüm alınıyor; bitmesini
+    bekleyin" alıyordu (2026-11-17, üçüncü tur durum makinesi taraması
+    bulgu 3)."""
+    import gui.mixins.version_ops as vo
+
+    stub, ed, tex = _stub_with_editor(tmp_path, monkeypatch)
+    try:
+        soruldu = []
+        monkeypatch.setattr(
+            vo.QMessageBox, "question",
+            staticmethod(lambda *a, **k: soruldu.append(1)
+                         or vo.QMessageBox.StandardButton.Yes))
+        icerik = open(tex, encoding="utf-8").read()
+        stub._snapshot_busy = True
+
+        stub._restore_version(str(tmp_path), "0" * 40, "ana.tex", ed)
+
+        assert soruldu == [], "meşgulken onay soruldu"
+        assert "bekleyin" in stub._status.msg, stub._status.msg
+        assert open(tex, encoding="utf-8").read() == icerik, "dosya değişti"
+    finally:
+        stub._snapshot_busy = False
+        ed.deleteLater()
+        qapp.processEvents()
+
+
 # --- 2026-09-23: Ctrl+K sınırı, geri yüklemede şimdiki hâl, fark ekranı ---
 
 

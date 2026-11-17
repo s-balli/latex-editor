@@ -729,3 +729,32 @@ def test_VAZGEC_diskte_dosya_BIRAKMIYOR(ana_pencere, tmp_path, monkeypatch):
     _ctrl_v(p._current_editor())
 
     assert not (tmp_path / "media").exists()
+
+
+def test_YAPISTIRMA_SALT_OKUNURken_diske_ve_belgeye_dokunmuyor(
+        ana_pencere, tmp_path, monkeypatch):
+    """Sürümden geri yükleme öncesi anlık görüntü penceresi editörü salt
+    okunur yapıp arayüzü açık tutuyor; QScintilla o arabelleğe sessizce
+    yazmıyor. Eskiden bu yolda: panodaki resim `media/`ya YAZILIYOR,
+    figure bloğu belgeye girmiyor ve kullanıcıya hiçbir şey söylenmiyordu
+    (2026-11-17, üçüncü tur durum makinesi taraması bulgu 2).
+
+    Diyaloğun açılmaması da sınanıyor: salt okunurken kullanıcıya boşuna
+    şablon/caption formu doldurtmamalı.
+    """
+    acilan = _diyalog(monkeypatch, 1)   # kabul edilmiş say; AÇILMAMALI
+    yol = _yaz(tmp_path / "belge.tex", _DUZ)
+    p = ana_pencere()
+    p._open_file_in_editor(yol)
+    ed = p._current_editor()
+    # Karşılaştırma açılan METİNLE: Windows'ta dosya CRLF yazılıyor, `_DUZ`
+    # LF (2026-11-17, Windows koşusunda düştü).
+    once = ed.text()
+    ed.setReadOnly(True)
+    _pano()
+    _ctrl_v(ed)
+
+    assert acilan == [], "salt okunurken Görsel Ekle diyaloğu açıldı"
+    assert not (tmp_path / "media").exists(), "salt okunurken PNG diske yazıldı"
+    assert ed.text() == once, "salt okunur belgeye yazıldı"
+    assert "salt okunur" in p._status.currentMessage(), p._status.currentMessage()

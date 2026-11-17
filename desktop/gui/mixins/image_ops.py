@@ -192,6 +192,18 @@ class ImageOpsMixin:
                 or not editor.file_path.lower().endswith(".tex")):
             self._status.showMessage(_("Önce bir .tex dosyası açın"))
             return
+        # SALT OKUNUR BELGE: QScintilla read-only arabelleğe sessizce yazmıyor;
+        # eskiden panodaki resim `media/`ya YAZILIYOR, figure bloğu belgeye
+        # girmiyor ve kullanıcıya hiçbir şey söylenmiyordu. Salt okunurluk
+        # geçici: sürümden geri yükleme öncesi anlık görüntü penceresi arayüzü
+        # açık tutuyor. Dialogu da açmadan dönüyor: boşuna form
+        # doldurtmamak için (2026-11-17, üçüncü tur durum makinesi taraması
+        # bulgu 2; tests/test_image_paste.py
+        # test_YAPISTIRMA_SALT_OKUNURken_diske_ve_belgeye_dokunmuyor).
+        # `getattr`: test iskeletleri isReadOnly'süz editör de geçebiliyor.
+        if getattr(editor, "isReadOnly", lambda: False)():
+            self._status.showMessage(_("Belge salt okunur"))
+            return
 
         # Yol KÖK belgenin dizinine göre: LaTeX onu orada arıyor (bkz.
         # core.engine_detector.kok_belge). Bölüm dosyasının dizinine göre

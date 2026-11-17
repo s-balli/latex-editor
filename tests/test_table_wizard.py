@@ -632,6 +632,109 @@ def test_cursor_char_offset_unicode(qapp):
 
 
 # ======================================================================
+# Salt okunur belge (sürümden geri yükleme öncesi anlık görüntü penceresi)
+#
+# `version_ops._geri_yukleme_oncesi_surum` editörü salt okunur yapıp arayüzü
+# AÇIK tutuyor; QScintilla read-only arabelleğe sessizce yazmıyor. Bul/Değiştir
+# ve F2 aynı sınıftan 4dc093c ile korundu, tablo yolları açık kalmıştı: ileti
+# "Tablo eklendi"/"Tablo hizalandı" diyor, belge değişmiyordu (2026-11-17,
+# üçüncü tur durum makinesi taraması bulgu 2).
+# ======================================================================
+
+
+def test_wizard_SALT_OKUNURken_dialog_acilmiyor(qapp, monkeypatch):
+    import gui.table_wizard as tw
+
+    original = "öncesi\n\\begin{tabular}{ll}\na & b\\\\\n\\end{tabular}\nsonrası\n"
+    ed = EditorWidget()
+    ed.setText(original)
+    ed.setReadOnly(True)
+    stub = _Stub([ed])
+
+    class Acilmamali(tw.TableWizardDialog):
+        def __init__(self, *a, **k):
+            raise AssertionError("salt okunurken sihirbaz dialogu açılmamalı")
+
+    monkeypatch.setattr(tw, "TableWizardDialog", Acilmamali)
+
+    stub._table_wizard()
+
+    assert ed.text() == original, "salt okunur belgeye yazıldı"
+    assert "salt okunur" in stub._status.msg, stub._status.msg
+
+
+def test_align_table_SALT_OKUNURken_dokunmuyor(qapp):
+    original = ("giriş\n\\begin{tabular}{ll}\n"
+                "uzunhücre & b \\\\\nx & yy \\\\\n\\end{tabular}\n")
+    ed = EditorWidget()
+    ed.setText(original)
+    ed.setCursorPosition(2, 5)  # veri satırı içinde
+    ed.setReadOnly(True)
+    stub = _Stub([ed])
+
+    stub._align_table()
+
+    assert ed.text() == original, "salt okunur belgeye yazıldı"
+    assert "salt okunur" in stub._status.msg, stub._status.msg
+
+
+# ======================================================================
+# Yalnız CR satır sonu: karakter offset, Scintilla'nın satır sayısıyla
+# uyumlu hesaplanmalı (üçüncü tur bulgu 5). `_yalniz_cr_cevir` uzunluğu
+# 1:1 koruyor, ofsetler kaymaz; kayan şey satır/sütun dönüşümüydü.
+# ======================================================================
+
+
+def test_cursor_char_offset_YALNIZ_CR_satiri_sayiyor(qapp):
+    r"""Scintilla yalnız `\r`'yi de satır sonu sayıyor, `split("\n")` saymıyor.
+
+    Kayan offset sihirbazda/hizalamada YANLIŞ aralığın seçilmesine yol
+    açıyor (aşağıdaki uçtan uca test).
+    """
+    metin = ("başlık\r"
+             "\\begin{tabular}{ll}\n"
+             "AAAA & b \\\\\n"
+             "\\end{tabular}\n")
+    ed = EditorWidget()
+    ed.setText(metin)
+    ed.setCursorPosition(2, 3)  # Scintilla'nın 2. satırı: 'AAAA & b \'
+    stub = _Stub([ed])
+    assert stub._cursor_char_offset(ed) == metin.index("AAAA & b") + 3
+
+
+def test_align_table_YALNIZ_CR_belgede_dogru_araliga_yaziyor(qapp):
+    r"""Hizalama yalnız-CR satır sonundan SONRAKİ tabloya dokunmalı.
+
+    Eski `_char_offset_to_linecol` çıplak `text.count("\n")` kullanınca
+    satır numarası Scintilla'nınkinden küçük çıkıyor ve seçim tablonun
+    ÖNÇESİNE taşan aralığı kapsıyordu. Beklenen çıktıyı çekirdeğin saf
+    `format_tabular`ı üretiyor (DOĞRU offsetle çağrılıyor); mixin'in işi o
+    metni OLDUĞU GİBİ belgeye yazmaktır. Not: Python `split("\n")` yalnız
+    `\r`'yi satır sonu SAYMAZ (kusurun ta kendisi bu), o yüzden ayrık
+    satır assertleri yerine tüm belge karşılaştırılıyor.
+    """
+    from core.latex_tables import format_tabular
+
+    metin = ("başlık\r"
+             "\\begin{tabular}{ll}\n"
+             "AAAA & b \\\\\n"
+             "xx & ccc \\\\\n"
+             "\\end{tabular}\n"
+             "son metin\n")
+    beklenen = format_tabular(metin, metin.index("AAAA & b"))
+    assert beklenen is not None and beklenen != metin, "ölçüt hizalama üretmeli"
+    ed = EditorWidget()
+    ed.setText(metin)
+    ed.setCursorPosition(2, 3)  # 'AAAA & b \\' satırı
+    stub = _Stub([ed])
+
+    stub._align_table()
+
+    assert "Tablo hizalandı" in stub._status.msg, stub._status.msg
+    assert ed.text() == beklenen, "yanlış aralığa yazıldı"
+
+
+# ======================================================================
 # Ctrl+T: uygulama düzeyi tuş kısayolu (Scintilla tuşu yuttuğu için)
 # ======================================================================
 

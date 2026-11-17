@@ -825,6 +825,23 @@ def test_oneri_setText_ILE_yazmiyor(qapp):
     assert cagrildi == []
 
 
+def test_oneri_SALT_OKUNURken_belgeye_yazilmiyor(qapp):
+    """Sürümden geri yükleme öncesi anlık görüntü penceresi editörü salt
+    okunur yapıp arayüzü açık tutuyor; QScintilla o arabelleğe sessizce
+    yazmıyor. Eskiden durum çubuğu "'kelme' -> 'kelime' değiştirildi"
+    diyordu ve belge değişmiyordu (2026-11-17, üçüncü tur durum makinesi
+    taraması bulgu 2)."""
+    metin = "Bu satirda yanlis yazilmis bir kelme var.\n"
+    s = _oneri_stub(metin)
+    ed = s._current_editor()
+    ed.setReadOnly(True)
+
+    s._yazim_degistir("kelme", "kelime")
+
+    assert ed.text() == metin, "salt okunur belgeye yazıldı"
+    assert "salt okunur" in s._status.msg, s._status.msg
+
+
 # =====================================================================
 # Sozluk acma YARIDA kalirsa kalici olarak bozuk kaliyordu (2026-09-07)
 #

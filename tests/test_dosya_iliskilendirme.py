@@ -313,3 +313,98 @@ def test_KOK_BELGE_ust_klasorlerde_DEGILSE_agac_dosyanin_klasoru(
 
     assert os.path.normcase(w._file_tree._root) == \
         os.path.normcase(os.path.normpath(str(tmp_path / "bolum")))
+
+
+# ======================================================================
+# main() sırası: dosya ilişkilendirmesi yalnız BİRİNCİL kolda yazılmalı
+#
+# İkinci kopya (çift tıklama, "Birlikte Aç") dosyayı çalışan örneğe iletip
+# çıkıyor; eskiden iletimden ÖNCE ilişkilendirmeyi KENDİ adına yazıyordu:
+# bir kopya açıkken başka bir kopya başlatılınca `.tex` ilişkisi hemen
+# çıkacak olan o kopyaya geçiyordu. Linux kolunda ayrıca `gsettings` +
+# `update-desktop-database` çağrıları var (her birinin zaman aşımı 5 sn)
+# (2026-11-17, üçüncü tur durum makinesi taraması bulgu 4).
+# ======================================================================
+
+
+class _SahteApp:
+    kurulan_ad = ""
+
+    def __init__(self, argv):
+        pass
+
+    def setApplicationName(self, ad):
+        _SahteApp.kurulan_ad = ad
+
+    def aliciyi_bagla(self, _f):
+        pass
+
+    def exec(self):
+        return 0
+
+
+class _SahtePencere:
+    kurulumlar = []
+
+    def __init__(self, open_file="", ek_dosyalar=()):
+        _SahtePencere.kurulumlar.append((open_file, tuple(ek_dosyalar)))
+
+    def show(self):
+        pass
+
+    def open_from_other_instance(self, _yol):
+        pass
+
+
+class _SahteSingle:
+    def __init__(self, birincil):
+        self._birincil = birincil
+        self.giden = []
+
+    def try_become_primary(self):
+        return self._birincil
+
+    def send(self, yol):
+        self.giden.append(yol)
+        return True
+
+    def dinleyiciye_bagla(self, _f):
+        pass
+
+    def stop(self):
+        pass
+
+
+def _main_kos(monkeypatch, birincil):
+    import main as m
+
+    cagrilar = []
+    monkeypatch.setattr(m, "_register_file_association",
+                        lambda: cagrilar.append(1))
+    monkeypatch.setattr(m, "_Uygulama", _SahteApp)
+    monkeypatch.setattr(m, "init_i18n", lambda _app: None)
+    monkeypatch.setattr(m, "MainWindow", _SahtePencere)
+    sahte_single = _SahteSingle(birincil)
+    monkeypatch.setattr(m, "SingleInstance", lambda: sahte_single)
+    monkeypatch.setattr(m.sys, "argv", ["latex-editor"])
+    _SahtePencere.kurulumlar = []
+
+    with pytest.raises(SystemExit) as bilgi:
+        m.main()
+    return cagrilar, bilgi.value.code, sahte_single
+
+
+def test_main_IKINCIL_kopya_iliskilendirmeyi_YAZMIYOR(monkeypatch):
+    cagrilar, kod, sahte = _main_kos(monkeypatch, birincil=False)
+
+    assert sahte.giden == [""]        # yine-öne-getir isteği yine iletiliyor
+    assert kod == 0
+    assert cagrilar == [], "ikinci kopya ilişkilendirme yazmamalı"
+
+
+def test_main_BIRINCIL_kopya_iliskilendirmeyi_YAZIYOR(monkeypatch):
+    cagrilar, kod, _sahte = _main_kos(monkeypatch, birincil=True)
+
+    assert _SahtePencere.kurulumlar == [("", ())], "pencere kurulmalı"
+    assert kod == 0
+    assert cagrilar == [1], "birincil kopya ilişkilendirmeyi yazmalı"

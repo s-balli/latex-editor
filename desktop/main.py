@@ -337,7 +337,6 @@ def main():
     app.setApplicationName("LaTeX Editor")
 
     init_i18n(app)
-    _register_file_association()
 
     # Komut satırından gelen dosyalar ("Birlikte Aç", çift tıklama, `%F`)
     dosyalar = _dosya_argumanlari(sys.argv[1:])
@@ -360,6 +359,19 @@ def main():
             _zaten_calisiyor_uyarisi(single.kilit_dosyasi),
         )
         sys.exit(1)
+
+    # İLİŞKİLENDİRME YALNIZ BİRİNCİLDE. Eskiden tek kopya denetiminden ÖNCE
+    # yazılıyordu: ikinci kopya (çift tıklama, "Birlikte Aç") dosyayı çalışan
+    # örneğe iletip çıkan bir süreç olduğu hâlde ilişkilendirmeyi KENDİ
+    # adına yazıyordu: bir kopya açıkken BAŞKA bir kopya (ör. winget ile
+    # kurulan ve masaüstündeki exe) başlatılınca `.tex` ilişkisi, hemen
+    # çıkacak olan o kopyaya geçiyordu. Linux kolunda ayrıca `gsettings` +
+    # `update-desktop-database` çağrıları var (her birinin zaman aşımı 5 sn);
+    # bozuk bir dbus oturumunda dosyanın iletimi gecikebilir (varsayım,
+    # ölçülmedi). 2026-11-17, üçüncü tur durum makinesi taraması bulgu 4;
+    # tests/test_dosya_iliskilendirme.py
+    # test_main_IKINCIL_kopya_iliskilendirmeyi_YAZMIYOR.
+    _register_file_association()
 
     window = MainWindow(open_file=file_arg, ek_dosyalar=dosyalar[1:])
     window.show()

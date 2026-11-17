@@ -6,6 +6,10 @@ from core.fs_ops import acik_metinlerle
 from core.latex_refs import collect_labels
 from core.latex_tables import format_tabular, parse_tabular_at
 from core.log import get_logger
+# Satır sonu dönüşümü tek kaynaktan: Scintilla yalnız `\r`'yi de satır sonu
+# sayıyor, `split("\n")` saymıyor (bkz. editor._yalniz_cr_cevir). Aşağıdaki
+# offset/satır hesapları ikisinin de aynı dili konuşması için bunu kullanıyor.
+from gui.editor import _yalniz_cr_cevir
 
 _ = lambda s: QCoreApplication.translate("TableOpsMixin", s)
 _logger = get_logger("table_ops")
@@ -15,9 +19,17 @@ class TableOpsMixin:
 
     @staticmethod
     def _cursor_char_offset(editor) -> int:
-        """İmlecin doküman karakter offseti (QScintilla satır/kolon → offset)."""
+        """İmlecin doküman karakter offseti (QScintilla satır/kolon → offset).
+
+        Metin `_yalniz_cr_cevir`den geçiyor: yalnız `\r` taşıyan belgede
+        `split("\n")` Scintilla'nın satır sayısından az üretiyor ve offset
+        kayıyordu. Dönüşüm uzunluğu 1:1 koruduğu için offset karakter
+        uzayında yerinde kalıyor (2026-11-17, üçüncü tur durum makinesi
+        taraması bulgu 5; tests/test_table_wizard.py
+        test_cursor_char_offset_YALNIZ_CR_satiri_sayiyor).
+        """
         line, col = editor.getCursorPosition()
-        text = editor.text()
+        text = _yalniz_cr_cevir(editor.text())
         offset = 0
         lines = text.split("\n")
         for i in range(line):
@@ -26,6 +38,16 @@ class TableOpsMixin:
 
     @staticmethod
     def _char_offset_to_linecol(text: str, pos: int) -> tuple[int, int]:
+        """Karakter offsetini Scintilla'nın satır/kolonuna çevir.
+
+        `text` `_cursor_char_offset`in baktığı METİNLE AYNI dönüşümden
+        geçmeli: satır sayımını `\n` üzerinden yapan bu hesap, yalnız `\r`
+        taşıyan belgede Scintilla'nınkinden küçük satır numarası üretiyor ve
+        seçim tablonun ÖNÇESİNE taşıyordu (2026-11-17, üçüncü tur durum
+        makinesi taraması bulgu 5; tests/test_table_wizard.py
+        test_align_table_YALNIZ_CR_belgede_dogru_araliga_yaziyor).
+        """
+        text = _yalniz_cr_cevir(text)
         line = text.count("\n", 0, pos)
         line_start = text.rfind("\n", 0, pos) + 1
         return line, pos - line_start
@@ -79,6 +101,16 @@ class TableOpsMixin:
         editor = self._current_editor()
         if not editor:
             self._status.showMessage(_("Önce bir dosya açın"))
+            return
+        # SALT OKUNUR BELGE: QScintilla read-only arabelleğe sessizce yazmıyor;
+        # eskiden sihirbaz açılıyor, "Tablo eklendi" deniyor ve belge
+        # değişmiyordu. Salt okunurluk geçici: sürümden geri yükleme öncesi
+        # anlık görüntü penceresi arayüzü açık tutuyor. Dialogu da açmadan
+        # dönmek, kullanıcıya boşuna tablo hazırlatmamak için (2026-11-17,
+        # üçüncü tur durum makinesi taraması bulgu 2; tests/test_table_wizard.py
+        # test_wizard_SALT_OKUNURken_dialog_acilmiyor).
+        if editor.isReadOnly():
+            self._status.showMessage(_("Belge salt okunur"))
             return
         text = editor.text()
         pos = self._cursor_char_offset(editor)
@@ -136,6 +168,13 @@ class TableOpsMixin:
             # Bu fonksiyonun geri kalanı zaten her çıkışta sebebini söylüyor
             # ("İmleç bir tablo içinde değil", "hizalanacak satır yok").
             self._status.showMessage(_("Önce bir dosya açın"))
+            return
+        # SALT OKUNUR BELGE: sihirbazdakiyle aynı kapı. `replaceSelectedText`
+        # sessizce no-op oluyor ve "Tablo hizalandı" yalan oluyordu
+        # (2026-11-17, üçüncü tur durum makinesi taraması bulgu 2;
+        # tests/test_table_wizard.py test_align_table_SALT_OKUNURken_dokunmuyor).
+        if editor.isReadOnly():
+            self._status.showMessage(_("Belge salt okunur"))
             return
         text = editor.text()
         pos = self._cursor_char_offset(editor)
