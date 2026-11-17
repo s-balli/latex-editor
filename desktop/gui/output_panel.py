@@ -64,6 +64,20 @@ def _hint_templates() -> dict:
     }
 
 
+def _suggestion_templates() -> dict:
+    """log_parser'ın kimlikli önerilerinin çeviri kalıpları.
+
+    _hint_templates deseni: core (Qt'süz) Türkçe üretiyor, burada ÇAĞRI
+    anında çevriliyor. Kalıpsız öneri (message) kaynak dilde görünürdü
+    (ölçüldü: gerçek uygulama, WSLg, İngilizce arayüz, 2026-11-17;
+    tests/test_output_panel.py test_MOTOR_GEREKSINIMI_onerisi_katalogdan_geliyor).
+    """
+    return {
+        "engine_required": _(
+            "Bu belge {motor} gerektiriyor. Derleme motorunu {motor} olarak değiştirin."),
+    }
+
+
 # Öğenin, listenin KURULDUĞU metni (`_Taban`); bkz. `OutputPanel._taban`.
 # +1 Öneriler'de ipucu işareti (`_IPUCU_ROLE`), o yüzden +2.
 _TABAN = Qt.ItemDataRole.UserRole + 2
@@ -454,7 +468,10 @@ class OutputPanel(QWidget):
 
         # Öneriler
         for s in result.suggestions:
-            text = s.message
+            # Kimlikli öneri çeviri kalıbından; kimliksiz öneri ham mesaj
+            kalip = _suggestion_templates().get(getattr(s, "key", ""))
+            text = (kalip.format(**getattr(s, "args", {}))
+                    if kalip else s.message)
             if s.install_command:
                 text += f"\n    {s.install_command}"
             item = QListWidgetItem(text)
@@ -912,9 +929,13 @@ class OutputPanel(QWidget):
 
     def show_engine_hint(self, current: str, others: list[str]):
         """Başarısız derlemede motor değiştirme önerisini ekle ve tab'ı aç."""
+        # Bağlaç katalogdan: sabit " veya " İngilizce arayüzde de Türkçe
+        # görünüyordu (ölçüldü: gerçek uygulama, WSLg, 2026-11-17;
+        # tests/test_output_panel.py test_ENGINE_HINT_baglaci_katalogdan_geliyor).
+        other = (" " + _("veya") + " ").join(others)
         hint = QListWidgetItem(
             _("Derleme başarısız oldu. Şu an {current} kullanılıyor.\n    → Araç çubuğundan motoru {other} olarak değiştirip tekrar deneyin.").format(
-                current=current, other=" veya ".join(others))
+                current=current, other=other)
         )
         hint.setForeground(QColor(self._theme["sem_hint"]))
         hint.setData(self._IPUCU_ROLE, True)

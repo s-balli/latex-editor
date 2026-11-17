@@ -380,7 +380,6 @@ class MainWindow(
         self._setup_menus()
         self._setup_toolbar()
         self._setup_statusbar()
-        self._ceviri_yuklenemedi_uyarisi()
         self._connect_signals()
         self._restore_state()
         self._apply_theme()
@@ -415,6 +414,14 @@ class MainWindow(
         # pencere ancak yanıtladıktan sonra belirir. Kuyruğa alınca olay döngüsü
         # başladıktan sonra, pencere görünürken çalışır.
         QTimer.singleShot(0, self._recovery_prompt)
+
+        # Çeviri uyarısı açılış adımlarının EN SONUNDA: __init__ ortasında
+        # gösterilince açılış dosyasının "Motor algılandı" iletisi üstüne
+        # yazıyor, 15 sn'lik uyarıyı kullanıcı hiç göremiyordu (ölçüldü:
+        # gerçek uygulama, WSLg, 2026-11-17;
+        # tests/test_ana_pencere_yollari.py
+        # test_ACILIS_dosyasinin_motor_mesaji_UYARIYI_EZMIYOR).
+        QTimer.singleShot(0, self._ceviri_yuklenemedi_uyarisi)
 
     def _set_window_icon(self):
         if getattr(sys, 'frozen', False):
@@ -805,6 +812,9 @@ class MainWindow(
         "en" iken katalog yoksa arayüz Türkçe açılıyor, dil seçici yine
         "English" gösteriyor ve kullanıcı sebebini hiçbir yerden
         öğrenemiyordu. Dil seçicinin davranışı bilinçli olarak değişmedi.
+
+        Gösterim __init__ sonunda singleShot(0) ile (bkz. oradaki yorum):
+        ortasında gösterilince açılış iletileri eziyordu (2026-11-17).
         """
         from core.i18n import yukleme_hatasi
         if yukleme_hatasi:
@@ -1487,6 +1497,18 @@ class MainWindow(
             self._update_thread.deleteLater()
             self._update_thread = None
 
+    def _guncelleme_mesajini_temizle(self):
+        """Durum çubuğunu YALNIZ kendi denetim iletimiz ekrandaysa temizle.
+
+        Sessiz açılış denetimi bu iletiyi hiç göstermiyor; koşulsuz
+        showMessage("") o sırada ekranda duran 15 sn'lik çeviri uyarısını
+        silmiş oluyor (ölçüldü: gerçek uygulama, WSLg, 2026-11-17;
+        tests/test_ana_pencere_yollari.py
+        test_SESSIZ_guncelleme_denetimi_UYARIYI_SILMIYOR).
+        """
+        if self._status.currentMessage() == _("Güncellemeler kontrol ediliyor..."):
+            self._status.showMessage("")
+
     def _on_update_found(self, info: dict):
         """Yeni sürüm bulundu — kullanıcıya bildir."""
         # Başka bir modal açıksa (çökme sonrası kurtarma sorusu gibi) ertele:
@@ -1495,7 +1517,7 @@ class MainWindow(
         if QApplication.activeModalWidget() is not None:
             QTimer.singleShot(1000, lambda: self._on_update_found(info))
             return
-        self._status.showMessage("")
+        self._guncelleme_mesajini_temizle()
         tag = info.get("tag", "")
         url = info.get("url", "")
         notes = info.get("notes", "")
@@ -1552,7 +1574,7 @@ class MainWindow(
 
     def _on_no_update(self):
         """Güncelleme yok — sadece manuel kontrolde bilgi ver."""
-        self._status.showMessage("")
+        self._guncelleme_mesajini_temizle()
         if getattr(self, '_update_check_silent', True):
             return
         QMessageBox.information(self, _("Güncellemeleri Kontrol Et"),
@@ -1560,7 +1582,7 @@ class MainWindow(
 
     def _on_network_error(self):
         """Ağ hatası / rate limit — sadece manuel kontrolde bilgi ver."""
-        self._status.showMessage("")
+        self._guncelleme_mesajini_temizle()
         if getattr(self, '_update_check_silent', True):
             return
         QMessageBox.information(self, _("Güncellemeleri Kontrol Et"),

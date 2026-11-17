@@ -126,6 +126,9 @@ def guncelleme_diyalogu(qapp, monkeypatch):
             self._status = types.SimpleNamespace(
                 showMessage=lambda *a, **k: None)
 
+        def _guncelleme_mesajini_temizle(self):
+            pass              # _on_update_found 2026-11-17'den beri bakıyor
+
     def _calistir(info, tikla=False):
         yak = {}
 
@@ -722,15 +725,20 @@ def test_HARF_farki_DOSYA_SISTEMINE_gore_karar_veriyor(ana_pencere, tmp_path):
 # =====================================================================
 
 
-def test_KATALOG_yuklenemeyince_durum_cubugu_SOYLUYOR(ana_pencere, monkeypatch):
+def test_KATALOG_yuklenemeyince_durum_cubugu_SOYLUYOR(ana_pencere, monkeypatch,
+                                                     qapp):
     """Kayıtlı dil "en" iken katalog yoksa arayüz kaynak dilde (Türkçe)
     açılıyor; dil seçici yine "English" gösteriyordu ve sebebini söyleyen
     hiçbir şey yoktu. Kalıcı durum taraması, bulgu 4.
+
+    Uyarı 2026-11-17'den beri singleShot(0) ile gösteriliyor (açılış
+    iletileri ezmesin); olay döngüsü işletilmeden bakılmıyor.
     """
     import core.i18n as i18n
 
     monkeypatch.setattr(i18n, "yukleme_hatasi", "en", raising=False)
     w = ana_pencere()
+    _olay_dongusunu_islet(qapp)
     mesaj = w._status.currentMessage()
     assert "Türkçe" in mesaj, "uyarı durum çubuğunda yok: " + repr(mesaj)
     assert "en" in mesaj, mesaj
@@ -740,6 +748,75 @@ def test_KATALOG_yuklenemeyince_durum_cubugu_SOYLUYOR(ana_pencere, monkeypatch):
     # hapislerini de geri alır ve ikinci pencere GERÇEK yollara bakar.)
     monkeypatch.setattr(i18n, "yukleme_hatasi", None, raising=False)
     w2 = ana_pencere()
+    _olay_dongusunu_islet(qapp)
     assert "Türkçe" not in w2._status.currentMessage(), \
         "katalog yüklendiği hâlde uyarı gösteriliyor: " \
         + repr(w2._status.currentMessage())
+
+
+# =====================================================================
+# Çeviri uyarısı ekranda KALIYOR mu (2026-11-17 gerçek uygulama sınaması)
+#
+# Ölçüldü (gerçek uygulama, WSLg; katalog silinmiş kopya, dil "en"):
+# dosyasız açılışta 5. sn'de sessiz güncelleme denetimi bitince
+# _on_no_update/_on_network_error koşulsuz showMessage("") yapıyor,
+# dosyayla açılışta "Motor algılandı" iletisi uyarının üstüne yazıyordu.
+# =====================================================================
+
+
+def _olay_dongusunu_islet(qapp):
+    """singleShot(0) uyarısını kuyruktan çıkar (asılı test olmasın)."""
+    from PyQt6.QtTest import QTest
+    QTest.qWait(50)
+
+
+def test_ACILIS_dosyasinin_motor_mesaji_UYARIYI_EZMIYOR(ana_pencere, tmp_path,
+                                                        monkeypatch, qapp):
+    """Açılış dosyası "Motor algılandı: pdflatex" yazıyor; uyarı ondan
+    SONRA gösterilmeli ki 15 sn kullanıcıya görünsün."""
+    import core.i18n as i18n
+
+    monkeypatch.setattr(i18n, "yukleme_hatasi", "en", raising=False)
+    tex = tmp_path / "main.tex"
+    # Düz belge: motor algısı "pdflatex"e düşer, kutu "lualatex" kalır;
+    # fark varsa "Motor algılandı" iletisi ÇIKAR (ezme koşulu).
+    tex.write_text("\\documentclass{article}\n\\begin{document}\nx\n"
+                   "\\end{document}\n", encoding="utf-8")
+
+    w = ana_pencere(open_file=str(tex))
+    _olay_dongusunu_islet(qapp)
+
+    mesaj = w._status.currentMessage()
+    assert "Türkçe" in mesaj, \
+        "uyarı açılış dosyasının iletisiyle ezildi: " + repr(mesaj)
+
+
+def test_SESSIZ_guncelleme_denetimi_UYARIYI_SILMIYOR(ana_pencere, monkeypatch,
+                                                     qapp):
+    """Sessiz açılış denetimi bittiğinde (_on_no_update) başkasının
+    durum çubuğu iletisi silinmemeli."""
+    import core.i18n as i18n
+
+    monkeypatch.setattr(i18n, "yukleme_hatasi", "en", raising=False)
+    w = ana_pencere()
+    _olay_dongusunu_islet(qapp)
+    assert "Türkçe" in w._status.currentMessage()
+
+    w._on_no_update()          # sessiz: _update_check_silent True
+    mesaj = w._status.currentMessage()
+    assert "Türkçe" in mesaj, "sessiz denetim uyarıyı sildi: " + repr(mesaj)
+
+
+def test_MANUEL_denetim_kendi_mesajini_TEMIZLIYOR(ana_pencere, monkeypatch):
+    """Kontrol kolu: denetimin KENDİ 'Güncellemeler kontrol ediliyor...'
+    iletisi ekrandaysa _on_no_update onu temizlemeli."""
+    import core.i18n as i18n
+    import gui.main_window as mw
+
+    monkeypatch.setattr(i18n, "yukleme_hatasi", None, raising=False)
+    w = ana_pencere()
+    w._status.showMessage(mw._("Güncellemeler kontrol ediliyor..."))
+    w._on_no_update()
+    assert w._status.currentMessage() == "", \
+        "kendi denetim iletisi temizlenmedi: " \
+        + repr(w._status.currentMessage())

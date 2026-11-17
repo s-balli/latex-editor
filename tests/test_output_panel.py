@@ -7,6 +7,7 @@ sekmesinde doktor satırı getirmeli; motor değiştirme önerisi getirmemeli.
 import pytest
 
 try:
+    from PyQt6.QtCore import QTranslator
     from PyQt6.QtWidgets import QApplication
     from gui.output_panel import OutputPanel
     from gui.theme import THEMES
@@ -367,3 +368,71 @@ def test_hata_ve_uyari_satiri_DOSYA_ADINI_soyluyor(qapp):
     assert hatalar == ["Chapter1.tex, satır 2", "main.tex, satır 4"]
     uyari = p._warn_list.item(0).text()
     assert uyari.startswith("Chapter1.tex, satır 1: "), uyari
+
+
+# =====================================================================
+# Öneri metinlerinin çeviri yolu (2026-11-17 gerçek uygulama sınaması)
+#
+# Ölçüldü (gerçek uygulama, WSLg; İngilizce arayüz): show_engine_hint
+# bağlacı sabit " veya " idi, log_parser'ın motor gereksinimi önerisi
+# çeviriden geçmiyordu. Gerçek latexeditor_en.qm yeni metinleri henüz
+# taşımıyor (çeviri dosyaları ayrı adımda güncelleniyor); test sabit
+# eşlemeli bir çevirmenle _() yolunu ve kaynak anahtarları sınıyor.
+# =====================================================================
+
+
+class _SabitCevirmen(QTranslator):
+    """Kaynak dizgiyi sözlükten çeviren test kataloğu."""
+
+    def __init__(self, sozluk):
+        super().__init__()
+        self._sozluk = sozluk
+
+    def translate(self, context, sourceText, disambiguation="", n=-1):
+        # Sözlükte olmayan kaynağa None: çeviri yok (null). Boş dize dönmek
+        # Qt'de "geçerli ama boş çeviri" sayılır ve kaynak metni boşaltır.
+        return self._sozluk.get(sourceText)
+
+
+_YENI_METINLER = {
+    "Bu belge {motor} gerektiriyor. Derleme motorunu {motor} olarak değiştirin.":
+        "This document needs {motor}. Change the compiler engine to {motor}.",
+    "veya": "or",
+}
+
+
+def test_MOTOR_GEREKSINIMI_onerisi_katalogdan_geliyor(qapp):
+    from core.log_parser import parse_output
+
+    p = _panel()
+    ceviren = _SabitCevirmen(_YENI_METINLER)
+    qapp.installTranslator(ceviren)
+    try:
+        ham = ("  /usr/share/texlive/texmf-dist/tex/latex/fontspec/"
+               "fontspec.sty:45: Fatal Package fontspec Error: The fontspec "
+               "package requires either XeTeX or\n"
+               "  (fontspec)                      LuaTeX.\n")
+        p.show_result(parse_output(ham, "main.tex"))
+    finally:
+        qapp.removeTranslator(ceviren)
+
+    oneriler = _suggest_texts(p)
+    assert any("needs lualatex" in t for t in oneriler), oneriler
+    assert not any("gerektiriyor" in t for t in oneriler), \
+        "motor önerisi çeviriden geçmiyor: " + repr(oneriler)
+    p.deleteLater()
+
+
+def test_ENGINE_HINT_baglaci_katalogdan_geliyor(qapp):
+    p = _panel()
+    ceviren = _SabitCevirmen(_YENI_METINLER)
+    qapp.installTranslator(ceviren)
+    try:
+        p.show_engine_hint("pdflatex", ["lualatex", "xelatex"])
+    finally:
+        qapp.removeTranslator(ceviren)
+
+    hint = p._suggest_list.item(0).text()
+    assert "lualatex or xelatex" in hint, hint
+    assert " veya " not in hint, "bağlaç çevrilebilir değil: " + repr(hint)
+    p.deleteLater()

@@ -567,3 +567,47 @@ def test_SYNCTEX_TASINAMAYINCA_uyari_mesaja_giriyor(qapp, tmp_path):
 
     assert "Başarılı" in stub._status.msg, "derleme sonucu mesajdan gitti"
     assert "SyncTeX" in stub._status.msg, "taşıma hatası mesaja girmedi"
+
+
+# =====================================================================
+# Zaman aşımında motor önerisi YOK (2026-11-17 gerçek uygulama sınavı)
+#
+# Ölçüldü (gerçek uygulama, WSLg): sonsuz döngüye giren belge 123,7 sn'de
+# zaman aşımıyla kesilince Öneriler "Try changing the engine" dedi; motor
+# değiştirmek sonsuz döngüyü düzeltmez. Zaman aşımının kendi hata iletisi
+# panelde zaten var.
+# =====================================================================
+
+
+def test_ZAMAN_ASIMINDA_motor_onerisi_YOK(ana_pencere, monkeypatch):
+    from unittest.mock import MagicMock
+    from PyQt6.QtCore import QProcess
+    from core.compiler import LatexCompiler
+    from core.log_parser import parse_output
+
+    c = LatexCompiler()
+    c.process = MagicMock()
+    c.process.state.return_value = QProcess.ProcessState.Running
+    c.process.processId.return_value = 0
+    sonuclar = []
+    c.compilation_finished.connect(sonuclar.append)
+    c._on_timeout()
+    assert sonuclar[0].zaman_asimi
+
+    p = ana_pencere()
+    op = p._output_panel
+    p._compile_target = "main.tex"
+    p._compile_engine = "pdflatex"
+
+    p._on_compile_finished(sonuclar[0])
+    assert op._suggest_list.count() == 0, \
+        "zaman aşımında motor önerisi çıkıyor: " \
+        + repr([op._suggest_list.item(i).text()
+                for i in range(op._suggest_list.count())])
+
+    # Kontrol kolu: sebebi bilinmeyen GERÇEK başarısızlıkta öneri kalmalı
+    p._on_compile_finished(parse_output(
+        "  /home/u/y/main.tex:3: Lorem ipsum dolor sit amet.\n"
+        "  l.3 x\n", "main.tex"))
+    assert op._suggest_list.count() == 1, \
+        "tanınmayan başarısızlıkta genel öneri çıkmıyor"

@@ -50,6 +50,9 @@ class _SahtePencere:
     _status = _Durum()
     _theme_mgr = _Tema()
 
+    def _guncelleme_mesajini_temizle(self):
+        pass              # _on_update_found 2026-11-17'den beri bakıyor
+
 
 @pytest.fixture(scope="module")
 def qapp():
@@ -179,6 +182,7 @@ def test_GERCEK_pencerede_dugmeler_dogru_isliyor(qapp, monkeypatch, dugme,
     pencere = QWidget()
     pencere._theme_mgr = types.SimpleNamespace(theme=THEMES["dark"])
     pencere._status = types.SimpleNamespace(showMessage=lambda *a: None)
+    pencere._guncelleme_mesajini_temizle = lambda: None
 
     mw.MainWindow._on_update_found(pencere, _bilgi("- madde"))
 

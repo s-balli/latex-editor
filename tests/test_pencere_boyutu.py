@@ -157,6 +157,7 @@ def yardim_ac(monkeypatch):
         ebeveyn = QWidget()
         ebeveyn._theme_mgr = types.SimpleNamespace(theme=THEMES["dark"])
         ebeveyn._status = types.SimpleNamespace(showMessage=lambda *a: None)
+        ebeveyn._guncelleme_mesajini_temizle = lambda: None
         ebeveyn.screen = lambda: _Ekran(alan)
         ebeveynler.append(ebeveyn)   # diyalog onun çocuğu, silinmesin
         cagri(ebeveyn)
@@ -282,6 +283,7 @@ def test_yardim_penceresi_kapaninca_siliniyor(monkeypatch):
     ebeveyn = QWidget()
     ebeveyn._theme_mgr = types.SimpleNamespace(theme=THEMES["dark"])
     ebeveyn._status = types.SimpleNamespace(showMessage=lambda *a: None)
+    ebeveyn._guncelleme_mesajini_temizle = lambda: None
     assert mw.yardim_penceresi(ebeveyn, THEMES["dark"], "Başlık",
                                "içerik", 400) is False
     assert acilan and isinstance(acilan[0], QDialog), "pencere açılmadı"

@@ -31,6 +31,11 @@ class LatexWarning:
 class LatexSuggestion:
     message: str = ""
     install_command: str = ""
+    # Çevrilebilir öneri: core Qt'süz kalıyor, GUI bu kimlikle çeviri kalıbını
+    # seçiyor (_hint_templates deseni, bkz. output_panel._suggestion_templates).
+    # message kaynak dilde üretilmeye devam ediyor; key'siz öneri ham görünür.
+    key: str = ""
+    args: dict = field(default_factory=dict)
 
 
 @dataclass
@@ -627,8 +632,15 @@ def parse_output(raw: str, source_file: str = "") -> CompileResult:
             secenekler = [MOTOR_TAKMA_ADLARI[g.lower()] for g in m.groups() if g]
             required = ("lualatex" if "lualatex" in secenekler
                         else secenekler[0])
+            # key + args ile panele çeviri kalıbı seçtiriliyor: mesaj
+            # çeviriden geçmiyordu ve İngilizce arayüzde Türkçe görünüyordu
+            # (ölçüldü: gerçek uygulama, WSLg, 2026-11-17;
+            # tests/test_output_panel.py
+            # test_MOTOR_GEREKSINIMI_onerisi_katalogdan_geliyor).
             result.suggestions.append(LatexSuggestion(
                 message=f"Bu belge {required} gerektiriyor. Derleme motorunu {required} olarak değiştirin.",
+                key="engine_required",
+                args={"motor": required},
             ))
             break
 

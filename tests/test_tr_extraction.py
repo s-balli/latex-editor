@@ -145,17 +145,28 @@ def test_bozuk_dosya_hata_koduyla_doner(tmp_path, capsys):
 # --- katalog eksiksizliği (asıl kapı) ---
 
 
-def _katalog_kaynaklari() -> set[str]:
-    """.ts içindeki KULLANILABİLİR <source> metinleri (vanished/obsolete hariç)."""
+def _katalog_kaynaklari() -> set[tuple[str, str]]:
+    """.ts içindeki KULLANILABİLİR (bağlam, kaynak) çiftleri (vanished/obsolete hariç).
+
+    Bağlam da sayılıyor: `_()` çevirisi bağlama duyarlı
+    (core/i18n.py: QCoreApplication.translate(ctx, metin)). Yalnız metne
+    bakan eski kapı, "Belge salt okunur" ImageOps, YazimOps ve TableOps
+    bağlamlarında katalogda YOKKEN geçti (yalnız FindReplace'te vardı);
+    İngilizce arayüzde o üç yerde metin Türkçe görünüyordu (2026-11-17).
+    """
     ts = _TS_EN.read_text(encoding="utf-8")
     canli = set()
-    for blok in re.findall(r"<message>.*?</message>", ts, re.S):
-        if 'type="vanished"' in blok or 'type="obsolete"' in blok:
+    for ctx_blok in re.findall(r"<context>.*?</context>", ts, re.S):
+        ad = re.search(r"<name>(.*?)</name>", ctx_blok, re.S)
+        if not ad:
             continue
-        m = re.search(r"<source>(.*?)</source>", blok, re.S)
-        if m:
-            canli.add(m.group(1).replace("&amp;", "&")
-                      .replace("&lt;", "<").replace("&gt;", ">"))
+        for blok in re.findall(r"<message>.*?</message>", ctx_blok, re.S):
+            if 'type="vanished"' in blok or 'type="obsolete"' in blok:
+                continue
+            m = re.search(r"<source>(.*?)</source>", blok, re.S)
+            if m:
+                canli.add((ad.group(1), m.group(1).replace("&amp;", "&")
+                           .replace("&lt;", "<").replace("&gt;", ">")))
     return canli
 
 
@@ -168,8 +179,8 @@ def _katalog_kaynaklari() -> set[str]:
 _TARANAN = ["desktop/gui", "desktop/main.py", "core"]
 
 
-def _kaynak_dizgeleri() -> list[tuple[str, int, str]]:
-    """Koddaki tüm _( "sabit" ) çağrıları: (dosya, satır, metin)."""
+def _kaynak_dizgeleri() -> list[tuple[str, int, str, str]]:
+    """Koddaki tüm _( "sabit" ) çağrıları: (dosya, satır, bağlam, metin)."""
     ciktilar = subprocess.run(
         ["git", "ls-files"] + _TARANAN,
         cwd=_REPO, capture_output=True, text=True, check=True, encoding="utf-8").stdout.split()
@@ -178,8 +189,13 @@ def _kaynak_dizgeleri() -> list[tuple[str, int, str]]:
         if not rel.endswith(".py"):
             continue
         tree = ast.parse((_REPO / rel).read_text(encoding="utf-8"))
+        # Bağlam, update_translations.sh'in kullandığı yoldan; kısayolu
+        # tanımlamayan dosyadaki çağrı kataloğa zaten giremez.
+        baglam = extract_tr.bul_baglam(tree)
+        if not baglam:
+            continue
         for lineno, metin in extract_tr.topla(tree)[0]:
-            bulunan.append((rel, lineno, metin))
+            bulunan.append((rel, lineno, baglam, metin))
     return bulunan
 
 
@@ -193,9 +209,10 @@ def test_tum_cevrilebilir_dizgeler_katalogda():
     ardından latexeditor_en.ts içindeki yeni unfinished girdileri doldur.
     """
     canli = _katalog_kaynaklari()
-    eksik = [(f, ln, m) for f, ln, m in _kaynak_dizgeleri() if m not in canli]
+    eksik = [(f, ln, c, m) for f, ln, c, m in _kaynak_dizgeleri()
+             if (c, m) not in canli]
     assert not eksik, "katalogda karşılığı olmayan dizgeler:\n" + "\n".join(
-        f"  {f}:{ln}  {m[:70]!r}" for f, ln, m in eksik)
+        f"  {f}:{ln}  [{c}] {m[:70]!r}" for f, ln, c, m in eksik)
 
 
 @pytest.mark.skipif(not _TS_EN.exists(), reason="çeviri kataloğu yok")

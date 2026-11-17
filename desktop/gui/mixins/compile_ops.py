@@ -652,7 +652,12 @@ class CompileOpsMixin:
                 getattr(self, "_compile_target", "") or "")
         self._output_panel.show_result(result)
 
-        if failed and not _basarisizlik_aciklandi(result):
+        # Zaman aşımında motor önerisi YOK: motor değiştirmek sonsuz döngüyü
+        # düzeltmez; zaman aşımının kendi hata iletisi panelde zaten var
+        # (ölçüldü: gerçek uygulama, WSLg, 2026-11-17;
+        # tests/test_compile_ops.py test_ZAMAN_ASIMINDA_motor_onerisi_YOK).
+        if (failed and not getattr(result, "zaman_asimi", False)
+                and not _basarisizlik_aciklandi(result)):
             # Derlemeye GİDEN motor. Ağaçtan başka bir belge derlendiyse
             # kutu o motoru göstermiyor.
             current = (getattr(self, "_compile_engine", "")
