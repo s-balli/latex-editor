@@ -53,6 +53,17 @@ Editörde bir satıra Ctrl+Click → PDF o konuma, sayfalar arası bile zıplar.
 
 ## Sürüm Geçmişi
 
+### v1.2.7: Güvenilirlik
+
+- **Sürüm alınırken uygulamayı kapatmak artık sürüm geçmişini bozmuyor.** Uygulama 15 saniyeye kadar donup sürüm almayı yarıda kesiyordu; geride bir kilit dosyası kalıyor ve o dosya elle silinene kadar her Ctrl+K başarısız oluyordu. Artık küçük bir pencere sürüm almanın bitmesini bekliyor ("Beklemeden kapat" düğmesiyle), yine de kesilen bir sürüm almayı sonraki Ctrl+K kendisi onarıyor.
+- **Uygulama kapandıktan sonra derleme sürmüyor.** Bitmeyen bir derleme sırasında uygulamayı kapatmak ya da uygulamanın çökmesi `pdflatex`'i tam işlemci gücüyle çalışır bırakıyordu. Windows, Linux ve macOS'ta düzeltildi.
+- **Derleme.** Zaman aşımına uğrayan derleme son sağlam PDF'i koruyor ve sonsuz döngüyü çözemeyecek olan "motoru değiştir" önerisini artık vermiyor. Derleme sürerken başka bir klasör açmak eski projeyi geri getirmiyor.
+- **Dışa aktarma.** Windows'ta Windows satır sonlu belgelerde satır sonları artık çift olmuyor. Bilgisayar açıldıktan hemen sonra pandoc yanlışlıkla "kurulu değil" sayıldığı için Dışa Aktar kilitlenmiyor. Markdown'a aktarılan elle yazılmış kaynakçalar artık "00" ile başlamıyor.
+- **Hatalar gizlenmek yerine bildiriliyor.** Başarılı görünen ya da hiçbir şey göstermeyen bazı sorunlar artık ne olduğunu söylüyor: eksik İngilizce çeviri dosyası, okunamayan kişisel sözlük (değiştirilmeden önce yedekleniyor), geride kalmış tek örnek kilidi ve sürüm geri yüklenirken salt okunur olan belgede yapılmak istenen düzenlemeler.
+- **Uzun oturumlar daha az bellek kullanıyor.** Görünümden uzak PDF sayfalarının görüntüleri bırakılıyor (136 sayfalık bir PDF 450 MB'a çıkmak yerine 150 MB civarında kaldı), diyaloglar kapanınca bellekten siliniyor, çöken oturumların bıraktığı geçici klasörler temizleniyor.
+- **İngilizce arayüz artık Türkçe ileti göstermiyor:** motor önerisi, derleme zaman aşımı ve dışa aktarma hataları çevriliyor.
+- **Küçük düzeltmeler.** Birden çok kaydedilmemiş sekmeyle kapatırken sorulardan biri artık atlanmıyor. Otomatik kayıttaki "Kendiminkini Koru" kararı dosya yeniden adlandırılınca da hatırlanıyor. Yakınlaştırma PDF'teki metin seçimini artık silmiyor. Sürümden geri yükleme pencereyi dondurmuyor, güncelleme bildirimi başka bir sorunun üstüne açılmıyor.
+
 ### v1.2.6: Türkçe Q'da Ctrl++
 
 - **Ctrl++ artık Türkçe Q klavyede editördeki yazıyı büyütüyor.** Bu düzende + işareti Shift+4'te; tuş Shift basılı geldiği için editör onu Ctrl++ saymıyordu. Ctrl+- yazıyı küçültüyor, geri büyütmenin tek yolu Ctrl+Numpad+ oluyordu.

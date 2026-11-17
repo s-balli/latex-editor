@@ -53,6 +53,17 @@ Ctrl+Click a line in the editor → the PDF jumps to it, even across pages. Ctrl
 
 ## Version History
 
+### v1.2.7: Reliability
+
+- **Closing the app while a version snapshot runs no longer breaks the version history.** The app used to freeze for up to 15 seconds and then cut the snapshot, which left a lock file behind; after that every Ctrl+K failed until the file was deleted by hand. Now a small window waits for the snapshot (with a "Close without waiting" button), and a snapshot that was cut anyway is repaired by the next Ctrl+K.
+- **A compile no longer keeps running after the app is gone.** Closing the app, or the app crashing, during a compile that never ends left `pdflatex` running at full CPU. This is fixed on Windows, Linux and macOS.
+- **Compiling.** A compile that times out keeps the last good PDF and no longer suggests switching engines, which cannot fix an endless loop. Opening another folder during a compile no longer brings the old project back.
+- **Export.** On Windows, documents with Windows line endings no longer get doubled line breaks. Right after the computer starts, Export is no longer locked because pandoc was wrongly reported as missing. Hand-written bibliographies exported to Markdown no longer start with "00".
+- **Failures are reported instead of hidden.** Several problems that looked like success, or showed nothing, now say what happened: a missing English translation file, an unreadable personal dictionary (it is backed up before being replaced), a leftover single-instance lock, and edits attempted in a document that is read-only while a version is restored.
+- **Long sessions use less memory.** Images of PDF pages far from view are released (a 136-page PDF stayed near 150 MB instead of growing to 450 MB), dialogs are freed when closed, and temporary folders left by crashed sessions are cleaned up.
+- **The English interface no longer shows Turkish messages** for the engine suggestion, compile timeouts and export errors.
+- **Smaller fixes.** Closing with several unsaved tabs no longer skips one of the questions. The autosave "Keep mine" choice survives renaming the file. Zooming keeps the PDF text selection. Restoring a version no longer freezes the window, and the update notice no longer opens on top of another question.
+
 ### v1.2.6: Ctrl++ on Turkish Q
 
 - **Ctrl++ now enlarges the editor text on the Turkish Q keyboard.** There the + sign is Shift+4, so the key arrives with Shift held and the editor did not treat it as Ctrl++. Ctrl+- made the text smaller, and the only way back was Ctrl+Numpad+.
