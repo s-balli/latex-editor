@@ -181,30 +181,35 @@ Bu izin belgenin BİLGİSAYARINIZDA KOMUT ÇALIŞTIRMASINA olanak verir. Yalnız
 </context><context>
     <name>Compiler</name>
     <message>
-        <location filename="../../core/compiler.py" line="414" />
-        <location filename="../../core/compiler.py" line="345" />
+        <location filename="../../core/compiler.py" line="446" />
+        <location filename="../../core/compiler.py" line="377" />
         <source>WSL bulunamadı</source>
         <translation>WSL bulunamadı</translation>
     </message>
     <message>
-        <location filename="../../core/compiler.py" line="350" />
+        <location filename="../../core/compiler.py" line="382" />
         <source>WSL derlemeyi başlatamadı, dağıtım kurulu olmayabilir</source>
         <translation>WSL derlemeyi başlatamadı, dağıtım kurulu olmayabilir</translation>
     </message>
     <message>
-        <location filename="../../core/compiler.py" line="398" />
+        <location filename="../../core/compiler.py" line="430" />
         <source>Derleme hatası</source>
         <translation>Derleme hatası</translation>
     </message>
     <message>
-        <location filename="../../core/compiler.py" line="401" />
+        <location filename="../../core/compiler.py" line="433" />
         <source>Süreç başlatılamadı, WSL yüklü mü?</source>
         <translation>Süreç başlatılamadı, WSL yüklü mü?</translation>
     </message>
     <message>
-        <location filename="../../core/compiler.py" line="403" />
+        <location filename="../../core/compiler.py" line="435" />
         <source>Süreç başlatılamadı, bash/derle.sh bulunamadı</source>
         <translation>Süreç başlatılamadı, bash/derle.sh bulunamadı</translation>
+    </message>
+    <message>
+        <location filename="../../core/compiler.py" line="505" />
+        <source>Derleme zaman aşımına uğradı ({sure}s), iptal edildi.</source>
+        <translation>Derleme zaman aşımına uğradı ({sure}s), iptal edildi.</translation>
     </message>
 </context><context>
     <name>DoiFetch</name>
@@ -778,6 +783,11 @@ Dosya UTF-8'e dönüştürülsün mü? (önerilen)</translation>
 </context><context>
     <name>Exporter</name>
     <message>
+        <location filename="../../core/exporter.py" line="122" />
+        <source>Kaynak dosya bulunamadı</source>
+        <translation>Kaynak dosya bulunamadı</translation>
+    </message>
+    <message>
         <location filename="../../core/exporter.py" line="157" />
         <source>resim yolları düzeltilemedi</source>
         <translation>resim yolları düzeltilemedi</translation>
@@ -807,6 +817,33 @@ Dosya UTF-8'e dönüştürülsün mü? (önerilen)</translation>
         <location filename="../../core/exporter.py" line="536" />
         <source>sonuç yazılamadı</source>
         <translation>sonuç yazılamadı</translation>
+    </message>
+    <message>
+        <location filename="../../core/exporter.py" line="1105" />
+        <location filename="../../core/exporter.py" line="1060" />
+        <source>Dışa aktarma başarısız</source>
+        <translation>Dışa aktarma başarısız</translation>
+    </message>
+    <message>
+        <location filename="../../core/exporter.py" line="1129" />
+        <location filename="../../core/exporter.py" line="1063" />
+        <source>İşlem zaman aşımına uğradı</source>
+        <translation>İşlem zaman aşımına uğradı</translation>
+    </message>
+    <message>
+        <location filename="../../core/exporter.py" line="1066" />
+        <source>pandoc bulunamadı, kurmak için (WSL içinde): {komut}</source>
+        <translation>pandoc bulunamadı, kurmak için (WSL içinde): {komut}</translation>
+    </message>
+    <message>
+        <location filename="../../core/exporter.py" line="1068" />
+        <source>pandoc bulunamadı, kurmak için: {komut}</source>
+        <translation>pandoc bulunamadı, kurmak için: {komut}</translation>
+    </message>
+    <message>
+        <location filename="../../core/exporter.py" line="1125" />
+        <source>Çıktı dosyası kopyalanamadı</source>
+        <translation>Çıktı dosyası kopyalanamadı</translation>
     </message>
 </context><context>
     <name>FileOpsMixin</name>

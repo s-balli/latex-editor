@@ -181,30 +181,35 @@ Enable it for '{k}'?
 </context><context>
     <name>Compiler</name>
     <message>
-        <location filename="../../core/compiler.py" line="414" />
-        <location filename="../../core/compiler.py" line="345" />
+        <location filename="../../core/compiler.py" line="446" />
+        <location filename="../../core/compiler.py" line="377" />
         <source>WSL bulunamadı</source>
         <translation>WSL not found</translation>
     </message>
     <message>
-        <location filename="../../core/compiler.py" line="350" />
+        <location filename="../../core/compiler.py" line="382" />
         <source>WSL derlemeyi başlatamadı, dağıtım kurulu olmayabilir</source>
         <translation>WSL could not start the compile; a distribution may not be installed</translation>
     </message>
     <message>
-        <location filename="../../core/compiler.py" line="398" />
+        <location filename="../../core/compiler.py" line="430" />
         <source>Derleme hatası</source>
         <translation>Compilation error</translation>
     </message>
     <message>
-        <location filename="../../core/compiler.py" line="401" />
+        <location filename="../../core/compiler.py" line="433" />
         <source>Süreç başlatılamadı, WSL yüklü mü?</source>
         <translation>Could not start process, is WSL installed?</translation>
     </message>
     <message>
-        <location filename="../../core/compiler.py" line="403" />
+        <location filename="../../core/compiler.py" line="435" />
         <source>Süreç başlatılamadı, bash/derle.sh bulunamadı</source>
         <translation>Could not start process, bash/derle.sh not found</translation>
+    </message>
+    <message>
+        <location filename="../../core/compiler.py" line="505" />
+        <source>Derleme zaman aşımına uğradı ({sure}s), iptal edildi.</source>
+        <translation>Compilation timed out ({sure}s) and was cancelled.</translation>
     </message>
 </context><context>
     <name>DoiFetch</name>
@@ -778,6 +783,11 @@ Convert the file to UTF-8? (recommended)</translation>
 </context><context>
     <name>Exporter</name>
     <message>
+        <location filename="../../core/exporter.py" line="122" />
+        <source>Kaynak dosya bulunamadı</source>
+        <translation>Source file not found</translation>
+    </message>
+    <message>
         <location filename="../../core/exporter.py" line="157" />
         <source>resim yolları düzeltilemedi</source>
         <translation>image paths could not be fixed</translation>
@@ -807,6 +817,33 @@ Convert the file to UTF-8? (recommended)</translation>
         <location filename="../../core/exporter.py" line="536" />
         <source>sonuç yazılamadı</source>
         <translation>result could not be written</translation>
+    </message>
+    <message>
+        <location filename="../../core/exporter.py" line="1105" />
+        <location filename="../../core/exporter.py" line="1060" />
+        <source>Dışa aktarma başarısız</source>
+        <translation>Export failed</translation>
+    </message>
+    <message>
+        <location filename="../../core/exporter.py" line="1129" />
+        <location filename="../../core/exporter.py" line="1063" />
+        <source>İşlem zaman aşımına uğradı</source>
+        <translation>The operation timed out</translation>
+    </message>
+    <message>
+        <location filename="../../core/exporter.py" line="1066" />
+        <source>pandoc bulunamadı, kurmak için (WSL içinde): {komut}</source>
+        <translation>pandoc not found, to install it (inside WSL): {komut}</translation>
+    </message>
+    <message>
+        <location filename="../../core/exporter.py" line="1068" />
+        <source>pandoc bulunamadı, kurmak için: {komut}</source>
+        <translation>pandoc not found, to install it: {komut}</translation>
+    </message>
+    <message>
+        <location filename="../../core/exporter.py" line="1125" />
+        <source>Çıktı dosyası kopyalanamadı</source>
+        <translation>The output file could not be copied</translation>
     </message>
 </context><context>
     <name>FileOpsMixin</name>

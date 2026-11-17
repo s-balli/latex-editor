@@ -499,7 +499,11 @@ class LatexCompiler(QObject):
         self._sureci_oldur()
         self.process.waitForFinished(3000)
         sure = max(1, self._timeout_ms // 1000)
-        msg = f"Derleme zaman aşımına uğradı ({sure}s), iptal edildi."
+        # Çeviriden geçiyor: İngilizce arayüzde Hatalar sekmesi bu iletiyi
+        # Türkçe gösteriyordu (ölçüldü: gerçek uygulama, WSLg, 2026-11-17;
+        # tests/test_hata_metinleri_ceviri.py).
+        msg = _("Derleme zaman aşımına uğradı ({sure}s), iptal edildi.").format(
+            sure=sure)
         self.output_line.emit(f"[hata] {msg}\n")
         result = CompileResult(success=False, zaman_asimi=True)
         result.errors = [LatexError(message=msg)]

@@ -119,7 +119,7 @@ def export(tex_path: str, dest_path: str) -> tuple[bool, str]:
     olabilir; çağıran (file_ops._on_export_done) mesaja yansıtmak zorunda.
     """
     if not os.path.exists(tex_path):
-        return False, "Kaynak dosya bulunamadı"
+        return False, _("Kaynak dosya bulunamadı")
 
     # Önişle: elsarticle frontmatter'ını soy, abstract/title'ı gövdeye taşı.
     # Bibliography (.bib) tespit et ki referanslar çözülsün.
@@ -1057,14 +1057,16 @@ def _export_native(tex_path: str, dest_path: str, bibs=(),
         )
         if r.returncode != 0:
             _logger.warning("Export başarısız (native): %s → %s (%s)", tex_path, dest_path, r.stderr)
-            return False, r.stderr.strip() or "Dışa aktarma başarısız"
+            return False, r.stderr.strip() or _("Dışa aktarma başarısız")
         return True, ""
     except subprocess.TimeoutExpired:
-        return False, "İşlem zaman aşımına uğradı"
+        return False, _("İşlem zaman aşımına uğradı")
     except FileNotFoundError:
-        return False, ("pandoc bulunamadı, kurmak için: "
-                       + ("WSL içinde " if pandoc_wsl_icinde() else "")
-                       + pandoc_kurulum_komutu())
+        # Tümce tek parça: çevirmen "WSL içinde"yi bağlamıyla görsün.
+        kalip = (_("pandoc bulunamadı, kurmak için (WSL içinde): {komut}")
+                 if pandoc_wsl_icinde()
+                 else _("pandoc bulunamadı, kurmak için: {komut}"))
+        return False, kalip.format(komut=pandoc_kurulum_komutu())
     except Exception as e:
         return False, str(e)
 
@@ -1100,7 +1102,7 @@ def _export_wsl(tex_path: str, dest_path: str, bibs=(),
         )
         if r.returncode != 0:
             _logger.warning("Export başarısız (WSL): %s → %s (%s)", tex_path, dest_path, r.stderr)
-            return False, r.stderr.strip() or "Dışa aktarma başarısız"
+            return False, r.stderr.strip() or _("Dışa aktarma başarısız")
 
         # Çıktıyı WSL'den Windows'a kopyala
         r2 = subprocess.run(
@@ -1120,11 +1122,11 @@ def _export_wsl(tex_path: str, dest_path: str, bibs=(),
                 with open(dest_path, "wb") as f:
                     f.write(r3.stdout)
             else:
-                return False, "Çıktı dosyası kopyalanamadı"
+                return False, _("Çıktı dosyası kopyalanamadı")
 
         return True, ""
     except subprocess.TimeoutExpired:
-        return False, "İşlem zaman aşımına uğradı"
+        return False, _("İşlem zaman aşımına uğradı")
     except Exception as e:
         return False, str(e)
     finally:
