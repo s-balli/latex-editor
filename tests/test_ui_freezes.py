@@ -286,35 +286,149 @@ def test_snapshot_runner_wait(qapp, tmp_path, monkeypatch):
     assert not runner._thread.is_alive()
 
 
-def test_wait_background_writers_hepsini_bekler(qapp):
-    """MainWindow.closeEvent kancası: tanımlı her yazıcıyı bekler, yoksa atlar."""
+def test_snapshot_KILIT_hatasi_yolu_soyluyor(qapp, tmp_path, monkeypatch):
+    """Kalan kilit (taze ya da index.lock) hatası ham `(yol, yol.lock)`
+    demeti olarak görünüyordu; ileti silinecek dosyayı söylemeli."""
+    pytest.importorskip("dulwich")
+    from dulwich.file import FileLocked
+    import gui.mixins.version_ops as vo
+
+    kilit = str(tmp_path / ".git" / "index.lock")
+
+    def _kilitli(root, msg):
+        raise FileLocked(str(tmp_path / ".git" / "index"), kilit)
+
+    monkeypatch.setattr(vo.versioning, "snapshot", _kilitli)
+    runner = vo._SnapshotRunner()
+    sonuc = []
+    runner.done.connect(lambda ok, hata, entry: sonuc.append((ok, hata)))
+    runner.start(str(tmp_path), "mesaj", first=False)
+    assert runner.wait(5000)
+    qapp.processEvents()
+    assert sonuc and sonuc[0][0] is False
+    assert kilit in sonuc[0][1], sonuc
+    assert not sonuc[0][1].startswith("("), "ham demet gösteriliyor: " + sonuc[0][1]
+
+
+# --- kapanışta arka plan işlerini bekleme (2026-11-17) ---
+#
+# Eskiden her iş için sabit süre (sürüm alma 15 sn) ana thread'de `join`
+# ediliyordu: pencere o süre DONUYOR, süre dolunca iş yine kesiliyordu.
+# Yavaş klasörde sürüm alma 64-69 sn sürüyor ve kesilen sürüm alma
+# `.git/objects` içinde kilit bırakıp sonraki her kaydı düşürüyordu
+# (ölçüldü 2026-11-17; kilit tarafı tests/test_versioning.py TestBayatKilit).
+
+
+class _BitmeyenIs:
+    """Kapanışta beklenen arka plan işi: `bitti` kurulana kadar sürer."""
+
+    def __init__(self):
+        self.bitti = threading.Event()
+
+    def wait(self, timeout_ms):
+        return self.bitti.wait(timeout_ms / 1000)
+
+
+def _bekleyen_pencere(**isler):
+    """MainWindow'un bekleme yöntemlerini ödünç alan gerçek bir QWidget
+    (ilerleme kutusunun ebeveyni olabilsin diye)."""
+    from PyQt6.QtWidgets import QWidget
     from gui.main_window import MainWindow
 
-    beklenen = []
+    class _Pencere(QWidget):
+        _BG_WRITERS = MainWindow._BG_WRITERS
+        _wait_background_writers = MainWindow._wait_background_writers
+        _suren_arka_plan_isleri = getattr(
+            MainWindow, "_suren_arka_plan_isleri", None)
 
-    class _Runner:
-        def __init__(self, ad, sonuc):
-            self.ad, self.sonuc = ad, sonuc
+    p = _Pencere()
+    for ad, is_ in isler.items():
+        setattr(p, ad, is_)
+    return p
 
-        def wait(self, timeout_ms):
-            beklenen.append((self.ad, timeout_ms))
-            return self.sonuc
 
-    stub = SimpleNamespace(
-        _BG_WRITERS=MainWindow._BG_WRITERS,        # gerçek liste/süreler sınansın
-        _snapshot_runner=_Runner("snapshot", True),
-        _export_runner=_Runner("export", False),   # zaman aşımı: sadece uyarı
-    )
-    MainWindow._wait_background_writers(stub)
+def test_ARKA_PLAN_isi_yokken_hemen_donuyor(qapp):
+    p = _bekleyen_pencere()
+    t0 = time.monotonic()
+    p._wait_background_writers()
+    assert time.monotonic() - t0 < 1.0
+    assert QApplication.activeModalWidget() is None, "boşuna kutu açıldı"
 
-    assert [ad for ad, _ in beklenen] == ["snapshot", "export"]
-    sureler = dict(beklenen)
-    assert sureler["snapshot"] >= sureler["export"], \
-        "git commit dışa aktarmadan daha uzun tutulmalı"
 
-    # Yazıcı hiç oluşmamışsa (sürümleme/dışa aktarma kullanılmadı) sessiz geçer
-    MainWindow._wait_background_writers(
-        SimpleNamespace(_BG_WRITERS=MainWindow._BG_WRITERS))
+def test_BEKLERKEN_pencere_DONMUYOR_ve_is_bitince_donuyor(qapp):
+    """İş sürerken olay döngüsü dönmeli (zamanlayıcı ateşleniyor), iş
+    bitince bekleme kendiliğinden bitmeli."""
+    from PyQt6.QtCore import QTimer
+    is_ = _BitmeyenIs()
+    p = _bekleyen_pencere(_snapshot_runner=is_)
+    ates = []
+    QTimer.singleShot(200, lambda: ates.append(time.monotonic()))
+    QTimer.singleShot(600, is_.bitti.set)
+    guvenlik = threading.Timer(4.0, is_.bitti.set)   # eski kod asılı kalmasın
+    guvenlik.start()
+    try:
+        t0 = time.monotonic()
+        kalan = p._wait_background_writers()
+        donus = time.monotonic()
+    finally:
+        guvenlik.cancel()
+        is_.bitti.set()
+    assert ates and ates[0] < donus, \
+        "bekleme sırasında olay döngüsü dönmedi: pencere donuyor"
+    assert donus - t0 < 3.0, "iş bitince bekleme bitmedi"
+    assert not kalan
+
+
+def test_BEKLEMEDEN_KAPAT_dugmesi_bekleyisi_bitiriyor(qapp):
+    """Bitmeyen işte kullanıcı kutudaki düğmeyle çıkabilmeli; bitmeyen iş
+    dönüşte bildiriliyor (günlüğe de yazılıyor)."""
+    from PyQt6.QtCore import QTimer
+    is_ = _BitmeyenIs()
+    p = _bekleyen_pencere(_export_runner=is_)
+    guvenlik = threading.Timer(5.0, is_.bitti.set)
+    guvenlik.start()
+    basilan = []
+
+    def _dugmeye_bas():
+        from PyQt6.QtWidgets import QPushButton
+        kutu = QApplication.activeModalWidget()
+        dugme = kutu.findChild(QPushButton) if kutu is not None else None
+        if dugme is not None:
+            basilan.append(dugme.text())
+            dugme.click()                   # kullanıcı gibi: canceled yayılır
+        elif not is_.bitti.is_set():
+            QTimer.singleShot(50, _dugmeye_bas)
+
+    QTimer.singleShot(200, _dugmeye_bas)
+    try:
+        t0 = time.monotonic()
+        kalan = p._wait_background_writers()
+        sure = time.monotonic() - t0
+    finally:
+        guvenlik.cancel()
+        is_.bitti.set()
+    assert basilan, "ilerleme kutusu açılmadı"
+    assert sure < 3.0, "düğmeye basıldığı hâlde beklemeye devam etti"
+    assert kalan == ["_export_runner"]
+    assert QApplication.activeModalWidget() is None, "kutu açık kaldı"
+
+
+def test_KAYIT_sorusunda_IPTAL_edilince_arka_plan_BEKLENMIYOR(
+        ana_pencere, tmp_path, monkeypatch):
+    """Bekleme kayıt sorularından SONRA: kullanıcı vazgeçerse beklenmez
+    (eskiden en başta 15 sn donup sonra İptal'e izin veriyordu)."""
+    w = ana_pencere(karar="cancel")
+    yol = tmp_path / "kirli.tex"
+    yol.write_text("x\n", encoding="utf-8")
+    w._open_file_in_editor(str(yol))
+    w._current_editor().setText("degisti\n")
+    assert w._current_editor().isModified()
+    cagri = []
+    monkeypatch.setattr(w, "_wait_background_writers",
+                        lambda: cagri.append(1) or [])
+    assert w.close() is False, "kayıt sorusunda İptal kapanışı durdurmadı"
+    assert cagri == [], "vazgeçilen kapanışta arka plan işleri beklendi"
+    w._current_editor().setModified(False)
 
 
 # =====================================================================

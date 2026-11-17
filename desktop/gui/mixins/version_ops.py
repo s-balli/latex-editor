@@ -41,7 +41,16 @@ class _SnapshotRunner(QObject):
                 entry = versioning.snapshot(root, msg)
             except Exception as e:
                 _logger.error("Sürüm kaydı başarısız: %s", root, exc_info=True)
-                self.done.emit(False, str(e), None)
+                # Kilit hatası ham hâliyle "(yol, yol.lock)" demeti olarak
+                # görünüyordu. Bayat nesne kilidini çekirdek kendisi siliyor
+                # (versioning._bayat_kilidi_temizleyerek); buraya gelen kilit
+                # taze ya da index/ref kilidi, onu kullanıcı karar versin.
+                kilit = getattr(e, "lockfilename", None)
+                metin = (_("Depoda yarım kalmış bir işlemin kilidi var: {yol}. "
+                           "Başka bir git işlemi çalışmıyorsa bu dosyayı silip "
+                           "yeniden deneyin.").format(yol=os.fsdecode(kilit))
+                         if kilit else str(e))
+                self.done.emit(False, metin, None)
                 return
             # entry None = değişiklik yok (başarı, sürüm atlandı)
             self.done.emit(True, "", entry)

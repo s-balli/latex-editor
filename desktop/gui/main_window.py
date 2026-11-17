@@ -19,11 +19,11 @@ _ = lambda s: QCoreApplication.translate("MainWindow", s)
 
 import sys
 
-from PyQt6.QtCore import Qt, QEvent, QSettings, QSize, QTimer, QThread, pyqtSignal
+from PyQt6.QtCore import Qt, QEvent, QEventLoop, QSettings, QSize, QTimer, QThread, pyqtSignal
 from PyQt6.QtGui import QAction, QIcon, QKeySequence, QShortcut
 from PyQt6.QtWidgets import (
     QMainWindow, QSplitter, QTabWidget, QComboBox, QToolBar, QLabel, QMessageBox, QStatusBar,
-    QWidget, QApplication, QProgressBar, QVBoxLayout,
+    QWidget, QApplication, QProgressBar, QProgressDialog, QVBoxLayout,
 )
 
 from gui.editor import EditorWidget
@@ -1827,22 +1827,66 @@ class MainWindow(
     # _doi_runner diske YAZMIYOR (yalnız ağdan okuyup sinyal yayıyor) ama yine
     # de bekleniyor: 8 sn'lik zaman aşımıyla çalışan bir thread pencere yok
     # edilirken canlı kalırsa sinyali ölü bir nesneye ulaşır.
-    _BG_WRITERS = (("_snapshot_runner", 15000), ("_geri_yukleme_runner", 15000),
-                   ("_export_runner", 10000), ("_doi_runner", 9000))
+    _BG_WRITERS = ("_snapshot_runner", "_geri_yukleme_runner",
+                   "_export_runner", "_doi_runner")
 
-    def _wait_background_writers(self):
-        """Diske yazan daemon thread'lerin bitmesini bekle.
+    def _suren_arka_plan_isleri(self) -> list[str]:
+        """Henüz bitmemiş arka plan işlerinin öznitelik adları."""
+        return [ad for ad in self._BG_WRITERS
+                if getattr(self, ad, None) is not None
+                and not getattr(self, ad).wait(0)]
+
+    def _wait_background_writers(self) -> list[str]:
+        """Diske yazan daemon thread'lerin bitmesini PENCERE DONMADAN bekle.
 
         _SnapshotRunner / _ExportRunner düz daemon thread kullanır; bunlar
         yorumlayıcı çıkışında haber vermeden KESİLİR. git commit'in ya da
         pandoc çıktısının ortasında kesilmek yarım iş bırakır.
+
+        Eskiden her iş için sabit süre (sürüm alma 15 sn) ana thread'de
+        `join` ediliyordu: pencere o süre donuyor, süre dolunca iş yine
+        kesiliyordu. Yavaş klasörde sürüm alma 64-69 sn sürüyor
+        (version_ops'taki ölçüm) ve kesilen sürüm alma `.git/objects` içinde
+        kilit bırakıp sonraki her kaydı düşürüyordu (ölçüldü 2026-11-17).
+        Artık iş bitene kadar olay döngüsü dönen bir ilerleme kutusu
+        gösteriliyor; kullanıcı isterse "Beklemeden kapat" ile çıkıyor (o
+        durumda kalan nesne kilidini sonraki Ctrl+K kendisi temizliyor, bkz.
+        versioning._bayat_kilidi_temizleyerek). Dönüş: bitmeden bırakılan
+        işler. Testler: tests/test_ui_freezes.py.
         """
-        for attr, timeout_ms in self._BG_WRITERS:
-            runner = getattr(self, attr, None)
-            if runner is None:
-                continue
-            if not runner.wait(timeout_ms):
-                _logger.warning("Arka plan işi kapanışta bitmedi: %s", attr)
+        if not self._suren_arka_plan_isleri():
+            return []
+        kutu = QProgressDialog(
+            _("Arka planda süren iş (sürüm kaydı ya da dışa aktarma) "
+              "bitiriliyor..."),
+            _("Beklemeden kapat"), 0, 0, self)
+        kutu.setWindowTitle("LaTeX Editor")
+        kutu.setWindowModality(Qt.WindowModality.ApplicationModal)
+        kutu.setMinimumDuration(0)
+        kutu.setAutoClose(False)
+        kutu.setAutoReset(False)
+        dongu = QEventLoop()
+        yoklayici = QTimer(kutu)
+        yoklayici.setInterval(100)
+        # wasCanceled de yoklanıyor: `cancel()` (düğme dışı yol) `canceled`
+        # sinyalini yaymıyor.
+        yoklayici.timeout.connect(
+            lambda: dongu.quit() if (kutu.wasCanceled()
+                                     or not self._suren_arka_plan_isleri())
+            else None)
+        kutu.canceled.connect(dongu.quit)
+        kutu.show()
+        yoklayici.start()
+        # Kutu açılırken iş bitmiş olabilir: döngüye girmeden bir kez daha bak
+        if self._suren_arka_plan_isleri():
+            dongu.exec()
+        yoklayici.stop()
+        kutu.close()
+        kutu.deleteLater()
+        kalan = self._suren_arka_plan_isleri()
+        for ad in kalan:
+            _logger.warning("Arka plan işi beklenmeden kapatıldı: %s", ad)
+        return kalan
 
     def closeEvent(self, event):
         # Güncelleme kontrolü thread'i çalışıyorsa bekle. quit() işe yaramaz
@@ -1852,7 +1896,6 @@ class MainWindow(
         if self._update_thread and self._update_thread.isRunning():
             self._update_thread.quit()
             self._update_thread.wait(6000)
-        self._wait_background_writers()
         # Kirli sekme sorulurken `setCurrentIndex` ile o sekmeye GEÇİLİYOR;
         # döngü bitince `_save_state` aktif sekmeyi CARİ widget'tan okuyor ve
         # kullanıcının üzerinde çalıştığı sekme yerine EN SON SORULAN kirli
@@ -1889,6 +1932,10 @@ class MainWindow(
                 # Discard → devam et
         if 0 <= onceki_sekme < self._editor_tabs.count():
             self._editor_tabs.setCurrentIndex(onceki_sekme)
+        # Arka plan işleri kayıt sorularından SONRA bekleniyor: kullanıcı
+        # soruda vazgeçerse beklemenin anlamı yok (eskiden en başta 15 sn
+        # donup sonra İptal'e izin veriyordu).
+        self._wait_background_writers()
         # Süren derlemeyi durdur. Linux ve macOS'ta motor derle.sh'in alt
         # kabuğunun çocuğu; ağacı yalnız stop() öldürüyor, zaman aşımı da
         # uygulamayla ölüyor: pdflatex sahipsiz kalıyordu (2026-11-16,

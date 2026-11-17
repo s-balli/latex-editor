@@ -2625,6 +2625,16 @@ Some matches in the document may be unchanged; run the command again to continue
         <translation>Cannot open this file type: {name}</translation>
     </message>
     <message>
+        <location filename="../gui/main_window.py" line="1860" />
+        <source>Arka planda süren iş (sürüm kaydı ya da dışa aktarma) bitiriliyor...</source>
+        <translation>Finishing a background task (version snapshot or export)...</translation>
+    </message>
+    <message>
+        <location filename="../gui/main_window.py" line="1862" />
+        <source>Beklemeden kapat</source>
+        <translation>Close without waiting</translation>
+    </message>
+    <message>
         <location filename="../gui/mixins/yazim_ops.py" line="324" />
         <source>sözlük yükleniyor...</source>
         <translation>loading dictionary...</translation>
@@ -3829,7 +3839,12 @@ Restore them? (Restored content opens in a tab; the file on disk is NOT touched 
 </context><context>
     <name>VersionOpsMixin</name>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="171" />
+        <location filename="../gui/mixins/version_ops.py" line="49" />
+        <source>Depoda yarım kalmış bir işlemin kilidi var: {yol}. Başka bir git işlemi çalışmıyorsa bu dosyayı silip yeniden deneyin.</source>
+        <translation>The repository has a lock left by an interrupted operation: {yol}. If no other git operation is running, delete this file and try again.</translation>
+    </message>
+    <message>
+        <location filename="../gui/mixins/version_ops.py" line="180" />
         <source>Bu klasör, '{parent}' git deposunun içinde.
 
 Sürümleme burada İÇ İÇE bir depo (.git) oluşturur; üst depo bu klasörü tek bir girdi olarak görür ve içeriği izlenmez.</source>
@@ -3838,19 +3853,19 @@ Sürümleme burada İÇ İÇE bir depo (.git) oluşturur; üst depo bu klasörü
 Versioning will create a NESTED repository (.git) here; the parent repository will see this folder as a single entry and will not track its contents.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="500" />
-        <location filename="../gui/mixins/version_ops.py" line="455" />
-        <location filename="../gui/mixins/version_ops.py" line="177" />
+        <location filename="../gui/mixins/version_ops.py" line="509" />
+        <location filename="../gui/mixins/version_ops.py" line="464" />
+        <location filename="../gui/mixins/version_ops.py" line="186" />
         <source>Uzak bağlantılar: </source>
         <translation>Remotes: </translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="178" />
+        <location filename="../gui/mixins/version_ops.py" line="187" />
         <source>Bu depo bu editör tarafından oluşturulmamış.</source>
         <translation>This repository was not created by this editor.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="179" />
+        <location filename="../gui/mixins/version_ops.py" line="188" />
         <source>Bu klasör zaten bir git deposu.
 
 Sürümleme AYRI bir geçmiş tutmaz: kayıtlar mevcut deponuza, bulunduğunuz dala işlenir. 'Sürüm Geçmişi' sekmesindeki silme işlemleri de bu gerçek depoyu etkiler.
@@ -3863,108 +3878,108 @@ Versioning does not keep a SEPARATE history: snapshots are committed to your exi
 {nerede}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="187" />
+        <location filename="../gui/mixins/version_ops.py" line="196" />
         <source>Sürümleme: Mevcut Git Deposu</source>
         <translation>Versioning: Existing Git Repository</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="190" />
+        <location filename="../gui/mixins/version_ops.py" line="199" />
         <source>Anladım, Devam Et</source>
         <translation>I Understand, Continue</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="191" />
+        <location filename="../gui/mixins/version_ops.py" line="200" />
         <source>Vazgeç</source>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="195" />
+        <location filename="../gui/mixins/version_ops.py" line="204" />
         <source>Sürümleme iptal edildi</source>
         <translation>Versioning cancelled</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="333" />
-        <location filename="../gui/mixins/version_ops.py" line="274" />
-        <location filename="../gui/mixins/version_ops.py" line="207" />
+        <location filename="../gui/mixins/version_ops.py" line="342" />
+        <location filename="../gui/mixins/version_ops.py" line="283" />
+        <location filename="../gui/mixins/version_ops.py" line="216" />
         <source>Önce bir klasör açın</source>
         <translation>Open a folder first</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="211" />
+        <location filename="../gui/mixins/version_ops.py" line="220" />
         <source>Sürümleme için 'dulwich' paketi gerekli</source>
         <translation>Versioning requires the 'dulwich' package</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="608" />
-        <location filename="../gui/mixins/version_ops.py" line="549" />
-        <location filename="../gui/mixins/version_ops.py" line="381" />
-        <location filename="../gui/mixins/version_ops.py" line="221" />
+        <location filename="../gui/mixins/version_ops.py" line="617" />
+        <location filename="../gui/mixins/version_ops.py" line="558" />
+        <location filename="../gui/mixins/version_ops.py" line="390" />
+        <location filename="../gui/mixins/version_ops.py" line="230" />
         <source>Sürüm alınıyor; bitmesini bekleyin</source>
         <translation>A snapshot is in progress; wait for it to finish</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="241" />
-        <location filename="../gui/mixins/version_ops.py" line="237" />
+        <location filename="../gui/mixins/version_ops.py" line="250" />
+        <location filename="../gui/mixins/version_ops.py" line="246" />
         <source>Başlangıç sürümü</source>
         <translation>Initial snapshot</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="238" />
+        <location filename="../gui/mixins/version_ops.py" line="247" />
         <source>Sürümle</source>
         <translation>Snapshot</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="238" />
+        <location filename="../gui/mixins/version_ops.py" line="247" />
         <source>Sürüm adı:</source>
         <translation>Snapshot name:</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="241" />
+        <location filename="../gui/mixins/version_ops.py" line="250" />
         <source>Güncelleme</source>
         <translation>Update</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="245" />
+        <location filename="../gui/mixins/version_ops.py" line="254" />
         <source>Kayıt başarısız, sürümleme iptal</source>
         <translation>Save failed, snapshot cancelled</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="252" />
+        <location filename="../gui/mixins/version_ops.py" line="261" />
         <source>Sürüm alınıyor</source>
         <translation>Taking a snapshot</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="259" />
+        <location filename="../gui/mixins/version_ops.py" line="268" />
         <source>Sürüm kaydı başarısız</source>
         <translation>Snapshot failed</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="262" />
+        <location filename="../gui/mixins/version_ops.py" line="271" />
         <source>Değişiklik yok, sürüm atlandı</source>
         <translation>No changes, snapshot skipped</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="265" />
+        <location filename="../gui/mixins/version_ops.py" line="274" />
         <source>dosya</source>
         <translation>file(s)</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="265" />
+        <location filename="../gui/mixins/version_ops.py" line="274" />
         <source>Sürüm kaydedildi</source>
         <translation>Snapshot saved</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="293" />
+        <location filename="../gui/mixins/version_ops.py" line="302" />
         <source>Geçmiş okunamadı</source>
         <translation>History could not be read</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="327" />
+        <location filename="../gui/mixins/version_ops.py" line="336" />
         <source>Sürüm Geçmişi</source>
         <translation>Version History</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="328" />
+        <location filename="../gui/mixins/version_ops.py" line="337" />
         <source>İşlem tamamlanamadı:
 
 {e}</source>
@@ -3973,94 +3988,94 @@ Versioning does not keep a SEPARATE history: snapshots are committed to your exi
 {e}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="341" />
+        <location filename="../gui/mixins/version_ops.py" line="350" />
         <source>Açık dosya yok</source>
         <translation>No open file</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="398" />
+        <location filename="../gui/mixins/version_ops.py" line="407" />
         <source>Fark okunamadı</source>
         <translation>Could not read the diff</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="401" />
+        <location filename="../gui/mixins/version_ops.py" line="410" />
         <source>Bu sürümle arasında fark yok</source>
         <translation>No difference from this snapshot</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="406" />
+        <location filename="../gui/mixins/version_ops.py" line="415" />
         <source>Fark</source>
         <translation>Diff</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="625" />
-        <location filename="../gui/mixins/version_ops.py" line="436" />
+        <location filename="../gui/mixins/version_ops.py" line="634" />
+        <location filename="../gui/mixins/version_ops.py" line="445" />
         <source>Dosya bu sürümde bulunamadı</source>
         <translation>File not found in this snapshot</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="445" />
+        <location filename="../gui/mixins/version_ops.py" line="454" />
         <source>Bu sürümdeki içerik panoya kopyalandı</source>
         <translation>Content of this snapshot copied to clipboard</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="453" />
+        <location filename="../gui/mixins/version_ops.py" line="462" />
         <source>DİKKAT: Bu, editörün değil sizin git deponuz.</source>
         <translation>WARNING: This is your own git repository, not the editor's.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="461" />
+        <location filename="../gui/mixins/version_ops.py" line="470" />
         <source>Sürümü Sil</source>
         <translation>Delete Snapshot</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="462" />
+        <location filename="../gui/mixins/version_ops.py" line="471" />
         <source>En yeni sürüm geçmişten silinir; dosyalarınız değişmez. Devam?</source>
         <translation>The latest snapshot is removed from history; your files stay unchanged. Continue?</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="474" />
+        <location filename="../gui/mixins/version_ops.py" line="483" />
         <source>Silinemedi, tek sürüm kaldı ya da sürümleme kapalı</source>
         <translation>Could not delete, only one snapshot left, or versioning is off</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="476" />
+        <location filename="../gui/mixins/version_ops.py" line="485" />
         <source>En yeni sürüm silindi</source>
         <translation>Latest snapshot deleted</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="495" />
+        <location filename="../gui/mixins/version_ops.py" line="504" />
         <source>Bu klasördeki .git klasörü (yani SİZİN git deponuz) silinecek.</source>
         <translation>The .git folder in this folder (that is, YOUR git repository) will be deleted.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="497" />
+        <location filename="../gui/mixins/version_ops.py" line="506" />
         <source>Tüm dallar, etiketler ve uzak bağlantı ayarları gider; proje dosyalarınız yerinde kalır.</source>
         <translation>All branches, tags and remote settings go with it; your project files stay where they are.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="502" />
+        <location filename="../gui/mixins/version_ops.py" line="511" />
         <source>TÜM sürüm geçmişi silinecek (dosyalarınız silinmez).</source>
         <translation>The ENTIRE version history will be deleted (your files are not deleted).</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="503" />
+        <location filename="../gui/mixins/version_ops.py" line="512" />
         <source>Silinecek klasör: {yol}</source>
         <translation>Folder to delete: {yol}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="506" />
+        <location filename="../gui/mixins/version_ops.py" line="515" />
         <source>Devam etmek istediğinize emin misiniz?</source>
         <translation>Are you sure you want to continue?</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="525" />
-        <location filename="../gui/mixins/version_ops.py" line="508" />
+        <location filename="../gui/mixins/version_ops.py" line="534" />
+        <location filename="../gui/mixins/version_ops.py" line="517" />
         <source>Tüm Geçmişi Sil</source>
         <translation>Delete All History</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="526" />
+        <location filename="../gui/mixins/version_ops.py" line="535" />
         <source>Geçmiş silinemedi:
 
 {e}</source>
@@ -4069,47 +4084,47 @@ Versioning does not keep a SEPARATE history: snapshots are committed to your exi
 {e}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="529" />
+        <location filename="../gui/mixins/version_ops.py" line="538" />
         <source>Silinecek geçmiş yok</source>
         <translation>No history to delete</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="532" />
+        <location filename="../gui/mixins/version_ops.py" line="541" />
         <source>Tüm geçmiş silindi, yeni sürümlemede yeniden başlar</source>
         <translation>All history deleted, versioning starts fresh on the next snapshot</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="555" />
+        <location filename="../gui/mixins/version_ops.py" line="564" />
         <source>Kayıt başarısız, geri yükleme iptal</source>
         <translation>Save failed, restore cancelled</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="580" />
+        <location filename="../gui/mixins/version_ops.py" line="589" />
         <source>Şimdiki hâl sürüme alınıyor</source>
         <translation>Taking a snapshot of the current state</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="582" />
+        <location filename="../gui/mixins/version_ops.py" line="591" />
         <source>Geri yüklemeden önce: {f}</source>
         <translation>Before restore: {f}</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="592" />
+        <location filename="../gui/mixins/version_ops.py" line="601" />
         <source>Şimdiki hâl sürüme alınamadı, geri yükleme iptal</source>
         <translation>Could not snapshot the current state, restore cancelled</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="612" />
+        <location filename="../gui/mixins/version_ops.py" line="621" />
         <source>Sürümden Geri Yükle</source>
         <translation>Restore from Snapshot</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="613" />
+        <location filename="../gui/mixins/version_ops.py" line="622" />
         <source>{f} dosyası seçilen sürüme döndürülecek. Şimdiki hâli önce yeni bir sürüm olarak kaydedilir; geri dönmek isterseniz Sürüm Geçmişi'nde bulursunuz.</source>
         <translation>{f} will be reverted to the selected snapshot. Its current state is saved as a new snapshot first; you can find it in Version History if you want to go back.</translation>
     </message>
     <message>
-        <location filename="../gui/mixins/version_ops.py" line="646" />
+        <location filename="../gui/mixins/version_ops.py" line="655" />
         <source>Geri yüklendi</source>
         <translation>Restored</translation>
     </message>

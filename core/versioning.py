@@ -19,11 +19,13 @@ _logger = logging.getLogger("latex_editor.versioning")
 
 try:
     from dulwich import porcelain
+    from dulwich.file import FileLocked
     from dulwich.repo import Repo
     DULWICH_AVAILABLE = True
 except ImportError:  # pragma: no cover — uygulama dulwich'süz de AÇILMALI
     porcelain = None
     Repo = None
+    FileLocked = None
     DULWICH_AVAILABLE = False
 
 
@@ -214,6 +216,47 @@ def changed_files(root: str) -> set[str]:
     return _status_paths(porcelain.status(Repo(root), untracked_files="all"))
 
 
+# Bu yaştan eski nesne kilidi BAYAT sayılır. Tek bir nesnenin yazımı
+# milisaniyeler sürüyor; dakikalık kilidi tutan bir yazıcı yok.
+_BAYAT_KILIT_SN = 60
+
+
+def _bayat_kilidi_temizleyerek(repo, islem):
+    """`islem`i koş; bayat bir NESNE kilidine takılırsa onu silip yeniden dene.
+
+    Kapanışta yarıda kesilen sürüm alma (daemon thread yorumlayıcıyla
+    ölüyor) `.git/objects/xx/<sha>.lock` bırakıyor ve SONRAKİ HER sürüm alma
+    `FileLocked` ile düşüyordu; kilit elle silinene kadar sürüm alınamıyordu
+    (ölçüldü 2026-11-17, WSL: 1500 dosyalık klasörde sürüm alma 0,5 / 1 / 2 /
+    4. sn'de kesildi, dördünde de kilit kaldı ve sonraki kayıt düştü).
+
+    YALNIZ `objects/` altındaki kilit silinir: onu dulwich nesne yazarken
+    bırakıyor, git'in kendisi nesneleri `.lock` ile yazmıyor. `index.lock`
+    ve ref kilitleri (kullanıcının kendi git deposunda süren bir git
+    işleminin olabilir) olduğu gibi bırakılıp hata yukarı iletilir.
+    Testler: tests/test_versioning.py TestBayatKilit.
+    """
+    nesneler = os.path.normcase(os.path.abspath(
+        getattr(repo.object_store, "path", "") or ""))
+    for _deneme in range(20):
+        try:
+            return islem()
+        except FileLocked as e:
+            kilit = os.path.abspath(os.fsdecode(e.lockfilename))
+            try:
+                yas = time.time() - os.path.getmtime(kilit)
+            except OSError:
+                yas = 0
+            nesne_kilidi = (nesneler and os.path.dirname(os.path.dirname(
+                os.path.normcase(kilit))) == nesneler)
+            if not nesne_kilidi or yas < _BAYAT_KILIT_SN:
+                raise
+            os.remove(kilit)
+            _logger.warning("Yarıda kalmış sürüm kaydının kilidi silindi: %s "
+                            "(%d sn önce)", kilit, yas)
+    return islem()
+
+
 def snapshot(root: str, message: str) -> VersionEntry | None:
     """Tüm değişiklikleri tek kayda al (değişiklik yoksa None; boş kayıt atma).
 
@@ -240,9 +283,10 @@ def snapshot(root: str, message: str) -> VersionEntry | None:
     # kendisinden okunuyor, bkz. _commit_nfiles.
     if not _status_paths(porcelain.status(repo)):
         return None
-    porcelain.add(repo)
-    sha = porcelain.commit(repo, message=message.encode("utf-8"),
-                           author=_AUTHOR, committer=_AUTHOR, all=True)
+    _bayat_kilidi_temizleyerek(repo, lambda: porcelain.add(repo))
+    sha = _bayat_kilidi_temizleyerek(repo, lambda: porcelain.commit(
+        repo, message=message.encode("utf-8"),
+        author=_AUTHOR, committer=_AUTHOR, all=True))
     return VersionEntry(sha=sha.decode(), timestamp=int(time.time()),
                         message=message,
                         nfiles=_commit_nfiles(repo, repo[sha]))

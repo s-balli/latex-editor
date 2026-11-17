@@ -491,3 +491,70 @@ def test_CALISMA_AGACINDA_da_depo_goruluyor(tmp_path):
     # çalışma ağacını kopartırdı.
     assert V.drop_all(str(wt)) is False
     assert (wt / ".git").is_file()
+
+
+# --- yarıda kesilen sürüm almanın kilidi (2026-11-17) ---
+
+
+class TestBayatKilit:
+    """Kapanışta kesilen sürüm alma `.git/objects/xx/<sha>.lock` bırakıyor.
+
+    Ölçüldü (2026-11-17, WSL, 1500 dosyalık klasör): sürüm alma 0,5 / 1 / 2 /
+    4. sn'de kesildi; dördünde de nesne kilidi kaldı ve SONRAKİ HER sürüm
+    alma `FileLocked` ile düştü. Bayat nesne kilidi artık silinip kayıt
+    alınıyor; taze kilit ve `index.lock` olduğu gibi bırakılıyor.
+    """
+
+    @staticmethod
+    def _kilit(root, icerik: bytes, yas_sn: float):
+        import os
+        import time
+        from dulwich.objects import Blob
+        sha = Blob.from_string(icerik).id.decode()
+        dizin = root / ".git" / "objects" / sha[:2]
+        dizin.mkdir(exist_ok=True)
+        kilit = dizin / (sha[2:] + ".lock")
+        kilit.write_bytes(b"yarim yazilmis nesne")
+        t = time.time() - yas_sn
+        os.utime(kilit, (t, t))
+        return kilit
+
+    def _hazirla(self, root):
+        _mk(root)
+        V.init_repo(str(root))
+        assert V.snapshot(str(root), "ilk") is not None
+        icerik = b"yeni bolum\n"
+        (root / "yeni.tex").write_bytes(icerik)
+        return icerik
+
+    def test_BAYAT_nesne_kilidi_silinip_surum_aliniyor(self, tmp_path):
+        icerik = self._hazirla(tmp_path)
+        kilit = self._kilit(tmp_path, icerik, yas_sn=600)
+        entry = V.snapshot(str(tmp_path), "ikinci")
+        assert entry is not None, "değişiklik varken kayıt alınmadı"
+        assert not kilit.exists(), "bayat kilit silinmedi"
+        assert V.history(str(tmp_path))[0].message == "ikinci"
+        assert V.file_content(str(tmp_path), entry.sha, "yeni.tex") == "yeni bolum\n"
+
+    def test_TAZE_nesne_kilidine_dokunulmuyor(self, tmp_path):
+        """Kontrol kolu: yeni kilit süren bir yazıcının olabilir."""
+        from dulwich.file import FileLocked
+        icerik = self._hazirla(tmp_path)
+        kilit = self._kilit(tmp_path, icerik, yas_sn=5)
+        with pytest.raises(FileLocked):
+            V.snapshot(str(tmp_path), "ikinci")
+        assert kilit.exists()
+
+    def test_INDEX_kilidine_dokunulmuyor(self, tmp_path):
+        """index.lock kullanıcının kendi git işleminin olabilir: silinmez."""
+        import os
+        import time
+        from dulwich.file import FileLocked
+        self._hazirla(tmp_path)
+        kilit = tmp_path / ".git" / "index.lock"
+        kilit.write_bytes(b"")
+        t = time.time() - 600
+        os.utime(kilit, (t, t))
+        with pytest.raises(FileLocked):
+            V.snapshot(str(tmp_path), "ikinci")
+        assert kilit.exists()
