@@ -302,6 +302,13 @@ p { margin: 0 0 1em; }
 }
 .footer p { margin: 4px auto; }
 .footer-sub { font-size: .85rem; opacity: .8; }
+.footer-badges {
+  display: flex; flex-wrap: wrap; justify-content: center; align-items: center;
+  gap: 10px; margin-top: 14px; font-size: .85rem;
+}
+.footer-badges a { display: inline-flex; }
+.footer-badges img { display: block; width: auto; }
+.footer-badges a:hover { opacity: .85; }
 
 /* ===== Responsive ===== */
 @media (max-width: 880px) {
