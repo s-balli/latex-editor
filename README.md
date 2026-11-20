@@ -7,6 +7,7 @@
 
 [![LaTeX Editor | AlternativeTo](https://alternativeto.net/static/badges/badge-compact-color.svg)](https://alternativeto.net/software/latex-editor/about/?utm_source=badge&utm_medium=referral)
 [![AppImageHub](https://img.shields.io/badge/AppImageHub-LaTeX_Editor-1e88e5?logo=linux&logoColor=white)](https://appimage.github.io/LaTeX_Editor/)
+[![Mentioned in Awesome LaTeX](https://awesome.re/mentioned-badge.svg)](https://github.com/egeerardyn/awesome-LaTeX#latex-focused)
 
 > 🌐 **Landing page:** https://s-balli.github.io/latex-editor/
 
